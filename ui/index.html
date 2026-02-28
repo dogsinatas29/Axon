@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AXON: The Automated Software Factory</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body class="dark-mode">
+    <header>
+        <div class="logo">
+            <h1>AXON <span>v0.0.1</span></h1>
+        </div>
+        <div class="factory-status">
+            <span class="status-label">FACTORY STATUS:</span>
+            <span id="global-status" class="status-value running">RUNNING</span>
+        </div>
+        <div class="controls">
+            <button id="btn-pause" class="btn-control">PAUSE</button>
+            <button id="btn-resume" class="btn-control hidden">RESUME</button>
+        </div>
+    </header>
+
+    <main>
+        <section id="colosseum" class="panel">
+            <div class="panel-header">
+                <h2>🏟️ THE COLOSSEUM <span class="subtitle">Agent Threads</span></h2>
+                <div class="progress-bar-container">
+                    <div id="factory-progress" class="progress-bar" style="width: 0%"></div>
+                    <span id="progress-text">0% (0/0)</span>
+                </div>
+            </div>
+            <div id="thread-list" class="thread-grid">
+                <!-- Thread cards will be injected here -->
+                <div class="thread-card placeholder">
+                    <p>Waiting for agents to connect...</p>
+                </div>
+            </div>
+        </section>
+
+        <aside id="sidebar">
+            <section id="lounge" class="panel">
+                <div class="panel-header">
+                    <h2>🗨️ NOGARI LOUNGE <span class="subtitle">Agent Vibes</span></h2>
+                </div>
+                <div id="lounge-messages" class="message-list">
+                    <!-- Messages will be injected here -->
+                </div>
+                <div class="lounge-input">
+                    <input type="text" id="boss-msg" placeholder="Command your agents...">
+                    <button id="btn-send">SEND</button>
+                </div>
+            </section>
+
+            <section id="bug-report" class="panel">
+                <div class="panel-header">
+                    <h2>🚨 BUG REPOSITORY</h2>
+                </div>
+                <div id="bug-list" class="bug-list">
+                    <p class="empty-msg">No active bugs. Factory is clean.</p>
+                </div>
+            </section>
+        </aside>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>

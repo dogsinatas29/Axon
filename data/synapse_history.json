@@ -1,0 +1,1632 @@
+[
+  {
+    "id": "snap_1772322264036",
+    "timestamp": 1772322264036,
+    "label": "Auto Push (after drag)",
+    "data": {
+      "nodes": [
+        {
+          "id": "node_ARCHITECTURE_AXON_md",
+          "type": "documentation",
+          "status": "proposed",
+          "position": {
+            "x": -1500,
+            "y": 100
+          },
+          "data": {
+            "file": "ARCHITECTURE_AXON.md",
+            "label": "ARCHITECTURE_AXON.md",
+            "description": "ARCHITECTURE_AXON.md (Doc)",
+            "color": "#fabd2f",
+            "cluster_id": "doc_shelf",
+            "layer": 0,
+            "priority": 1,
+            "summary": {
+              "classes": [
+                "ARCHITECTURE_AXON: AXON Test Project",
+                "[SNR] 👴 Senior: Initializing from captured context.",
+                "SYNAPSE Architecture & Discovery Rules (설계 및 발견 규칙)",
+                "1. Node Inclusion Rules (노드 포함 규칙)",
+                "2. Exclusion & Refinement Rules (제외 및 정제 규칙)",
+                "3. Edge & Flow Definitions (엣지 및 흐름 정의)",
+                "Current Status"
+              ],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "doc_shelf"
+        },
+        {
+          "id": "node_Architecture_md",
+          "type": "documentation",
+          "status": "proposed",
+          "position": {
+            "x": -1300,
+            "y": 100
+          },
+          "data": {
+            "file": "Architecture.md",
+            "label": "Architecture.md",
+            "description": "Architecture.md (Doc)",
+            "color": "#fabd2f",
+            "cluster_id": "doc_shelf",
+            "layer": 0,
+            "priority": 1,
+            "summary": {
+              "classes": [
+                "AXON Architecture",
+                "[SNR] 👴 Claude-S: Initializing the factory...",
+                "Module: AXP_Protocol",
+                "[SNR] 👴 Claude-S: Updated architecture."
+              ],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "doc_shelf"
+        },
+        {
+          "id": "node_GEMINI_md",
+          "type": "documentation",
+          "status": "proposed",
+          "position": {
+            "x": -1100,
+            "y": 100
+          },
+          "data": {
+            "file": "GEMINI.md",
+            "label": "GEMINI.md",
+            "description": "GEMINI.md (Doc)",
+            "color": "#fabd2f",
+            "cluster_id": "doc_shelf",
+            "layer": 0,
+            "priority": 1,
+            "summary": {
+              "classes": [
+                "🎭 Interaction Rule: The Lounge",
+                "🎭 Interaction Rule: The Lounge",
+                "🎭 Interaction Rule: The Lounge",
+                "🗨️ AXON Lounge (실시간 노가리)",
+                "🗨️ AXON Lounge (실시간 노가리)",
+                "Module: AXP_Protocol - 4바이트 매직 넘버와 1바이트 타입 필드를 포함한 헤더 구조체를 설계하라."
+              ],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "doc_shelf"
+        },
+        {
+          "id": "node_RULES_md",
+          "type": "documentation",
+          "status": "proposed",
+          "position": {
+            "x": -900,
+            "y": 100
+          },
+          "data": {
+            "file": "RULES.md",
+            "label": "RULES.md",
+            "description": "RULES.md (Doc)",
+            "color": "#fabd2f",
+            "cluster_id": "doc_shelf",
+            "layer": 0,
+            "priority": 1,
+            "summary": {
+              "classes": [
+                "SYNAPSE Architecture & Discovery Rules (설계 및 발견 규칙)",
+                "1. Node Inclusion Rules (노드 포함 규칙)",
+                "2. Exclusion & Refinement Rules (제외 및 정제 규칙)",
+                "3. Edge & Flow Definitions (엣지 및 흐름 정의)"
+              ],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "doc_shelf"
+        },
+        {
+          "id": "node_junior_1_md",
+          "type": "documentation",
+          "status": "proposed",
+          "position": {
+            "x": -1500,
+            "y": 250
+          },
+          "data": {
+            "file": "junior_1.md",
+            "label": "junior_1.md",
+            "description": "junior_1.md (Doc)",
+            "color": "#fabd2f",
+            "cluster_id": "doc_shelf",
+            "layer": 0,
+            "priority": 1,
+            "summary": {
+              "classes": [
+                "🐣 Junior Coder Node 1"
+              ],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "doc_shelf"
+        },
+        {
+          "id": "node_junior_2_md",
+          "type": "documentation",
+          "status": "proposed",
+          "position": {
+            "x": -1300,
+            "y": 250
+          },
+          "data": {
+            "file": "junior_2.md",
+            "label": "junior_2.md",
+            "description": "junior_2.md (Doc)",
+            "color": "#fabd2f",
+            "cluster_id": "doc_shelf",
+            "layer": 0,
+            "priority": 1,
+            "summary": {
+              "classes": [
+                "🐣 Junior Coder Node 2"
+              ],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "doc_shelf"
+        },
+        {
+          "id": "node_junior_3_md",
+          "type": "documentation",
+          "status": "proposed",
+          "position": {
+            "x": -1100,
+            "y": 250
+          },
+          "data": {
+            "file": "junior_3.md",
+            "label": "junior_3.md",
+            "description": "junior_3.md (Doc)",
+            "color": "#fabd2f",
+            "cluster_id": "doc_shelf",
+            "layer": 0,
+            "priority": 1,
+            "summary": {
+              "classes": [
+                "🐣 Junior Coder Node 3"
+              ],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "doc_shelf"
+        },
+        {
+          "id": "node_senior_md",
+          "type": "documentation",
+          "status": "proposed",
+          "position": {
+            "x": -900,
+            "y": 250
+          },
+          "data": {
+            "file": "senior.md",
+            "label": "senior.md",
+            "description": "senior.md (Doc)",
+            "color": "#fabd2f",
+            "cluster_id": "doc_shelf",
+            "layer": 0,
+            "priority": 1,
+            "summary": {
+              "classes": [
+                "👴 Senior Engineer Node"
+              ],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "doc_shelf"
+        },
+        {
+          "id": "node_____md",
+          "type": "documentation",
+          "status": "proposed",
+          "position": {
+            "x": -1500,
+            "y": 400
+          },
+          "data": {
+            "file": "노가리.md",
+            "label": "노가리.md",
+            "description": "노가리.md (Doc)",
+            "color": "#fabd2f",
+            "cluster_id": "doc_shelf",
+            "layer": 0,
+            "priority": 1,
+            "summary": {
+              "classes": [
+                "🗨️ AXON Lounge (노가리.md)"
+              ],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "doc_shelf"
+        },
+        {
+          "id": "node_clap",
+          "type": "external",
+          "status": "proposed",
+          "position": {
+            "x": 2222.3038397328887,
+            "y": 1372.8102392877017
+          },
+          "data": {
+            "file": "clap",
+            "label": "[[ clap ]]",
+            "description": "External Library: clap",
+            "color": "#83a598",
+            "cluster_id": "cluster_external",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_external"
+        },
+        {
+          "id": "node_serde",
+          "type": "external",
+          "status": "proposed",
+          "position": {
+            "x": 2572.3038397328887,
+            "y": 1372.8102392877017
+          },
+          "data": {
+            "file": "serde",
+            "label": "[[ serde ]]",
+            "description": "External Library: serde",
+            "color": "#83a598",
+            "cluster_id": "cluster_external",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_external"
+        },
+        {
+          "id": "node_protocol",
+          "type": "external",
+          "status": "proposed",
+          "position": {
+            "x": 2922.3038397328887,
+            "y": 1372.8102392877017
+          },
+          "data": {
+            "file": "protocol",
+            "label": "[[ protocol ]]",
+            "description": "External Library: protocol",
+            "color": "#83a598",
+            "cluster_id": "cluster_external",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_external"
+        },
+        {
+          "id": "node_notify",
+          "type": "external",
+          "status": "proposed",
+          "position": {
+            "x": 2222.3038397328887,
+            "y": 1572.8102392877017
+          },
+          "data": {
+            "file": "notify",
+            "label": "[[ notify ]]",
+            "description": "External Library: notify",
+            "color": "#83a598",
+            "cluster_id": "cluster_external",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_external"
+        },
+        {
+          "id": "node_tokio",
+          "type": "external",
+          "status": "proposed",
+          "position": {
+            "x": 2572.3038397328887,
+            "y": 1572.8102392877017
+          },
+          "data": {
+            "file": "tokio",
+            "label": "[[ tokio ]]",
+            "description": "External Library: tokio",
+            "color": "#83a598",
+            "cluster_id": "cluster_external",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_external"
+        },
+        {
+          "id": "node_tracing",
+          "type": "external",
+          "status": "proposed",
+          "position": {
+            "x": 2922.3038397328887,
+            "y": 1572.8102392877017
+          },
+          "data": {
+            "file": "tracing",
+            "label": "[[ tracing ]]",
+            "description": "External Library: tracing",
+            "color": "#83a598",
+            "cluster_id": "cluster_external",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_external"
+        },
+        {
+          "id": "node_tracing_subscriber",
+          "type": "external",
+          "status": "proposed",
+          "position": {
+            "x": 2222.3038397328887,
+            "y": 1772.8102392877015
+          },
+          "data": {
+            "file": "tracing_subscriber",
+            "label": "[[ tracing_subscriber ]]",
+            "description": "External Library: tracing_subscriber",
+            "color": "#83a598",
+            "cluster_id": "cluster_external",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_external"
+        },
+        {
+          "id": "node_core",
+          "type": "external",
+          "status": "proposed",
+          "position": {
+            "x": 2572.3038397328887,
+            "y": 1772.8102392877015
+          },
+          "data": {
+            "file": "core",
+            "label": "[[ core ]]",
+            "description": "External Library: core",
+            "color": "#83a598",
+            "cluster_id": "cluster_external",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_external"
+        },
+        {
+          "id": "node_axum",
+          "type": "external",
+          "status": "proposed",
+          "position": {
+            "x": 2922.3038397328887,
+            "y": 1772.8102392877015
+          },
+          "data": {
+            "file": "axum",
+            "label": "[[ axum ]]",
+            "description": "External Library: axum",
+            "color": "#83a598",
+            "cluster_id": "cluster_external",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_external"
+        },
+        {
+          "id": "node_tower_http",
+          "type": "external",
+          "status": "proposed",
+          "position": {
+            "x": 2222.3038397328887,
+            "y": 1972.8102392877015
+          },
+          "data": {
+            "file": "tower_http",
+            "label": "[[ tower_http ]]",
+            "description": "External Library: tower_http",
+            "color": "#83a598",
+            "cluster_id": "cluster_external",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_external"
+        },
+        {
+          "id": "node_mile_stone_v0_1_0_md",
+          "type": "documentation",
+          "status": "proposed",
+          "position": {
+            "x": -1500,
+            "y": 100
+          },
+          "data": {
+            "file": "mile_stone/v0.1.0.md",
+            "label": "v0.1.0.md",
+            "description": "v0.1.0.md (Doc)",
+            "color": "#fabd2f",
+            "cluster_id": "doc_shelf",
+            "layer": 0,
+            "priority": 1,
+            "summary": {
+              "classes": [],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "doc_shelf"
+        },
+        {
+          "id": "node_mile_stone_____Milestone__AXON_Addons___Control___Isolation_md",
+          "type": "documentation",
+          "status": "proposed",
+          "position": {
+            "x": -1300,
+            "y": 100
+          },
+          "data": {
+            "file": "mile_stone/​🚀 Milestone: AXON_Addons - Control & Isolation.md",
+            "label": "​🚀 Milestone: AXON_Addons - Control & Isolation.md",
+            "description": "​🚀 Milestone: AXON_Addons - Control & Isolation.md (Doc)",
+            "color": "#fabd2f",
+            "cluster_id": "doc_shelf",
+            "layer": 0,
+            "priority": 1,
+            "summary": {
+              "classes": [
+                "🎭 Interaction Rule: The Lounge",
+                "🎭 Interaction Rule: The Lounge",
+                "🎭 Interaction Rule: The Lounge",
+                "🗨️ AXON Lounge (실시간 노가리)",
+                "🗨️ AXON Lounge (실시간 노가리)"
+              ],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "doc_shelf"
+        },
+        {
+          "id": "node_mile_stone__________0_0_1_______md",
+          "type": "documentation",
+          "status": "proposed",
+          "position": {
+            "x": -1100,
+            "y": 100
+          },
+          "data": {
+            "file": "mile_stone/버전은 무시하고 0.0.1로 통합할것.md",
+            "label": "버전은 무시하고 0.0.1로 통합할것.md",
+            "description": "버전은 무시하고 0.0.1로 통합할것.md (Doc)",
+            "color": "#fabd2f",
+            "cluster_id": "doc_shelf",
+            "layer": 0,
+            "priority": 1,
+            "summary": {
+              "classes": [
+                "🎭 Interaction Rule: The Lounge",
+                "🎭 Interaction Rule: The Lounge",
+                "🎭 Interaction Rule: The Lounge",
+                "🗨️ AXON Lounge (실시간 노가리)",
+                "🗨️ AXON Lounge (실시간 노가리)"
+              ],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "doc_shelf"
+        },
+        {
+          "id": "node_src_cli_rs",
+          "type": "source",
+          "status": "proposed",
+          "position": {
+            "x": 150.93489148580977,
+            "y": 389.72175848636624
+          },
+          "data": {
+            "file": "src/cli.rs",
+            "label": "cli.rs",
+            "description": "cli.rs (Auto-detected)",
+            "color": "#b8bb26",
+            "cluster_id": "cluster_src",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [
+                "Cli",
+                "Commands"
+              ],
+              "functions": [
+                "handle_init"
+              ],
+              "references": [
+                {
+                  "target": "config",
+                  "type": "dependency"
+                },
+                {
+                  "target": "clap",
+                  "type": "api_call"
+                }
+              ]
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_src"
+        },
+        {
+          "id": "node_src_config_rs",
+          "type": "source",
+          "status": "proposed",
+          "position": {
+            "x": 150.93489148580977,
+            "y": 539.7217584863662
+          },
+          "data": {
+            "file": "src/config.rs",
+            "label": "config.rs",
+            "description": "config.rs (Auto-detected)",
+            "color": "#b8bb26",
+            "cluster_id": "cluster_src",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [
+                "AxonConfig",
+                "AgentConfig"
+              ],
+              "functions": [
+                "default",
+                "load",
+                "save"
+              ],
+              "references": [
+                {
+                  "target": "serde",
+                  "type": "api_call"
+                }
+              ]
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_src"
+        },
+        {
+          "id": "node_src_main_rs",
+          "type": "source",
+          "status": "proposed",
+          "position": {
+            "x": 150.93489148580977,
+            "y": 239.7217584863662
+          },
+          "data": {
+            "file": "src/main.rs",
+            "label": "main.rs",
+            "description": "main.rs (Auto-detected)",
+            "color": "#b8bb26",
+            "cluster_id": "cluster_src",
+            "layer": 0,
+            "priority": 5,
+            "summary": {
+              "classes": [],
+              "functions": [
+                "main",
+                "run_factory"
+              ],
+              "references": [
+                {
+                  "target": "cli",
+                  "type": "dependency"
+                },
+                {
+                  "target": "clap",
+                  "type": "api_call"
+                },
+                {
+                  "target": "tracing",
+                  "type": "api_call"
+                },
+                {
+                  "target": "tracing_subscriber",
+                  "type": "api_call"
+                }
+              ]
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_src"
+        },
+        {
+          "id": "node_src_core_mod_rs",
+          "type": "source",
+          "status": "proposed",
+          "position": {
+            "x": 1150.9348914858094,
+            "y": 599.7217584863662
+          },
+          "data": {
+            "file": "src/core/mod.rs",
+            "label": "mod.rs",
+            "description": "mod.rs (Auto-detected)",
+            "color": "#b8bb26",
+            "cluster_id": "cluster_src_core",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [
+                "ThreadStatus",
+                "AgentThread",
+                "FactoryDaemon"
+              ],
+              "functions": [
+                "new",
+                "pause",
+                "resume",
+                "get_threads",
+                "start_watcher"
+              ],
+              "references": [
+                {
+                  "target": "protocol",
+                  "type": "dependency"
+                },
+                {
+                  "target": "notify",
+                  "type": "api_call"
+                },
+                {
+                  "target": "serde",
+                  "type": "api_call"
+                },
+                {
+                  "target": "tokio",
+                  "type": "api_call"
+                }
+              ]
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_src_core"
+        },
+        {
+          "id": "node_src_protocol_mod_rs",
+          "type": "source",
+          "status": "proposed",
+          "position": {
+            "x": 1150.9348914858094,
+            "y": 359.7217584863662
+          },
+          "data": {
+            "file": "src/protocol/mod.rs",
+            "label": "mod.rs",
+            "description": "mod.rs (Auto-detected)",
+            "color": "#b8bb26",
+            "cluster_id": "cluster_src_protocol",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [
+                "AxpHeader",
+                "PacketType",
+                "AxpPacket",
+                "From"
+              ],
+              "functions": [
+                "from",
+                "new",
+                "to_bytes",
+                "from_bytes"
+              ],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_src_protocol"
+        },
+        {
+          "id": "node_src_protocol_types_rs",
+          "type": "source",
+          "status": "proposed",
+          "position": {
+            "x": 800.9348914858094,
+            "y": 239.7217584863662
+          },
+          "data": {
+            "file": "src/protocol/types.rs",
+            "label": "types.rs",
+            "description": "types.rs (Auto-detected)",
+            "color": "#b8bb26",
+            "cluster_id": "cluster_src_protocol",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [],
+              "functions": [],
+              "references": []
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_src_protocol"
+        },
+        {
+          "id": "node_src_web_mod_rs",
+          "type": "source",
+          "status": "proposed",
+          "position": {
+            "x": 1150.9348914858094,
+            "y": 479.7217584863662
+          },
+          "data": {
+            "file": "src/web/mod.rs",
+            "label": "mod.rs",
+            "description": "mod.rs (Auto-detected)",
+            "color": "#b8bb26",
+            "cluster_id": "cluster_src_web",
+            "layer": 1,
+            "priority": 50,
+            "summary": {
+              "classes": [
+                "StatusResponse"
+              ],
+              "functions": [
+                "start_web_server",
+                "get_status",
+                "get_threads",
+                "pause_factory",
+                "resume_factory"
+              ],
+              "references": [
+                {
+                  "target": "core",
+                  "type": "dependency"
+                },
+                {
+                  "target": "axum",
+                  "type": "api_call"
+                },
+                {
+                  "target": "serde",
+                  "type": "api_call"
+                },
+                {
+                  "target": "tower_http",
+                  "type": "api_call"
+                }
+              ]
+            }
+          },
+          "visual": {
+            "opacity": 0.5,
+            "dashArray": "5,5"
+          },
+          "cluster_id": "cluster_src_web"
+        }
+      ],
+      "edges": [
+        {
+          "id": "edge_15",
+          "from": "node_src_cli_rs",
+          "to": "node_src_config_rs",
+          "type": "dependency",
+          "is_approved": false,
+          "visual": {
+            "thickness": 2,
+            "style": "solid",
+            "color": "#ebdbb2",
+            "animated": true
+          },
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_16",
+          "from": "node_src_cli_rs",
+          "to": "node_clap",
+          "type": "dependency",
+          "is_approved": false,
+          "visual": {
+            "thickness": 2,
+            "style": "solid",
+            "color": "#ebdbb2",
+            "animated": true
+          },
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_17",
+          "from": "node_src_config_rs",
+          "to": "node_serde",
+          "type": "dependency",
+          "is_approved": false,
+          "visual": {
+            "thickness": 2,
+            "style": "solid",
+            "color": "#ebdbb2",
+            "animated": true
+          },
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_18",
+          "from": "node_src_core_mod_rs",
+          "to": "node_protocol",
+          "type": "dependency",
+          "is_approved": false,
+          "visual": {
+            "thickness": 2,
+            "style": "solid",
+            "color": "#ebdbb2",
+            "animated": true
+          },
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_19",
+          "from": "node_src_core_mod_rs",
+          "to": "node_notify",
+          "type": "dependency",
+          "is_approved": false,
+          "visual": {
+            "thickness": 2,
+            "style": "solid",
+            "color": "#ebdbb2",
+            "animated": true
+          },
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_20",
+          "from": "node_src_core_mod_rs",
+          "to": "node_serde",
+          "type": "api_call",
+          "is_approved": false,
+          "visual": {
+            "thickness": 2,
+            "style": "solid",
+            "color": "#8ec07c",
+            "animated": true
+          },
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_21",
+          "from": "node_src_core_mod_rs",
+          "to": "node_tokio",
+          "type": "dependency",
+          "is_approved": false,
+          "visual": {
+            "thickness": 2,
+            "style": "solid",
+            "color": "#ebdbb2",
+            "animated": true
+          },
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_22",
+          "from": "node_src_main_rs",
+          "to": "node_src_cli_rs",
+          "type": "dependency",
+          "is_approved": false,
+          "visual": {
+            "thickness": 2,
+            "style": "solid",
+            "color": "#ebdbb2",
+            "animated": true
+          },
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_23",
+          "from": "node_src_main_rs",
+          "to": "node_clap",
+          "type": "api_call",
+          "is_approved": false,
+          "visual": {
+            "thickness": 2,
+            "style": "solid",
+            "color": "#8ec07c",
+            "animated": true
+          },
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_24",
+          "from": "node_src_main_rs",
+          "to": "node_tracing",
+          "type": "dependency",
+          "is_approved": false,
+          "visual": {
+            "thickness": 2,
+            "style": "solid",
+            "color": "#ebdbb2",
+            "animated": true
+          },
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_25",
+          "from": "node_src_main_rs",
+          "to": "node_tracing_subscriber",
+          "type": "dependency",
+          "is_approved": false,
+          "visual": {
+            "thickness": 2,
+            "style": "solid",
+            "color": "#ebdbb2",
+            "animated": true
+          },
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_26",
+          "from": "node_src_web_mod_rs",
+          "to": "node_core",
+          "type": "dependency",
+          "is_approved": false,
+          "visual": {
+            "thickness": 2,
+            "style": "solid",
+            "color": "#ebdbb2",
+            "animated": true
+          },
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_27",
+          "from": "node_src_web_mod_rs",
+          "to": "node_axum",
+          "type": "dependency",
+          "is_approved": false,
+          "visual": {
+            "thickness": 2,
+            "style": "solid",
+            "color": "#ebdbb2",
+            "animated": true
+          },
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_28",
+          "from": "node_src_web_mod_rs",
+          "to": "node_serde",
+          "type": "api_call",
+          "is_approved": false,
+          "visual": {
+            "thickness": 2,
+            "style": "solid",
+            "color": "#8ec07c",
+            "animated": true
+          },
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_29",
+          "from": "node_src_web_mod_rs",
+          "to": "node_tower_http",
+          "type": "dependency",
+          "is_approved": false,
+          "visual": {
+            "thickness": 2,
+            "style": "solid",
+            "color": "#ebdbb2",
+            "animated": true
+          },
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_auto_1772322253696_270",
+          "from": "node_src_cli_rs",
+          "to": "node_src_config_rs",
+          "type": "dependency",
+          "label": "ref",
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_auto_1772322253696_473",
+          "from": "node_src_cli_rs",
+          "to": "node_clap",
+          "type": "api_call",
+          "label": "api_call",
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_auto_1772322253696_301",
+          "from": "node_src_config_rs",
+          "to": "node_serde",
+          "type": "api_call",
+          "label": "api_call",
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_auto_1772322253696_621",
+          "from": "node_src_main_rs",
+          "to": "node_src_cli_rs",
+          "type": "dependency",
+          "label": "ref",
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_auto_1772322253696_654",
+          "from": "node_src_main_rs",
+          "to": "node_clap",
+          "type": "api_call",
+          "label": "api_call",
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_auto_1772322253696_923",
+          "from": "node_src_main_rs",
+          "to": "node_tracing",
+          "type": "api_call",
+          "label": "api_call",
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_auto_1772322253696_154",
+          "from": "node_src_main_rs",
+          "to": "node_tracing_subscriber",
+          "type": "api_call",
+          "label": "api_call",
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_auto_1772322253696_97",
+          "from": "node_src_core_mod_rs",
+          "to": "node_protocol",
+          "type": "dependency",
+          "label": "ref",
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_auto_1772322253696_861",
+          "from": "node_src_core_mod_rs",
+          "to": "node_notify",
+          "type": "api_call",
+          "label": "api_call",
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_auto_1772322253696_224",
+          "from": "node_src_core_mod_rs",
+          "to": "node_serde",
+          "type": "api_call",
+          "label": "api_call",
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_auto_1772322253696_9",
+          "from": "node_src_core_mod_rs",
+          "to": "node_tokio",
+          "type": "api_call",
+          "label": "api_call",
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_auto_1772322253696_136",
+          "from": "node_src_web_mod_rs",
+          "to": "node_core",
+          "type": "dependency",
+          "label": "ref",
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_auto_1772322253696_639",
+          "from": "node_src_web_mod_rs",
+          "to": "node_axum",
+          "type": "api_call",
+          "label": "api_call",
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_auto_1772322253696_547",
+          "from": "node_src_web_mod_rs",
+          "to": "node_serde",
+          "type": "api_call",
+          "label": "api_call",
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        },
+        {
+          "id": "edge_auto_1772322253696_932",
+          "from": "node_src_web_mod_rs",
+          "to": "node_tower_http",
+          "type": "api_call",
+          "label": "api_call",
+          "validation": {
+            "valid": true,
+            "reason": "Appropriate architectural relationship.",
+            "confidence": 0.95
+          },
+          "_validationReason": "Appropriate architectural relationship."
+        }
+      ],
+      "clusters": [
+        {
+          "id": "cluster_mile_stone",
+          "label": "mile_stone",
+          "collapsed": false,
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0
+          },
+          "children": []
+        },
+        {
+          "id": "cluster_src",
+          "label": "src",
+          "collapsed": false,
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0
+          },
+          "children": [
+            "node_src_cli_rs",
+            "node_src_config_rs",
+            "node_src_main_rs"
+          ],
+          "color": "#fe8019",
+          "_headerBounds": {
+            "x": 167.12854757929892,
+            "y": 162.73789649415698,
+            "width": 1189.9999999999995,
+            "height": 30
+          },
+          "_bodyHeight": 430
+        },
+        {
+          "id": "cluster_src_core",
+          "label": "core",
+          "collapsed": false,
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0
+          },
+          "children": [
+            "node_src_core_mod_rs"
+          ],
+          "parent_id": "cluster_src",
+          "color": "#ebdbb2",
+          "_headerBounds": {
+            "x": 1167.1285475792986,
+            "y": 192.73789649415698,
+            "width": 160,
+            "height": 30
+          },
+          "_bodyHeight": 100
+        },
+        {
+          "id": "cluster_src_protocol",
+          "label": "protocol",
+          "collapsed": false,
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0
+          },
+          "children": [
+            "node_src_protocol_mod_rs",
+            "node_src_protocol_types_rs"
+          ],
+          "parent_id": "cluster_src",
+          "color": "#fabd2f",
+          "_headerBounds": {
+            "x": 817.1285475792986,
+            "y": 192.73789649415698,
+            "width": 510,
+            "height": 30
+          },
+          "_bodyHeight": 100
+        },
+        {
+          "id": "cluster_src_web",
+          "label": "web",
+          "collapsed": false,
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0
+          },
+          "children": [
+            "node_src_web_mod_rs"
+          ],
+          "parent_id": "cluster_src",
+          "color": "#83a598",
+          "_headerBounds": {
+            "x": 1167.1285475792986,
+            "y": 192.73789649415698,
+            "width": 160,
+            "height": 30
+          },
+          "_bodyHeight": 100
+        },
+        {
+          "id": "doc_shelf",
+          "label": "📚 Documentation Shelf",
+          "collapsed": false,
+          "bounds": {
+            "x": -1600,
+            "y": -100,
+            "width": 900,
+            "height": 1200
+          },
+          "children": [
+            "node_ARCHITECTURE_AXON_md",
+            "node_Architecture_md",
+            "node_GEMINI_md",
+            "node_RULES_md",
+            "node_junior_1_md",
+            "node_junior_2_md",
+            "node_junior_3_md",
+            "node_senior_md",
+            "node_____md",
+            "node_mile_stone_v0_1_0_md",
+            "node_mile_stone_____Milestone__AXON_Addons___Control___Isolation_md",
+            "node_mile_stone__________0_0_1_______md"
+          ],
+          "color": "#d3869b",
+          "_headerBounds": {
+            "x": -1520,
+            "y": 50,
+            "width": 760,
+            "height": 30
+          },
+          "_bodyHeight": 400
+        },
+        {
+          "id": "cluster_external",
+          "label": "🌐 External Modules",
+          "collapsed": false,
+          "bounds": {
+            "x": 3000,
+            "y": 0,
+            "width": 1000,
+            "height": 1500
+          },
+          "children": [
+            "node_clap",
+            "node_serde",
+            "node_protocol",
+            "node_notify",
+            "node_tokio",
+            "node_tracing",
+            "node_tracing_subscriber",
+            "node_core",
+            "node_axum",
+            "node_tower_http"
+          ],
+          "color": "#fabd2f",
+          "_headerBounds": {
+            "x": 2202.3038397328887,
+            "y": 1322.8102392877017,
+            "width": 860,
+            "height": 30
+          },
+          "_bodyHeight": 699.9999999999998
+        }
+      ]
+    }
+  }
+]

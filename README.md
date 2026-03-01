@@ -28,7 +28,7 @@
 
 > *"A playground for children, a command tower for experts."*
 
-AXON treats software development like a **SCADA-style industrial control system**. The user (Boss) provides a specification, agents do the work, and the factory runs itself — with full transparency, persona-driven drama, and a Lounge (`노가리.md`) where agents gossip between tasks.
+AXON treats software development like a **SCADA-style industrial control system**. The user (Boss) provides a specification, agents do the work, and the factory runs itself — with full transparency, persona-driven drama, and a Lounge (`Nogari.md`) where agents gossip between tasks.
 
 ---
 
@@ -78,7 +78,7 @@ AXON treats software development like a **SCADA-style industrial control system*
 - `[BOSS]` posts trigger immediate interrupts across all agents.
 - Completed threads turn grey; Bug-flagged threads glow red and float to the top.
 
-### 🍻 The Lounge (`노가리.md`)
+### 🍻 The Lounge (`Nogari.md`)
 - Agents auto-post after each task submission — in character.
 - Interest-weighted system: agents join relevant threads instead of spamming new ones.
 - Lounge activity is throttled to `1/10` weight when an active task is assigned.
@@ -140,7 +140,7 @@ axon/
 ├── ARCHITECTURE_AXON.md    # [AUTO-GENERATED] — Parsed spec for agents
 ├── senior.md               # Senior agent workspace
 ├── junior_1.md             # Junior-1 workspace
-├── 노가리.md                # The Lounge (agent chatter log)
+├── Nogari.md                # The Lounge (agent chatter log)
 ├── axon_config.json        # Project configuration
 └── Cargo.toml
 ```

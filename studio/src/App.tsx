@@ -17,7 +17,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Activity, Pause, Play, Layout as LayoutIcon, Shield, MessageSquare } from 'lucide-react';
+import { Activity, Pause, Play, Layout as LayoutIcon, Shield, MessageSquare, Users, ClipboardList } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import ThreadCard from './components/ThreadCard';
 import ThreadDetail from './components/ThreadDetail';
@@ -34,7 +34,7 @@ const App: React.FC = () => {
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [activeChannel, setActiveChannel] = useState<'dashboard' | 'work' | 'boss' | 'nogari' | 'signals'>('dashboard');
+  const [activeChannel, setActiveChannel] = useState<'dashboard' | 'work' | 'office' | 'boss' | 'nogari' | 'signals'>('dashboard');
 
   const fetchThreads = async () => {
     try {
@@ -156,8 +156,15 @@ const App: React.FC = () => {
               className={`nav-item ${activeChannel === 'work' ? 'active' : ''}`}
               onClick={() => setActiveChannel('work')}
             >
-              <Activity size={18} />
-              <span>콜로세움 (Colosseum)</span>
+              <ClipboardList size={18} />
+              <span>작업 게시판 (Work Board)</span>
+            </button>
+            <button 
+              className={`nav-item ${activeChannel === 'office' ? 'active' : ''}`}
+              onClick={() => setActiveChannel('office')}
+            >
+              <Users size={18} />
+              <span>인사 관리 (Office)</span>
             </button>
             <button 
               className={`nav-item ${activeChannel === 'boss' ? 'active' : ''}`}
@@ -182,8 +189,6 @@ const App: React.FC = () => {
             </button>
           </nav>
         </section>
-
-        <Office agents={agents} setAgents={setAgents} />
       </div>
 
       <div className="main-content">
@@ -226,15 +231,17 @@ const App: React.FC = () => {
 
         {activeChannel === 'work' && (
           <section className="panel" style={{ flex: 1 }}>
-            <div className="panel-header">The Colosseum / {projectId}</div>
+            <div className="panel-header">Work Board / {projectId}</div>
             <div className="thread-grid" style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem', overflowY: 'auto' }}>
               {threads.map(thread => (
                 <ThreadCard key={thread.id} thread={thread} onClick={() => setSelectedThreadId(thread.id)} />
               ))}
-              {threads.length === 0 && <div className="empty-state">No active threads in the Colosseum...</div>}
+              {threads.length === 0 && <div className="empty-state">No active threads in the Work Board...</div>}
             </div>
           </section>
         )}
+
+        {activeChannel === 'office' && <Office agents={agents} setAgents={setAgents} />}
 
         {activeChannel === 'boss' && <BossBoard />}
         

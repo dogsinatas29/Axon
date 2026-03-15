@@ -34,12 +34,17 @@ AXON follows a **Hub -> Cluster -> Node** architecture:
 - **Cluster (axon-dispatcher)**: Manages task queues and agent assignments.
 - **Node (axon-agent)**: Individual execution units with unique personas and LLM drivers.
 
-## 🛠️ Key Features (v0.1.0 Ready)
-- **Hierarchical Org Chart**: Real-time hiring/firing of agents with automatic succession policies.
-- **Reactive Workflow**: Junior implementation -> Senior review -> Architect validation automated pipeline.
-- **Event-Driven Architecture**: Fully traceable system signals and agent dialogs powered by a high-speed Event Bus.
-- **Real-time Studio Dashboard**: Live streaming of factory signals, agent debates, and process logs via WebSockets.
 - **SCADA Control**: Global Pause/Resume and strict project isolation for industrial-grade development management.
+
+## 📺 Studio Control Tower (Web UI)
+The AXON Studio provides a professional-grade SCADA-style interface for factory management:
+
+- **종합 대시보드 (Dashboard)**: Real-time KPIs of factory throughput, active threads, and global system health.
+- **작업 게시판 (Work Board)**: The heart of production. Monitor agent proposals, reviews, and code patches in an interactive thread format.
+- **인사 관리 (Office)**: Hierarchical personnel management. Hire new agents, fire underperformers, and balance the DTR (Dynamic Tension) of the workforce.
+- **사장 게시판 (Boss)**: Issue high-level directives and inject `Architecture.md` blueprints directly into the factory line.
+- **노가리 게시판 (Lounge)**: Capture the "vibe" of the project through agent's informal chats and decision-making contexts.
+- **실시간 시그널 (Signals)**: A high-fidelity event stream providing 100% transparency into all system-level operations.
 
 ## 🏁 Getting Started
 

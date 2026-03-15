@@ -1,0 +1,13 @@
+[package]
+name = "axon-model"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axon-core = { path = "../axon-core" }
+tokio = { workspace = true }
+async-trait = "0.1"
+reqwest = { version = "0.12", features = ["json"] } # For API calls
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }

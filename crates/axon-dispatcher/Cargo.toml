@@ -1,0 +1,9 @@
+[package]
+name = "axon-dispatcher"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axon-core = { path = "../axon-core" }
+tokio = { workspace = true }
+tracing = { workspace = true }

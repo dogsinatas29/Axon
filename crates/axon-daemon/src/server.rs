@@ -1,0 +1,289 @@
+/*
+ * AXON - The Automated Software Factory
+ * Copyright (C) 2026 dogsinatas
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+use axum::{
+    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, Path, State},
+    response::{IntoResponse, Json},
+    routing::{get, post},
+    Router,
+};
+use futures_util::StreamExt;
+use tower_http::services::ServeDir;
+use tower_http::cors::{CorsLayer, Any};
+use std::net::SocketAddr;
+use std::sync::Arc;
+use crate::Daemon;
+use axon_core::{Task, TaskStatus};
+
+pub async fn start_server(daemon: Arc<Daemon>) -> Result<(), Box<dyn std::error::Error>> {
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    // Robust path resolution for Studio assets
+    let studio_path = if std::path::Path::new("studio/dist").exists() {
+        "studio/dist".to_string()
+    } else if std::path::Path::new("../../studio/dist").exists() {
+        "../../studio/dist".to_string()
+    } else {
+        tracing::warn!("studio/dist not found in expected locations. Static files may not be served.");
+        "studio/dist".to_string()
+    };
+
+    let app = Router::new()
+        .route("/ws", get(ws_handler))
+        .route("/api/threads", get(list_threads)) // Keep for backward compatibility or global view
+        .route("/api/project/:project_id/threads", get(list_threads_by_project))
+        .route("/api/threads/:id/posts", get(list_posts))
+        .route("/api/threads/:id/approve", post(approve_thread))
+        .route("/api/specs", post(submit_spec))
+        .route("/api/project/:project_id/specs", post(submit_spec_by_project))
+        .route("/api/tasks", get(list_tasks))
+        .route("/api/pause", post(pause_daemon))
+        .route("/api/resume", post(resume_daemon))
+        .route("/api/status", get(get_status))
+        .route("/api/agents", get(list_agents_api))
+        .nest_service("/", ServeDir::new(studio_path))
+        .layer(cors)
+        .with_state(daemon);
+
+    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    tracing::info!("Studio UI available at http://localhost:8080");
+    
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
+}
+
+async fn list_threads(
+    State(daemon): State<Arc<Daemon>>,
+) -> Json<Vec<axon_core::Thread>> {
+    let threads = daemon.storage.list_all_threads().unwrap_or_default();
+    Json(threads)
+}
+
+async fn list_threads_by_project(
+    Path(project_id): Path<String>,
+    State(daemon): State<Arc<Daemon>>,
+) -> Json<Vec<axon_core::Thread>> {
+    let threads = daemon.storage.list_all_threads().unwrap_or_default();
+    let filtered = threads.into_iter().filter(|t| t.project_id == project_id).collect();
+    Json(filtered)
+}
+
+async fn list_posts(
+    Path(id): Path<String>,
+    State(daemon): State<Arc<Daemon>>,
+) -> Json<Vec<axon_core::Post>> {
+    let posts = daemon.storage.list_posts_by_thread(&id).unwrap_or_default();
+    Json(posts)
+}
+
+async fn list_tasks(
+    State(_daemon): State<Arc<Daemon>>,
+) -> Json<Vec<Task>> {
+    // We need a list_all_tasks in Storage too. For now returning empty or mock.
+    // Let's assume list_runnable_threads for threads mapping as tasks in this POC.
+    Json(vec![])
+}
+
+#[derive(serde::Deserialize)]
+struct SpecSubmission {
+    content: String,
+}
+
+async fn submit_spec(
+    State(daemon): State<Arc<Daemon>>,
+    Json(submission): Json<SpecSubmission>,
+) -> impl IntoResponse {
+    submit_spec_internal(daemon, "default-project".to_string(), submission).await
+}
+
+async fn submit_spec_by_project(
+    Path(project_id): Path<String>,
+    State(daemon): State<Arc<Daemon>>,
+    Json(submission): Json<SpecSubmission>,
+) -> impl IntoResponse {
+    submit_spec_internal(daemon, project_id, submission).await
+}
+
+async fn submit_spec_internal(
+    daemon: Arc<Daemon>,
+    project_id: String,
+    submission: SpecSubmission,
+) -> impl IntoResponse {
+    tracing::info!("Received new spec submission for project: {}", project_id);
+    
+    // Simulate spec parsing into tasks using LLM
+    let prompt = format!(
+        "PARSE THIS SPEC INTO TASKS (JSON ARRAY with fields: title, description):\n\n{}",
+        submission.content
+    );
+
+    match daemon.model.generate(prompt).await {
+        Ok(tasks_json) => {
+            // Very basic parsing attempt
+            if let Ok(tasks_raw) = serde_json::from_str::<Vec<serde_json::Value>>(&tasks_json) {
+                for t in tasks_raw {
+                    let task = Task {
+                        id: uuid::Uuid::new_v4().to_string(),
+                        project_id: project_id.clone(),
+                        title: t["title"].as_str().unwrap_or("Untitled").into(),
+                        description: t["description"].as_str().unwrap_or("").into(),
+                        status: TaskStatus::Pending,
+                        created_at: chrono::Local::now(),
+                    };
+                    let _ = daemon.storage.save_task(&task);
+                    daemon.dispatcher.enqueue_task(task);
+                }
+                "Spec processed and tasks queued".into_response()
+            } else {
+                // Fallback: create a single task from the submission
+                let task = Task {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    project_id: project_id.clone(),
+                    title: "Parsed Task".into(),
+                    description: submission.content,
+                    status: TaskStatus::Pending,
+                    created_at: chrono::Local::now(),
+                };
+                let _ = daemon.storage.save_task(&task);
+                daemon.dispatcher.enqueue_task(task);
+                "Spec partially processed as a single task".into_response()
+            }
+        }
+        Err(e) => {
+            tracing::error!("LLM Error during spec parsing: {}", e);
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
+async fn approve_thread(
+    Path(id): Path<String>,
+    State(daemon): State<Arc<Daemon>>,
+) -> impl IntoResponse {
+    let runnable = daemon.storage.list_all_threads().unwrap_or_default();
+    if let Some(mut thread) = runnable.into_iter().find(|t| t.id == id) {
+        thread.status = axon_core::ThreadStatus::Completed;
+        let _ = daemon.storage.save_thread(&thread);
+        
+        // Lock-in architecture section
+        let _ = daemon.lock_in_architecture(&thread.title);
+
+        daemon.event_bus.publish(axon_core::Event {
+            id: uuid::Uuid::new_v4().to_string(),
+            thread_id: Some(id),
+            agent_id: None,
+            event_type: axon_core::EventType::ThreadStatusChanged,
+            content: "BOSS approved the thread.".to_string(),
+            timestamp: chrono::Local::now(),
+        });
+        
+        "Approved".into_response()
+    } else {
+        axum::http::StatusCode::NOT_FOUND.into_response()
+    }
+}
+
+async fn pause_daemon(
+    State(daemon): State<Arc<Daemon>>,
+) -> impl IntoResponse {
+    let _ = daemon.pause_tx.send(true);
+    daemon.event_bus.publish(axon_core::Event {
+        id: uuid::Uuid::new_v4().to_string(),
+        thread_id: None,
+        agent_id: None,
+        event_type: axon_core::EventType::SystemLog,
+        content: "Daemon PAUSED by BOSS".to_string(),
+        timestamp: chrono::Local::now(),
+    });
+    "Paused".into_response()
+}
+
+async fn resume_daemon(
+    State(daemon): State<Arc<Daemon>>,
+) -> impl IntoResponse {
+    let _ = daemon.pause_tx.send(false);
+    daemon.event_bus.publish(axon_core::Event {
+        id: uuid::Uuid::new_v4().to_string(),
+        thread_id: None,
+        agent_id: None,
+        event_type: axon_core::EventType::SystemLog,
+        content: "Daemon RESUMED by BOSS".to_string(),
+        timestamp: chrono::Local::now(),
+    });
+    "Resumed".into_response()
+}
+
+#[derive(serde::Serialize)]
+struct StatusResponse {
+    is_paused: bool,
+    active_threads: usize,
+}
+
+async fn get_status(
+    State(daemon): State<Arc<Daemon>>,
+) -> Json<StatusResponse> {
+    let is_paused = *daemon.pause_rx.borrow();
+    let threads = daemon.storage.list_runnable_threads().unwrap_or_default();
+    Json(StatusResponse {
+        is_paused,
+        active_threads: threads.len(),
+    })
+}
+
+async fn list_agents_api(
+    State(daemon): State<Arc<Daemon>>,
+) -> Json<Vec<axon_core::Agent>> {
+    let agents = daemon.storage.list_agents().unwrap_or_default();
+    Json(agents)
+}
+
+async fn ws_handler(
+    ws: WebSocketUpgrade,
+    State(daemon): State<Arc<Daemon>>,
+) -> impl IntoResponse {
+    ws.on_upgrade(|socket| handle_socket(socket, daemon))
+}
+
+async fn handle_socket(mut socket: WebSocket, daemon: Arc<Daemon>) {
+    tracing::info!("New WebSocket connection established");
+    let mut rx = daemon.event_bus.subscribe();
+
+    loop {
+        tokio::select! {
+            Ok(event) = rx.recv() => {
+                if let Ok(text) = serde_json::to_string(&event) {
+                    if socket.send(Message::Text(text)).await.is_err() {
+                        break;
+                    }
+                }
+            }
+            msg = socket.next() => {
+                match msg {
+                    Some(Ok(Message::Close(_))) | None => break,
+                    _ => {}
+                }
+            }
+        }
+    }
+    tracing::info!("WebSocket connection closed");
+}

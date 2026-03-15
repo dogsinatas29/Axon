@@ -1,8 +1,0 @@
-{
-  "project_name": "AXON Test Project",
-  "agents": {
-    "juniors": 3,
-    "use_default_persona": true
-  },
-  "humor_level": 0.5
-}

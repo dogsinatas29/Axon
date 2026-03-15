@@ -1,0 +1,12 @@
+[package]
+name = "axon-storage"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axon-core = { path = "../axon-core" }
+rusqlite = { version = "0.29", features = ["bundled"] }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }

@@ -34,12 +34,12 @@ AXON follows a **Hub -> Cluster -> Node** architecture:
 - **Cluster (axon-dispatcher)**: Manages task queues and agent assignments.
 - **Node (axon-agent)**: Individual execution units with unique personas and LLM drivers.
 
-## 🛠️ Features (v0.0.12)
-- **Real-time Control**: Global Pause/Resume functionality via `tokio::sync::watch`.
-- **Project Isolation**: Multi-project support with segregated storage and API routing.
-- **Persistence**: SQLite-backed storage for threads, tasks, posts, and events.
-- **Event-Driven**: Central event bus for reactive coordination and full traceability.
-- **Studio UI**: A web-based control panel for monitoring and management (under development).
+## 🛠️ Key Features (v0.1.0 Ready)
+- **Hierarchical Org Chart**: Real-time hiring/firing of agents with automatic succession policies.
+- **Reactive Workflow**: Junior implementation -> Senior review -> Architect validation automated pipeline.
+- **Event-Driven Architecture**: Fully traceable system signals and agent dialogs powered by a high-speed Event Bus.
+- **Real-time Studio Dashboard**: Live streaming of factory signals, agent debates, and process logs via WebSockets.
+- **SCADA Control**: Global Pause/Resume and strict project isolation for industrial-grade development management.
 
 ## 🏁 Getting Started
 
@@ -63,10 +63,11 @@ cargo run -p axon-daemon -- run
 ```
 
 ## 📅 Roadmap
-- [x] Core Orchestration Engine (v0.1.0 POC)
-- [x] Multi-Project Isolation & Control (v0.0.12)
-- [ ] Adversarial Persona Mode (Agent Debates)
-- [ ] Real-time UI Streaming (XTerm.js integration)
+- [x] Core Orchestration Engine (v0.1.0 Framework POC)
+- [x] Hierarchical Org Chart & Agent Succession (v0.1.0)
+- [x] Real-time UI Streaming & Event Dashboard (v0.1.0)
+- [ ] Adversarial Persona Mode (Forced Debates)
+- [ ] Automated Code Export & Documentation (Final Spec)
 
 ## 📜 License
 GPL-3.0 - See [LICENSE](LICENSE) for details.

@@ -2,7 +2,27 @@
 
 AXON is a high-performance, real-time agent orchestration system built in Rust. It functions as an **Agent Operating System**, transforming software development into an automated, multi-agent factory line.
 
-## 🚀 Key Philosophy
+[한국어 버전](./README.ko.md)
+
+## 🧠 Core Philosophy
+> **"A playground for children, a control tower for experts."**
+
+AXON treats software development as a **SCADA-style process control system**. The Boss (User) provides the blueprint (Architecture.md), and the agents handle the rest. Agents have distinct personalities (personas), debating, reconciling, and engaging in "Nogari" (idle chat) while completing the code.
+
+## ⚙️ How it Works
+```text
+[BOSS]  →  Architecture.md  →  [AXON Daemon]
+                                      │
+               ┌──────────────────────┼──────────────────────┐
+               ▼                      ▼                      ▼
+         [SNR] Senior           [JNR-1] Junior-A        [JNR-2] Junior-B
+        Review & Lock-in         Implementation          Implementation
+               │                      │                      │
+               └───────── Web Viewer (localhost:8080) ──────────┘
+                          [Boss monitors, intervenes, and locks-in]
+```
+
+## 🚀 Key Features
 - **Board as SSOT**: The development board is the single source of truth for all system states.
 - **Hierarchical Intelligence**: Agents are organized into roles (Architect, Senior, Junior) with distinct levels of authority and personas.
 - **Control & Isolation**: Granular control over execution (Pause/Resume) and strict isolation between multiple projects.

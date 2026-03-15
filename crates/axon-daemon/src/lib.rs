@@ -96,35 +96,90 @@ impl Daemon {
 
     async fn handle_assignment(&self, assignment: Assignment) -> anyhow::Result<()> {
         let mut task = assignment.task;
-        let agent_id = assignment.agent_id;
+        let junior_id = assignment.agent_id;
         
-        let runtime = axon_agent::AgentRuntime::new(
-            agent_id.clone(),
+        // 1. JUNIOR IMPLEMENTATION
+        let junior_runtime = axon_agent::AgentRuntime::new(
+            junior_id.clone(),
             axon_core::AgentRole::Junior,
             self.model.clone()
         );
 
-        match runtime.process_task(&task, &self.architecture_guide).await {
-            Ok(post) => {
-                task.status = TaskStatus::Completed;
-                let _ = self.storage.save_task(&task);
-                let _ = self.storage.save_post(&post);
-                
-                self.event_bus.publish(axon_core::Event {
-                    id: uuid::Uuid::new_v4().to_string(),
-                    thread_id: Some(task.id.clone()),
-                    agent_id: Some(agent_id),
-                    event_type: axon_core::EventType::TaskStatusChanged,
-                    content: format!("Task {} completed", task.id),
-                    timestamp: chrono::Local::now(),
-                });
-            }
-            Err(e) => {
-                tracing::error!("Task processing failed: {}", e);
-                task.status = TaskStatus::Failed;
-                let _ = self.storage.save_task(&task);
-            }
-        }
+        let proposal = junior_runtime.process_task(&task, &self.architecture_guide).await?;
+        let _ = self.storage.save_post(&proposal);
+        
+        self.event_bus.publish(axon_core::Event {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: task.project_id.clone(),
+            thread_id: Some(task.id.clone()),
+            agent_id: Some(junior_id.clone()),
+            event_type: axon_core::EventType::AgentResponse,
+            source: junior_id.clone(),
+            content: format!("Junior {} proposed a solution", junior_runtime.agent.name),
+            payload: None,
+            timestamp: chrono::Local::now(),
+        });
+
+        // 2. SENIOR REVIEW (Mocked selection or use existing senior)
+        let senior_runtime = axon_agent::AgentRuntime::new(
+            "senior-agent-1".to_string(),
+            axon_core::AgentRole::Senior,
+            self.model.clone()
+        );
+
+        let review = senior_runtime.review_proposal(&task, &proposal).await?;
+        let _ = self.storage.save_post(&review);
+
+        self.event_bus.publish(axon_core::Event {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: task.project_id.clone(),
+            thread_id: Some(task.id.clone()),
+            agent_id: Some(senior_runtime.agent.id.clone()),
+            event_type: axon_core::EventType::AgentAction,
+            source: senior_runtime.agent.id.clone(),
+            content: format!("Senior {} reviewed the proposal", senior_runtime.agent.name),
+            payload: None,
+            timestamp: chrono::Local::now(),
+        });
+
+        // 3. ARCHITECT VALIDATION
+        let architect_runtime = axon_agent::AgentRuntime::new(
+            "architect-agent-1".to_string(),
+            axon_core::AgentRole::Architect,
+            self.model.clone()
+        );
+
+        let validation = architect_runtime.validate_architecture(&task, &review, &self.architecture_guide).await?;
+        let _ = self.storage.save_post(&validation);
+
+        self.event_bus.publish(axon_core::Event {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: task.project_id.clone(),
+            thread_id: Some(task.id.clone()),
+            agent_id: Some(architect_runtime.agent.id.clone()),
+            event_type: axon_core::EventType::AgentAction,
+            source: architect_runtime.agent.id.clone(),
+            content: format!("Architect {} validated the proposal", architect_runtime.agent.name),
+            payload: None,
+            timestamp: chrono::Local::now(),
+        });
+
+        // 4. FINALIZE TASK
+        task.status = TaskStatus::Completed;
+        let _ = self.storage.save_task(&task);
+
+        self.event_bus.publish(axon_core::Event {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: task.project_id.clone(),
+            thread_id: Some(task.id.clone()),
+            agent_id: None,
+            event_type: axon_core::EventType::ThreadCompleted,
+            source: "daemon".to_string(),
+            content: format!("Task {} successfully passed all reviews", task.id),
+            payload: None,
+            timestamp: chrono::Local::now(),
+        });
+
         Ok(())
     }
 

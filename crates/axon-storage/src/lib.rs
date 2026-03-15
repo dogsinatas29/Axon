@@ -100,10 +100,13 @@ impl Storage {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS event_log (
                 id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
                 thread_id TEXT,
                 agent_id TEXT,
                 event_type TEXT NOT NULL,
+                source TEXT NOT NULL,
                 content TEXT NOT NULL,
+                payload TEXT,
                 created_at TEXT NOT NULL
             )",
             [],
@@ -167,14 +170,17 @@ impl Storage {
     pub fn save_event(&self, event: &axon_core::Event) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT INTO event_log (id, thread_id, agent_id, event_type, content, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO event_log (id, project_id, thread_id, agent_id, event_type, source, content, payload, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
                 event.id,
+                event.project_id,
                 event.thread_id,
                 event.agent_id,
                 format!("{:?}", event.event_type),
+                event.source,
                 event.content,
+                event.payload.as_ref().map(|p| p.to_string()),
                 event.timestamp.to_rfc3339(),
             ],
         )?;
@@ -289,5 +295,39 @@ impl Storage {
         )?;
         Ok(())
     }
+    pub fn delete_agent(&self, agent_id: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM agents WHERE id = ?1", params![agent_id])?;
+        Ok(())
+    }
+
+    pub fn reassign_agents_by_parent(&self, old_parent_id: &str, new_parent_id: Option<&str>) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE agents SET parent_id = ?1 WHERE parent_id = ?2",
+            params![new_parent_id, old_parent_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_all_tasks(&self) -> Result<Vec<axon_core::Task>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, created_at FROM tasks ORDER BY created_at DESC")?;
+        let task_iter = stmt.query_map([], |row| {
+            Ok(axon_core::Task {
+                id: row.get(0)?,
+                project_id: row.get(1)?,
+                title: row.get(2)?,
+                description: row.get(3)?,
+                status: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(4)?)).unwrap_or(axon_core::TaskStatus::Pending),
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(5)?).unwrap().with_timezone(&Local),
+            })
+        })?;
+
+        let mut tasks = Vec::new();
+        for task in task_iter {
+            tasks.push(task?);
+        }
+        Ok(tasks)
+    }
 }
-    // Additional methods for events, fetching tasks, etc. will be added later.

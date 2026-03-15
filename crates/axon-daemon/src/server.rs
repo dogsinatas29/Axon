@@ -59,6 +59,8 @@ pub async fn start_server(daemon: Arc<Daemon>) -> Result<(), Box<dyn std::error:
         .route("/api/resume", post(resume_daemon))
         .route("/api/status", get(get_status))
         .route("/api/agents", get(list_agents_api))
+        .route("/api/agents/hire", post(hire_agent))
+        .route("/api/agents/:id/fire", post(fire_agent))
         .nest_service("/", ServeDir::new(studio_path))
         .layer(cors)
         .with_state(daemon);
@@ -190,10 +192,13 @@ async fn approve_thread(
 
         daemon.event_bus.publish(axon_core::Event {
             id: uuid::Uuid::new_v4().to_string(),
+            project_id: thread.project_id.clone(),
             thread_id: Some(id),
             agent_id: None,
-            event_type: axon_core::EventType::ThreadStatusChanged,
+            event_type: axon_core::EventType::ApprovalGranted,
+            source: "BOSS".to_string(),
             content: "BOSS approved the thread.".to_string(),
+            payload: None,
             timestamp: chrono::Local::now(),
         });
         
@@ -209,10 +214,13 @@ async fn pause_daemon(
     let _ = daemon.pause_tx.send(true);
     daemon.event_bus.publish(axon_core::Event {
         id: uuid::Uuid::new_v4().to_string(),
+        project_id: "system".to_string(),
         thread_id: None,
         agent_id: None,
         event_type: axon_core::EventType::SystemLog,
+        source: "daemon".to_string(),
         content: "Daemon PAUSED by BOSS".to_string(),
+        payload: None,
         timestamp: chrono::Local::now(),
     });
     "Paused".into_response()
@@ -224,10 +232,13 @@ async fn resume_daemon(
     let _ = daemon.pause_tx.send(false);
     daemon.event_bus.publish(axon_core::Event {
         id: uuid::Uuid::new_v4().to_string(),
+        project_id: "system".to_string(),
         thread_id: None,
         agent_id: None,
         event_type: axon_core::EventType::SystemLog,
+        source: "daemon".to_string(),
         content: "Daemon RESUMED by BOSS".to_string(),
+        payload: None,
         timestamp: chrono::Local::now(),
     });
     "Resumed".into_response()
@@ -255,6 +266,72 @@ async fn list_agents_api(
 ) -> Json<Vec<axon_core::Agent>> {
     let agents = daemon.storage.list_agents().unwrap_or_default();
     Json(agents)
+}
+
+#[derive(serde::Deserialize)]
+struct HireRequest {
+    role: axon_core::AgentRole,
+    parent_id: Option<String>,
+}
+
+async fn hire_agent(
+    State(daemon): State<Arc<Daemon>>,
+    Json(req): Json<HireRequest>,
+) -> impl IntoResponse {
+    let agent_id = format!("agent-{}", uuid::Uuid::new_v4().to_string()[..8].to_string());
+    let mut runtime = axon_agent::AgentRuntime::new(
+        agent_id.clone(),
+        req.role,
+        daemon.model.clone(),
+    );
+    runtime.agent.parent_id = req.parent_id;
+    
+    let _ = daemon.storage.save_agent(&runtime.agent);
+    
+    daemon.event_bus.publish(axon_core::Event {
+        id: uuid::Uuid::new_v4().to_string(),
+        project_id: "system".to_string(),
+        thread_id: None,
+        agent_id: Some(agent_id.clone()),
+        event_type: axon_core::EventType::AgentAssigned,
+        source: "daemon".to_string(),
+        content: format!("New agent {} hired as {:?}", runtime.agent.name, runtime.agent.role),
+        payload: None,
+        timestamp: chrono::Local::now(),
+    });
+
+    Json(runtime.agent)
+}
+
+async fn fire_agent(
+    Path(id): Path<String>,
+    State(daemon): State<Arc<Daemon>>,
+) -> impl IntoResponse {
+    // Succession logic: Reassign children to the parent of the fired agent (or root)
+    let agents = daemon.storage.list_agents().unwrap_or_default();
+    let fired_agent = agents.iter().find(|a| a.id == id);
+    
+    if let Some(agent) = fired_agent {
+        let new_parent = agent.parent_id.clone();
+        let _ = daemon.storage.reassign_agents_by_parent(&id, new_parent.as_deref());
+        let _ = daemon.storage.delete_agent(&id);
+        
+        daemon.event_bus.publish(axon_core::Event {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: "system".to_string(),
+            thread_id: None,
+            agent_id: Some(id.clone()),
+            event_type: axon_core::EventType::SystemWarning,
+            source: "daemon".to_string(),
+            content: format!("Agent {} fired. Children reassigned.", agent.name),
+            payload: None,
+            timestamp: chrono::Local::now(),
+        });
+        
+        axum::http::StatusCode::OK.into_response()
+    } else {
+        axum::http::StatusCode::NOT_FOUND.into_response()
+    }
 }
 
 async fn ws_handler(

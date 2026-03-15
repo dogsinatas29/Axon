@@ -30,92 +30,11 @@ import { initSocket } from './api/socket';
 const App: React.FC = () => {
   const [projectId] = useState('AXON-FACTORY-01');
   const [isRunning, setIsRunning] = useState(true);
-  const [threads, setThreads] = useState<Thread[]>([
-    {
-      id: 'sample-1',
-      title: 'Studio UI Refactoring: Board-Driven Layout',
-      status: 'SeniorReview',
-      author: 'Junior-Gemini',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: 'sample-2',
-      title: 'Memory Optimization: Zero-Copy String Processing',
-      status: 'Working',
-      author: 'Junior-Claude',
-      created_at: new Date(Date.now() - 3600000).toISOString(),
-      updated_at: new Date(Date.now() - 3600000).toISOString()
-    },
-    {
-      id: 'sample-3',
-      title: 'Bug Fix: TCP Connection Interruption causing FD leak',
-      status: 'Approved',
-      author: 'Senior-GPT4',
-      created_at: new Date(Date.now() - 7200000).toISOString(),
-      updated_at: new Date(Date.now() - 7200000).toISOString()
-    }
-  ]);
+  const [threads, setThreads] = useState<Thread[]>([]);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
-  const [events, setEvents] = useState<Event[]>([
-    {
-      id: 'ev-1',
-      thread_id: 'sample-1',
-      event_type: 'ThreadStatusChanged',
-      content: 'Senior has started reviewing the Board-Driven layout changes.',
-      timestamp: new Date().toISOString()
-    },
-    {
-      id: 'ev-2',
-      thread_id: 'sample-2',
-      event_type: 'Signal',
-      content: 'Junior-Claude is applying Cow<str> optimizations to AXPacket parsing.',
-      timestamp: new Date(Date.now() - 600000).toISOString()
-    }
-  ]);
-  const [agents, setAgents] = useState<Agent[]>([
-    { 
-      id: 'architect-1', 
-      role: 'Architect', 
-      status: 'Thinking',
-      dtr: 0.5,
-      persona: { 
-        name: 'The Visionary', 
-        character_core: 'System Architect & Strategist',
-        prefixes: ['Prime'],
-        suffixes: ['the Wise'],
-        description: 'Oversees the entire factory logic.'
-      }
-    },
-    { 
-      id: 'senior-1', 
-      role: 'Senior', 
-      status: 'Thinking',
-      parent_id: 'architect-1',
-      dtr: 0.5,
-      persona: { 
-        name: 'Elder Logic', 
-        character_core: 'Principles-first Architect',
-        prefixes: ['Ancient'],
-        suffixes: ['of the Dawn'],
-        description: '...'
-      }
-    },
-    { 
-      id: 'junior-1', 
-      role: 'Junior', 
-      status: 'Working',
-      parent_id: 'senior-1',
-      dtr: 0.5,
-      persona: { 
-        name: 'Swift Code', 
-        character_core: 'Optimization Enthusiast',
-        prefixes: ['Fast'],
-        suffixes: ['the Unyielding'],
-        description: '...'
-      }
-    }
-  ]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [activeChannel, setActiveChannel] = useState<'dashboard' | 'work' | 'boss' | 'nogari' | 'signals'>('dashboard');
 
   const fetchThreads = async () => {
     try {
@@ -127,29 +46,67 @@ const App: React.FC = () => {
     }
   };
 
+  const fetchAgents = async () => {
+    try {
+      const res = await fetch('http://localhost:8080/api/agents');
+      const data = await res.json();
+      setAgents(data);
+    } catch (err) {
+      console.error('Failed to fetch agents', err);
+    }
+  };
+
+  const fetchStatus = async () => {
+    try {
+      const res = await fetch('http://localhost:8080/api/status');
+      const data = await res.json();
+      setIsRunning(!data.is_paused);
+    } catch (err) {
+      console.error('Failed to fetch status', err);
+    }
+  };
+
   useEffect(() => {
     fetchThreads();
-    const socket = initSocket('http://localhost:8080');
+    fetchAgents();
+    fetchStatus();
+    
+    const socket = initSocket('ws://localhost:8080/ws');
     
     socket.onEvent((ev: any) => {
-      // In AXON v0.0.2fix, the server sends raw Event objects over WS
       if (ev.event_type) {
         setEvents(prev => [ev as Event, ...prev].slice(0, 50));
         
-        // If thread state changed, refresh the board
-        if (ev.event_type === 'ThreadStatusChanged') {
+        if (ev.event_type === 'ThreadStatusChanged' || ev.event_type === 'ThreadCompleted') {
           fetchThreads();
+        }
+        if (ev.event_type === 'AgentAssigned' || ev.event_type === 'SystemWarning') {
+          fetchAgents();
         }
       }
     });
 
-    const interval = setInterval(fetchThreads, 5000);
+    const interval = setInterval(() => {
+        fetchThreads();
+        fetchAgents();
+        fetchStatus();
+    }, 5000);
 
     return () => {
       socket.disconnect();
       clearInterval(interval);
     };
   }, []);
+
+  const handleTogglePause = async () => {
+    try {
+        const endpoint = isRunning ? 'pause' : 'resume';
+        await fetch(`http://localhost:8080/api/${endpoint}`, { method: 'POST' });
+        setIsRunning(!isRunning);
+    } catch (err) {
+        console.error('Toggle pause failed', err);
+    }
+  };
 
   const handleApprove = async (id: string) => {
     try {
@@ -163,21 +120,19 @@ const App: React.FC = () => {
 
   const selectedThread = threads.find(t => t.id === selectedThreadId);
 
-  const [activeChannel, setActiveChannel] = useState<'dashboard' | 'work' | 'boss' | 'nogari' | 'signals'>('dashboard');
-
   return (
     <div className="dashboard">
       <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <Activity color={isRunning ? 'var(--status-running)' : 'var(--status-hold)'} className={isRunning ? 'animate-pulse' : ''} />
           <h1 style={{ fontFamily: 'Orbitron', fontSize: '1.2rem', letterSpacing: '2px' }}>
-            AXON <span style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>WORKSPACE: {projectId} / v0.0.3 [Framework POC]</span>
+            AXON <span style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>WORKSPACE: {projectId} / v0.1.0 [Control Tower]</span>
           </h1>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button 
             className="btn-control" 
-            onClick={() => setIsRunning(!isRunning)}
+            onClick={handleTogglePause}
             style={{ borderColor: isRunning ? 'var(--status-hold)' : 'var(--status-running)' }}
           >
             {isRunning ? <Pause size={16} /> : <Play size={16} />} 

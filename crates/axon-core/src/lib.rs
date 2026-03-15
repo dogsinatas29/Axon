@@ -112,25 +112,47 @@ impl Agent {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum EventType {
-    TaskCreated,
-    TaskAssigned,
-    TaskStatusChanged,
+    // Thread Events
     ThreadCreated,
-    ThreadStatusChanged,
+    ThreadAssigned,
+    ThreadStarted,
+    ThreadCompleted,
+    
+    // Message/Post Events
     PostAdded,
+    MessagePosted,
+    
+    // Artifact/Patch Events
     PatchCreated,
+    ArtifactCreated,
+    
+    // Approval Events
+    ApprovalRequested,
+    ApprovalGranted,
+    ApprovalRejected,
+    
+    // Agent Events
     AgentAction,
+    AgentAssigned,
+    AgentResponse,
+    
+    // System Events
     SystemLog,
     Signal,
+    QuotaExceeded,
+    SystemWarning,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Event {
     pub id: String,
+    pub project_id: String,
     pub thread_id: Option<String>,
     pub agent_id: Option<String>,
     pub event_type: EventType,
+    pub source: String, // e.g., "daemon", "agent_id", "dispatcher"
     pub content: String,
+    pub payload: Option<serde_json::Value>,
     pub timestamp: DateTime<Local>,
 }
 

@@ -44,33 +44,78 @@ impl AgentRuntime {
     }
 
     pub async fn process_task(&self, task: &Task, architecture_guide: &str) -> anyhow::Result<Post> {
-        tracing::info!("Agent {} processing task {}...", self.agent.id, task.id);
+        tracing::info!("Agent {} (Junior) processing task {}...", self.agent.id, task.id);
         
-        // Build the system prompt
         let system_prompt = format!(
-            "YOU ARE AN AI AGENT NAMED: {}\nROLE: {:?}\nPERSONA: {}\n\n--- ARCHITECTURE GUIDE ---\n{}\n\n--- CURRENT TASK ---\nTITLE: {}\nDESCRIPTION: {}\n\nPROPOSE A SOLUTION OR UPDATE.",
+            "YOU ARE AN AI JUNIOR AGENT NAMED: {}\nPERSONA: {}\n\n--- ARCHITECTURE GUIDE ---\n{}\n\n--- CURRENT TASK ---\nTITLE: {}\nDESCRIPTION: {}\n\nIMPLEMENT THIS TASK. PROVIDE CODE OR DETAILED PLAN.",
             self.agent.persona.name,
-            self.agent.role,
             self.agent.description(),
             architecture_guide,
             task.title,
             task.description
         );
 
-        // Generate response using LLM
         let content = self.model.generate(system_prompt).await
             .map_err(|e| anyhow::anyhow!("LLM Error: {}", e))?;
         
-        let post = Post {
+        Ok(Post {
             id: uuid::Uuid::new_v4().to_string(),
-            thread_id: task.id.clone(), // Using task ID as thread ID for simple mapping in v0.1
+            thread_id: task.id.clone(),
             author_id: self.agent.id.clone(),
             content,
             post_type: PostType::Proposal,
             created_at: chrono::Local::now(),
-        };
+        })
+    }
+
+    pub async fn review_proposal(&self, task: &Task, proposal: &Post) -> anyhow::Result<Post> {
+        tracing::info!("Agent {} (Senior) reviewing proposal for task {}...", self.agent.id, task.id);
         
-        Ok(post)
+        let system_prompt = format!(
+            "YOU ARE AN AI SENIOR AGENT NAMED: {}\nPERSONA: {}\n\n--- TASK ---\nTITLE: {}\nDESCRIPTION: {}\n\n--- PROPOSAL BY JUNIOR ---\n{}\n\nREVIEW THIS PROPOSAL. BE RIGOROUS. IF GOOD, SAY 'APPROVED'. IF NOT, PROVIDE FEEDBACK.",
+            self.agent.persona.name,
+            self.agent.description(),
+            task.title,
+            task.description,
+            proposal.content
+        );
+
+        let content = self.model.generate(system_prompt).await
+            .map_err(|e| anyhow::anyhow!("LLM Error: {}", e))?;
+        
+        Ok(Post {
+            id: uuid::Uuid::new_v4().to_string(),
+            thread_id: task.id.clone(),
+            author_id: self.agent.id.clone(),
+            content,
+            post_type: PostType::Review,
+            created_at: chrono::Local::now(),
+        })
+    }
+
+    pub async fn validate_architecture(&self, task: &Task, review: &Post, arch_guide: &str) -> anyhow::Result<Post> {
+        tracing::info!("Agent {} (Architect) validating architecture for task {}...", self.agent.id, task.id);
+        
+        let system_prompt = format!(
+            "YOU ARE THE CHIEF ARCHITECT NAMED: {}\nPERSONA: {}\n\n--- ARCHITECTURE GUIDE ---\n{}\n\n--- TASK ---\n{}\n\n--- SENIOR REVIEW ---\n{}\n\nVALIDATE IF THIS COMPLIES WITH SYSTEM PRINCIPLES. IF YES, SAY 'COMPLIANT'.",
+            self.agent.persona.name,
+            self.agent.description(),
+            arch_guide,
+            task.title,
+            review.content
+        );
+
+        let content = self.model.generate(system_prompt).await
+            .map_err(|e| anyhow::anyhow!("LLM Error: {}", e))?;
+        
+        Ok(Post {
+            id: uuid::Uuid::new_v4().to_string(),
+            thread_id: task.id.clone(),
+            author_id: self.agent.id.clone(),
+            content,
+            post_type: PostType::System,
+            created_at: chrono::Local::now(),
+        })
     }
 }
 

@@ -1,5 +1,23 @@
+/*
+ * AXON - The Automated Software Factory
+ * Copyright (C) 2026 dogsinatas
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 import React, { useState } from 'react';
-import { Users, Shield, User, Plus, Edit2, Move, Sliders, ChevronDown, ChevronRight } from 'lucide-react';
+import { Users, Shield, User, Plus, Move, Sliders, ChevronDown, ChevronRight, X } from 'lucide-react';
 import type { Agent, AgentRole } from '../types';
 
 interface OfficeProps {
@@ -8,7 +26,7 @@ interface OfficeProps {
 }
 
 const Office: React.FC<OfficeProps> = ({ agents, setAgents }) => {
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['architect-1', 'senior-1']));
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['architect-agent-1', 'senior-agent-1']));
 
   const toggleExpand = (id: string) => {
     const newExpanded = new Set(expandedNodes);
@@ -17,26 +35,34 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents }) => {
     setExpandedNodes(newExpanded);
   };
 
-  const updateDTR = (id: string, value: number) => {
-    setAgents(prev => prev.map(a => a.id === id ? { ...a, dtr: value } : a));
+  const hireAgent = async (parentId: string | null, role: AgentRole) => {
+    try {
+      const response = await fetch('http://localhost:8080/api/agents/hire', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role, parent_id: parentId }),
+      });
+      if (response.ok) {
+        const newAgent = await response.json();
+        setAgents(prev => [...prev, newAgent]);
+      }
+    } catch (err) {
+      console.error('Hiring failed', err);
+    }
   };
 
-  const addAgent = (parentId: string | null, role: AgentRole) => {
-    const newAgent: Agent = {
-      id: `agent-${Date.now()}`,
-      role,
-      parent_id: parentId || undefined,
-      status: 'Idle',
-      dtr: 0.5,
-      persona: {
-        name: 'New Agent',
-        character_core: 'Fresh Talent',
-        prefixes: [],
-        suffixes: [],
-        description: 'Just arrived at the factory.'
+  const fireAgent = async (id: string) => {
+    if (!window.confirm('Are you sure you want to fire this agent? Tasks will be reassigned.')) return;
+    try {
+      const response = await fetch(`http://localhost:8080/api/agents/${id}/fire`, {
+        method: 'POST',
+      });
+      if (response.ok) {
+        setAgents(prev => prev.filter(a => a.id !== id));
       }
-    };
-    setAgents(prev => [...prev, newAgent]);
+    } catch (err) {
+      console.error('Firing failed', err);
+    }
   };
 
   const renderAgentNode = (agent: Agent, level: number = 0) => {
@@ -79,9 +105,11 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents }) => {
 
           {/* Controls */}
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', marginLeft: '1.8rem', opacity: 0.6, fontSize: '0.7rem' }}>
-            <button className="btn-mini" title="Edit Persona"><Edit2 size={10} /></button>
+            <button className="btn-mini" title="Fire Agent (Reassign)" onClick={() => fireAgent(agent.id)}>
+              <X size={10} color="var(--status-hold)" />
+            </button>
             <button className="btn-mini" title="Move Agent"><Move size={10} /></button>
-            <button className="btn-mini" title="Add Sub-Agent" onClick={() => addAgent(agent.id, agent.role === 'Architect' ? 'Senior' : 'Junior')}>
+            <button className="btn-mini" title="Add Sub-Agent" onClick={() => hireAgent(agent.id, agent.role === 'Architect' ? 'Senior' : 'Junior')}>
               <Plus size={10} />
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginLeft: 'auto' }}>
@@ -89,7 +117,7 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents }) => {
               <input 
                 type="range" min="0" max="1" step="0.1" 
                 value={agent.dtr} 
-                onChange={(e) => updateDTR(agent.id, parseFloat(e.target.value))} 
+                readOnly
                 style={{ width: '40px', height: '4px' }}
               />
               <span style={{ fontSize: '0.6rem' }}>DTR: {agent.dtr}</span>
@@ -104,15 +132,15 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents }) => {
   const rootAgents = agents.filter(a => !a.parent_id);
 
   return (
-    <section className="panel" style={{ flex: 1, maxHeight: '600px' }}>
+    <section className="panel" style={{ flex: 1, maxHeight: '600px', display: 'flex', flexDirection: 'column' }}>
       <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <Users size={16} style={{ marginRight: '0.5rem' }} />
           The Office <span style={{ color: 'var(--text-dim)', marginLeft: '0.3rem' }}>/ Org Chart</span>
         </div>
-        <button className="btn-mini" onClick={() => addAgent(null, 'Architect')}><Plus size={12} /> BOSS-LEVEL</button>
+        <button className="btn-mini" onClick={() => hireAgent(null, 'Architect')}><Plus size={12} /> BOSS-LEVEL</button>
       </div>
-      <div style={{ padding: '1rem', overflowY: 'auto' }}>
+      <div style={{ padding: '1rem', overflowY: 'auto', flex: 1 }}>
         <div style={{ borderLeft: '2px solid rgba(255,255,255,0.05)', paddingLeft: '0.5rem' }}>
           <div style={{ marginBottom: '1rem', textAlign: 'center', opacity: 0.8 }}>
              <div style={{ display: 'inline-block', padding: '0.5rem 1rem', border: '1px solid var(--accent-secondary)', borderRadius: '4px', fontSize: '0.9rem', fontWeight: 'bold', background: 'rgba(112, 0, 255, 0.1)' }}>
@@ -123,7 +151,7 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents }) => {
           {rootAgents.map(agent => renderAgentNode(agent))}
           {agents.length === 0 && (
             <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.8rem', marginTop: '2rem' }}>
-              No hierarchy established.
+              No hierarchy established. Hire some agents!
             </div>
           )}
         </div>

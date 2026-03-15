@@ -43,24 +43,35 @@ AXON follows a **Hub -> Cluster -> Node** architecture:
 
 ## 🏁 Getting Started
 
-### Prerequisites
-- [Rust](https://www.rust-lang.org/) (latest stable)
-- SQLite
+### 1. Build Backend & Frontend
+AXON requires both the Rust daemon and the React Studio to be built.
 
-### Installation
 ```bash
-# Clone the repository
-git clone https://github.com/dogsinatas/axon.git
-cd axon
-
-# Build the project
+# Build Backend
 cargo build --release
+
+# Build Frontend (Studio UI)
+cd studio
+npm install
+npm run build
+cd ..
 ```
 
-### Running the Daemon
+### 2. Configuration
+Set your LLM API key. If not set, AXON runs in **Mock Mode** for simulation.
 ```bash
-cargo run -p axon-daemon -- run
+export GEMINI_API_KEY="your-google-api-key"
 ```
+
+### 3. Execution
+```bash
+# Run the daemon
+./target/release/axon-daemon run
+```
+Access the **AXON Studio** at `http://localhost:8080`.
+
+> [!TIP]
+> For advanced production setup (systemd, process management), please refer to [INSTALL.md](./INSTALL.md).
 
 ## 📅 Roadmap
 - [x] Core Orchestration Engine (v0.1.0 Framework POC)

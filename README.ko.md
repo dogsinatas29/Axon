@@ -41,26 +41,37 @@ AXON은 **Hub -> Cluster -> Node** 계층 구조를 따릅니다:
 - **실시간 Studio 대시보드**: WebSocket 기반의 팩토리 시그널, 에이전트 토론, 공정 로그 라이브 스트리밍.
 - **SCADA 관제 제어**: 전역 일시 정지/재개 및 산업용 레벨의 프로젝트 간 엄격한 격리 보장.
 
-## 🏁 시작하기
+## 🏁 시작하기 (Getting Started)
 
-### 사전 요구사항
-- [Rust](https://www.rust-lang.org/) (최신 안정 버전)
-- SQLite
+### 1. 백엔드 및 프론트엔드 빌드
+AXON 가동을 위해 Rust 데몬과 React 스튜디오를 모두 빌드해야 합니다.
 
-### 설치
 ```bash
-# 저장소 클론
-git clone https://github.com/dogsinatas/axon.git
-cd axon
-
-# 프로젝트 빌드
+# 백엔드 빌드
 cargo build --release
+
+# 프론트엔드 빌드 (Studio UI)
+cd studio
+npm install
+npm run build
+cd ..
 ```
 
-### 데몬 실행
+### 2. 환경 설정
+에이전트가 가동될 수 있도록 LLM API 키를 설정합니다. 키가 없으면 **Mock 모드**로 시뮬레이션 가동됩니다.
 ```bash
-cargo run -p axon-daemon -- run
+export GEMINI_API_KEY="자신의-구글-API-키"
 ```
+
+### 3. 실행
+```bash
+# 데몬 실행
+./target/release/axon-daemon run
+```
+브라우저에서 **`http://localhost:8080`**에 접속하여 관제 타워를 확인하세요.
+
+> [!TIP]
+> 서비스 자동 실행(systemd) 등 고급 설치 방법은 [INSTALL.md](./INSTALL.md)를 참조하세요.
 
 ## 📅 로드맵
 - [x] 코어 오케스트레이션 엔진 (v0.1.0 Framework POC)

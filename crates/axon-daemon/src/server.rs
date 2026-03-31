@@ -139,7 +139,7 @@ async fn submit_spec_internal(
         submission.content
     );
 
-    match daemon.model.generate(prompt).await {
+    match daemon.architect_model.generate(prompt).await {
         Ok(tasks_json) => {
             // Very basic parsing attempt
             if let Ok(tasks_raw) = serde_json::from_str::<Vec<serde_json::Value>>(&tasks_json) {
@@ -279,10 +279,16 @@ async fn hire_agent(
     Json(req): Json<HireRequest>,
 ) -> impl IntoResponse {
     let agent_id = format!("agent-{}", uuid::Uuid::new_v4().to_string()[..8].to_string());
+    let model = match req.role {
+        axon_core::AgentRole::Architect => daemon.architect_model.clone(),
+        axon_core::AgentRole::Senior => daemon.senior_model.clone(),
+        axon_core::AgentRole::Junior => daemon.junior_model.clone(),
+    };
+
     let mut runtime = axon_agent::AgentRuntime::new(
         agent_id.clone(),
         req.role,
-        daemon.model.clone(),
+        model,
     );
     runtime.agent.parent_id = req.parent_id;
     

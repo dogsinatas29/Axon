@@ -22,6 +22,8 @@ use axon_daemon::Daemon;
 use cli::{Cli, Commands};
 use clap::Parser;
 use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -37,12 +39,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tracing::info!("Reading blueprint from: {}", path);
             let content = std::fs::read_to_string(&path)?;
             
-            let (worker_tx, _) = tokio::sync::mpsc::channel(1); // Dummy for Read
+            let (worker_tx, _) = tokio::sync::mpsc::channel(1);
             let storage = Arc::new(axon_storage::Storage::new("axon.db")?);
-            let model = Arc::new(axon_model::MockDriver);
+            let mock_model: Arc<dyn axon_model::ModelDriver + Send + Sync> = Arc::new(axon_model::MockDriver);
             let daemon = Daemon::new(
                 storage, 
-                model, 
+                mock_model.clone(), // Architect
+                mock_model.clone(), // Senior
+                mock_model.clone(), // Junior
                 worker_tx, 
                 "Standard AXON Protocol".to_string()
             );
@@ -67,21 +71,115 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::Run => {
+            use std::io::{self, Write};
+
+            println!("\n🏭 AXON: Intelligence Factory Bootstrapping Phase 1\n");
+
+            // 1. Discover Models
+            let mut available_models = Vec::new();
+            if let Ok(key) = std::env::var("GEMINI_API_KEY") {
+                available_models.push(("Gemini", key));
+            }
+            if let Ok(key) = std::env::var("CLAUDE_API_KEY") {
+                available_models.push(("Claude", key));
+            }
+            if let Ok(key) = std::env::var("OPEN_AI_KEY") {
+                available_models.push(("ChatGPT", key));
+            }
+
+            if available_models.is_empty() {
+                println!("⚠️ No API keys detected in environment variables.");
+                println!("AXON will run in MOCK mode (Simulation Only).\n");
+            } else {
+                println!("🔍 Discovered Intelligence:");
+                for (i, (name, _)) in available_models.iter().enumerate() {
+                    println!("  {}. {}", i + 1, name);
+                }
+                println!("  L. LocalAI (Custom Endpoint)\n");
+            }
+
+            // Helper to get user input
+            let prompt = |msg: &str| -> String {
+                print!("{}", msg);
+                io::stdout().flush().unwrap();
+                let mut input = String::new();
+                io::stdin().read_line(&mut input).unwrap();
+                input.trim().to_string()
+            };
+
+            // 2. HR Assignment
+            println!("--- [HR Market: Role Assignment] ---");
+            let arch_val = prompt("Select Architect (CTO - Fixed: 1): ");
+            
+            let senior_count_val = prompt("How many Seniors (Teams) to hire? (0-10): ");
+            let senior_model_val = prompt("Select Model for Seniors (index or L): ");
+            
+            let junior_count_val = prompt("How many Juniors (Workers) to hire? (0-100): ");
+            let junior_model_val = prompt("Select Model for Juniors (index or L): ");
+
+            // 3. Spec Declaration
+            println!("\n--- [Spec Marketplace] ---");
+            let spec_path = prompt("Enter the Specification file path (e.g., TEST/mile_stone/v0.0.1.md): ");
+
+            println!("\n✅ Configuration complete!");
+            println!("   - Architect: [Selection {}]", arch_val);
+            println!("   - Seniors: {} [Model: {}]", senior_count_val, senior_model_val);
+            println!("   - Juniors: {} [Model: {}]", junior_count_val, junior_model_val);
+            println!("   - Target Spec: {}\n", spec_path);
+
+            thread::sleep(Duration::from_millis(800));
+            println!("🚀 Activating AXON Core... Opening localhost:8080\n");
+
+            // Actual Execution
             let storage = Arc::new(axon_storage::Storage::new("axon.db").expect("Failed to open DB"));
             let (worker_tx, worker_rx) = tokio::sync::mpsc::channel(100);
-            let model = Arc::new(axon_model::MockDriver);
+            
+            // Model Resolver Helper
+            let resolve_model = |val: &str, models: &Vec<(&str, String)>| -> Arc<dyn axon_model::ModelDriver + Send + Sync> {
+                if let Ok(idx) = val.parse::<usize>() {
+                    if idx > 0 && idx <= models.len() {
+                        let (_, key) = &models[idx - 1];
+                        return Arc::new(axon_model::GeminiDriver::new(key.clone()));
+                    }
+                }
+                Arc::new(axon_model::MockDriver)
+            };
+
+            let architect_model = resolve_model(&arch_val, &available_models);
+            let senior_model = resolve_model(&senior_model_val, &available_models);
+            let junior_model = resolve_model(&junior_model_val, &available_models);
+
             let daemon = Arc::new(Daemon::new(
                 storage, 
-                model, 
+                architect_model,
+                senior_model,
+                junior_model,
                 worker_tx, 
                 "Standard AXON Protocol".to_string()
             ));
+
             let daemon_clone = daemon.clone();
             tokio::spawn(async move {
                 if let Err(e) = axon_daemon::server::start_server(daemon_clone).await {
                     tracing::error!("Server error: {}", e);
                 }
             });
+
+            // Start the production loop
+            let daemon_bootstrap = daemon.clone();
+            if !spec_path.is_empty() {
+                if std::path::Path::new(&spec_path).exists() {
+                    let spec_content = std::fs::read_to_string(&spec_path).expect("Failed to read spec file");
+                    tokio::spawn(async move {
+                        if let Err(e) = daemon_bootstrap.bootstrap_from_spec(spec_content).await {
+                            tracing::error!("Bootstrapping failed: {}", e);
+                        }
+                    });
+                } else {
+                    tracing::warn!("Spec file '{}' not found. Skipping initial bootstrapping.", spec_path);
+                }
+            }
+
             daemon.run(worker_rx).await?;
         }
         Commands::Status => {

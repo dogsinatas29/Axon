@@ -66,11 +66,15 @@ impl Storage {
                 thread_id TEXT NOT NULL,
                 author_id TEXT NOT NULL,
                 content TEXT NOT NULL,
+                full_code TEXT,
                 post_type TEXT NOT NULL,
                 created_at TEXT NOT NULL
             )",
             [],
         )?;
+
+        // Migration: Add full_code if it doesn't exist
+        let _ = conn.execute("ALTER TABLE posts ADD COLUMN full_code TEXT", []);
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS agents (
@@ -153,13 +157,14 @@ impl Storage {
     pub fn save_post(&self, post: &axon_core::Post) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT OR REPLACE INTO posts (id, thread_id, author_id, content, post_type, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT OR REPLACE INTO posts (id, thread_id, author_id, content, full_code, post_type, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 post.id,
                 post.thread_id,
                 post.author_id,
                 post.content,
+                post.full_code,
                 format!("{:?}", post.post_type),
                 post.created_at.to_rfc3339(),
             ],
@@ -235,15 +240,16 @@ impl Storage {
 
     pub fn list_posts_by_thread(&self, thread_id: &str) -> Result<Vec<axon_core::Post>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, thread_id, author_id, content, post_type, created_at FROM posts WHERE thread_id = ?1 ORDER BY created_at ASC")?;
+        let mut stmt = conn.prepare("SELECT id, thread_id, author_id, content, full_code, post_type, created_at FROM posts WHERE thread_id = ?1 ORDER BY created_at ASC")?;
         let post_iter = stmt.query_map(params![thread_id], |row| {
             Ok(axon_core::Post {
                 id: row.get(0)?,
                 thread_id: row.get(1)?,
                 author_id: row.get(2)?,
                 content: row.get(3)?,
-                post_type: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(4)?)).unwrap_or(axon_core::PostType::System),
-                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(5)?).unwrap().with_timezone(&Local),
+                full_code: row.get(4)?,
+                post_type: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(5)?)).unwrap_or(axon_core::PostType::System),
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),
             })
         })?;
 

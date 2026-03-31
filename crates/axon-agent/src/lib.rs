@@ -73,11 +73,19 @@ impl AgentRuntime {
         let content = self.model.generate(system_prompt).await
             .map_err(|e| anyhow::anyhow!("LLM Error: {}", e))?;
         
+        let full_code = if self.agent.role == AgentRole::Architect {
+            Some(content.clone())
+        } else {
+            // Very simple extraction for Junior (look for a code block if possible, or assume entire content)
+            Some(content.clone())
+        };
+
         Ok(Post {
             id: uuid::Uuid::new_v4().to_string(),
             thread_id: task.id.clone(),
             author_id: self.agent.id.clone(),
             content,
+            full_code,
             post_type: PostType::Proposal,
             created_at: chrono::Local::now(),
         })
@@ -107,6 +115,7 @@ impl AgentRuntime {
             thread_id: proposal.thread_id.clone(),
             author_id: "SYSTEM_SUMMARY".to_string(),
             content,
+            full_code: None,
             post_type: PostType::System,
             created_at: chrono::Local::now(),
         })
@@ -152,6 +161,7 @@ impl AgentRuntime {
             thread_id: task.id.clone(),
             author_id: self.agent.id.clone(),
             content,
+            full_code: None,
             post_type: PostType::Review,
             created_at: chrono::Local::now(),
         })
@@ -177,6 +187,7 @@ impl AgentRuntime {
             thread_id: task.id.clone(),
             author_id: self.agent.id.clone(),
             content,
+            full_code: None,
             post_type: PostType::System,
             created_at: chrono::Local::now(),
         })

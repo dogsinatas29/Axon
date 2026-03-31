@@ -27,7 +27,9 @@ use tokio::sync::mpsc;
 pub struct Daemon {
     pub dispatcher: Arc<Dispatcher>,
     pub storage: Arc<Storage>,
-    pub model: Arc<dyn axon_model::ModelDriver + Send + Sync>,
+    pub architect_model: Arc<dyn axon_model::ModelDriver + Send + Sync>,
+    pub senior_model: Arc<dyn axon_model::ModelDriver + Send + Sync>,
+    pub junior_model: Arc<dyn axon_model::ModelDriver + Send + Sync>,
     pub event_bus: Arc<events::EventBus>,
     pub architecture_guide: String,
     pub pause_tx: Arc<tokio::sync::watch::Sender<bool>>,
@@ -37,7 +39,9 @@ pub struct Daemon {
 impl Daemon {
     pub fn new(
         storage: Arc<Storage>, 
-        model: Arc<dyn axon_model::ModelDriver + Send + Sync>,
+        architect_model: Arc<dyn axon_model::ModelDriver + Send + Sync>,
+        senior_model: Arc<dyn axon_model::ModelDriver + Send + Sync>,
+        junior_model: Arc<dyn axon_model::ModelDriver + Send + Sync>,
         worker_tx: mpsc::Sender<Assignment>,
         architecture_guide: String
     ) -> Self {
@@ -46,7 +50,9 @@ impl Daemon {
         Self {
             dispatcher: Arc::new(Dispatcher::new(worker_tx)),
             storage,
-            model,
+            architect_model,
+            senior_model,
+            junior_model,
             event_bus,
             architecture_guide,
             pause_tx: Arc::new(pause_tx),
@@ -102,7 +108,7 @@ impl Daemon {
         let junior_runtime = axon_agent::AgentRuntime::new(
             junior_id.clone(),
             axon_core::AgentRole::Junior,
-            self.model.clone()
+            self.junior_model.clone()
         );
 
         let proposal = junior_runtime.process_task(&task, &self.architecture_guide).await?;
@@ -140,7 +146,7 @@ impl Daemon {
         let senior_runtime = axon_agent::AgentRuntime::new(
             "senior-agent-1".to_string(),
             axon_core::AgentRole::Senior,
-            self.model.clone()
+            self.senior_model.clone()
         );
 
         let review = senior_runtime.review_proposal(&task, &proposal, Some(&summary)).await?;
@@ -162,7 +168,7 @@ impl Daemon {
         let architect_runtime = axon_agent::AgentRuntime::new(
             "architect-agent-1".to_string(),
             axon_core::AgentRole::Architect,
-            self.model.clone()
+            self.architect_model.clone()
         );
 
         let validation = architect_runtime.validate_architecture(&task, &review, &self.architecture_guide).await?;
@@ -194,6 +200,81 @@ impl Daemon {
             content: format!("Task {} successfully passed all reviews", task.id),
             payload: None,
             timestamp: chrono::Local::now(),
+        });
+
+        Ok(())
+    }
+
+    pub async fn bootstrap_from_spec(&self, spec_content: String) -> anyhow::Result<()> {
+        tracing::info!("Starting Architect-led bootstrapping from specification...");
+
+        let task = axon_core::Task {
+            id: "bootstrap-task-001".to_string(),
+            project_id: "system".to_string(),
+            title: "Generate Core Architecture & Task Breakdown".to_string(),
+            description: format!(
+                "Read the following specification and generate two outputs:\n\
+                 1. A comprehensive 'architecture.md' file content.\n\
+                 2. A JSON array of initial tasks to be executed by Juniors and Seniors. Each task must have: 'title', 'description'.\n\n\
+                 --- SPEC CONTENT ---\n\
+                 {}",
+                spec_content
+            ),
+            status: TaskStatus::Pending,
+            created_at: chrono::Local::now(),
+        };
+
+        let assignment = Assignment {
+            task,
+            agent_id: "architect-agent-001".to_string(),
+        };
+
+        let daemon = self.clone();
+        tokio::spawn(async move {
+            let architect_runtime = axon_agent::AgentRuntime::new(
+                assignment.agent_id.clone(),
+                axon_core::AgentRole::Architect,
+                daemon.architect_model.clone()
+            );
+
+            tracing::info!("Architect is analyzing spec and breaking down tasks...");
+            match architect_runtime.process_task(&assignment.task, "SYSTEM_BOOTSTRAP_PROTOCOL").await {
+                Ok(proposal) => {
+                    // 1. Architecture.md Generation
+                    if let Some(ref arch_content) = proposal.full_code {
+                        let _ = std::fs::write("architecture.md", arch_content);
+                        tracing::info!("✅ Architecture.md has been generated.");
+                    }
+
+                    // 2. Intelligent Spec Breakdown (JSON extraction from content)
+                    let content = &proposal.content;
+                    if let Some(json_start) = content.find("[") {
+                        if let Some(json_end) = content.rfind("]") {
+                            let json_str = &content[json_start..=json_end];
+                            if let Ok(tasks_raw) = serde_json::from_str::<Vec<serde_json::Value>>(json_str) {
+                                tracing::info!("🔨 Architect proposed {} tasks from spec.", tasks_raw.len());
+                                for t in tasks_raw {
+                                    let task = axon_core::Task {
+                                        id: uuid::Uuid::new_v4().to_string(),
+                                        project_id: "default-project".to_string(),
+                                        title: t["title"].as_str().unwrap_or("Untitled").to_string(),
+                                        description: t["description"].as_str().unwrap_or("").to_string(),
+                                        status: TaskStatus::Pending,
+                                        created_at: chrono::Local::now(),
+                                    };
+                                    let _ = daemon.storage.save_task(&task);
+                                    daemon.dispatcher.enqueue_task(task);
+                                }
+                            }
+                        }
+                    }
+                    let _ = daemon.storage.save_post(&proposal);
+                    tracing::info!("🚀 Bootstrapping complete. AXON Factory is now OPERATIONAL.");
+                }
+                Err(e) => {
+                    tracing::error!("Architect failed to bootstrap: {}", e);
+                }
+            }
         });
 
         Ok(())

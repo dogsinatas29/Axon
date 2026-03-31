@@ -158,7 +158,7 @@
         "y": -800
       },
       "children": [],
-      "collapsed": true,
+      "collapsed": false,
       "id": "cluster_ghosts",
       "label": "👻 External Ghosts"
     },
@@ -235,6 +235,12 @@
         "opacity": 0.8,
         "style": "solid"
       }
+    },
+    {
+      "from": "node_crates_axon_daemon_src_main_rs_1773460947531",
+      "to": "node_crates_axon_daemon_src_cli_rs_1773460947531",
+      "type": "include",
+      "weight": 1
     }
   ],
   "gemini_md_path": "/home/dogsinatas/rust_project/axon/GEMINI.md",
@@ -398,8 +404,8 @@
       },
       "id": "node_crates_axon_agent_src_lib_rs_1773460947531",
       "position": {
-        "x": 1004.621262798487,
-        "y": -601.8566037896024
+        "x": 80,
+        "y": 1200
       },
       "status": "proposed",
       "type": "source",
@@ -419,8 +425,8 @@
       },
       "id": "node_crates_axon_agent_src_persona_rs_1773460947531",
       "position": {
-        "x": 1169.9347408387423,
-        "y": -182.60212097181767
+        "x": 400,
+        "y": 1200
       },
       "status": "proposed",
       "type": "source",
@@ -440,8 +446,8 @@
       },
       "id": "node_crates_axon_core_src_lib_rs_1773460947531",
       "position": {
-        "x": 30,
-        "y": 1600
+        "x": 1920,
+        "y": 1160
       },
       "status": "proposed",
       "type": "source",
@@ -461,8 +467,8 @@
       },
       "id": "node_crates_axon_daemon_src_cli_rs_1773460947531",
       "position": {
-        "x": 1030,
-        "y": 1600
+        "x": -440,
+        "y": 640
       },
       "status": "proposed",
       "type": "source",
@@ -482,8 +488,8 @@
       },
       "id": "node_crates_axon_daemon_src_lib_rs_1773460947531",
       "position": {
-        "x": 1230,
-        "y": 1600
+        "x": -280,
+        "y": -80
       },
       "status": "proposed",
       "type": "source",
@@ -503,8 +509,8 @@
       },
       "id": "node_crates_axon_daemon_src_main_rs_1773460947531",
       "position": {
-        "x": 1430,
-        "y": 1600
+        "x": -440,
+        "y": 480
       },
       "status": "proposed",
       "type": "source",
@@ -524,8 +530,8 @@
       },
       "id": "node_crates_axon_daemon_src_server_rs_1773460947531",
       "position": {
-        "x": 1630,
-        "y": 1600
+        "x": -480,
+        "y": 120
       },
       "status": "proposed",
       "type": "source",
@@ -545,8 +551,8 @@
       },
       "id": "node_crates_axon_dispatcher_src_lib_rs_1773460947531",
       "position": {
-        "x": 30,
-        "y": 3100
+        "x": 1120,
+        "y": 1200
       },
       "status": "proposed",
       "type": "source",
@@ -566,8 +572,8 @@
       },
       "id": "node_crates_axon_model_src_lib_rs_1773460947531",
       "position": {
-        "x": 1030,
-        "y": 3100
+        "x": 1400,
+        "y": 1200
       },
       "status": "proposed",
       "type": "source",
@@ -587,8 +593,8 @@
       },
       "id": "node_crates_axon_storage_src_lib_rs_1773460947531",
       "position": {
-        "x": 325.6925239206823,
-        "y": 4042.2566165567973
+        "x": 1720,
+        "y": 1160
       },
       "status": "proposed",
       "type": "source",
@@ -608,8 +614,8 @@
       },
       "id": "node_studio_eslint_config_js_1773460947531",
       "position": {
-        "x": 1030,
-        "y": 4600
+        "x": 800,
+        "y": 1200
       },
       "status": "proposed",
       "type": "source",
@@ -629,8 +635,8 @@
       },
       "id": "node_studio_vite_config_ts_1773460947531",
       "position": {
-        "x": 1230,
-        "y": 4600
+        "x": 640,
+        "y": 1240
       },
       "status": "proposed",
       "type": "source",
@@ -650,8 +656,8 @@
       },
       "id": "node_studio_src_api_socket_ts_1773460947531",
       "position": {
-        "x": 30,
-        "y": 6100
+        "x": -120,
+        "y": 1200
       },
       "status": "proposed",
       "type": "source",
@@ -671,8 +677,8 @@
       },
       "id": "node_studio_src_types_index_ts_1773460947531",
       "position": {
-        "x": 1030,
-        "y": 6100
+        "x": 2200,
+        "y": 1160
       },
       "status": "proposed",
       "type": "source",
@@ -682,9 +688,14 @@
     }
   ],
   "project_name": "axon",
+  "view": {
+    "offsetX": 412.7676385758191,
+    "offsetY": 140.69397740737998,
+    "zoom": 0.6426539025012572
+  },
   "_iron_guard": {
     "version": "0.2.18.1",
-    "byte_size": 10654,
+    "byte_size": 10806,
     "encoding": "UTF-8",
     "alignment": 8
   }

@@ -56,6 +56,7 @@ pub struct Post {
     pub thread_id: String,
     pub author_id: String, // Agent ID or "BOSS"
     pub content: String,
+    pub full_code: Option<String>,
     pub post_type: PostType,
     pub created_at: DateTime<Local>,
 }

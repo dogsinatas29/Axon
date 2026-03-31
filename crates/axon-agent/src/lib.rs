@@ -47,11 +47,25 @@ impl AgentRuntime {
         tracing::info!("Agent {} (Junior) processing task {}...", self.agent.id, task.id);
         
         let system_prompt = format!(
-            "YOU ARE AN AI JUNIOR AGENT NAMED: {}\nPERSONA: {}\n\n--- ARCHITECTURE GUIDE ---\n{}\n\n--- CURRENT TASK ---\nTITLE: {}\nDESCRIPTION: {}\n\nIMPLEMENT THIS TASK. PROVIDE CODE OR DETAILED PLAN.",
+            "YOU ARE AN AI JUNIOR AGENT NAMED: {}\n\
+             PERSONA: {}\n\n\
+             --- ARCHITECTURE GUIDE ---\n\
+             {}\n\n\
+             --- CURRENT TASK ---\n\
+             TITLE: {}\n\
+             DESCRIPTION: {}\n\n\
+             --- STRICT OUTPUT CONSTRAINTS ---\n\
+             1. DO NOT SUMMARIZE. DO NOT EXPLAIN. NO RISK ANALYSIS.\n\
+             2. PROVIDE ONLY THE FOLLOWING FOUR FIELDS IN THE EXACT ORDER:\n\
+                - task_id: {}\n\
+                - changed_files: [file_a, file_b]\n\
+                - diff: [standard diff format]\n\
+                - full_code: [entire content of modified files]\n\n\
+             FAILURE TO ADHERE TO THESE CONSTRAINTS WILL RESULT IN REJECTION.",
             self.agent.persona.name,
             self.agent.description(),
             architecture_guide,
-            task.title,
+            task.id,
             task.description
         );
 
@@ -68,16 +82,65 @@ impl AgentRuntime {
         })
     }
 
-    pub async fn review_proposal(&self, task: &Task, proposal: &Post) -> anyhow::Result<Post> {
-        tracing::info!("Agent {} (Senior) reviewing proposal for task {}...", self.agent.id, task.id);
+    pub async fn generate_system_summary(&self, proposal: &Post) -> anyhow::Result<Post> {
+        tracing::info!("System generating summary for proposal {}...", proposal.id);
         
         let system_prompt = format!(
-            "YOU ARE AN AI SENIOR AGENT NAMED: {}\nPERSONA: {}\n\n--- TASK ---\nTITLE: {}\nDESCRIPTION: {}\n\n--- PROPOSAL BY JUNIOR ---\n{}\n\nREVIEW THIS PROPOSAL. BE RIGOROUS. IF GOOD, SAY 'APPROVED'. IF NOT, PROVIDE FEEDBACK.",
+            "YOU ARE THE AXON SYSTEM SUMMARY LAYER.\n\n\
+             --- JUNIOR PROPOSAL CONTENT ---\n\
+             {}\n\n\
+             --- INSTRUCTION ---\n\
+             ANALYZE THE PROPOSAL ABOVE. PROVIDE A NEUTRAL TECHNICAL SUMMARY.\n\
+             1. LIST CHANGED FILES.\n\
+             2. SUMMARIZE CORE LOGIC CHANGES IN 2-3 BULLET POINTS.\n\
+             3. DO NOT PROVIDE OPINIONS, FEEDBACK, OR RISK ANALYSIS.\n\
+             4. BE CONCISE.",
+            proposal.content
+        );
+
+        let content = self.model.generate(system_prompt).await
+            .map_err(|e| anyhow::anyhow!("LLM Error: {}", e))?;
+        
+        Ok(Post {
+            id: uuid::Uuid::new_v4().to_string(),
+            thread_id: proposal.thread_id.clone(),
+            author_id: "SYSTEM_SUMMARY".to_string(),
+            content,
+            post_type: PostType::System,
+            created_at: chrono::Local::now(),
+        })
+    }
+
+    pub async fn review_proposal(&self, task: &Task, proposal: &Post, summary: Option<&Post>) -> anyhow::Result<Post> {
+        tracing::info!("Agent {} (Senior) reviewing proposal for task {}...", self.agent.id, task.id);
+        
+        let summary_content = match summary {
+            Some(s) => format!("\n--- SYSTEM SUMMARY ---\n{}\n", s.content),
+            None => "".to_string(),
+        };
+
+        let system_prompt = format!(
+            "YOU ARE AN AI SENIOR AGENT NAMED: {}\n\
+             PERSONA: {}\n\n\
+             --- TASK ---\n\
+             TITLE: {}\n\
+             DESCRIPTION: {}\n\n\
+             --- PROPOSAL BY JUNIOR ---\n\
+             {}\n\
+             {}\n\n\
+             --- DECISION PROTOCOL ---\n\
+             1. IF THE PROPOSAL IS CORRECT AND MEETS REQUIREMENTS: START WITH 'APPROVE'.\n\
+             2. IF NOT: START WITH 'REJECT'.\n\
+                - REASON: [one line only explaining why]\n\
+                - FIX_HINT: [one line only providing the solution direction]\n\
+             3. NEVER EXPLAIN YOUR REASONING OR PROVIDE EXTRA FEEDBACK.\n\
+             4. BE RIGOROUS AND CRITICAL.",
             self.agent.persona.name,
             self.agent.description(),
             task.title,
             task.description,
-            proposal.content
+            proposal.content,
+            summary_content
         );
 
         let content = self.model.generate(system_prompt).await

@@ -120,14 +120,30 @@ impl Daemon {
             timestamp: chrono::Local::now(),
         });
 
-        // 2. SENIOR REVIEW (Mocked selection or use existing senior)
+        // 2. SYSTEM SUMMARY (Intermediate step)
+        let summary = junior_runtime.generate_system_summary(&proposal).await?;
+        let _ = self.storage.save_post(&summary);
+
+        self.event_bus.publish(axon_core::Event {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: task.project_id.clone(),
+            thread_id: Some(task.id.clone()),
+            agent_id: None,
+            event_type: axon_core::EventType::SystemLog,
+            source: "SYSTEM_SUMMARY".to_string(),
+            content: "System generated objective summary for proposal".to_string(),
+            payload: None,
+            timestamp: chrono::Local::now(),
+        });
+
+        // 3. SENIOR REVIEW
         let senior_runtime = axon_agent::AgentRuntime::new(
             "senior-agent-1".to_string(),
             axon_core::AgentRole::Senior,
             self.model.clone()
         );
 
-        let review = senior_runtime.review_proposal(&task, &proposal).await?;
+        let review = senior_runtime.review_proposal(&task, &proposal, Some(&summary)).await?;
         let _ = self.storage.save_post(&review);
 
         self.event_bus.publish(axon_core::Event {

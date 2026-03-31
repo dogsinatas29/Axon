@@ -27,6 +27,7 @@ AXON treats software development as a **SCADA-style process control system**. Th
 - **Hierarchical Intelligence**: Agents are organized into roles (Architect, Senior, Junior) with distinct levels of authority and personas.
 - **Control & Isolation**: Granular control over execution (Pause/Resume) and strict isolation between multiple projects.
 - **Lock-in Architecture**: Approved code and specifications are "Locked-in" to the architecture, creating a solid foundation for future iterations.
+- **Role Sanctity (v0.0.13)**: Strict separation between implementation (Junior), objective summary (System), and decision-making (Senior).
 
 ## 🏛️ Architecture
 AXON follows a **Hub -> Cluster -> Node** architecture:
@@ -35,6 +36,7 @@ AXON follows a **Hub -> Cluster -> Node** architecture:
 - **Node (axon-agent)**: Individual execution units with unique personas and LLM drivers.
 
 - **SCADA Control**: Global Pause/Resume and strict project isolation for industrial-grade development management.
+- **JSS Workflow (v0.0.13)**: Automated **Junior -> System -> Senior** sequence for bias-free code review.
 
 ## 📺 Studio Control Tower (Web UI)
 The AXON Studio provides a professional-grade SCADA-style interface for factory management:
@@ -82,6 +84,7 @@ Access the **AXON Studio** at `http://localhost:8080`.
 - [x] Core Orchestration Engine (v0.1.0 Framework POC)
 - [x] Hierarchical Org Chart & Agent Succession (v0.1.0)
 - [x] Real-time UI Streaming & Event Dashboard (v0.1.0)
+- [x] Role Sanctity & System Summary (v0.0.13)
 - [ ] Adversarial Persona Mode (Forced Debates)
 - [ ] Automated Code Export & Documentation (Final Spec)
 

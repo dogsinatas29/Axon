@@ -65,8 +65,9 @@ impl AgentRuntime {
             self.agent.persona.name,
             self.agent.description(),
             architecture_guide,
-            task.id,
-            task.description
+            task.title,
+            task.description,
+            task.id
         );
 
         let content = self.model.generate(system_prompt).await

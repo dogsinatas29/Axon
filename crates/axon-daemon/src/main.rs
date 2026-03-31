@@ -73,7 +73,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Run => {
             use std::io::{self, Write};
 
-            println!("\n🏭 AXON: Intelligence Factory Bootstrapping Phase 1\n");
+            println!("\n====================================================");
+            println!("🏭 AXON: Automated Software Factory Bootstrapper");
+            println!("====================================================\n");
 
             // 1. Discover Models
             let mut available_models = Vec::new();
@@ -87,16 +89,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 available_models.push(("ChatGPT", key));
             }
 
-            if available_models.is_empty() {
-                println!("⚠️ No API keys detected in environment variables.");
-                println!("AXON will run in MOCK mode (Simulation Only).\n");
-            } else {
-                println!("🔍 Discovered Intelligence:");
-                for (i, (name, _)) in available_models.iter().enumerate() {
+            let display_models = |models: &Vec<(&str, String)>| {
+                println!("🔍 Available Intelligence:");
+                for (i, (name, _)) in models.iter().enumerate() {
                     println!("  {}. {}", i + 1, name);
                 }
                 println!("  L. LocalAI (Custom Endpoint)\n");
-            }
+            };
 
             // Helper to get user input
             let prompt = |msg: &str| -> String {
@@ -107,28 +106,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 input.trim().to_string()
             };
 
-            // 2. HR Assignment
-            println!("--- [HR Market: Role Assignment] ---");
-            let arch_val = prompt("Select Architect (CTO - Fixed: 1): ");
-            
-            let senior_count_val = prompt("How many Seniors (Teams) to hire? (0-10): ");
-            let senior_model_val = prompt("Select Model for Seniors (index or L): ");
-            
-            let junior_count_val = prompt("How many Juniors (Workers) to hire? (0-100): ");
-            let junior_model_val = prompt("Select Model for Juniors (index or L): ");
+            // Stage 1: Architect (CTO)
+            println!("--- [Stage 1: Architect Recruitment] ---");
+            display_models(&available_models);
+            let arch_val = prompt("Select Intelligence for Architect (CTO - Fixed: 1): ");
+            println!("✅ Architect intelligence assigned.\n");
 
-            // 3. Spec Declaration
-            println!("\n--- [Spec Marketplace] ---");
-            let spec_path = prompt("Enter the Specification file path (e.g., TEST/mile_stone/v0.0.1.md): ");
+            // Stage 2: Seniors (Reviewers)
+            println!("--- [Stage 2: Senior Recruitment] ---");
+            display_models(&available_models);
+            let senior_model_val = prompt("Select Intelligence for Seniors: ");
+            let senior_count_val = prompt("How many Seniors would you like to hire? (0-10): ");
+            println!("✅ {} Senior(s) recruited.\n", senior_count_val);
 
-            println!("\n✅ Configuration complete!");
-            println!("   - Architect: [Selection {}]", arch_val);
-            println!("   - Seniors: {} [Model: {}]", senior_count_val, senior_model_val);
-            println!("   - Juniors: {} [Model: {}]", junior_count_val, junior_model_val);
-            println!("   - Target Spec: {}\n", spec_path);
+            // Stage 3: Juniors (Workers)
+            println!("--- [Stage 3: Junior Recruitment] ---");
+            display_models(&available_models);
+            let junior_model_val = prompt("Select Intelligence for Juniors: ");
+            let junior_count_val = prompt("How many Juniors would you like to hire? (0-100): ");
+            println!("✅ {} Junior(s) recruited.\n", junior_count_val);
 
-            thread::sleep(Duration::from_millis(800));
-            println!("🚀 Activating AXON Core... Opening localhost:8080\n");
+            // Stage 4: Factory Initialization (Spec)
+            println!("--- [Stage 4: Factory Specification (Bootstrap Menu)] ---");
+            println!("To initialize 'architecture.md', please provide the source specification.");
+            let spec_path = prompt("Enter Specification File Path (e.g., TEST/mile_stone/v0.0.1.md): ");
+
+            println!("\n====================================================");
+            println!("🚀 ALL SYSTEMS GO: Activating Factory Line...");
+            println!("   - Target Spec: {}", spec_path);
+            println!("   - Studio UI  : http://localhost:8080");
+            println!("====================================================\n");
+
+            thread::sleep(Duration::from_millis(1500));
 
             // Actual Execution
             let storage = Arc::new(axon_storage::Storage::new("axon.db").expect("Failed to open DB"));

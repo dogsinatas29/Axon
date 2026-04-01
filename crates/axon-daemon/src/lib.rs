@@ -211,11 +211,17 @@ impl Daemon {
         let task = axon_core::Task {
             id: "bootstrap-task-001".to_string(),
             project_id: "system".to_string(),
-            title: "Generate Core Architecture & Task Breakdown".to_string(),
+            title: "Generate Master Hub Architecture (Sovereign Protocol v0.2.21+)".to_string(),
             description: format!(
-                "Read the following specification and generate two outputs:\n\
-                 1. A comprehensive 'architecture.md' file content.\n\
-                 2. A JSON array of initial tasks to be executed by Juniors and Seniors. Each task must have: 'title', 'description'.\n\n\
+                "YOU ARE THE SYSTEM ARCHITECT. YOUR GOAL IS TO BOOTSTRAP THE PROJECT USING THE SOVEREIGN PROTOCOL (v0.2.21+).\n\n\
+                 --- STEP 1: DEEP ANALYSIS (COT) ---\n\
+                 Analyze the provided specification in <thought> tags. Identify the Single Source of Truth (SSOT), authority boundaries (Hub -> Cluster -> Node), and modular specifications needed.\n\n\
+                 --- STEP 2: MULTI-PERSPECTIVE EVALUATION (TOT) ---\n\
+                 Evaluate at least three different architectural layouts in <evaluation> tags. Compare them based on 'Top-Down Design', 'Namespace Isolation', and 'Scalability'.\n\n\
+                 --- STEP 3: MASTER HUB OUTPUT ---\n\
+                 Generate the following two components:\n\
+                 1. A 'Master Hub' architecture.md file content. This MUST strictly follow the 'Hub -> Cluster -> Node' hierarchical structure and define clear SSOT rules.\n\
+                 2. A JSON array of initial tasks. Each task must map to a specific Node/Cluster and include high-level engineering requirements.\n\n\
                  --- SPEC CONTENT ---\n\
                  {}",
                 spec_content
@@ -242,29 +248,59 @@ impl Daemon {
                 Ok(proposal) => {
                     // 1. Architecture.md Generation
                     if let Some(ref arch_content) = proposal.full_code {
-                        let _ = std::fs::write("architecture.md", arch_content);
-                        tracing::info!("✅ Architecture.md has been generated.");
+                        // Further refine: if there's a markdown block, extract it
+                        let clean_arch = if let Some(start) = arch_content.find("```markdown") {
+                            let end = arch_content.rfind("```").unwrap_or(arch_content.len());
+                            let content = arch_content[start + 11..end].trim().to_string();
+                            let full_code = {
+                                // Strip reasoning tags to get clean content
+                                let mut clean = content.clone();
+                                for tag in ["thought", "analysis", "reasoning", "evaluation"] {
+                                    let start_tag = format!("<{}>", tag);
+                                    let end_tag = format!("</{}>", tag);
+                                    while let (Some(s), Some(e)) = (clean.find(&start_tag), clean.find(&end_tag)) {
+                                        clean.replace_range(s..e + end_tag.len(), "");
+                                    }
+                                }
+                                Some(clean.trim().to_string())
+                            };
+                            full_code.unwrap_or(content)
+                        } else if let Some(start) = arch_content.find("# ") {
+                           arch_content[start..].to_string()
+                        } else {
+                            arch_content.clone()
+                        };
+
+                        let _ = std::fs::write("architecture.md", clean_arch);
+                        tracing::info!("✅ Architecture.md has been generated (Master Hub).");
                     }
 
-                    // 2. Intelligent Spec Breakdown (JSON extraction from content)
+                    // 2. Intelligent Spec Breakdown (Look for JSON block)
                     let content = &proposal.content;
-                    if let Some(json_start) = content.find("[") {
-                        if let Some(json_end) = content.rfind("]") {
-                            let json_str = &content[json_start..=json_end];
-                            if let Ok(tasks_raw) = serde_json::from_str::<Vec<serde_json::Value>>(json_str) {
-                                tracing::info!("🔨 Architect proposed {} tasks from spec.", tasks_raw.len());
-                                for t in tasks_raw {
-                                    let task = axon_core::Task {
-                                        id: uuid::Uuid::new_v4().to_string(),
-                                        project_id: "default-project".to_string(),
-                                        title: t["title"].as_str().unwrap_or("Untitled").to_string(),
-                                        description: t["description"].as_str().unwrap_or("").to_string(),
-                                        status: TaskStatus::Pending,
-                                        created_at: chrono::Local::now(),
-                                    };
-                                    let _ = daemon.storage.save_task(&task);
-                                    daemon.dispatcher.enqueue_task(task);
-                                }
+                    let json_str = if let Some(start) = content.find("```json") {
+                        let end = content[start+7..].find("```").unwrap_or(content.len() - start - 7);
+                        Some(&content[start+7..start+7+end])
+                    } else if let Some(start) = content.find("[") {
+                        let end = content.rfind("]").unwrap_or(0);
+                        if end > start { Some(&content[start..=end]) } else { None }
+                    } else {
+                        None
+                    };
+
+                    if let Some(json_str) = json_str {
+                        if let Ok(tasks_raw) = serde_json::from_str::<Vec<serde_json::Value>>(json_str.trim()) {
+                            tracing::info!("🔨 Architect proposed {} tasks from spec.", tasks_raw.len());
+                            for t in tasks_raw {
+                                let task = axon_core::Task {
+                                    id: uuid::Uuid::new_v4().to_string(),
+                                    project_id: "default-project".to_string(),
+                                    title: t["title"].as_str().unwrap_or("Untitled").to_string(),
+                                    description: t["description"].as_str().unwrap_or("").to_string(),
+                                    status: TaskStatus::Pending,
+                                    created_at: chrono::Local::now(),
+                                };
+                                let _ = daemon.storage.save_task(&task);
+                                daemon.dispatcher.enqueue_task(task);
                             }
                         }
                     }

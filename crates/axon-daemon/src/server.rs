@@ -37,14 +37,27 @@ pub async fn start_server(daemon: Arc<Daemon>) -> Result<(), Box<dyn std::error:
         .allow_headers(Any);
 
     // Robust path resolution for Studio assets
-    let studio_path = if std::path::Path::new("studio/dist").exists() {
-        "studio/dist".to_string()
-    } else if std::path::Path::new("../../studio/dist").exists() {
-        "../../studio/dist".to_string()
-    } else {
-        tracing::warn!("studio/dist not found in expected locations. Static files may not be served.");
-        "studio/dist".to_string()
-    };
+    let possible_paths = vec![
+        "studio/dist".to_string(),
+        "../studio/dist".to_string(),
+        "../../studio/dist".to_string(),
+        "./studio/dist".to_string(),
+    ];
+
+    let mut studio_path = "studio/dist".to_string();
+    let mut found = false;
+    for path in possible_paths {
+        if std::path::Path::new(&path).join("index.html").exists() {
+            studio_path = path;
+            found = true;
+            break;
+        }
+    }
+
+    if !found {
+        let cwd = std::env::current_dir().unwrap_or_default();
+        tracing::warn!("studio/dist/index.html not found! (CWD: {:?}). Studio UI will likely fail.", cwd);
+    }
 
     let app = Router::new()
         .route("/ws", get(ws_handler))

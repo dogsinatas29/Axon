@@ -106,30 +106,148 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 input.trim().to_string()
             };
 
-            // Stage 1: Architect (CTO)
-            println!("--- [Stage 1: Architect Recruitment] ---");
-            display_models(&available_models);
-            let arch_val = prompt("Select Intelligence for Architect (CTO - Fixed: 1): ");
-            println!("✅ Architect intelligence assigned.\n");
+            // Architect Recruitment
+            let (architect_model, arch_name) = 'arch_recruit: loop {
+                println!("--- [Stage: Architect (CTO) Recruitment] ---");
+                display_models(&available_models);
+                let brand_val = prompt("Select Brand for Architect (CTO): ");
+                
+                if let Ok(idx) = brand_val.parse::<usize>() {
+                    if idx > 0 && idx <= available_models.len() {
+                        let (name, key) = &available_models[idx - 1];
+                        println!("🔍 Fetching available {} versions...", name);
+                        let driver: Arc<dyn axon_model::ModelDriver + Send + Sync> = match *name {
+                            "Gemini" => Arc::new(axon_model::GeminiDriver::new(key.clone(), "list".into())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                            "Claude" => Arc::new(axon_model::ClaudeDriver::new(key.clone(), "list".into())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                            "ChatGPT" => Arc::new(axon_model::OpenAIDriver::new(key.clone(), "list".into())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                            _ => Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                        };
+                        
+                        if let Ok(models) = driver.list_available_models().await {
+                            if models.is_empty() {
+                                println!("⚠️ No models found for this brand. Using MOCK.");
+                                break 'arch_recruit (Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>, "mock".to_string());
+                            }
+                            let models: Vec<String> = models;
+                            for (i, m) in models.iter().enumerate() {
+                                println!("  {}. {}", i + 1, m);
+                            }
+                            loop {
+                                let choice = prompt(&format!("Select Version for Architect [1-{}]: ", models.len()));
+                                if let Ok(c_idx) = choice.parse::<usize>() {
+                                    if c_idx > 0 && c_idx <= models.len() {
+                                        let m_name = models[c_idx - 1].clone();
+                                        let final_driver: Arc<dyn axon_model::ModelDriver + Send + Sync> = match *name {
+                                            "Gemini" => Arc::new(axon_model::GeminiDriver::new(key.clone(), m_name.clone())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                                            "Claude" => Arc::new(axon_model::ClaudeDriver::new(key.clone(), m_name.clone())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                                            "ChatGPT" => Arc::new(axon_model::OpenAIDriver::new(key.clone(), m_name.clone())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                                            _ => Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                                        };
+                                        println!("✅ Architect assigned: {} ({})\n", m_name, name);
+                                        break 'arch_recruit (final_driver, m_name);
+                                    }
+                                }
+                                println!("❌ Invalid version. Please choose 1-{}.\n", models.len());
+                            }
+                        }
+                    }
+                }
+                println!("❌ Invalid brand selection. Try again.\n");
+            };
 
-            // Stage 2: Seniors (Reviewers)
-            println!("--- [Stage 2: Senior Recruitment] ---");
-            display_models(&available_models);
-            let senior_model_val = prompt("Select Intelligence for Seniors: ");
-            let senior_count_val = prompt("How many Seniors would you like to hire? (0-10): ");
-            println!("✅ {} Senior(s) recruited.\n", senior_count_val);
+            // Seniors Recruitment
+            let (senior_model, s_name) = 'senior_recruit: loop {
+                println!("--- [Stage: Seniors Recruitment] ---");
+                display_models(&available_models);
+                let brand_val = prompt("Select Brand for Seniors: ");
+                
+                if let Ok(idx) = brand_val.parse::<usize>() {
+                    if idx > 0 && idx <= available_models.len() {
+                        let (name, key) = &available_models[idx - 1];
+                        println!("🔍 Fetching available {} versions...", name);
+                        let driver: Arc<dyn axon_model::ModelDriver + Send + Sync> = match *name {
+                            "Gemini" => Arc::new(axon_model::GeminiDriver::new(key.clone(), "list".into())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                            "Claude" => Arc::new(axon_model::ClaudeDriver::new(key.clone(), "list".into())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                            "ChatGPT" => Arc::new(axon_model::OpenAIDriver::new(key.clone(), "list".into())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                            _ => Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                        };
+                        if let Ok(models) = driver.list_available_models().await {
+                            let models: Vec<String> = models;
+                            for (i, m) in models.iter().enumerate() {
+                                println!("  {}. {}", i + 1, m);
+                            }
+                            loop {
+                                let choice = prompt(&format!("Select Version for Seniors [1-{}]: ", models.len()));
+                                if let Ok(c_idx) = choice.parse::<usize>() {
+                                    if c_idx > 0 && c_idx <= models.len() {
+                                        let m_name = models[c_idx - 1].clone();
+                                        let final_driver: Arc<dyn axon_model::ModelDriver + Send + Sync> = match *name {
+                                            "Gemini" => Arc::new(axon_model::GeminiDriver::new(key.clone(), m_name.clone())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                                            "Claude" => Arc::new(axon_model::ClaudeDriver::new(key.clone(), m_name.clone())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                                            "ChatGPT" => Arc::new(axon_model::OpenAIDriver::new(key.clone(), m_name.clone())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                                            _ => Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                                        };
+                                        break 'senior_recruit (final_driver, m_name);
+                                    }
+                                }
+                                println!("❌ Invalid version. Please choose 1-{}.\n", models.len());
+                            }
+                        }
+                    }
+                }
+                println!("❌ Invalid brand selection. Try again.\n");
+            };
+            let senior_count_val = prompt("How many Seniors to hire? (0-10): ");
+            println!("✅ {} Senior(s) recruited ({}).\n", senior_count_val, s_name);
 
-            // Stage 3: Juniors (Workers)
-            println!("--- [Stage 3: Junior Recruitment] ---");
-            display_models(&available_models);
-            let junior_model_val = prompt("Select Intelligence for Juniors: ");
-            let junior_count_val = prompt("How many Juniors would you like to hire? (0-100): ");
-            println!("✅ {} Junior(s) recruited.\n", junior_count_val);
+            // Juniors Recruitment
+            let (junior_model, j_name) = 'junior_recruit: loop {
+                println!("--- [Stage: Juniors Recruitment] ---");
+                display_models(&available_models);
+                let brand_val = prompt("Select Brand for Juniors: ");
+                
+                if let Ok(idx) = brand_val.parse::<usize>() {
+                    if idx > 0 && idx <= available_models.len() {
+                        let (name, key) = &available_models[idx - 1];
+                        println!("🔍 Fetching available {} versions...", name);
+                        let driver: Arc<dyn axon_model::ModelDriver + Send + Sync> = match *name {
+                            "Gemini" => Arc::new(axon_model::GeminiDriver::new(key.clone(), "list".into())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                            "Claude" => Arc::new(axon_model::ClaudeDriver::new(key.clone(), "list".into())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                            "ChatGPT" => Arc::new(axon_model::OpenAIDriver::new(key.clone(), "list".into())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                            _ => Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                        };
+                        if let Ok(models) = driver.list_available_models().await {
+                            let models: Vec<String> = models;
+                            for (i, m) in models.iter().enumerate() {
+                                println!("  {}. {}", i + 1, m);
+                            }
+                            loop {
+                                let choice = prompt(&format!("Select Version for Juniors [1-{}]: ", models.len()));
+                                if let Ok(c_idx) = choice.parse::<usize>() {
+                                    if c_idx > 0 && c_idx <= models.len() {
+                                        let m_name = models[c_idx - 1].clone();
+                                        let final_driver: Arc<dyn axon_model::ModelDriver + Send + Sync> = match *name {
+                                            "Gemini" => Arc::new(axon_model::GeminiDriver::new(key.clone(), m_name.clone())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                                            "Claude" => Arc::new(axon_model::ClaudeDriver::new(key.clone(), m_name.clone())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                                            "ChatGPT" => Arc::new(axon_model::OpenAIDriver::new(key.clone(), m_name.clone())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                                            _ => Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
+                                        };
+                                        break 'junior_recruit (final_driver, m_name);
+                                    }
+                                }
+                                println!("❌ Invalid version. Please choose 1-{}.\n", models.len());
+                            }
+                        }
+                    }
+                }
+                println!("❌ Invalid brand selection. Try again.\n");
+            };
+            let junior_count_val = prompt("How many Juniors to hire? (0-100): ");
+            println!("✅ {} Junior(s) recruited ({}).\n", junior_count_val, j_name);
 
             // Stage 4: Factory Initialization (Spec)
             println!("--- [Stage 4: Factory Specification (Bootstrap Menu)] ---");
-            println!("To initialize 'architecture.md', please provide the source specification.");
-            let spec_path = prompt("Enter Specification File Path (e.g., TEST/mile_stone/v0.0.1.md): ");
+            let spec_path = prompt("Enter Specification File Path (e.g., GEMINI.md): ");
 
             println!("\n====================================================");
             println!("🚀 ALL SYSTEMS GO: Activating Factory Line...");
@@ -143,21 +261,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let storage = Arc::new(axon_storage::Storage::new("axon.db").expect("Failed to open DB"));
             let (worker_tx, worker_rx) = tokio::sync::mpsc::channel(100);
             
-            // Model Resolver Helper
-            let resolve_model = |val: &str, models: &Vec<(&str, String)>| -> Arc<dyn axon_model::ModelDriver + Send + Sync> {
-                if let Ok(idx) = val.parse::<usize>() {
-                    if idx > 0 && idx <= models.len() {
-                        let (_, key) = &models[idx - 1];
-                        return Arc::new(axon_model::GeminiDriver::new(key.clone()));
-                    }
-                }
-                Arc::new(axon_model::MockDriver)
-            };
-
-            let architect_model = resolve_model(&arch_val, &available_models);
-            let senior_model = resolve_model(&senior_model_val, &available_models);
-            let junior_model = resolve_model(&junior_model_val, &available_models);
-
             let daemon = Arc::new(Daemon::new(
                 storage, 
                 architect_model,
@@ -174,7 +277,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             });
 
-            // Start the production loop
             let daemon_bootstrap = daemon.clone();
             if !spec_path.is_empty() {
                 if std::path::Path::new(&spec_path).exists() {
@@ -192,7 +294,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             daemon.run(worker_rx).await?;
         }
         Commands::Status => {
-            tracing::info!("Checking AXON status...");
+            println!("AXON: Checking status...");
         }
     }
 

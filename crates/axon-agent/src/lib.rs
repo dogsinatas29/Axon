@@ -49,19 +49,23 @@ impl AgentRuntime {
         let system_prompt = format!(
             "YOU ARE AN AI JUNIOR AGENT NAMED: {}\n\
              PERSONA: {}\n\n\
+             --- STEP 1: REASONING (COT) ---\n\
+             Before implementing, you MUST perform a deep logical analysis in <thought> tags. Break down the task, identify potential edge cases, and ensure alignment with the SSOT in ARCHITECTURE GUIDE.\n\n\
+             --- STEP 2: IMPLEMENTATION ---\n\
+             Provide the complete implementation following the architecture guide.\n\n\
              --- ARCHITECTURE GUIDE ---\n\
              {}\n\n\
              --- CURRENT TASK ---\n\
              TITLE: {}\n\
              DESCRIPTION: {}\n\n\
-             --- STRICT OUTPUT CONSTRAINTS ---\n\
-             1. DO NOT SUMMARIZE. DO NOT EXPLAIN. NO RISK ANALYSIS.\n\
-             2. PROVIDE ONLY THE FOLLOWING FOUR FIELDS IN THE EXACT ORDER:\n\
+             --- OUTPUT PROTOCOL ---\n\
+             1. You MUST include your reasoning in <thought> tags FIRST.\n\
+             2. Follow with the actual implementation details:\n\
                 - task_id: {}\n\
-                - changed_files: [file_a, file_b]\n\
-                - diff: [standard diff format]\n\
-                - full_code: [entire content of modified files]\n\n\
-             FAILURE TO ADHERE TO THESE CONSTRAINTS WILL RESULT IN REJECTION.",
+                - changed_files: [list of files]\n\
+                - diff: [informative diff]\n\
+                - full_code: [complete source code for files]\n\
+             3. DO NOT suppress your reasoning. High-quality thought process is mandatory.",
             self.agent.persona.name,
             self.agent.description(),
             architecture_guide,
@@ -73,11 +77,17 @@ impl AgentRuntime {
         let content = self.model.generate(system_prompt).await
             .map_err(|e| anyhow::anyhow!("LLM Error: {}", e))?;
         
-        let full_code = if self.agent.role == AgentRole::Architect {
-            Some(content.clone())
-        } else {
-            // Very simple extraction for Junior (look for a code block if possible, or assume entire content)
-            Some(content.clone())
+        let full_code = {
+            // Strip reasoning tags to get clean content
+            let mut clean = content.clone();
+            for tag in ["thought", "analysis", "reasoning", "evaluation"] {
+                let start_tag = format!("<{}>", tag);
+                let end_tag = format!("</{}>", tag);
+                while let (Some(s), Some(e)) = (clean.find(&start_tag), clean.find(&end_tag)) {
+                    clean.replace_range(s..e + end_tag.len(), "");
+                }
+            }
+            Some(clean.trim().to_string())
         };
 
         Ok(Post {
@@ -132,19 +142,22 @@ impl AgentRuntime {
         let system_prompt = format!(
             "YOU ARE AN AI SENIOR AGENT NAMED: {}\n\
              PERSONA: {}\n\n\
+             --- STEP 1: MULTI-PERSPECTIVE ANALYSIS (TOT) ---\n\
+             SYSTEMATICALLY EVALUATE the junior's proposal through a 'Tree of Thoughts' in <analysis> tags. \n\
+             You MUST consider at least three perspectives: Performance, Security, and SSOT/Maintainability.\n\n\
+             --- STEP 2: CRITICAL DECISION ---\n\
+             Based on your multi-perspective evaluation, provide a final decision.\n\n\
              --- TASK ---\n\
              TITLE: {}\n\
              DESCRIPTION: {}\n\n\
              --- PROPOSAL BY JUNIOR ---\n\
              {}\n\
              {}\n\n\
-             --- DECISION PROTOCOL ---\n\
-             1. IF THE PROPOSAL IS CORRECT AND MEETS REQUIREMENTS: START WITH 'APPROVE'.\n\
-             2. IF NOT: START WITH 'REJECT'.\n\
-                - REASON: [one line only explaining why]\n\
-                - FIX_HINT: [one line only providing the solution direction]\n\
-             3. NEVER EXPLAIN YOUR REASONING OR PROVIDE EXTRA FEEDBACK.\n\
-             4. BE RIGOROUS AND CRITICAL.",
+             --- FINAL REVIEW PROTOCOL ---\n\
+             1. START with your detailed analysis in <analysis> tags.\n\
+             2. CONCLUDE with either 'APPROVE' or 'REJECT'.\n\
+             3. If REJECTED, provide a detailed REASON and FIX_HINT.\n\
+             4. Your reasoning is the most valuable part of this review.",
             self.agent.persona.name,
             self.agent.description(),
             task.title,
@@ -171,7 +184,16 @@ impl AgentRuntime {
         tracing::info!("Agent {} (Architect) validating architecture for task {}...", self.agent.id, task.id);
         
         let system_prompt = format!(
-            "YOU ARE THE CHIEF ARCHITECT NAMED: {}\nPERSONA: {}\n\n--- ARCHITECTURE GUIDE ---\n{}\n\n--- TASK ---\n{}\n\n--- SENIOR REVIEW ---\n{}\n\nVALIDATE IF THIS COMPLIES WITH SYSTEM PRINCIPLES. IF YES, SAY 'COMPLIANT'.",
+            "YOU ARE THE CHIEF ARCHITECT NAMED: {}\nPERSONA: {}\n\n\
+             --- STEP 1: GLOBAL CROSS-VALIDATION (COT+TOT) ---\n\
+             As the Chief Architect, you MUST reason about the long-term system impact and verify Sovereign Protocol compliance in <reasoning> tags.\n\
+             Analyze both the technical implementation (Junior) and the critical feedback (Senior).\n\n\
+             --- ARCHITECTURE GUIDE ---\n{}\n\n\
+             --- TASK ---\n{}\n\n\
+             --- SENIOR REVIEW ---\n{}\n\n\
+             --- VALIDATION OUTPUT ---\n\
+             1. Provide your in-depth architectural reasoning in <reasoning> tags.\n\
+             2. Clearly state 'COMPLIANT' only if the work meets all SSOT and Sovereign Protocol standards.",
             self.agent.persona.name,
             self.agent.description(),
             arch_guide,

@@ -25,6 +25,7 @@ use std::sync::Arc;
 pub struct AgentRuntime {
     pub agent: Agent,
     pub model: Arc<dyn ModelDriver + Send + Sync>,
+    pub locale: String, // v0.0.15: System language preference
 }
 
 impl AgentRuntime {
@@ -40,7 +41,15 @@ impl AgentRuntime {
             parent_id: None,
             dtr: 0.5,
         };
-        Self { agent, model: model_driver }
+        Self { 
+            agent, 
+            model: model_driver,
+            locale: "en_US".to_string(), // Default
+        }
+    }
+
+    pub fn set_locale(&mut self, locale: &str) {
+        self.locale = locale.to_string();
     }
 
     async fn generate_with_retry(&self, prompt: String, event_bus: Option<&Arc<axon_core::events::EventBus>>, thread_id: Option<String>) -> anyhow::Result<String> {
@@ -86,6 +95,8 @@ impl AgentRuntime {
         let system_prompt = format!(
             "YOU ARE AN AI JUNIOR AGENT NAMED: {}\n\
              PERSONA: {}\n\n\
+             --- LANGUAGE ENFORCEMENT ---\n\
+             YOU MUST COMMUNICATE AND GENERATE ALL CONTENT (TITLE, DESCRIPTION, REASONING) IN THE FOLLOWING LOCALE: {}.\n\n\
              --- STEP 1: REASONING (COT) ---\n\
              Before implementing, you MUST perform a deep logical analysis in <thought> tags. Break down the task, identify potential edge cases, and ensure alignment with the SSOT in ARCHITECTURE GUIDE.\n\n\
              --- STEP 2: IMPLEMENTATION ---\n\
@@ -105,6 +116,7 @@ impl AgentRuntime {
              3. DO NOT suppress your reasoning. High-quality thought process is mandatory.",
             self.agent.persona.name,
             self.agent.description(),
+            self.locale,
             architecture_guide,
             task.title,
             task.description,
@@ -142,6 +154,8 @@ impl AgentRuntime {
         
         let system_prompt = format!(
             "YOU ARE THE AXON SYSTEM SUMMARY LAYER.\n\n\
+             --- LANGUAGE ENFORCEMENT ---\n\
+             YOU MUST GENERATE THE SUMMARY IN THE FOLLOWING LOCALE: {}.\n\n\
              --- JUNIOR PROPOSAL CONTENT ---\n\
              {}\n\n\
              --- INSTRUCTION ---\n\
@@ -150,6 +164,7 @@ impl AgentRuntime {
              2. SUMMARIZE CORE LOGIC CHANGES IN 2-3 BULLET POINTS.\n\
              3. DO NOT PROVIDE OPINIONS, FEEDBACK, OR RISK ANALYSIS.\n\
              4. BE CONCISE.",
+            self.locale,
             proposal.content
         );
 
@@ -177,6 +192,8 @@ impl AgentRuntime {
         let system_prompt = format!(
             "YOU ARE AN AI SENIOR AGENT NAMED: {}\n\
              PERSONA: {}\n\n\
+             --- LANGUAGE ENFORCEMENT ---\n\
+             YOU MUST COMMUNICATE AND GENERATE THE REVIEW CONTENT (ANALYSIS, DECISION, FIX_HINT) IN THE FOLLOWING LOCALE: {}.\n\n\
              --- STEP 1: MULTI-PERSPECTIVE ANALYSIS (TOT) ---\n\
              SYSTEMATICALLY EVALUATE the junior's proposal through a 'Tree of Thoughts' in <analysis> tags. \n\
              You MUST consider at least three perspectives: Performance, Security, and SSOT/Maintainability.\n\n\
@@ -195,6 +212,7 @@ impl AgentRuntime {
              4. Your reasoning is the most valuable part of this review.",
             self.agent.persona.name,
             self.agent.description(),
+            self.locale,
             task.title,
             task.description,
             proposal.content,
@@ -219,6 +237,8 @@ impl AgentRuntime {
         
         let system_prompt = format!(
             "YOU ARE THE CHIEF ARCHITECT NAMED: {}\nPERSONA: {}\n\n\
+             --- LANGUAGE ENFORCEMENT ---\n\
+             YOU MUST COMMUNICATE AND GENERATE THE VALIDATION CONTENT (REASONING, STATUS) IN THE FOLLOWING LOCALE: {}.\n\n\
              --- STEP 1: GLOBAL CROSS-VALIDATION (COT+TOT) ---\n\
              As the Chief Architect, you MUST reason about the long-term system impact and verify Sovereign Protocol compliance in <reasoning> tags.\n\
              Analyze both the technical implementation (Junior) and the critical feedback (Senior).\n\n\
@@ -230,6 +250,7 @@ impl AgentRuntime {
              2. Clearly state 'COMPLIANT' only if the work meets all SSOT and Sovereign Protocol standards.",
             self.agent.persona.name,
             self.agent.description(),
+            self.locale,
             architecture_guide,
             task.title,
             review.content

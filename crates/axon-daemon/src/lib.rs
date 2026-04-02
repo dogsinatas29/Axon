@@ -34,6 +34,7 @@ pub struct Daemon {
     pub architecture_guide: String,
     pub pause_tx: Arc<tokio::sync::watch::Sender<bool>>,
     pub pause_rx: tokio::sync::watch::Receiver<bool>,
+    pub locale: String, // v0.0.15: OS Locale (e.g., "ko_KR", "en_US")
 }
 
 impl Daemon {
@@ -47,6 +48,11 @@ impl Daemon {
     ) -> Self {
         let event_bus = Arc::new(events::EventBus::new(100));
         let (pause_tx, pause_rx) = tokio::sync::watch::channel(false);
+        
+        // LOCALE DETECTION (v0.0.15): 시스템 언어 설정을 파악하여 에이전트 페르소나에 주입
+        let locale = std::env::var("LANG").unwrap_or_else(|_| "en_US".to_string());
+        tracing::info!("🌐 Detected System Locale: {}", locale);
+
         Self {
             dispatcher: Arc::new(Dispatcher::new(worker_tx)),
             storage,
@@ -57,6 +63,7 @@ impl Daemon {
             architecture_guide,
             pause_tx: Arc::new(pause_tx),
             pause_rx,
+            locale,
         }
     }
 
@@ -126,11 +133,13 @@ impl Daemon {
         let junior_id = assignment.agent_id;
         
         // 1. JUNIOR IMPLEMENTATION
-        let junior_runtime = axon_agent::AgentRuntime::new(
+        let mut junior_runtime = axon_agent::AgentRuntime::new(
             junior_id.clone(),
             axon_core::AgentRole::Junior,
             self.junior_model.clone()
         );
+        // LOCALE INJECTION: 주니어에게 사장님의 언어로 보고할 것을 강제함
+        junior_runtime.set_locale(&self.locale);
 
         let proposal = junior_runtime.process_task(&task, &self.architecture_guide, Some(self.event_bus.clone())).await?;
         let _ = self.storage.save_post(&proposal);
@@ -164,11 +173,12 @@ impl Daemon {
         });
 
         // 3. SENIOR REVIEW
-        let senior_runtime = axon_agent::AgentRuntime::new(
+        let mut senior_runtime = axon_agent::AgentRuntime::new(
             "senior-agent-1".to_string(),
             axon_core::AgentRole::Senior,
             self.senior_model.clone()
         );
+        senior_runtime.set_locale(&self.locale);
 
         let review = senior_runtime.review_proposal(&task, &proposal, Some(&summary), Some(self.event_bus.clone())).await?;
         let _ = self.storage.save_post(&review);
@@ -186,11 +196,12 @@ impl Daemon {
         });
 
         // 3. ARCHITECT VALIDATION
-        let architect_runtime = axon_agent::AgentRuntime::new(
+        let mut architect_runtime = axon_agent::AgentRuntime::new(
             "architect-agent-1".to_string(),
             axon_core::AgentRole::Architect,
             self.architect_model.clone()
         );
+        architect_runtime.set_locale(&self.locale);
 
         let validation = architect_runtime.validate_architecture(&task, &review, &self.architecture_guide, Some(self.event_bus.clone())).await?;
         let _ = self.storage.save_post(&validation);
@@ -235,6 +246,8 @@ impl Daemon {
             title: "Generate Master Hub Architecture (Sovereign Protocol v0.2.21+)".to_string(),
             description: format!(
                 "YOU ARE THE SYSTEM ARCHITECT. YOUR GOAL IS TO BOOTSTRAP THE PROJECT USING THE SOVEREIGN PROTOCOL (v0.2.21+).\n\n\
+                 --- LANGUAGE ENFORCEMENT ---\n\
+                 YOU MUST COMMUNICATE AND GENERATE ALL CONTENT (ARCHITECTURE.MD, TASK TITLES, TASK DESCRIPTIONS) IN THE FOLLOWING LOCALE: {}.\n\n\
                  --- CRITICAL PROTOCOL ENFORCEMENT ---\n\
                  Follow the domain logic of the provided SPEC CONTENT, but the **Structure** MUST be overridden by the Sovereign Protocol v0.2.21+.\n\
                  You MUST demote the existing detailed systems (e.g., ECS, legacy architectures) to 'Node' level components, and design a new 'Hub' layer that governs them.\n\n\
@@ -245,9 +258,11 @@ impl Daemon {
                  --- STEP 3: MASTER HUB OUTPUT ---\n\
                  Generate the following two components:\n\
                  1. A 'Master Hub' architecture.md file content. This MUST strictly follow the 'Hub -> Cluster -> Node' hierarchical structure and define clear SSOT rules.\n\
-                 2. A JSON array of initial tasks. Each task must map to a specific Node/Cluster and include high-level engineering requirements.\n\n\
+                 2. A JSON array of initial tasks. Each task MUST include a 'title' and 'description' WRITTEN IN THE LOCALE: {}.\n\n\
                  --- SPEC CONTENT ---\n\
                  {}",
+                self.locale,
+                self.locale,
                 spec_content
             ),
             status: TaskStatus::Pending,
@@ -261,11 +276,12 @@ impl Daemon {
 
         let daemon = self.clone();
         tokio::spawn(async move {
-            let architect_runtime = axon_agent::AgentRuntime::new(
+            let mut architect_runtime = axon_agent::AgentRuntime::new(
                 assignment.agent_id.clone(),
                 axon_core::AgentRole::Architect,
                 daemon.architect_model.clone()
             );
+            architect_runtime.set_locale(&daemon.locale);
 
             tracing::info!("Architect is analyzing spec and breaking down tasks...");
             match architect_runtime.process_task(&assignment.task, "SYSTEM_BOOTSTRAP_PROTOCOL", Some(daemon.event_bus.clone())).await {

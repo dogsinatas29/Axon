@@ -197,7 +197,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 println!("❌ Invalid brand selection. Try again.\n");
             };
-            let senior_count_val = prompt("How many Seniors to hire? (0-10): ");
+            let senior_count_val = loop {
+                let val = prompt("How many Seniors to hire? (0-10): ");
+                if let Ok(num) = val.parse::<usize>() {
+                    if num <= 10 {
+                        break num;
+                    }
+                }
+                println!("❌ Invalid number. Please enter a number between 0 and 10.\n");
+            };
             println!("✅ {} Senior(s) recruited ({}).\n", senior_count_val, s_name);
 
             // Juniors Recruitment
@@ -242,7 +250,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 println!("❌ Invalid brand selection. Try again.\n");
             };
-            let junior_count_val = prompt("How many Juniors to hire? (0-100): ");
+            let junior_count_val = loop {
+                let val = prompt("How many Juniors to hire? (0-100): ");
+                if let Ok(num) = val.parse::<usize>() {
+                    if num <= 100 {
+                        break num;
+                    }
+                }
+                println!("❌ Invalid number. Please enter a number between 0 and 100.\n");
+            };
             println!("✅ {} Junior(s) recruited ({}).\n", junior_count_val, j_name);
 
             // Stage 4: Factory Initialization (Spec)

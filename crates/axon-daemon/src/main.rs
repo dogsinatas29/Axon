@@ -263,7 +263,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Stage 4: Factory Initialization (Spec)
             println!("--- [Stage 4: Factory Specification (Bootstrap Menu)] ---");
-            let spec_path = prompt("Enter Specification File Path (e.g., GEMINI.md): ");
+            let mut skip_bootstrap = false;
+            
+            if std::path::Path::new("architecture.md").exists() {
+                println!("⚠️  'architecture.md' already exists in this workspace.");
+                let choice = prompt("Do you want to [1] Resume (skip spec re-analysis) or [2] Overwrite and Rebuild? [1/2]: ");
+                if choice.trim() == "1" {
+                    skip_bootstrap = true;
+                    println!("✅ Resuming factory operation from existing database...\n");
+                }
+            }
+
+            let spec_path = if !skip_bootstrap {
+                prompt("Enter Specification File Path (e.g., GEMINI.md): ")
+            } else {
+                "".to_string()
+            };
 
             println!("\n====================================================");
             println!("🚀 ALL SYSTEMS GO: Activating Factory Line...");

@@ -304,6 +304,30 @@ impl Daemon {
                                     created_at: chrono::Local::now(),
                                 };
                                 let _ = daemon.storage.save_task(&task);
+
+                                let thread = axon_core::Thread {
+                                    id: task.id.clone(),
+                                    project_id: task.project_id.clone(),
+                                    title: task.title.clone(),
+                                    status: axon_core::ThreadStatus::Draft,
+                                    author: "Architect".to_string(),
+                                    milestone_id: None,
+                                    created_at: task.created_at,
+                                    updated_at: task.created_at,
+                                };
+                                let _ = daemon.storage.save_thread(&thread);
+            
+                                let post = axon_core::Post {
+                                    id: uuid::Uuid::new_v4().to_string(),
+                                    thread_id: task.id.clone(),
+                                    author_id: "Architect".to_string(),
+                                    content: task.description.clone(),
+                                    full_code: None,
+                                    post_type: axon_core::PostType::Instruction,
+                                    created_at: task.created_at,
+                                };
+                                let _ = daemon.storage.save_post(&post);
+
                                 daemon.dispatcher.enqueue_task(task);
                             }
                         }

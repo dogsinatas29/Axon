@@ -41,6 +41,32 @@ const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, onApprove 
       .catch(err => console.error('Failed to fetch posts', err));
   }, [thread.id]);
 
+  const formatContent = (content: string) => {
+    // 1. Unescape logic (Handle common AI output escapes)
+    let processed = content
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t');
+
+    // 2. Detect Diff/Patch or Code block
+    const isDiff = processed.includes('@@') || processed.includes('diff --git');
+    
+    if (isDiff) {
+      return (
+        <div className="code-render-block diff">
+          <pre><code>{processed}</code></pre>
+        </div>
+      );
+    }
+
+    // 3. Regular text with line breaks
+    return processed.split('\n').map((line, i) => (
+      <span key={i}>
+        {line}
+        <br />
+      </span>
+    ));
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -70,11 +96,7 @@ const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, onApprove 
                 <span className="time"><Clock size={12} /> {new Date(post.created_at).toLocaleTimeString()}</span>
               </div>
               <div className="post-content">
-                {post.post_type === 'Patch' ? (
-                  <pre><code>{post.content}</code></pre>
-                ) : (
-                  <p>{post.content}</p>
-                )}
+                {formatContent(post.content)}
               </div>
             </div>
           ))

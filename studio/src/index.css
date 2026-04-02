@@ -199,12 +199,28 @@ body {
 .post-meta .author { font-weight: bold; color: var(--accent-primary); }
 .post-meta .time { color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
 
-.post-content pre {
+.post-content {
+  line-height: 1.6;
+}
+
+.code-render-block {
   background: #000;
-  padding: 0.5rem;
-  border-radius: 4px;
+  padding: 1rem;
+  border-radius: 6px;
   overflow-x: auto;
-  font-size: 0.8rem;
+  font-family: 'Fira Code', 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.code-render-block.diff {
+  border-left: 2px solid var(--accent-primary);
+  background: #0d0d0f;
+}
+
+.code-render-block pre {
+  margin: 0;
 }
 
 .detail-footer {

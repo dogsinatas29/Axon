@@ -214,13 +214,48 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.code-render-block.diff {
-  border-left: 2px solid var(--accent-primary);
+.advanced-diff-viewer {
   background: #0d0d0f;
+  border-radius: 6px;
+  padding: 0.5rem 0;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow-x: auto;
+  line-height: 1.5;
 }
 
-.code-render-block pre {
-  margin: 0;
+.diff-line {
+  display: flex;
+  white-space: pre;
+}
+
+.diff-line.added { background: rgba(0, 255, 149, 0.1); color: #00ff95; }
+.diff-line.removed { background: rgba(255, 51, 102, 0.1); color: #ff3366; }
+.diff-line.meta { background: rgba(112, 0, 255, 0.1); color: var(--accent-secondary); font-weight: bold; }
+
+.line-num {
+  width: 40px;
+  min-width: 40px;
+  text-align: right;
+  padding-right: 1rem;
+  color: #444;
+  user-select: none;
+  font-size: 0.75rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  margin-right: 0.75rem;
+}
+
+.line-content {
+  flex: 1;
+}
+
+.thought-content {
+  font-style: italic;
+  color: var(--text-dim);
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+  padding-left: 1rem;
+  margin-bottom: 1rem;
 }
 
 .detail-footer {

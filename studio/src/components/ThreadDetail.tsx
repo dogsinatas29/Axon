@@ -51,20 +51,36 @@ const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, onApprove 
     const isDiff = processed.includes('@@') || processed.includes('diff --git');
     
     if (isDiff) {
+      const lines = processed.split('\n');
       return (
-        <div className="code-render-block diff">
-          <pre><code>{processed}</code></pre>
+        <div className="advanced-diff-viewer">
+          {lines.map((line, idx) => {
+            let lineClass = 'diff-line';
+            if (line.startsWith('+')) lineClass += ' added';
+            else if (line.startsWith('-')) lineClass += ' removed';
+            else if (line.startsWith('@@')) lineClass += ' meta';
+            
+            return (
+              <div key={idx} className={lineClass}>
+                <span className="line-num">{idx + 1}</span>
+                <span className="line-content">{line}</span>
+              </div>
+            );
+          })}
         </div>
       );
     }
 
-    // 3. Regular text with line breaks
-    return processed.split('\n').map((line, i) => (
-      <span key={i}>
-        {line}
-        <br />
-      </span>
-    ));
+    // 3. Regular text with line breaks (thought/reasoning)
+    return (
+      <div className="thought-content">
+        {processed.split('\n').map((line, i) => (
+          <p key={i} style={{ marginBottom: line ? '0.5rem' : '1rem' }}>
+            {line}
+          </p>
+        ))}
+      </div>
+    );
   };
 
   return (

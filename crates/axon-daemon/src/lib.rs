@@ -85,6 +85,10 @@ impl Daemon {
                             tracing::error!("Failed to handle assignment: {}", e);
                         }
                     });
+                    
+                    // THROTTLE (Phase 2): 4초 대기 (15 RPM 제한을 위한 전역 분배 간격 조율)
+                    // 각 태스크 스폰 사이에 최소 물리적 지연을 두어 병렬 API 급발진 방지
+                    tokio::time::sleep(tokio::time::Duration::from_millis(4100)).await;
                 }
                 _ = tokio::time::sleep(tokio::time::Duration::from_secs(1)) => {
                     // Periodic scheduling check

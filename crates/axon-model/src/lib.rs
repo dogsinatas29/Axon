@@ -91,14 +91,40 @@ impl ModelDriver for GeminiDriver {
     async fn generate(&self, prompt: String) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", self.model_name, self.api_key);
         let body = serde_json::json!({"contents": [{"parts": [{"text": prompt}]}]});
-        let response = self.client.post(url).json(&body).send().await?;
-        let res_json: serde_json::Value = response.json().await?;
-        if let Some(error) = res_json.get("error") {
-            return Err(format!("Gemini API Error: {}", error["message"].as_str().unwrap_or("Unknown")).into());
+        
+        let mut retries = 5;
+        loop {
+            let response = self.client.post(&url).json(&body).send().await?;
+            let status = response.status();
+            let res_json: serde_json::Value = response.json().await?;
+            
+            if let Some(error) = res_json.get("error") {
+                let err_msg = error["message"].as_str().unwrap_or("Unknown");
+                if status.as_u16() == 429 || err_msg.contains("Quota exceeded") || err_msg.contains("Too Many Requests") {
+                    if retries > 0 {
+                        // Extract wait time
+                        let mut wait_secs = 60.0;
+                        if let Some(idx) = err_msg.find("Please retry in ") {
+                            let substr = &err_msg[idx + 16..];
+                            if let Some(end_idx) = substr.find("s.") {
+                                if let Ok(parsed) = substr[..end_idx].parse::<f64>() {
+                                    wait_secs = parsed;
+                                }
+                            }
+                        }
+                        tracing::warn!("Quota Exceeded! Automatically retrying in {:.2} seconds...", wait_secs);
+                        tokio::time::sleep(tokio::time::Duration::from_secs_f64(wait_secs)).await;
+                        retries -= 1;
+                        continue;
+                    }
+                }
+                return Err(format!("Gemini API Error: {}", err_msg).into());
+            }
+            
+            let text = res_json["candidates"][0]["content"]["parts"][0]["text"].as_str()
+                .ok_or_else(|| { tracing::error!("Gemini Fallback. Raw: {}", res_json); "Failed extraction" })?;
+            return Ok(text.to_string());
         }
-        let text = res_json["candidates"][0]["content"]["parts"][0]["text"].as_str()
-            .ok_or_else(|| { tracing::error!("Gemini Fallback. Raw: {}", res_json); "Failed extraction" })?;
-        Ok(text.to_string())
     }
 }
 

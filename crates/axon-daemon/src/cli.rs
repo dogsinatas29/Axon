@@ -36,7 +36,11 @@ pub enum Commands {
         path: String,
     },
     /// Run the AXON daemon
-    Run,
+    Run {
+        /// Automatically fast-resume bypassing the interactive prompt if axon_config.json exists
+        #[arg(short, long)]
+        resume: bool,
+    },
     /// Check the status of the daemon
     Status,
 }

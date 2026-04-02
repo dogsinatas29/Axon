@@ -70,7 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        Commands::Run => {
+        Commands::Run { resume } => {
             use std::io::{self, Write};
 
             println!("\n====================================================");
@@ -118,9 +118,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if std::path::Path::new("axon_config.json").exists() {
                 if let Ok(content) = std::fs::read_to_string("axon_config.json") {
                     if let Ok(parsed) = serde_json::from_str::<AxonConfig>(&content) {
-                        let choice = prompt("📦 Existing factory settings (axon_config.json) found. Fast Resume? [Y/n]: ");
-                        if choice.trim().to_lowercase() != "n" {
+                        if resume {
                             fast_cfg = Some(parsed);
+                        } else {
+                            let choice = prompt("📦 Existing factory settings (axon_config.json) found. Fast Resume? [Y/n]: ");
+                            if choice.trim().to_lowercase() != "n" {
+                                fast_cfg = Some(parsed);
+                            }
                         }
                     }
                 }
@@ -326,11 +330,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut skip_bootstrap = false;
             
             if std::path::Path::new("architecture.md").exists() {
-                println!("⚠️  'architecture.md' already exists in this workspace.");
-                let choice = prompt("Do you want to [1] Resume (skip spec re-analysis) or [2] Overwrite and Rebuild? [1/2]: ");
-                if choice.trim() == "1" {
+                if resume {
                     skip_bootstrap = true;
-                    println!("✅ Resuming factory operation from existing database...\n");
+                    println!("✅ Auto-resuming factory operation from existing database...\n");
+                } else {
+                    println!("⚠️  'architecture.md' already exists in this workspace.");
+                    let choice = prompt("Do you want to [1] Resume (skip spec re-analysis) or [2] Overwrite and Rebuild? [1/2]: ");
+                    if choice.trim() == "1" {
+                        skip_bootstrap = true;
+                        println!("✅ Resuming factory operation from existing database...\n");
+                    }
                 }
             }
 

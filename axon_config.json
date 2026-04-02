@@ -1,0 +1,10 @@
+{
+  "arch_brand": "Gemini",
+  "arch_model": "gemini-2.5-flash",
+  "senior_brand": "Gemini",
+  "senior_model": "gemini-2.5-flash",
+  "senior_count": 1,
+  "junior_brand": "Gemini",
+  "junior_model": "gemini-2.5-flash",
+  "junior_count": 1
+}

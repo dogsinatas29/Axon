@@ -1,0 +1,42 @@
+{
+  "canvas_state": {
+    "offset": {
+      "x": 0,
+      "y": 0
+    },
+    "visible_layers": [
+      "source",
+      "documentation"
+    ],
+    "zoom_level": 1
+  },
+  "clusters": [],
+  "edges": [],
+  "nodes": [
+    {
+      "data": {
+        "color": "#b8bb26",
+        "description": "System Entry Point (Auto-generated template)",
+        "label": "Entrypoint (Template)"
+      },
+      "id": "node_entry",
+      "position": {
+        "x": 400,
+        "y": 300
+      },
+      "status": "proposed",
+      "type": "source",
+      "visual": {
+        "dashArray": "5,5",
+        "opacity": 0.5
+      }
+    }
+  ],
+  "project_name": "TEST",
+  "_iron_guard": {
+    "version": "0.2.18.1",
+    "byte_size": 405,
+    "encoding": "UTF-8",
+    "alignment": 8
+  }
+}

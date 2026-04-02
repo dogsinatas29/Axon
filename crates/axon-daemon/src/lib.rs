@@ -214,6 +214,9 @@ impl Daemon {
             title: "Generate Master Hub Architecture (Sovereign Protocol v0.2.21+)".to_string(),
             description: format!(
                 "YOU ARE THE SYSTEM ARCHITECT. YOUR GOAL IS TO BOOTSTRAP THE PROJECT USING THE SOVEREIGN PROTOCOL (v0.2.21+).\n\n\
+                 --- CRITICAL PROTOCOL ENFORCEMENT ---\n\
+                 Follow the domain logic of the provided SPEC CONTENT, but the **Structure** MUST be overridden by the Sovereign Protocol v0.2.21+.\n\
+                 You MUST demote the existing detailed systems (e.g., ECS, legacy architectures) to 'Node' level components, and design a new 'Hub' layer that governs them.\n\n\
                  --- STEP 1: DEEP ANALYSIS (COT) ---\n\
                  Analyze the provided specification in <thought> tags. Identify the Single Source of Truth (SSOT), authority boundaries (Hub -> Cluster -> Node), and modular specifications needed.\n\n\
                  --- STEP 2: MULTI-PERSPECTIVE EVALUATION (TOT) ---\n\
@@ -250,8 +253,9 @@ impl Daemon {
                     if let Some(ref arch_content) = proposal.full_code {
                         // Further refine: if there's a markdown block, extract it
                         let clean_arch = if let Some(start) = arch_content.find("```markdown") {
-                            let end = arch_content.rfind("```").unwrap_or(arch_content.len());
-                            let content = arch_content[start + 11..end].trim().to_string();
+                            let remaining = &arch_content[start + 11..];
+                            let end = remaining.find("```").unwrap_or(remaining.len());
+                            let content = remaining[..end].trim().to_string();
                             let full_code = {
                                 // Strip reasoning tags to get clean content
                                 let mut clean = content.clone();

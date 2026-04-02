@@ -1,0 +1,53 @@
+[
+  {
+    "id": "snap_1775120275116",
+    "timestamp": 1775120275116,
+    "data": {
+      "nodes": [
+        {
+          "id": "node_entry",
+          "filePath": "",
+          "type": "source",
+          "label": "Entrypoint (Template)",
+          "degree": 0
+        }
+      ],
+      "edges": [],
+      "timestamp": 1775120275116
+    }
+  },
+  {
+    "id": "snap_1775120275205",
+    "timestamp": 1775120275205,
+    "data": {
+      "nodes": [
+        {
+          "id": "node_entry",
+          "filePath": "",
+          "type": "source",
+          "label": "Entrypoint (Template)",
+          "degree": 0
+        }
+      ],
+      "edges": [],
+      "timestamp": 1775120275205
+    }
+  },
+  {
+    "id": "snap_1775120275287",
+    "timestamp": 1775120275287,
+    "data": {
+      "nodes": [
+        {
+          "id": "node_entry",
+          "filePath": "",
+          "type": "source",
+          "label": "Entrypoint (Template)",
+          "degree": 0
+        }
+      ],
+      "edges": [],
+      "timestamp": 1775120275286
+    }
+  }
+]

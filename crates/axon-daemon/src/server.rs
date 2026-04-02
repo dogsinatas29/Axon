@@ -112,11 +112,10 @@ async fn list_posts(
 }
 
 async fn list_tasks(
-    State(_daemon): State<Arc<Daemon>>,
+    State(daemon): State<Arc<Daemon>>,
 ) -> Json<Vec<Task>> {
-    // We need a list_all_tasks in Storage too. For now returning empty or mock.
-    // Let's assume list_runnable_threads for threads mapping as tasks in this POC.
-    Json(vec![])
+    let tasks = daemon.storage.list_all_tasks().unwrap_or_default();
+    Json(tasks)
 }
 
 #[derive(serde::Deserialize)]
@@ -166,6 +165,30 @@ async fn submit_spec_internal(
                         created_at: chrono::Local::now(),
                     };
                     let _ = daemon.storage.save_task(&task);
+                    
+                    let thread = axon_core::Thread {
+                        id: task.id.clone(),
+                        project_id: task.project_id.clone(),
+                        title: task.title.clone(),
+                        status: axon_core::ThreadStatus::Draft,
+                        author: "Architect".to_string(),
+                        milestone_id: None,
+                        created_at: task.created_at,
+                        updated_at: task.created_at,
+                    };
+                    let _ = daemon.storage.save_thread(&thread);
+
+                    let post = axon_core::Post {
+                        id: uuid::Uuid::new_v4().to_string(),
+                        thread_id: task.id.clone(),
+                        author_id: "Architect".to_string(),
+                        content: task.description.clone(),
+                        full_code: None,
+                        post_type: axon_core::PostType::Instruction,
+                        created_at: task.created_at,
+                    };
+                    let _ = daemon.storage.save_post(&post);
+
                     daemon.dispatcher.enqueue_task(task);
                 }
                 "Spec processed and tasks queued".into_response()
@@ -180,6 +203,30 @@ async fn submit_spec_internal(
                     created_at: chrono::Local::now(),
                 };
                 let _ = daemon.storage.save_task(&task);
+
+                let thread = axon_core::Thread {
+                    id: task.id.clone(),
+                    project_id: task.project_id.clone(),
+                    title: task.title.clone(),
+                    status: axon_core::ThreadStatus::Draft,
+                    author: "Architect".to_string(),
+                    milestone_id: None,
+                    created_at: task.created_at,
+                    updated_at: task.created_at,
+                };
+                let _ = daemon.storage.save_thread(&thread);
+
+                let post = axon_core::Post {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    thread_id: task.id.clone(),
+                    author_id: "Architect".to_string(),
+                    content: task.description.clone(),
+                    full_code: None,
+                    post_type: axon_core::PostType::Instruction,
+                    created_at: task.created_at,
+                };
+                let _ = daemon.storage.save_post(&post);
+
                 daemon.dispatcher.enqueue_task(task);
                 "Spec partially processed as a single task".into_response()
             }

@@ -63,6 +63,23 @@ impl Daemon {
     pub async fn run(&self, mut worker_rx: mpsc::Receiver<Assignment>) -> anyhow::Result<()> {
         tracing::info!("AXON Daemon starting...");
         
+        // RECOVERY (v0.0.15): DB에서 처리되지 않은 태스크들을 불러와 스케줄러 큐에 재진입시킵니다.
+        if let Ok(tasks) = self.storage.list_all_tasks() {
+            let mut recovered_count = 0;
+            for mut task in tasks {
+                if task.status == TaskStatus::Pending || task.status == TaskStatus::InProgress {
+                    // InProgress였던 것도 다시 Pending으로 돌려서 재할당 가능하게 함
+                    task.status = TaskStatus::Pending;
+                    let _ = self.storage.save_task(&task);
+                    self.dispatcher.enqueue_task(task);
+                    recovered_count += 1;
+                }
+            }
+            if recovered_count > 0 {
+                tracing::info!("♻️ Recovered {} unfinished tasks from database.", recovered_count);
+            }
+        }
+        
         // Main orchestration loop
         let daemon = self.clone();
         let mut pause_rx = self.pause_rx.clone();

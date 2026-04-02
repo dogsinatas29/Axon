@@ -129,6 +129,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
+            if fast_cfg.is_none() && resume {
+                println!("⚠️  'axon_config.json' not found or invalid. Forcing Fast Resume with Default Config (Gemini-2.5-Flash)...");
+                fast_cfg = Some(AxonConfig {
+                    arch_brand: "Gemini".to_string(), arch_model: "gemini-2.5-flash".to_string(),
+                    senior_brand: "Gemini".to_string(), senior_model: "gemini-2.5-flash".to_string(), senior_count: 1,
+                    junior_brand: "Gemini".to_string(), junior_model: "gemini-2.5-flash".to_string(), junior_count: 1,
+                });
+            }
 
             let get_drv = |brand: &str, model: &str| -> Arc<dyn axon_model::ModelDriver + Send + Sync> {
                 let key = match brand {

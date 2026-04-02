@@ -43,7 +43,44 @@ impl AgentRuntime {
         Self { agent, model: model_driver }
     }
 
-    pub async fn process_task(&self, task: &Task, architecture_guide: &str) -> anyhow::Result<Post> {
+    async fn generate_with_retry(&self, prompt: String, event_bus: Option<&Arc<axon_core::events::EventBus>>, thread_id: Option<String>) -> anyhow::Result<String> {
+        let mut retries = 5;
+        loop {
+            match self.model.generate(prompt.clone()).await {
+                Ok(text) => return Ok(text),
+                Err(e) => {
+                    let err_str = e.to_string();
+                    if err_str.starts_with("QUOTA_WAIT:") {
+                        if retries > 0 {
+                            let wait_secs: f64 = err_str.strip_prefix("QUOTA_WAIT:").unwrap_or("60.0").parse().unwrap_or(60.0);
+                            tracing::warn!("Agent {} waiting for {:.1}s due to quota...", self.agent.id, wait_secs);
+                            
+                            if let Some(bus) = event_bus {
+                                bus.publish(axon_core::Event {
+                                    id: uuid::Uuid::new_v4().to_string(),
+                                    project_id: "default-project".to_string(),
+                                    thread_id: thread_id.clone(),
+                                    agent_id: Some(self.agent.id.clone()),
+                                    event_type: axon_core::EventType::SystemWarning,
+                                    source: self.agent.id.clone(),
+                                    content: format!("⚠️ API Quota Limit. Agent entering Standby for {:.0} seconds...", wait_secs),
+                                    payload: None,
+                                    timestamp: chrono::Local::now(),
+                                });
+                            }
+                            
+                            tokio::time::sleep(tokio::time::Duration::from_secs_f64(wait_secs)).await;
+                            retries -= 1;
+                            continue;
+                        }
+                    }
+                    return Err(anyhow::anyhow!("LLM Error: {}", err_str));
+                }
+            }
+        }
+    }
+
+    pub async fn process_task(&self, task: &Task, architecture_guide: &str, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
         tracing::info!("Agent {} (Junior) processing task {}...", self.agent.id, task.id);
         
         let system_prompt = format!(
@@ -74,8 +111,7 @@ impl AgentRuntime {
             task.id
         );
 
-        let content = self.model.generate(system_prompt).await
-            .map_err(|e| anyhow::anyhow!("LLM Error: {}", e))?;
+        let content = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
         
         let full_code = {
             // Strip reasoning tags to get clean content
@@ -101,7 +137,7 @@ impl AgentRuntime {
         })
     }
 
-    pub async fn generate_system_summary(&self, proposal: &Post) -> anyhow::Result<Post> {
+    pub async fn generate_system_summary(&self, proposal: &Post, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
         tracing::info!("System generating summary for proposal {}...", proposal.id);
         
         let system_prompt = format!(
@@ -117,8 +153,7 @@ impl AgentRuntime {
             proposal.content
         );
 
-        let content = self.model.generate(system_prompt).await
-            .map_err(|e| anyhow::anyhow!("LLM Error: {}", e))?;
+        let content = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(proposal.thread_id.clone())).await?;
         
         Ok(Post {
             id: uuid::Uuid::new_v4().to_string(),
@@ -131,7 +166,7 @@ impl AgentRuntime {
         })
     }
 
-    pub async fn review_proposal(&self, task: &Task, proposal: &Post, summary: Option<&Post>) -> anyhow::Result<Post> {
+    pub async fn review_proposal(&self, task: &Task, proposal: &Post, summary: Option<&Post>, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
         tracing::info!("Agent {} (Senior) reviewing proposal for task {}...", self.agent.id, task.id);
         
         let summary_content = match summary {
@@ -166,8 +201,7 @@ impl AgentRuntime {
             summary_content
         );
 
-        let content = self.model.generate(system_prompt).await
-            .map_err(|e| anyhow::anyhow!("LLM Error: {}", e))?;
+        let content = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
         
         Ok(Post {
             id: uuid::Uuid::new_v4().to_string(),
@@ -180,7 +214,7 @@ impl AgentRuntime {
         })
     }
 
-    pub async fn validate_architecture(&self, task: &Task, review: &Post, arch_guide: &str) -> anyhow::Result<Post> {
+    pub async fn validate_architecture(&self, task: &Task, review: &Post, architecture_guide: &str, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
         tracing::info!("Agent {} (Architect) validating architecture for task {}...", self.agent.id, task.id);
         
         let system_prompt = format!(
@@ -196,13 +230,12 @@ impl AgentRuntime {
              2. Clearly state 'COMPLIANT' only if the work meets all SSOT and Sovereign Protocol standards.",
             self.agent.persona.name,
             self.agent.description(),
-            arch_guide,
+            architecture_guide,
             task.title,
             review.content
         );
 
-        let content = self.model.generate(system_prompt).await
-            .map_err(|e| anyhow::anyhow!("LLM Error: {}", e))?;
+        let content = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
         
         Ok(Post {
             id: uuid::Uuid::new_v4().to_string(),

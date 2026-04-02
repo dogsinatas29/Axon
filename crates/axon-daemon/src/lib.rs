@@ -115,7 +115,7 @@ impl Daemon {
             self.junior_model.clone()
         );
 
-        let proposal = junior_runtime.process_task(&task, &self.architecture_guide).await?;
+        let proposal = junior_runtime.process_task(&task, &self.architecture_guide, Some(self.event_bus.clone())).await?;
         let _ = self.storage.save_post(&proposal);
         
         self.event_bus.publish(axon_core::Event {
@@ -131,7 +131,7 @@ impl Daemon {
         });
 
         // 2. SYSTEM SUMMARY (Intermediate step)
-        let summary = junior_runtime.generate_system_summary(&proposal).await?;
+        let summary = junior_runtime.generate_system_summary(&proposal, Some(self.event_bus.clone())).await?;
         let _ = self.storage.save_post(&summary);
 
         self.event_bus.publish(axon_core::Event {
@@ -153,7 +153,7 @@ impl Daemon {
             self.senior_model.clone()
         );
 
-        let review = senior_runtime.review_proposal(&task, &proposal, Some(&summary)).await?;
+        let review = senior_runtime.review_proposal(&task, &proposal, Some(&summary), Some(self.event_bus.clone())).await?;
         let _ = self.storage.save_post(&review);
 
         self.event_bus.publish(axon_core::Event {
@@ -175,7 +175,7 @@ impl Daemon {
             self.architect_model.clone()
         );
 
-        let validation = architect_runtime.validate_architecture(&task, &review, &self.architecture_guide).await?;
+        let validation = architect_runtime.validate_architecture(&task, &review, &self.architecture_guide, Some(self.event_bus.clone())).await?;
         let _ = self.storage.save_post(&validation);
 
         self.event_bus.publish(axon_core::Event {
@@ -251,7 +251,7 @@ impl Daemon {
             );
 
             tracing::info!("Architect is analyzing spec and breaking down tasks...");
-            match architect_runtime.process_task(&assignment.task, "SYSTEM_BOOTSTRAP_PROTOCOL").await {
+            match architect_runtime.process_task(&assignment.task, "SYSTEM_BOOTSTRAP_PROTOCOL", Some(daemon.event_bus.clone())).await {
                 Ok(proposal) => {
                     // 1. Architecture.md Generation
                     if let Some(ref arch_content) = proposal.full_code {

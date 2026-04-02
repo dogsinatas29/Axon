@@ -101,22 +101,16 @@ impl ModelDriver for GeminiDriver {
             if let Some(error) = res_json.get("error") {
                 let err_msg = error["message"].as_str().unwrap_or("Unknown");
                 if status.as_u16() == 429 || err_msg.contains("Quota exceeded") || err_msg.contains("Too Many Requests") {
-                    if retries > 0 {
-                        // Extract wait time
-                        let mut wait_secs = 60.0;
-                        if let Some(idx) = err_msg.find("Please retry in ") {
-                            let substr = &err_msg[idx + 16..];
-                            if let Some(end_idx) = substr.find("s.") {
-                                if let Ok(parsed) = substr[..end_idx].parse::<f64>() {
-                                    wait_secs = parsed;
-                                }
+                    let mut wait_secs = 60.0;
+                    if let Some(idx) = err_msg.find("Please retry in ") {
+                        let substr = &err_msg[idx + 16..];
+                        if let Some(end_idx) = substr.find("s.") {
+                            if let Ok(parsed) = substr[..end_idx].parse::<f64>() {
+                                wait_secs = parsed;
                             }
                         }
-                        tracing::warn!("Quota Exceeded! Automatically retrying in {:.2} seconds...", wait_secs);
-                        tokio::time::sleep(tokio::time::Duration::from_secs_f64(wait_secs)).await;
-                        retries -= 1;
-                        continue;
                     }
+                    return Err(format!("QUOTA_WAIT:{}", wait_secs).into());
                 }
                 return Err(format!("Gemini API Error: {}", err_msg).into());
             }

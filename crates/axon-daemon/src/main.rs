@@ -107,7 +107,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             // Architect Recruitment
-            let (architect_model, arch_name) = 'arch_recruit: loop {
+            #[derive(serde::Serialize, serde::Deserialize)]
+            struct AxonConfig {
+                arch_brand: String, arch_model: String,
+                senior_brand: String, senior_model: String, senior_count: usize,
+                junior_brand: String, junior_model: String, junior_count: usize,
+            }
+
+            let mut fast_cfg: Option<AxonConfig> = None;
+            if std::path::Path::new("axon_config.json").exists() {
+                if let Ok(content) = std::fs::read_to_string("axon_config.json") {
+                    if let Ok(parsed) = serde_json::from_str::<AxonConfig>(&content) {
+                        let choice = prompt("📦 Existing factory settings (axon_config.json) found. Fast Resume? [Y/n]: ");
+                        if choice.trim().to_lowercase() != "n" {
+                            fast_cfg = Some(parsed);
+                        }
+                    }
+                }
+            }
+
+            let get_drv = |brand: &str, model: &str| -> Arc<dyn axon_model::ModelDriver + Send + Sync> {
+                let key = match brand {
+                    "Gemini" => std::env::var("GEMINI_API_KEY").unwrap_or_default(),
+                    "Claude" => std::env::var("CLAUDE_API_KEY").unwrap_or_default(),
+                    "ChatGPT" => std::env::var("OPEN_AI_KEY").unwrap_or_default(),
+                    _ => "".to_string(),
+                };
+                match brand {
+                    "Gemini" => Arc::new(axon_model::GeminiDriver::new(key, model.to_string())),
+                    "Claude" => Arc::new(axon_model::ClaudeDriver::new(key, model.to_string())),
+                    "ChatGPT" => Arc::new(axon_model::OpenAIDriver::new(key, model.to_string())),
+                    _ => Arc::new(axon_model::MockDriver),
+                }
+            };
+
+            let (architect_model, arch_name, senior_model, senior_count_val, junior_model, junior_count_val) = if let Some(cfg) = &fast_cfg {
+                println!("✅ Resuming factory operation from saved configuration...");
+                (
+                    get_drv(&cfg.arch_brand, &cfg.arch_model), cfg.arch_model.clone(),
+                    get_drv(&cfg.senior_brand, &cfg.senior_model), cfg.senior_count,
+                    get_drv(&cfg.junior_brand, &cfg.junior_model), cfg.junior_count
+                )
+            } else {
+            let (architect_model, arch_brand, arch_name) = 'arch_recruit: loop {
                 println!("--- [Stage: Architect (CTO) Recruitment] ---");
                 display_models(&available_models);
                 let brand_val = prompt("Select Brand for Architect (CTO): ");
@@ -126,7 +168,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if let Ok(models) = driver.list_available_models().await {
                             if models.is_empty() {
                                 println!("⚠️ No models found for this brand. Using MOCK.");
-                                break 'arch_recruit (Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>, "mock".to_string());
+                                break 'arch_recruit (Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>, name.to_string(), "mock".to_string());
                             }
                             let models: Vec<String> = models;
                             for (i, m) in models.iter().enumerate() {
@@ -144,7 +186,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             _ => Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
                                         };
                                         println!("✅ Architect assigned: {} ({})\n", m_name, name);
-                                        break 'arch_recruit (final_driver, m_name);
+                                        break 'arch_recruit (final_driver, name.to_string(), m_name);
                                     }
                                 }
                                 println!("❌ Invalid version. Please choose 1-{}.\n", models.len());
@@ -156,7 +198,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             // Seniors Recruitment
-            let (senior_model, s_name) = 'senior_recruit: loop {
+            let (senior_model, senior_brand, s_name) = 'senior_recruit: loop {
                 println!("--- [Stage: Seniors Recruitment] ---");
                 display_models(&available_models);
                 let brand_val = prompt("Select Brand for Seniors: ");
@@ -172,6 +214,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             _ => Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
                         };
                         if let Ok(models) = driver.list_available_models().await {
+                            if models.is_empty() {
+                                println!("⚠️ No models found for this brand. Using MOCK.");
+                                break 'senior_recruit (Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>, name.to_string(), "mock".to_string());
+                            }
                             let models: Vec<String> = models;
                             for (i, m) in models.iter().enumerate() {
                                 println!("  {}. {}", i + 1, m);
@@ -187,7 +233,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             "ChatGPT" => Arc::new(axon_model::OpenAIDriver::new(key.clone(), m_name.clone())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
                                             _ => Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
                                         };
-                                        break 'senior_recruit (final_driver, m_name);
+                                        break 'senior_recruit (final_driver, name.to_string(), m_name);
                                     }
                                 }
                                 println!("❌ Invalid version. Please choose 1-{}.\n", models.len());
@@ -209,7 +255,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("✅ {} Senior(s) recruited ({}).\n", senior_count_val, s_name);
 
             // Juniors Recruitment
-            let (junior_model, j_name) = 'junior_recruit: loop {
+            let (junior_model, junior_brand, j_name) = 'junior_recruit: loop {
                 println!("--- [Stage: Juniors Recruitment] ---");
                 display_models(&available_models);
                 let brand_val = prompt("Select Brand for Juniors: ");
@@ -225,6 +271,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             _ => Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
                         };
                         if let Ok(models) = driver.list_available_models().await {
+                            if models.is_empty() {
+                                println!("⚠️ No models found for this brand. Using MOCK.");
+                                break 'junior_recruit (Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>, name.to_string(), "mock".to_string());
+                            }
                             let models: Vec<String> = models;
                             for (i, m) in models.iter().enumerate() {
                                 println!("  {}. {}", i + 1, m);
@@ -240,7 +290,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             "ChatGPT" => Arc::new(axon_model::OpenAIDriver::new(key.clone(), m_name.clone())) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
                                             _ => Arc::new(axon_model::MockDriver) as Arc<dyn axon_model::ModelDriver + Send + Sync>,
                                         };
-                                        break 'junior_recruit (final_driver, m_name);
+                                        break 'junior_recruit (final_driver, name.to_string(), m_name);
                                     }
                                 }
                                 println!("❌ Invalid version. Please choose 1-{}.\n", models.len());
@@ -260,6 +310,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("❌ Invalid number. Please enter a number between 0 and 100.\n");
             };
             println!("✅ {} Junior(s) recruited ({}).\n", junior_count_val, j_name);
+
+            let new_cfg = AxonConfig {
+                arch_brand, arch_model: arch_name.clone(),
+                senior_brand, senior_model: s_name, senior_count: senior_count_val,
+                junior_brand, junior_model: j_name, junior_count: junior_count_val,
+            };
+            let _ = std::fs::write("axon_config.json", serde_json::to_string_pretty(&new_cfg).unwrap());
+            
+            (architect_model, arch_name, senior_model, senior_count_val, junior_model, junior_count_val)
+            };
 
             // Stage 4: Factory Initialization (Spec)
             println!("--- [Stage 4: Factory Specification (Bootstrap Menu)] ---");

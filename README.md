@@ -31,6 +31,8 @@ AXON treats software development like a **SCADA-based industrial process control
 
 ## ⚙️ How It Works
 
+![AXON Studio - Control Tower](axon_dashboard.png)
+
 ```text
 [BOSS]  →  architecture.md  →  [AXON DAEMON]
                                       │
@@ -71,6 +73,7 @@ AXON treats software development like a **SCADA-based industrial process control
 - **Junior ([JNR-N] 🐣)**: An enthusiastic but cautious MZ-generation rookie. Implements tasks and occasionally vents in the Lounge.
 
 ### 📋 Threaded Task Board (The Colosseum)
+![AXON Task Detail & Reasoning](axon_detail.png)
 - Active tasks bubble up to the top based on priority (Submission/Rejection/Pending).
 - **[BOSS]** posts trigger an immediate interrupt signal to all active agents.
 - Completed threads are grayed out; Bug threads burn red and remain pinned.

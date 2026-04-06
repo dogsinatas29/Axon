@@ -116,8 +116,24 @@ impl ModelDriver for GeminiDriver {
             }
             
             let text = res_json["candidates"][0]["content"]["parts"][0]["text"].as_str()
-                .ok_or_else(|| { tracing::error!("Gemini Fallback. Raw: {}", res_json); "Failed extraction" })?;
-            return Ok(text.to_string());
+                .or_else(|| {
+                    // v0.0.16: 일부 실험적 모델이 'parts' 없이 'thought'만 내보내는 경우 대응
+                    tracing::warn!("Gemini Model produced empty parts. FinishReason: {:?}", res_json["candidates"][0]["finishReason"]);
+                    None
+                });
+
+            match text {
+                Some(t) => return Ok(t.to_string()),
+                None => {
+                    if retries > 0 {
+                        tracing::info!("🔄 Empty response from Gemini. Retrying... (Left: {})", retries);
+                        retries -= 1;
+                        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                        continue;
+                    }
+                    return Err(format!("Gemini Output Exception: Model finished without generating text parts. FinishReason: {:?}", res_json["candidates"][0]["finishReason"]).into());
+                }
+            }
         }
     }
 }

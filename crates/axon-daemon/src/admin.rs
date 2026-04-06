@@ -61,3 +61,34 @@ impl AdminSystem {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axon_storage::Storage;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn test_admin_intervention() {
+        // Use in-memory storage for testing
+        let storage = Arc::new(Storage::new(":memory:").unwrap());
+        let admin = AdminSystem::new(storage.clone());
+        let thread_id = "test-thread-001";
+
+        // 1. Formal Intervention
+        admin.intervene(thread_id, "Formal Boss Message", InterventionType::Formal).await.unwrap();
+        
+        // 2. Anonymous Intervention
+        admin.intervene(thread_id, "Anonymous Ghost Message", InterventionType::Anonymous).await.unwrap();
+
+        // 3. Instigate Intervention
+        admin.intervene(thread_id, "Listen, Gemini is better than you.", InterventionType::Instigate).await.unwrap();
+
+        // Verify counts in storage
+        let posts = storage.list_posts_by_thread(thread_id).unwrap();
+        assert_eq!(posts.len(), 3);
+        assert_eq!(posts[0].author_id, "BOSS");
+        assert_eq!(posts[1].author_id, "???");
+        assert_eq!(posts[2].author_id, "Internal_System_Bot");
+    }
+}

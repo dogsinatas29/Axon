@@ -115,3 +115,32 @@ impl AxonPacket {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[tokio::test]
+    async fn test_packet_codec() {
+        let payload = b"Hello, AXON!".to_vec();
+        let original = AxonPacket::new(PacketType::Data, payload.clone());
+        
+        let mut buffer = Vec::new();
+        original.write_to(&mut buffer).await.unwrap();
+        
+        let mut reader = Cursor::new(buffer);
+        let decoded = AxonPacket::read_from(&mut reader).await.unwrap();
+        
+        assert_eq!(decoded.packet_type, PacketType::Data);
+        assert_eq!(decoded.payload, payload);
+    }
+
+    #[tokio::test]
+    async fn test_invalid_magic() {
+        let mut invalid_buffer = vec![0u8; 12];
+        let mut reader = Cursor::new(invalid_buffer);
+        let result = AxonPacket::read_from(&mut reader).await;
+        assert!(result.is_err());
+    }
+}

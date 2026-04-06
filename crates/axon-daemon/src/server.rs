@@ -247,8 +247,8 @@ async fn approve_thread(
         thread.status = axon_core::ThreadStatus::Completed;
         let _ = daemon.storage.save_thread(&thread);
         
-        // Lock-in architecture section
-        let _ = daemon.lock_in_architecture(&thread.title);
+        // Lock-in architecture section (v0.0.16 Isolation Path applied)
+        let _ = daemon.lock_in_architecture(&thread.project_id, &thread.title);
 
         daemon.event_bus.publish(axon_core::Event {
             id: uuid::Uuid::new_v4().to_string(),

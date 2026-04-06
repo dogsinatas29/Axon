@@ -58,9 +58,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .trim_start_matches("- [ ]")
                         .trim();
                     if !title.is_empty() {
+                        let thread_id = uuid::Uuid::new_v4().to_string();
                         let thread = axon_core::Thread {
-                            id: uuid::Uuid::new_v4().to_string(),
-                            project_id: "default-project".to_string(), // Default for CLI
+                            id: thread_id.clone(),
+                            project_id: "default-project".to_string(), 
                             title: title.to_string(),
                             status: axon_core::ThreadStatus::Draft,
                             author: "BOSS".to_string(),
@@ -68,11 +69,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             created_at: chrono::Local::now(),
                             updated_at: chrono::Local::now(),
                         };
-                        daemon
-                            .storage
-                            .save_thread(&thread)
-                            .expect("Failed to save thread");
-                        tracing::info!("Generated thread: {}", title);
+                        daemon.storage.save_thread(&thread).expect("Failed to save thread");
+
+                        // v0.0.16: Create a corresponding Task for the Scheduler to pick up
+                        let task = axon_core::Task {
+                            id: thread_id, // Use same ID for linkage
+                            project_id: "default-project".to_string(),
+                            title: title.to_string(),
+                            description: format!("Automated task generated from spec: {}", title),
+                            status: axon_core::TaskStatus::Pending,
+                            created_at: chrono::Local::now(),
+                        };
+                        daemon.storage.save_task(&task).expect("Failed to save task");
+                        
+                        tracing::info!("Generated thread & task: {}", title);
                     }
                 }
             }

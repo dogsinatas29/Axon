@@ -36,7 +36,10 @@ pub struct Daemon {
     pub architecture_guide: String,
     pub pause_tx: Arc<tokio::sync::watch::Sender<bool>>,
     pub pause_rx: tokio::sync::watch::Receiver<bool>,
-    pub locale: String, // v0.0.15: OS Locale (e.g., "ko_KR", "en_US")
+    pub locale: String,
+    pub controller: Arc<controller::ControlSystem>,
+    pub lounge: Arc<axon_agent::lounge::LoungeManager>,
+    pub admin: Arc<admin::AdminSystem>,
 }
 
 impl Daemon {
@@ -57,7 +60,7 @@ impl Daemon {
 
         Self {
             dispatcher: Arc::new(Dispatcher::new(worker_tx)),
-            storage,
+            storage: storage.clone(),
             architect_model,
             senior_model,
             junior_model,
@@ -66,6 +69,9 @@ impl Daemon {
             pause_tx: Arc::new(pause_tx),
             pause_rx,
             locale,
+            controller: Arc::new(controller::ControlSystem::new()),
+            lounge: Arc::new(axon_agent::lounge::LoungeManager::new(".")),
+            admin: Arc::new(admin::AdminSystem::new(storage)),
         }
     }
 
@@ -116,11 +122,26 @@ impl Daemon {
                     // 각 태스크 스폰 사이에 최소 물리적 지연을 두어 병렬 API 급발진 방지
                     tokio::time::sleep(tokio::time::Duration::from_millis(4100)).await;
                 }
-                _ = tokio::time::sleep(tokio::time::Duration::from_secs(1)) => {
-                    // Periodic scheduling check
-                    // For now, assume fixed agents available
+                _ = tokio::time::sleep(tokio::time::Duration::from_secs(5)) => {
+                    // Periodic scheduling check (v0.0.16)
+                    // 1. Storage에서 실행 대기 중인 태스크 조회
+                    if let Ok(pending_tasks) = self.storage.list_all_tasks() {
+                        let ready_tasks: Vec<_> = pending_tasks.into_iter()
+                            .filter(|t| t.status == axon_core::TaskStatus::Pending)
+                            .take(5) // 한 번에 최대 5개씩 처리
+                            .collect();
+
+                        for mut task in ready_tasks {
+                            tracing::info!("🔩 Scheduler: Enqueuing task [{}] to Dispatcher", task.title);
+                            task.status = axon_core::TaskStatus::Ready; // 준비 상태로 전환
+                            let _ = self.storage.save_task(&task);
+                            self.dispatcher.enqueue_task(task);
+                        }
+                    }
+
+                    // 2. 사용 가능한 에이전트에게 작업 배정
                     let available_agents = vec!["agent-gemini-1".to_string()];
-                    let _ = daemon.dispatcher.schedule(available_agents).await;
+                    let _ = self.dispatcher.schedule(available_agents).await;
                 }
                 Ok(_) = pause_rx.changed() => {
                     // Pause state changed, loop will restart and check at the top
@@ -143,7 +164,11 @@ impl Daemon {
         // LOCALE INJECTION: 주니어에게 사장님의 언어로 보고할 것을 강제함
         junior_runtime.set_locale(&self.locale);
 
-        let proposal = junior_runtime.process_task(&task, &self.architecture_guide, Some(self.event_bus.clone())).await?;
+        // v0.0.16 Isolation: 프로젝트 전용 아키텍처 가이드를 실시간으로 읽어옴
+        let arch_guide_path = format!("projects/{}/architecture.md", task.project_id);
+        let current_arch_guide = std::fs::read_to_string(&arch_guide_path).unwrap_or_else(|_| self.architecture_guide.clone());
+
+        let proposal = junior_runtime.process_task(&task, &current_arch_guide, Some(self.event_bus.clone())).await?;
         let _ = self.storage.save_post(&proposal);
         
         self.event_bus.publish(axon_core::Event {
@@ -157,6 +182,9 @@ impl Daemon {
             payload: None,
             timestamp: chrono::Local::now(),
         });
+
+        // LOUNGE LOG (v0.0.16): 에이전트의 작업 후 소회 실시간 기록
+        let _ = self.lounge.log_vibe(&junior_runtime.agent, axon_agent::lounge::Vibe::Focus);
 
         // 2. SYSTEM SUMMARY (Intermediate step)
         let summary = junior_runtime.generate_system_summary(&proposal, Some(self.event_bus.clone())).await?;
@@ -220,7 +248,14 @@ impl Daemon {
             timestamp: chrono::Local::now(),
         });
 
-        // 4. FINALIZE TASK
+        // 5. ISOLATION SYNC (v0.0.16): 최종 승인된 코드를 프로젝트 샌드박스에 물리적 반영
+        if let Some(ref code) = validation.full_code {
+            let _ = self.sync_post_to_sandbox(&task.project_id, code);
+        }
+
+        // v0.0.16: 아키텍처 섹션 잠금 (격리 경로 적용)
+        let _ = self.lock_in_architecture(&task.project_id, &task.title);
+
         task.status = TaskStatus::Completed;
         let _ = self.storage.save_task(&task);
 
@@ -314,8 +349,13 @@ impl Daemon {
                             arch_content.clone()
                         };
 
-                        let _ = std::fs::write("architecture.md", clean_arch);
-                        tracing::info!("✅ Architecture.md has been generated (Master Hub).");
+                        // v0.0.16 Isolation: 프로젝트별 전용 샌드박스 폴더 생성
+                        let sandbox_path = format!("projects/{}", assignment.task.project_id);
+                        let _ = std::fs::create_dir_all(&sandbox_path);
+                        let arch_file_path = format!("{}/architecture.md", sandbox_path);
+
+                        let _ = std::fs::write(&arch_file_path, clean_arch);
+                        tracing::info!("✅ Architecture.md has been generated in sandbox: {}", arch_file_path);
                     }
 
                     // 2. Intelligent Spec Breakdown (Look for JSON block)
@@ -336,7 +376,7 @@ impl Daemon {
                             for t in tasks_raw {
                                 let task = axon_core::Task {
                                     id: uuid::Uuid::new_v4().to_string(),
-                                    project_id: "default-project".to_string(),
+                                    project_id: "default-project".to_string(), // v0.0.16: UI 전용 기본 프로젝트 ID로 일치화
                                     title: t["title"].as_str().unwrap_or("Untitled").to_string(),
                                     description: t["description"].as_str().unwrap_or("").to_string(),
                                     status: TaskStatus::Pending,
@@ -344,6 +384,7 @@ impl Daemon {
                                 };
                                 let _ = daemon.storage.save_task(&task);
 
+                                // v0.0.16 UI 연동: 스레드 및 최초 지침 생성
                                 let thread = axon_core::Thread {
                                     id: task.id.clone(),
                                     project_id: task.project_id.clone(),
@@ -355,7 +396,7 @@ impl Daemon {
                                     updated_at: task.created_at,
                                 };
                                 let _ = daemon.storage.save_thread(&thread);
-            
+
                                 let post = axon_core::Post {
                                     id: uuid::Uuid::new_v4().to_string(),
                                     thread_id: task.id.clone(),
@@ -383,10 +424,10 @@ impl Daemon {
         Ok(())
     }
 
-    pub fn lock_in_architecture(&self, thread_title: &str) -> anyhow::Result<()> {
-        let arch_path = "architecture.md";
-        if std::path::Path::new(arch_path).exists() {
-            let content = std::fs::read_to_string(arch_path)?;
+    pub fn lock_in_architecture(&self, project_id: &str, thread_title: &str) -> anyhow::Result<()> {
+        let arch_path = format!("projects/{}/architecture.md", project_id);
+        if std::path::Path::new(&arch_path).exists() {
+            let content = std::fs::read_to_string(&arch_path)?;
             let locked_marker = format!("## {} [✅ Locked]", thread_title);
             let target = format!("## {}", thread_title);
             
@@ -396,6 +437,32 @@ impl Daemon {
                 tracing::info!("Locked in architecture section: {}", thread_title);
             }
         }
+        Ok(())
+    }
+
+    /// v0.0.16 Isolation System: 에이전트의 결과물을 프로젝트별 샌드박스로 동기화
+    fn sync_post_to_sandbox(&self, project_id: &str, content: &str) -> anyhow::Result<()> {
+        let sandbox_path = format!("projects/{}", project_id);
+        let _ = std::fs::create_dir_all(&sandbox_path);
+
+        // 단순 구현: 마크다운 코드 블록에서 파일 추출 시도 (향후 정식 파서로 교체)
+        // 여기서는 임시로 'src/main.rs' 등을 파싱하거나 전체를 덤프함
+        if content.contains("```rust") {
+            let parts: Vec<&str> = content.split("```rust").collect();
+            if parts.len() > 1 {
+                let code_part = parts[1].split("```").next().unwrap_or("").trim();
+                let file_path = format!("{}/src/generated.rs", sandbox_path);
+                let _ = std::fs::create_dir_all(format!("{}/src", sandbox_path));
+                std::fs::write(&file_path, code_part)?;
+                tracing::info!("🔒 Isolation: Synced code to {}", file_path);
+            }
+        } else {
+             // 텍스트 기반 결과물은 README.md로 저장
+            let file_path = format!("{}/README.md", sandbox_path);
+            std::fs::write(&file_path, content)?;
+            tracing::info!("🔒 Isolation: Synced documentation to {}", file_path);
+        }
+
         Ok(())
     }
 }

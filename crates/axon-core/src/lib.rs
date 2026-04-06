@@ -44,6 +44,7 @@ pub struct Task {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum TaskStatus {
     Pending,
+    Ready,
     Assigned,
     InProgress,
     Completed,

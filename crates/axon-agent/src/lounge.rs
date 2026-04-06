@@ -90,3 +90,38 @@ impl LoungeManager {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axon_core::{Agent, AgentPersona, AgentRole};
+
+    #[test]
+    fn test_lounge_logging() {
+        let manager = LoungeManager::new("./");
+        let agent = Agent {
+            id: "test-junior".to_string(),
+            name: "Gemini".to_string(),
+            role: AgentRole::Junior,
+            persona: AgentPersona {
+                name: "Gemini".to_string(),
+                gender: "Male".to_string(),
+                character_core: "Enthusiastic".to_string(),
+                prefixes: vec![],
+                suffixes: vec![],
+                description: "".to_string(),
+            },
+            model: "".to_string(),
+            status: "".to_string(),
+            parent_id: None,
+            dtr: 0.5,
+        };
+
+        // 1. Log excited vibe
+        manager.log_vibe(&agent, Vibe::Excited).unwrap();
+        // 2. Log gossiping vibe
+        manager.log_vibe(&agent, Vibe::Gossiping).unwrap();
+
+        assert!(Path::new("Nogari.md").exists());
+    }
+}

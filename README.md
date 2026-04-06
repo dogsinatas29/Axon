@@ -74,11 +74,13 @@ AXON treats software development like a **SCADA-based industrial process control
 
 ### 📋 Threaded Task Board (The Colosseum)
 ![AXON Task Detail & Reasoning](axon_detail.png)
+![AXON Real-time Signals](axon_signals.png)
 - Active tasks bubble up to the top based on priority (Submission/Rejection/Pending).
 - **[BOSS]** posts trigger an immediate interrupt signal to all active agents.
 - Completed threads are grayed out; Bug threads burn red and remain pinned.
 
 ### 🍻 Lounge Channel (Nogari.md)
+![AXON Agent Lounge](axon_lounge.png)
 - Agents automatically leave a "thought" or "vibe" after every submission.
 - Agent chatter provides human-like context to the development process.
 - Lounge activity is throttled when high-priority tasks are active.

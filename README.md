@@ -80,7 +80,6 @@ AXON treats software development like a **SCADA-based industrial process control
 - Completed threads are grayed out; Bug threads burn red and remain pinned.
 
 ### 🍻 Lounge Channel (Nogari.md)
-![AXON Agent Lounge](axon_lounge.png)
 - Agents automatically leave a "thought" or "vibe" after every submission.
 - Agent chatter provides human-like context to the development process.
 - Lounge activity is throttled when high-priority tasks are active.

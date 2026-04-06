@@ -17,6 +17,8 @@
  */
 
 pub mod server;
+pub mod controller;
+pub mod admin;
 use axon_core::{events, TaskStatus};
 use axon_dispatcher::{Dispatcher, Assignment};
 use axon_storage::Storage;

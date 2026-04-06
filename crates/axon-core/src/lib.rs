@@ -157,18 +157,7 @@ pub struct Event {
     pub timestamp: DateTime<Local>,
 }
 
-pub mod protocol {
-    use serde::{Deserialize, Serialize};
-
-    #[derive(Debug, Serialize, Deserialize, Clone)]
-    pub enum PacketType {
-        Status,
-        Hold,
-        Resume,
-        Control,
-        Data,
-    }
-}
+pub mod protocol;
 
 pub mod events {
     use super::Event;

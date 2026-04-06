@@ -17,6 +17,7 @@
  */
 
 pub mod persona;
+pub mod lounge;
 
 use axon_core::{Agent, Post, PostType, AgentRole, Task};
 use axon_model::ModelDriver;

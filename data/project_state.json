@@ -404,8 +404,8 @@
       },
       "id": "node_crates_axon_agent_src_lib_rs_1773460947531",
       "position": {
-        "x": 2040,
-        "y": -1000
+        "x": -160,
+        "y": 80
       },
       "status": "proposed",
       "type": "source",
@@ -425,8 +425,8 @@
       },
       "id": "node_crates_axon_agent_src_persona_rs_1773460947531",
       "position": {
-        "x": 2360,
-        "y": -1000
+        "x": -200,
+        "y": 280
       },
       "status": "proposed",
       "type": "source",
@@ -446,8 +446,8 @@
       },
       "id": "node_crates_axon_core_src_lib_rs_1773460947531",
       "position": {
-        "x": 2600,
-        "y": -200
+        "x": 2240,
+        "y": 480
       },
       "status": "proposed",
       "type": "source",
@@ -467,8 +467,8 @@
       },
       "id": "node_crates_axon_daemon_src_cli_rs_1773460947531",
       "position": {
-        "x": 1640,
-        "y": -1040
+        "x": 1320,
+        "y": 1240
       },
       "status": "proposed",
       "type": "source",
@@ -488,8 +488,8 @@
       },
       "id": "node_crates_axon_daemon_src_lib_rs_1773460947531",
       "position": {
-        "x": 800,
-        "y": -880
+        "x": 1560,
+        "y": 1240
       },
       "status": "proposed",
       "type": "source",
@@ -509,8 +509,8 @@
       },
       "id": "node_crates_axon_daemon_src_main_rs_1773460947531",
       "position": {
-        "x": 1040,
-        "y": -960
+        "x": 920,
+        "y": 1240
       },
       "status": "proposed",
       "type": "source",
@@ -530,8 +530,8 @@
       },
       "id": "node_crates_axon_daemon_src_server_rs_1773460947531",
       "position": {
-        "x": 1560,
-        "y": -880
+        "x": 560,
+        "y": 1240
       },
       "status": "proposed",
       "type": "source",
@@ -551,8 +551,8 @@
       },
       "id": "node_crates_axon_dispatcher_src_lib_rs_1773460947531",
       "position": {
-        "x": 1640,
-        "y": 800
+        "x": 2280,
+        "y": -240
       },
       "status": "proposed",
       "type": "source",
@@ -572,8 +572,8 @@
       },
       "id": "node_crates_axon_model_src_lib_rs_1773460947531",
       "position": {
-        "x": 1360,
-        "y": 840
+        "x": 120,
+        "y": -320
       },
       "status": "proposed",
       "type": "source",
@@ -593,8 +593,8 @@
       },
       "id": "node_crates_axon_storage_src_lib_rs_1773460947531",
       "position": {
-        "x": 1960,
-        "y": 760
+        "x": 2280,
+        "y": 240
       },
       "status": "proposed",
       "type": "source",
@@ -614,8 +614,8 @@
       },
       "id": "node_studio_eslint_config_js_1773460947531",
       "position": {
-        "x": 400,
-        "y": 840
+        "x": 1480,
+        "y": -280
       },
       "status": "proposed",
       "type": "source",
@@ -635,8 +635,8 @@
       },
       "id": "node_studio_vite_config_ts_1773460947531",
       "position": {
-        "x": 1120,
-        "y": 800
+        "x": 760,
+        "y": -280
       },
       "status": "proposed",
       "type": "source",
@@ -656,8 +656,8 @@
       },
       "id": "node_studio_src_api_socket_ts_1773460947531",
       "position": {
-        "x": 0,
-        "y": 1440
+        "x": -200,
+        "y": 720
       },
       "status": "proposed",
       "type": "source",
@@ -677,8 +677,8 @@
       },
       "id": "node_studio_src_types_index_ts_1773460947531",
       "position": {
-        "x": 320,
-        "y": 1440
+        "x": -200,
+        "y": 520
       },
       "status": "proposed",
       "type": "source",
@@ -689,13 +689,13 @@
   ],
   "project_name": "axon",
   "view": {
-    "offsetX": 27.84743143249625,
-    "offsetY": 602.607014138463,
-    "zoom": 0.47438138763127186
+    "offsetX": 507.15330599999993,
+    "offsetY": 250.94129999999996,
+    "zoom": 0.5383422000000001
   },
   "_iron_guard": {
     "version": "0.2.18.1",
-    "byte_size": 10806,
+    "byte_size": 10805,
     "encoding": "UTF-8",
     "alignment": 8
   }

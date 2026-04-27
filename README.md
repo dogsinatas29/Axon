@@ -1,7 +1,21 @@
 # AXON: The Automated Software Factory (Phase 07)
 [한국어 버전 (Korean)](README.ko.md)
 
+![AXON Concept](https://raw.githubusercontent.com/dogsinatas29/Axon/master/axon%EA%B0%9C%EB%85%90.png)
+
 AXON is a high-performance, multi-agent AI coding factory designed to transform specifications into production-ready code with minimal human intervention. Phase 07 focuses on **Localization**, **Robust Isolation**, and **Inference Optimization**.
+
+## 🖼️ Visual Overview
+
+| 1. Factory Setup | 2. Daemon Execution |
+|---|---|
+| ![Setup](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287668456.png) | ![Daemon](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287675852.png) |
+| *Recruiting agents and configuring local models.* | *Real-time task distribution and metric collection.* |
+
+| 3. Studio Dashboard | 4. Task Details |
+|---|---|
+| ![Dashboard](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287696129.png) | ![Details](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287713139.png) |
+| *Monitoring the entire production line via Control Tower.* | *Inspecting individual thread status and agent proposals.* |
 
 ## 🚀 Key Features & Updates
 
@@ -27,10 +41,13 @@ AXON is a high-performance, multi-agent AI coding factory designed to transform 
 
 ```bash
 # Build the factory
-cargo build --release -p axon-daemon
+cargo build --release
 
-# Run with a specification
+# Run with a specification (Direct)
 ./target/release/axon-daemon run GEMINI.md
+
+# Run interactively
+./target/release/axon-daemon run
 ```
 
 ---

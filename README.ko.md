@@ -1,7 +1,21 @@
 # AXON: 자동화 소프트웨어 공장 (Phase 07)
 [English Version](README.md)
 
+![AXON Concept](https://raw.githubusercontent.com/dogsinatas29/Axon/master/axon%EA%B0%9C%EB%85%90.png)
+
 AXON은 최소한의 개입으로 요구 사양서를 실제 동작하는 코드로 변환하기 위해 설계된 고성능 멀티 에이전트 AI 코딩 공장입니다. Phase 07은 **로컬라이징(현지화)**, **강력한 격리(Isolation)**, 그리고 **추론 최적화**에 집중했습니다.
+
+## 🖼️ 시각적 개요 (Visual Overview)
+
+| 1. 공장 설정 (Setup) | 2. 데몬 가동 (Daemon) |
+|---|---|
+| ![Setup](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287668456.png) | ![Daemon](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287675852.png) |
+| *에이전트를 모집하고 로컬 모델 엔진을 설정하는 과정* | *실시간 태스크 분배 및 메트릭 수집 현황* |
+
+| 3. 스튜디오 대시보드 | 4. 작업 상세 정보 |
+|---|---|
+| ![Dashboard](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287696129.png) | ![Details](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287713139.png) |
+| *관제탑(Control Tower)을 통한 전체 공정 모니터링* | *개별 쓰레드 상태 및 에이전트의 제안 내용 확인* |
 
 ## 🚀 핵심 기능 및 업데이트
 
@@ -27,10 +41,13 @@ AXON은 최소한의 개입으로 요구 사양서를 실제 동작하는 코드
 
 ```bash
 # 공장 빌드
-cargo build --release -p axon-daemon
+cargo build --release
 
-# 사양서와 함께 실행
+# 사양서와 함께 즉시 실행
 ./target/release/axon-daemon run GEMINI.md
+
+# 대화형 실행
+./target/release/axon-daemon run
 ```
 
 ---

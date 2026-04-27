@@ -40,6 +40,8 @@ pub enum Commands {
         /// Automatically fast-resume bypassing the interactive prompt if axon_config.json exists
         #[arg(short, long)]
         resume: bool,
+        /// Path to the specification file to bootstrap from (optional)
+        spec: Option<String>,
     },
     /// Check the status of the daemon
     Status,

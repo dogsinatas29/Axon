@@ -90,10 +90,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        Commands::Run { resume } => {
+        Commands::Run { resume, spec } => {
             println!("\n====================================================");
             println!("🏭 AXON: Automated Software Factory Bootstrapper");
             println!("====================================================\n");
+
+            // ... (rest of the config logic remains same)
 
             #[derive(serde::Serialize, serde::Deserialize, Clone)]
             struct AgentConfig {
@@ -317,7 +319,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             let spec_path = if !skip_bootstrap {
-                prompt("Enter Specification File Path (e.g., GEMINI.md): ")
+                if let Some(s) = spec {
+                    s
+                } else {
+                    prompt("Enter Specification File Path (e.g., GEMINI.md): ")
+                }
             } else {
                 "".to_string()
             };

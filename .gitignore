@@ -1,13 +1,31 @@
+# Rust
 /target
-/axum
-/clap
-/core
-/notify
-/protocol
-/serde
-/tokio
-/tower_http
-/tracing
-/tracing_subscriber
-TEST/
+Cargo.lock
+
+# AXON Operational Data
 axon.db
+axon.db-journal
+axon_config.json
+Nogari.md
+architecture.md
+architecture_report.md
+junior_*.md
+test_*.md
+test_run_full.py
+
+# Context & IDE
+.synapse_contexts
+.vscode/
+.idea/
+
+# Test Sandboxes
+/TEST1
+/TEST2
+/TEST3
+/system/
+/GEMINI/
+
+# Frontend (Studio)
+studio/node_modules
+studio/dist
+studio/.env

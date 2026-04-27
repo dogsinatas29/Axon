@@ -20,13 +20,20 @@ AXON supports both local infrastructure (Ollama) and cloud APIs (Gemini).
     ollama pull llama3   # 주니어 추천 (Recommended for Junior)
     ```
 
-### 옵션 B: 클라우드 LLM (Google Gemini) / Option B: Cloud LLM (Google Gemini)
+### 옵션 B: 클라우드 LLM (Cloud API) / Option B: Cloud LLM
 *고성능 및 대규모 컨텍스트 중심 / Focus on high performance and large context*
 
-1.  **API 키 발급 / Get API Key**: [Google AI Studio](https://aistudio.google.com/)
-2.  **환경 변수 설정 / Set Environment Variable**:
+1.  **API 키 발급 / Get API Key**: 원하는 서비스의 콘솔에서 발급.
+2.  **환경 변수 설정 / Set Environment Variables**:
     ```bash
-    export GEMINI_API_KEY="your-api-key-here"
+    # Google Gemini
+    export GEMINI_API_KEY="your-gemini-key"
+
+    # Anthropic Claude
+    export CLAUDE_API_KEY="your-claude-key"
+
+    # OpenAI ChatGPT
+    export OPENAI_API_KEY="your-openai-key"
     ```
 
 ---

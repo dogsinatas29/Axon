@@ -9,12 +9,12 @@ AXON is a high-performance, multi-agent AI coding factory designed to transform 
 
 | 1. Factory Setup | 2. Daemon Execution |
 |---|---|
-| ![Setup](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287668456.png) | ![Daemon](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287675852.png) |
+| ![Setup](./assets/setup.png) | ![Daemon](./assets/daemon.png) |
 | *Recruiting agents and configuring local models.* | *Real-time task distribution and metric collection.* |
 
 | 3. Studio Dashboard | 4. Task Details |
 |---|---|
-| ![Dashboard](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287696129.png) | ![Details](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287713139.png) |
+| ![Dashboard](./assets/dashboard.png) | ![Details](./assets/details.png) |
 | *Monitoring the entire production line via Control Tower.* | *Inspecting individual thread status and agent proposals.* |
 
 ## 🚀 Key Features & Updates

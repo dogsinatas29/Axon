@@ -9,12 +9,12 @@ AXON은 최소한의 개입으로 요구 사양서를 실제 동작하는 코드
 
 | 1. 공장 설정 (Setup) | 2. 데몬 가동 (Daemon) |
 |---|---|
-| ![Setup](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287668456.png) | ![Daemon](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287675852.png) |
+| ![Setup](./assets/setup.png) | ![Daemon](./assets/daemon.png) |
 | *에이전트를 모집하고 로컬 모델 엔진을 설정하는 과정* | *실시간 태스크 분배 및 메트릭 수집 현황* |
 
 | 3. 스튜디오 대시보드 | 4. 작업 상세 정보 |
 |---|---|
-| ![Dashboard](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287696129.png) | ![Details](file:///home/dogsinatas/.gemini/antigravity/brain/cd543fff-f49f-4b81-98f4-683acceedf3c/media__1777287713139.png) |
+| ![Dashboard](./assets/dashboard.png) | ![Details](./assets/details.png) |
 | *관제탑(Control Tower)을 통한 전체 공정 모니터링* | *개별 쓰레드 상태 및 에이전트의 제안 내용 확인* |
 
 ## 🚀 핵심 기능 및 업데이트

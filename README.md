@@ -137,6 +137,9 @@ AXON enforces a strict hierarchy and specialized reasoning frameworks for each a
 
 ## 🛠️ Getting Started
 
+> [!TIP]
+> For a more detailed guide on Ollama setup and resource optimization, see the **[Full Installation Guide](INSTALL.md)**.
+
 ```bash
 # Build the factory
 cargo build --release

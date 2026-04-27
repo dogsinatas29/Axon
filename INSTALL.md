@@ -1,46 +1,60 @@
-# encoding: utf-8
-# AXON Installation & Execution Guide 🏭
+# AXON 설치 및 실행 가이드 (Installation & Execution) 🏭
 
-AXON은 백엔드 데몬(Rust)과 프론트엔드 스튜디오(React)로 구성되어 있습니다. 아래 단계를 따라 설치 및 실행하실 수 있습니다.
+AXON은 백엔드 데몬(Rust)과 프론트엔드 스튜디오(React/Vite)로 구성된 자동화 소프트웨어 공장입니다.
 
-## 1. 빌드 (Installation)
+## 1. 사전 준비 (Prerequisites)
+
+AXON v0.0.22+ 버전은 로컬 LLM 엔진인 **Ollama**를 기본으로 사용합니다.
+
+1.  **Ollama 설치**: [ollama.com](https://ollama.com)에서 설치
+2.  **모델 다운로드**:
+    ```bash
+    ollama pull mistral  # 아키텍트/시니어용 (추천)
+    ollama pull llama3   # 주니어용 (추천)
+    ```
+    *설정 파일(`axon_config.json`)에서 원하는 모델로 변경 가능합니다.*
+
+## 2. 빌드 (Installation)
 
 ### 백엔드 (Rust)
 ```bash
 # 전체 워크스페이스 빌드
-cargo build --release -p axon-daemon
+cargo build --release
 ```
-빌드가 완료되면 실행 파일은 `target/release/axon-daemon`에 위치합니다.
+빌드가 완료되면 실행 파일은 `./target/release/axon-daemon`에 위치합니다.
 
 ### 프론트엔드 (Studio)
-프론트엔드 정적 파일이 백엔드 서버를 통해 서빙되므로, 사전 빌드가 필요합니다.
+백엔드 서버가 `studio/dist` 폴더의 정적 파일을 서빙하므로, 사전 빌드가 필요합니다.
 ```bash
 cd studio
 npm install
 npm run build
 cd ..
 ```
-*백엔드 실행 시 `studio/dist` 디렉토리를 자동으로 감지하여 웹 대시보드를 서빙합니다.*
 
-## 2. 실행 (Running)
+## 3. 실행 (Running)
 
-### 환경 변수 설정
-에이전트들이 실제 연산을 수행하려면 LLM API 키가 필요합니다.
+### 일반 실행
 ```bash
-export GEMINI_API_KEY="your-google-api-key"
-```
-*API 키를 설정하지 않으면 시뮬레이션용 Mock 드라이버로 동작합니다.*
-
-### 데몬 기동
-```bash
+# 대화형 모드로 실행
 ./target/release/axon-daemon run
+
+# 명세서(Spec)를 지정하여 즉시 공장 가동
+./target/release/axon-daemon run GEMINI.md
 ```
-기동 후 브라우저에서 `http://localhost:8080`으로 접속하여 관제 타워(Studio)를 확인하십시오.
 
-## 3. 데몬 서비스 등록 (Linux systemd)
-시스템 재부팅 시에도 자동으로 실행되도록 데몬으로 등록하려면 아래 설정을 사용하십시오.
+### 리소스 최적화 실행 (권장)
+하스웰(Haswell) 등 구형 CPU나 GPU가 없는 환경에서는 병렬 일꾼 수를 제한하여 Ollama의 타임아웃을 방지해야 합니다.
+```bash
+# 병렬 워커를 1개로 제한하여 안정적으로 가동
+./target/release/axon-daemon run GEMINI.md --workers 1
+```
 
-`/etc/systemd/system/axon.service` 파일을 생성합니다:
+## 4. 시스템 서비스 등록 (Linux systemd)
+
+시스템 재부팅 시에도 자동으로 실행되도록 설정하려면 아래 예시를 참고하십시오.
+
+`/etc/systemd/system/axon.service`:
 ```ini
 [Unit]
 Description=AXON Automated Software Factory Daemon
@@ -50,8 +64,8 @@ After=network.target
 Type=simple
 User=dogsinatas
 WorkingDirectory=/home/dogsinatas/rust_project/axon
-Environment=GEMINI_API_KEY=your-google-api-key
-ExecStart=/home/dogsinatas/rust_project/axon/target/release/axon-daemon run
+# Ollama가 로컬에서 구동 중이어야 함
+ExecStart=/home/dogsinatas/rust_project/axon/target/release/axon-daemon run --workers 1
 Restart=always
 RestartSec=10
 
@@ -59,15 +73,10 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-**서비스 활성화:**
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable axon
-sudo systemctl start axon
-```
+## 5. 주요 CLI 옵션
+- `run [SPEC]`: 데몬 실행 및 명세서 로드.
+- `--workers <N>`: 동시 가동할 에이전트 스레드 수 (기본값: CPU 코어 수).
+- `--port <PORT>`: 웹 대시보드 포트 변경 (기본값: 8080).
 
-## 4. 주요 CLI 명령어
-- `axon run`: 데몬 실행 (API + Web UI + Worker)
-- `axon init`: 새로운 프로젝트 초기화
-- `axon read <path>`: `Architecture.md`를 읽어 즉시 태스크 생성
-- `axon status`: 현재 가동 상태 확인
+---
+*주의: Ollama 서비스가 먼저 실행되고 있어야 에이전트들이 정상적으로 모집됩니다.*

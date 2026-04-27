@@ -10,6 +10,7 @@ pub struct WorkerPool {
 pub struct Dispatcher {
     task_queue: Arc<Mutex<VecDeque<Task>>>,
     worker_tx: mpsc::Sender<Assignment>,
+    queue_limit: usize,
 }
 
 pub struct Assignment {
@@ -22,13 +23,35 @@ impl Dispatcher {
         Self {
             task_queue: Arc::new(Mutex::new(VecDeque::new())),
             worker_tx,
+            queue_limit: 10, // PHASE_06: Default limit
         }
     }
 
-    pub fn enqueue_task(&self, task: Task) {
+    pub fn with_limit(mut self, limit: usize) -> Self {
+        self.queue_limit = limit;
+        self
+    }
+
+    pub fn enqueue_task(&self, task: Task) -> Result<usize, String> {
         let mut queue = self.task_queue.lock().unwrap();
+        if queue.len() >= self.queue_limit {
+            return Err("QUEUE_FULL".to_string());
+        }
         queue.push_back(task);
-        // Trigger scheduling
+        Ok(queue.len())
+    }
+
+    pub fn len(&self) -> usize {
+        self.task_queue.lock().unwrap().len()
+    }
+
+    pub fn limit(&self) -> usize {
+        self.queue_limit
+    }
+
+    pub fn pop_task(&self) -> Option<Task> {
+        let mut queue = self.task_queue.lock().unwrap();
+        queue.pop_front()
     }
 
     pub async fn schedule(&self, available_agents: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {

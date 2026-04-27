@@ -52,13 +52,30 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents }) => {
   };
 
   const fireAgent = async (id: string) => {
-    if (!window.confirm('Are you sure you want to fire this agent? Tasks will be reassigned.')) return;
+    if (!window.confirm('Are you sure you want to fire this agent? If this is a Senior, all subordinates will be fired as well.')) return;
     try {
       const response = await fetch(`http://localhost:8080/api/agents/${id}/fire`, {
         method: 'POST',
       });
       if (response.ok) {
-        setAgents(prev => prev.filter(a => a.id !== id));
+        // Remove the fired agent and ALL their descendants
+        setAgents(prev => {
+            const toRemove = new Set([id]);
+            let changed = true;
+            while(changed) {
+                changed = false;
+                prev.forEach(a => {
+                    if (a.parent_id && toRemove.has(a.parent_id) && !toRemove.has(a.id)) {
+                        toRemove.add(a.id);
+                        changed = true;
+                    }
+                });
+            }
+            return prev.filter(a => !toRemove.has(a.id));
+        });
+      } else {
+        const errorText = await response.text();
+        alert(`Firing failed: ${errorText}`);
       }
     } catch (err) {
       console.error('Firing failed', err);
@@ -92,6 +109,9 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents }) => {
               <span style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>
                 {agent.persona.name}
               </span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', opacity: 0.8 }}>
+                ({agent.model || 'Unknown Model'})
+              </span>
               <span style={{ fontSize: '0.6rem', background: 'rgba(255,255,255,0.1)', padding: '1px 4px', borderRadius: '3px', opacity: 0.7 }}>
                 {agent.role}
               </span>
@@ -105,7 +125,7 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents }) => {
 
           {/* Controls */}
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', marginLeft: '1.8rem', opacity: 0.6, fontSize: '0.7rem' }}>
-            <button className="btn-mini" title="Fire Agent (Reassign)" onClick={() => fireAgent(agent.id)}>
+            <button className="btn-mini" title="Fire Agent (Cascading)" onClick={() => fireAgent(agent.id)}>
               <X size={10} color="var(--status-hold)" />
             </button>
             <button className="btn-mini" title="Move Agent"><Move size={10} /></button>
@@ -129,7 +149,10 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents }) => {
     );
   };
 
-  const rootAgents = agents.filter(a => !a.parent_id);
+  const rootAgents = agents.filter(a => !a.parent_id).sort((a, b) => {
+    const roles = ['Architect', 'Senior', 'Junior'];
+    return roles.indexOf(a.role) - roles.indexOf(b.role);
+  });
 
   return (
     <section className="panel" style={{ flex: 1, maxHeight: '600px', display: 'flex', flexDirection: 'column' }}>

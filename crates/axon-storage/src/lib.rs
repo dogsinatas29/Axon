@@ -41,10 +41,14 @@ impl Storage {
                 title TEXT NOT NULL,
                 description TEXT NOT NULL,
                 status TEXT NOT NULL,
+                result TEXT,
                 created_at TEXT NOT NULL
             )",
             [],
         )?;
+
+        // Migration: Add result to tasks if it doesn't exist
+        let _ = conn.execute("ALTER TABLE tasks ADD COLUMN result TEXT", []);
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS threads (
@@ -68,13 +72,15 @@ impl Storage {
                 content TEXT NOT NULL,
                 full_code TEXT,
                 post_type TEXT NOT NULL,
+                metrics TEXT,
                 created_at TEXT NOT NULL
             )",
             [],
         )?;
 
-        // Migration: Add full_code if it doesn't exist
+        // Migration: Add full_code and metrics if they don't exist
         let _ = conn.execute("ALTER TABLE posts ADD COLUMN full_code TEXT", []);
+        let _ = conn.execute("ALTER TABLE posts ADD COLUMN metrics TEXT", []);
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS agents (
@@ -115,20 +121,31 @@ impl Storage {
             )",
             [],
         )?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS agent_stats_store (
+                agent_id TEXT PRIMARY KEY,
+                success_count INTEGER NOT NULL,
+                fail_count INTEGER NOT NULL,
+                latencies_json TEXT NOT NULL
+            )",
+            [],
+        )?;
         Ok(())
     }
 
     pub fn save_task(&self, task: &axon_core::Task) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT OR REPLACE INTO tasks (id, project_id, title, description, status, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT OR REPLACE INTO tasks (id, project_id, title, description, status, result, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 task.id,
                 task.project_id,
                 task.title,
                 task.description,
                 format!("{:?}", task.status),
+                task.result,
                 task.created_at.to_rfc3339(),
             ],
         )?;
@@ -157,8 +174,8 @@ impl Storage {
     pub fn save_post(&self, post: &axon_core::Post) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT OR REPLACE INTO posts (id, thread_id, author_id, content, full_code, post_type, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT OR REPLACE INTO posts (id, thread_id, author_id, content, full_code, post_type, metrics, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
                 post.id,
                 post.thread_id,
@@ -166,6 +183,7 @@ impl Storage {
                 post.content,
                 post.full_code,
                 format!("{:?}", post.post_type),
+                post.metrics.as_ref().map(|m| serde_json::to_string(m).unwrap_or_default()),
                 post.created_at.to_rfc3339(),
             ],
         )?;
@@ -240,7 +258,7 @@ impl Storage {
 
     pub fn list_posts_by_thread(&self, thread_id: &str) -> Result<Vec<axon_core::Post>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, thread_id, author_id, content, full_code, post_type, created_at FROM posts WHERE thread_id = ?1 ORDER BY created_at ASC")?;
+        let mut stmt = conn.prepare("SELECT id, thread_id, author_id, content, full_code, post_type, created_at, metrics FROM posts WHERE thread_id = ?1 ORDER BY created_at ASC")?;
         let post_iter = stmt.query_map(params![thread_id], |row| {
             Ok(axon_core::Post {
                 id: row.get(0)?,
@@ -249,6 +267,7 @@ impl Storage {
                 content: row.get(3)?,
                 full_code: row.get(4)?,
                 post_type: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(5)?)).unwrap_or(axon_core::PostType::System),
+                metrics: row.get::<_, Option<String>>(7)?.and_then(|s| serde_json::from_str(&s).ok()),
                 created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),
             })
         })?;
@@ -318,7 +337,7 @@ impl Storage {
 
     pub fn list_all_tasks(&self) -> Result<Vec<axon_core::Task>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, created_at FROM tasks ORDER BY created_at DESC")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, result, created_at FROM tasks ORDER BY created_at DESC")?;
         let task_iter = stmt.query_map([], |row| {
             Ok(axon_core::Task {
                 id: row.get(0)?,
@@ -326,7 +345,8 @@ impl Storage {
                 title: row.get(2)?,
                 description: row.get(3)?,
                 status: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(4)?)).unwrap_or(axon_core::TaskStatus::Pending),
-                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(5)?).unwrap().with_timezone(&Local),
+                result: row.get(5)?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),
             })
         })?;
 
@@ -335,5 +355,79 @@ impl Storage {
             tasks.push(task?);
         }
         Ok(tasks)
+    }
+
+    pub fn get_task(&self, id: &str) -> Result<Option<axon_core::Task>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, result, created_at FROM tasks WHERE id = ?1")?;
+        let mut task_iter = stmt.query_map(params![id], |row| {
+            Ok(axon_core::Task {
+                id: row.get(0)?,
+                project_id: row.get(1)?,
+                title: row.get(2)?,
+                description: row.get(3)?,
+                status: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(4)?)).unwrap_or(axon_core::TaskStatus::Pending),
+                result: row.get(5)?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),
+            })
+        })?;
+
+        if let Some(task) = task_iter.next() {
+            Ok(Some(task?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn save_agent_stats(&self, agent_id: &str, success: usize, fail: usize, latencies_json: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT OR REPLACE INTO agent_stats_store (agent_id, success_count, fail_count, latencies_json)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![agent_id, success, fail, latencies_json],
+        )?;
+        Ok(())
+    }
+
+    pub fn load_all_agent_stats(&self) -> Result<Vec<(String, usize, usize, String)>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT agent_id, success_count, fail_count, latencies_json FROM agent_stats_store")?;
+        let stats_iter = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, usize>(1)?,
+                row.get::<_, usize>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })?;
+
+        let mut stats = Vec::new();
+        for s in stats_iter {
+            stats.push(s?);
+        }
+        Ok(stats)
+    }
+
+    pub fn get_thread(&self, id: &str) -> Result<Option<axon_core::Thread>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at FROM threads WHERE id = ?1")?;
+        let mut thread_iter = stmt.query_map(params![id], |row| {
+            Ok(axon_core::Thread {
+                id: row.get(0)?,
+                project_id: row.get(1)?,
+                title: row.get(2)?,
+                status: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(3)?)).unwrap_or(axon_core::ThreadStatus::Draft),
+                author: row.get(4)?,
+                milestone_id: row.get(5)?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),
+                updated_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?).unwrap().with_timezone(&Local),
+            })
+        })?;
+
+        if let Some(thread) = thread_iter.next() {
+            Ok(Some(thread?))
+        } else {
+            Ok(None)
+        }
     }
 }

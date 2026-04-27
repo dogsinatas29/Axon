@@ -18,9 +18,17 @@
 
 use async_trait::async_trait;
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ModelResponse {
+    pub text: String,
+    pub total_duration: Option<u64>,
+    pub eval_count: Option<u64>,
+    pub eval_duration: Option<u64>,
+}
+
 #[async_trait]
 pub trait ModelDriver: Send + Sync {
-    async fn generate(&self, prompt: String) -> Result<String, Box<dyn std::error::Error + Send + Sync>>;
+    async fn generate(&self, prompt: String) -> Result<ModelResponse, Box<dyn std::error::Error + Send + Sync>>;
     async fn list_available_models(&self) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
         Ok(vec![])
     }
@@ -30,8 +38,13 @@ pub struct MockDriver;
 
 #[async_trait]
 impl ModelDriver for MockDriver {
-    async fn generate(&self, _prompt: String) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        Ok("Mock response from AXON Model Driver".to_string())
+    async fn generate(&self, _prompt: String) -> Result<ModelResponse, Box<dyn std::error::Error + Send + Sync>> {
+        Ok(ModelResponse {
+            text: "Mock response from AXON Model Driver".to_string(),
+            total_duration: None,
+            eval_count: None,
+            eval_duration: None,
+        })
     }
 }
 
@@ -88,7 +101,7 @@ impl ModelDriver for GeminiDriver {
         Ok(models)
     }
 
-    async fn generate(&self, prompt: String) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    async fn generate(&self, prompt: String) -> Result<ModelResponse, Box<dyn std::error::Error + Send + Sync>> {
         let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", self.model_name, self.api_key);
         let body = serde_json::json!({"contents": [{"parts": [{"text": prompt}]}]});
         
@@ -123,7 +136,12 @@ impl ModelDriver for GeminiDriver {
                 });
 
             match text {
-                Some(t) => return Ok(t.to_string()),
+                Some(t) => return Ok(ModelResponse {
+                    text: t.to_string(),
+                    total_duration: None,
+                    eval_count: None,
+                    eval_duration: None,
+                }),
                 None => {
                     if retries > 0 {
                         tracing::info!("🔄 Empty response from Gemini. Retrying... (Left: {})", retries);
@@ -149,7 +167,7 @@ impl ModelDriver for ClaudeDriver {
         ])
     }
 
-    async fn generate(&self, prompt: String) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    async fn generate(&self, prompt: String) -> Result<ModelResponse, Box<dyn std::error::Error + Send + Sync>> {
         let response = self.client.post("https://api.anthropic.com/v1/messages")
             .header("x-api-key", &self.api_key)
             .header("anthropic-version", "2023-06-01")
@@ -161,7 +179,12 @@ impl ModelDriver for ClaudeDriver {
             })).send().await?;
         let res_json: serde_json::Value = response.json().await?;
         let text = res_json["content"][0]["text"].as_str().ok_or("Failed Claude extraction")?;
-        Ok(text.to_string())
+        Ok(ModelResponse {
+            text: text.to_string(),
+            total_duration: None,
+            eval_count: None,
+            eval_duration: None,
+        })
     }
 }
 
@@ -183,7 +206,7 @@ impl ModelDriver for OpenAIDriver {
         Ok(models)
     }
 
-    async fn generate(&self, prompt: String) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    async fn generate(&self, prompt: String) -> Result<ModelResponse, Box<dyn std::error::Error + Send + Sync>> {
         let response = self.client.post("https://api.openai.com/v1/chat/completions")
             .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&serde_json::json!({
@@ -192,6 +215,74 @@ impl ModelDriver for OpenAIDriver {
             })).send().await?;
         let res_json: serde_json::Value = response.json().await?;
         let text = res_json["choices"][0]["message"]["content"].as_str().ok_or("Failed OpenAI extraction")?;
-        Ok(text.to_string())
+        Ok(ModelResponse {
+            text: text.to_string(),
+            total_duration: None,
+            eval_count: None,
+            eval_duration: None,
+        })
     }
 }
+
+pub struct OllamaDriver {
+    base_url: String,
+    model_name: String,
+    client: reqwest::Client,
+}
+
+impl OllamaDriver {
+    pub fn new(base_url: String, model_name: String) -> Self {
+        Self {
+            base_url: base_url.trim_end_matches('/').to_string(),
+            model_name,
+            client: reqwest::Client::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl ModelDriver for OllamaDriver {
+    async fn list_available_models(&self) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
+        let url = format!("{}/api/tags", self.base_url);
+        let response = self.client.get(url).send().await?;
+        let res_json: serde_json::Value = response.json().await?;
+        let mut models = Vec::new();
+        if let Some(models_raw) = res_json["models"].as_array() {
+            for m in models_raw {
+                if let Some(name) = m["name"].as_str() {
+                    models.push(name.to_string());
+                }
+            }
+        }
+        Ok(models)
+    }
+
+    async fn generate(&self, prompt: String) -> Result<ModelResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let url = format!("{}/api/generate", self.base_url);
+        let body = serde_json::json!({
+            "model": self.model_name,
+            "prompt": prompt,
+            "stream": false,
+            "options": {
+                "num_ctx": 16384
+            }
+        });
+        let response = self.client.post(url).json(&body).send().await?;
+        
+        if !response.status().is_success() {
+            let status = response.status();
+            let err_body = response.text().await.unwrap_or_default();
+            return Err(format!("Ollama API Error ({}): {}", status, err_body).into());
+        }
+
+        let res_json: serde_json::Value = response.json().await?;
+        let text = res_json["response"].as_str().ok_or("Failed Ollama extraction")?;
+        Ok(ModelResponse {
+            text: text.to_string(),
+            total_duration: res_json["total_duration"].as_u64(),
+            eval_count: res_json["eval_count"].as_u64(),
+            eval_duration: res_json["eval_duration"].as_u64(),
+        })
+    }
+}
+

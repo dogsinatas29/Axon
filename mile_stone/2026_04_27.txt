@@ -1,0 +1,3 @@
+/home/dogsinatas/다운로드/axon/axon_design_principle_v0_0_17.md
+여기까지 진행
+axon_design_principle_v0_0_17 이 작업 진행할 차

@@ -27,5 +27,6 @@
     "review_queue_limit": 5,
     "sampling_rate": 0.3,
     "fallback_enabled": true
-  }
+  },
+  "locale": "ko_KR"
 }

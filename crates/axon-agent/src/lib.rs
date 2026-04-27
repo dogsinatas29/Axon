@@ -20,13 +20,15 @@ pub mod persona;
 pub mod lounge;
 
 use axon_core::{Agent, Post, PostType, AgentRole, Task};
-use axon_model::ModelDriver;
+use axon_model::{ModelDriver, ModelResponse};
 use std::sync::Arc;
 
 pub struct AgentRuntime {
     pub agent: Agent,
     pub model: Arc<dyn ModelDriver + Send + Sync>,
     pub locale: String, // v0.0.15: System language preference
+    pub timeout: std::time::Duration,
+    pub throttler: Option<Arc<tokio::sync::Semaphore>>,
 }
 
 impl AgentRuntime {
@@ -46,19 +48,34 @@ impl AgentRuntime {
             agent, 
             model: model_driver,
             locale: "en_US".to_string(), // Default
+            timeout: std::time::Duration::from_secs(300),
+            throttler: None,
         }
+    }
+
+    pub fn with_timeout(mut self, seconds: u64) -> Self {
+        self.timeout = std::time::Duration::from_secs(seconds);
+        self
     }
 
     pub fn set_locale(&mut self, locale: &str) {
         self.locale = locale.to_string();
     }
 
-    async fn generate_with_retry(&self, prompt: String, event_bus: Option<&Arc<axon_core::events::EventBus>>, thread_id: Option<String>) -> anyhow::Result<String> {
+    async fn generate_with_retry(&self, prompt: String, event_bus: Option<&Arc<axon_core::events::EventBus>>, thread_id: Option<String>) -> anyhow::Result<ModelResponse> {
         let mut retries = 5;
         loop {
-            match self.model.generate(prompt.clone()).await {
-                Ok(text) => return Ok(text),
-                Err(e) => {
+            // PHASE_07: Throttling control
+            let _permit = if let Some(t) = &self.throttler {
+                Some(t.acquire().await?)
+            } else {
+                None
+            };
+
+            let gen_future = self.model.generate(prompt.clone());
+            match tokio::time::timeout(self.timeout, gen_future).await {
+                Ok(Ok(resp)) => return Ok(resp),
+                Ok(Err(e)) => {
                     let err_str = e.to_string();
                     if err_str.starts_with("QUOTA_WAIT:") {
                         if retries > 0 {
@@ -86,50 +103,55 @@ impl AgentRuntime {
                     }
                     return Err(anyhow::anyhow!("LLM Error: {}", err_str));
                 }
+                Err(_) => {
+                    tracing::error!("🕒 LLM generate attempt timed out after {}s", self.timeout.as_secs());
+                    return Err(anyhow::anyhow!("TIMEOUT | LLM response exceeded {}s", self.timeout.as_secs()));
+                }
             }
         }
     }
 
     pub async fn process_task(&self, task: &Task, architecture_guide: &str, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
+        // ... (Junior logic remains same)
         tracing::info!("Agent {} (Junior) processing task {}...", self.agent.id, task.id);
         
+        let lang_name = match self.locale.as_str() {
+            "ko_KR" => "한국어 (Korean)",
+            "ja_JP" => "日本語 (Japanese)",
+            _ => "English",
+        };
+
         let system_prompt = format!(
-            "YOU ARE AN AI JUNIOR AGENT NAMED: {}\n\
-             PERSONA: {}\n\n\
-             --- LANGUAGE ENFORCEMENT ---\n\
-             YOU MUST COMMUNICATE AND GENERATE ALL CONTENT (TITLE, DESCRIPTION, REASONING) IN THE FOLLOWING LOCALE: {}.\n\n\
-             --- STEP 1: REASONING (COT) ---\n\
-             Before implementing, you MUST perform a deep logical analysis in <thought> tags. Break down the task, identify potential edge cases, and ensure alignment with the SSOT in ARCHITECTURE GUIDE.\n\n\
-             --- STEP 2: IMPLEMENTATION ---\n\
-             Provide the complete implementation following the architecture guide.\n\n\
-             --- ARCHITECTURE GUIDE ---\n\
+            "### SYSTEM: AI JUNIOR AGENT: {} ###\n\
+             --- 중요: 반드시 아래 지정된 언어로만 답변하십시오 (FORCE LANGUAGE) ---\n\
+             언어: {}\n\n\
+             주어진 아키텍처 가이드를 준수하여 아래 태스크를 구현하십시오.\n\n\
+             --- 아키텍처 가이드 ---\n\
              {}\n\n\
-             --- CURRENT TASK ---\n\
-             TITLE: {}\n\
-             DESCRIPTION: {}\n\n\
-             --- OUTPUT PROTOCOL ---\n\
-             1. You MUST include your reasoning in <thought> tags FIRST.\n\
-             2. Follow with the actual implementation details:\n\
+             --- 현재 태스크 ---\n\
+             제목: {}\n\
+             설명: {}\n\n\
+             --- 출력 규격 ---\n\
+             1. 서론이나 생각(<thought>)은 생략하고 즉시 구현 내용을 출력하십시오.\n\
+             2. 다음 형식을 반드시 포함하십시오:\n\
                 - task_id: {}\n\
-                - changed_files: [list of files]\n\
-                - diff: [informative diff]\n\
-                - full_code: [complete source code for files]\n\
-             3. DO NOT suppress your reasoning. High-quality thought process is mandatory.",
+                - changed_files: [수정된 파일 목록]\n\
+                - diff: [주요 변경 사항 요약]\n\
+                - full_code: [파일의 전체 소스 코드]",
             self.agent.persona.name,
-            self.agent.description(),
-            self.locale,
+            lang_name,
             architecture_guide,
             task.title,
             task.description,
             task.id
         );
 
-        let content = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
+        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
         
         let full_code = {
             // Strip reasoning tags to get clean content
-            let mut clean = content.clone();
-            for tag in ["thought", "analysis", "reasoning", "evaluation"] {
+            let mut clean = resp.text.clone();
+            for tag in ["thought", "analysis", "reasoning", "evaluation", "thought"] {
                 let start_tag = format!("<{}>", tag);
                 let end_tag = format!("</{}>", tag);
                 while let (Some(s), Some(e)) = (clean.find(&start_tag), clean.find(&end_tag)) {
@@ -143,9 +165,91 @@ impl AgentRuntime {
             id: uuid::Uuid::new_v4().to_string(),
             thread_id: task.id.clone(),
             author_id: self.agent.id.clone(),
-            content,
+            content: resp.text,
             full_code,
             post_type: PostType::Proposal,
+            metrics: Some(axon_core::RuntimeMetrics {
+                total_duration: resp.total_duration,
+                eval_count: resp.eval_count,
+                eval_duration: resp.eval_duration,
+            }),
+            created_at: chrono::Local::now(),
+        })
+    }
+
+    pub async fn process_bootstrap_step1(&self, task: &Task, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
+        tracing::info!("Agent {} (Architect) Stage 1: Designing Architecture...", self.agent.id);
+        
+        let system_prompt = format!(
+            "### TASK ###\n\
+             DESIGN MASTER ARCHITECTURE (Hub->Cluster->Node) FOR PROJECT: {}.\n\n\
+             ### PROTOCOL (Sovereign v0.2.21+) ###\n\
+             1. CORE: Define a central 'Hub' for SSOT.\n\
+             2. MODULES: Group logic into 'Clusters'.\n\
+             3. ATOMS: Define 'Nodes' for specific functions.\n\n\
+             ### RULES ###\n\
+             - LANGUAGE: {}.\n\
+             - OUTPUT: ONLY markdown (architecture.md content). NO CHAT.\n\n\
+             ### SPECIFICATION ###\n\
+             {}",
+            self.agent.persona.name,
+            self.locale,
+            task.description
+        );
+
+        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
+        
+        Ok(Post {
+            id: uuid::Uuid::new_v4().to_string(),
+            thread_id: task.id.clone(),
+            author_id: self.agent.id.clone(),
+            content: resp.text,
+            full_code: None,
+            post_type: PostType::Instruction,
+            metrics: Some(axon_core::RuntimeMetrics {
+                total_duration: resp.total_duration,
+                eval_count: resp.eval_count,
+                eval_duration: resp.eval_duration,
+            }),
+            created_at: chrono::Local::now(),
+        })
+    }
+
+    pub async fn process_bootstrap_step2(&self, architecture: &str, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
+        tracing::info!("Agent {} (Architect) Stage 2: Extracting Tasks...", self.agent.id);
+        
+        let system_prompt = format!(
+            "### INSTRUCTION ###\n\
+             YOU ARE THE CHIEF TECHNOLOGY OFFICER (CTO).\n\
+             ANALYZE THE MASTER ARCHITECTURE AND DECOMPOSE IT INTO A COMPREHENSIVE SET OF ATOMIC IMPLEMENTATION TASKS.\n\n\
+             ### STRATEGY ###\n\
+             1. GRANULARITY: Each task must be small enough for a single developer to implement in one sprint. DO NOT group multiple systems into one task.\n\
+             2. PARALLELISM: Identify independent modules that can be built simultaneously by different workers.\n\
+             3. COVERAGE: Ensure 100% of the architecture nodes are covered by the generated tasks.\n\n\
+             ### RULES ###\n\
+             1. LOCALE: USE {}.\n\
+             2. FORMAT: OUTPUT ONLY RAW JSON ARRAY. NO MARKDOWN BLOCKS. NO PREAMBLE.\n\
+             3. SCHEMA: [{{ \"title\": \"...\", \"description\": \"...\" }}, ...]\n\n\
+             ### ARCHITECTURE CONTENT ###\n\
+             {}",
+            self.locale,
+            architecture
+        );
+
+        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), None).await?;
+        
+        Ok(Post {
+            id: uuid::Uuid::new_v4().to_string(),
+            thread_id: "bootstrap-extraction".to_string(),
+            author_id: self.agent.id.clone(),
+            content: resp.text,
+            full_code: None,
+            post_type: PostType::System,
+            metrics: Some(axon_core::RuntimeMetrics {
+                total_duration: resp.total_duration,
+                eval_count: resp.eval_count,
+                eval_duration: resp.eval_duration,
+            }),
             created_at: chrono::Local::now(),
         })
     }
@@ -169,15 +273,20 @@ impl AgentRuntime {
             proposal.content
         );
 
-        let content = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(proposal.thread_id.clone())).await?;
+        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(proposal.thread_id.clone())).await?;
         
         Ok(Post {
             id: uuid::Uuid::new_v4().to_string(),
             thread_id: proposal.thread_id.clone(),
             author_id: "SYSTEM_SUMMARY".to_string(),
-            content,
+            content: resp.text,
             full_code: None,
             post_type: PostType::System,
+            metrics: Some(axon_core::RuntimeMetrics {
+                total_duration: resp.total_duration,
+                eval_count: resp.eval_count,
+                eval_duration: resp.eval_duration,
+            }),
             created_at: chrono::Local::now(),
         })
     }
@@ -190,45 +299,49 @@ impl AgentRuntime {
             None => "".to_string(),
         };
 
+        let lang_name = match self.locale.as_str() {
+            "ko_KR" => "한국어 (Korean)",
+            "ja_JP" => "日本語 (Japanese)",
+            _ => "English",
+        };
+
         let system_prompt = format!(
-            "YOU ARE AN AI SENIOR AGENT NAMED: {}\n\
-             PERSONA: {}\n\n\
-             --- LANGUAGE ENFORCEMENT ---\n\
-             YOU MUST COMMUNICATE AND GENERATE THE REVIEW CONTENT (ANALYSIS, DECISION, FIX_HINT) IN THE FOLLOWING LOCALE: {}.\n\n\
-             --- STEP 1: MULTI-PERSPECTIVE ANALYSIS (TOT) ---\n\
-             SYSTEMATICALLY EVALUATE the junior's proposal through a 'Tree of Thoughts' in <analysis> tags. \n\
-             You MUST consider at least three perspectives: Performance, Security, and SSOT/Maintainability.\n\n\
-             --- STEP 2: CRITICAL DECISION ---\n\
-             Based on your multi-perspective evaluation, provide a final decision.\n\n\
-             --- TASK ---\n\
-             TITLE: {}\n\
-             DESCRIPTION: {}\n\n\
-             --- PROPOSAL BY JUNIOR ---\n\
+            "### SYSTEM: AI SENIOR AGENT: {} ###\n\
+             --- 중요: 반드시 아래 지정된 언어로만 답변하십시오 (FORCE LANGUAGE) ---\n\
+             언어: {}\n\n\
+             주니어의 제안을 검토하고 승인 여부를 결정하십시오.\n\n\
+             --- 태스크 ---\n\
+             제목: {}\n\
+             설명: {}\n\n\
+             --- 주니어 제안 ---\n\
              {}\n\
              {}\n\n\
-             --- FINAL REVIEW PROTOCOL ---\n\
-             1. START with your detailed analysis in <analysis> tags.\n\
-             2. CONCLUDE with either 'APPROVE' or 'REJECT'.\n\
-             3. If REJECTED, provide a detailed REASON and FIX_HINT.\n\
-             4. Your reasoning is the most valuable part of this review.",
+             --- 검토 규격 ---\n\
+             1. 생각(<analysis>) 과정은 생략하십시오.\n\
+             2. 마지막에 반드시 'APPROVE' 또는 'REJECT'를 명시하십시오.\n\
+             3. 반려(REJECT) 시에는 짧고 명확한 사유와 수정 힌트(FIX_HINT)를 한국어로 적으십시오.",
             self.agent.persona.name,
-            self.agent.description(),
-            self.locale,
+            lang_name,
             task.title,
             task.description,
             proposal.content,
             summary_content
         );
 
-        let content = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
+        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
         
         Ok(Post {
             id: uuid::Uuid::new_v4().to_string(),
             thread_id: task.id.clone(),
             author_id: self.agent.id.clone(),
-            content,
+            content: resp.text,
             full_code: None,
             post_type: PostType::Review,
+            metrics: Some(axon_core::RuntimeMetrics {
+                total_duration: resp.total_duration,
+                eval_count: resp.eval_count,
+                eval_duration: resp.eval_duration,
+            }),
             created_at: chrono::Local::now(),
         })
     }
@@ -236,36 +349,44 @@ impl AgentRuntime {
     pub async fn validate_architecture(&self, task: &Task, review: &Post, architecture_guide: &str, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
         tracing::info!("Agent {} (Architect) validating architecture for task {}...", self.agent.id, task.id);
         
+        let lang_name = match self.locale.as_str() {
+            "ko_KR" => "한국어 (Korean)",
+            "ja_JP" => "日本語 (Japanese)",
+            _ => "English",
+        };
+
         let system_prompt = format!(
-            "YOU ARE THE CHIEF ARCHITECT NAMED: {}\nPERSONA: {}\n\n\
-             --- LANGUAGE ENFORCEMENT ---\n\
-             YOU MUST COMMUNICATE AND GENERATE THE VALIDATION CONTENT (REASONING, STATUS) IN THE FOLLOWING LOCALE: {}.\n\n\
-             --- STEP 1: GLOBAL CROSS-VALIDATION (COT+TOT) ---\n\
-             As the Chief Architect, you MUST reason about the long-term system impact and verify Sovereign Protocol compliance in <reasoning> tags.\n\
-             Analyze both the technical implementation (Junior) and the critical feedback (Senior).\n\n\
-             --- ARCHITECTURE GUIDE ---\n{}\n\n\
-             --- TASK ---\n{}\n\n\
-             --- SENIOR REVIEW ---\n{}\n\n\
-             --- VALIDATION OUTPUT ---\n\
-             1. Provide your in-depth architectural reasoning in <reasoning> tags.\n\
-             2. Clearly state 'COMPLIANT' only if the work meets all SSOT and Sovereign Protocol standards.",
+            "### SYSTEM: CHIEF ARCHITECT: {} ###\n\
+             --- 중요: 반드시 아래 지정된 언어로만 답변하십시오 (FORCE LANGUAGE) ---\n\
+             언어: {}\n\n\
+             본 작업이 Sovereign Protocol 및 SSOT를 준수하는지 최종 확인하십시오.\n\n\
+             --- 아키텍처 가이드 ---\n{}\n\n\
+             --- 태스크 ---\n{}\n\n\
+             --- 시니어 리뷰 ---\n{}\n\n\
+             --- 출력 규격 ---\n\
+             1. 분석 과정(<reasoning>)은 생략하십시오.\n\
+             2. 준수되었을 경우에만 'COMPLIANT'라고 답변하십시오.",
             self.agent.persona.name,
-            self.agent.description(),
-            self.locale,
+            lang_name,
             architecture_guide,
             task.title,
             review.content
         );
 
-        let content = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
+        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
         
         Ok(Post {
             id: uuid::Uuid::new_v4().to_string(),
             thread_id: task.id.clone(),
             author_id: self.agent.id.clone(),
-            content,
+            content: resp.text,
             full_code: None,
             post_type: PostType::System,
+            metrics: Some(axon_core::RuntimeMetrics {
+                total_duration: resp.total_duration,
+                eval_count: resp.eval_count,
+                eval_duration: resp.eval_duration,
+            }),
             created_at: chrono::Local::now(),
         })
     }

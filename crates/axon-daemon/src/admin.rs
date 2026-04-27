@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use axon_core::{Post, PostType, AgentRole};
+use axon_core::{Post, PostType};
 use axon_storage::Storage;
 use chrono::Local;
 use tracing::info;
@@ -39,6 +39,7 @@ impl AdminSystem {
             content: content.to_string(),
             full_code: None,
             post_type: PostType::Instruction,
+            metrics: None,
             created_at: Local::now(),
         };
 

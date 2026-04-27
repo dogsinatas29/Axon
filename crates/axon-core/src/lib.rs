@@ -38,6 +38,7 @@ pub struct Task {
     pub title: String,
     pub description: String,
     pub status: TaskStatus,
+    pub result: Option<String>,
     pub created_at: DateTime<Local>,
 }
 
@@ -59,8 +60,10 @@ pub struct Post {
     pub content: String,
     pub full_code: Option<String>,
     pub post_type: PostType,
+    pub metrics: Option<RuntimeMetrics>,
     pub created_at: DateTime<Local>,
 }
+
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum PostType {
@@ -72,7 +75,7 @@ pub enum PostType {
     Instruction,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub enum AgentRole {
     Architect,
     Senior,
@@ -183,3 +186,82 @@ pub mod events {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AgentValidation {
+    pub id: String,
+    pub role: String,
+    pub status: String, // OK, WARN, FAIL
+    pub reason: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ValidationResult {
+    pub agents: Vec<AgentValidation>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Constraints {
+    pub queue_limit: usize,
+    pub sampling_rate: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ExecutionContext {
+    pub agents: Vec<AgentValidation>,
+    pub available_agents: std::collections::HashMap<String, Vec<AgentValidation>>,
+    pub constraints: Constraints,
+    pub warnings: Vec<AgentValidation>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ExecutionResult {
+    pub status: String, // RUNNING, BLOCKED
+    pub result: String,
+    pub path: Vec<(String, String)>, // (role, agent_id)
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct RuntimeMetrics {
+    pub total_duration: Option<u64>,
+    pub eval_count: Option<u64>,
+    pub eval_duration: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AgentMetric {
+    pub id: String,
+    pub role: String,
+    pub status: String,
+    pub latency_ms: f64,
+    pub attempts: u32,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct ExecutionSummary {
+    pub worker_id: usize,
+    pub total_duration_ms: f64,
+    pub steps: usize,
+    pub status: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct QueueStatus {
+    pub length: usize,
+    pub limit: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct ObservabilityReport {
+    pub agents: Vec<AgentMetric>,
+    pub execution_path: Vec<(String, String)>,
+    pub metrics: RuntimeMetrics,
+    pub summary: ExecutionSummary,
+    pub queue: QueueStatus,
+    pub failures: Vec<String>,
+}
+
+
+

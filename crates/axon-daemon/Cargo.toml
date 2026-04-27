@@ -23,3 +23,4 @@ chrono = { workspace = true }
 futures-util = "0.3"
 notify = { workspace = true }
 fd-lock = { workspace = true }
+rand = "0.8"

@@ -74,6 +74,11 @@ pub async fn start_server(daemon: Arc<Daemon>) -> Result<(), Box<dyn std::error:
         .route("/api/agents", get(list_agents_api))
         .route("/api/agents/hire", post(hire_agent))
         .route("/api/agents/:id/fire", post(fire_agent))
+        // PHASE_11: Standard API Interface
+        .route("/submit", post(submit_task))
+        .route("/api/tasks/:id", get(get_task_api))
+        .route("/health", get(health_check))
+        .route("/queue", get(get_queue_api))
         .nest_service("/", ServeDir::new(studio_path))
         .layer(cors)
         .with_state(daemon);
@@ -152,7 +157,8 @@ async fn submit_spec_internal(
     );
 
     match daemon.architect_model.generate(prompt).await {
-        Ok(tasks_json) => {
+        Ok(resp) => {
+            let tasks_json = resp.text;
             // Very basic parsing attempt
             if let Ok(tasks_raw) = serde_json::from_str::<Vec<serde_json::Value>>(&tasks_json) {
                 for t in tasks_raw {
@@ -162,6 +168,7 @@ async fn submit_spec_internal(
                         title: t["title"].as_str().unwrap_or("Untitled").into(),
                         description: t["description"].as_str().unwrap_or("").into(),
                         status: TaskStatus::Pending,
+                        result: None,
                         created_at: chrono::Local::now(),
                     };
                     let _ = daemon.storage.save_task(&task);
@@ -185,11 +192,14 @@ async fn submit_spec_internal(
                         content: task.description.clone(),
                         full_code: None,
                         post_type: axon_core::PostType::Instruction,
+                        metrics: None,
                         created_at: task.created_at,
                     };
                     let _ = daemon.storage.save_post(&post);
 
-                    daemon.dispatcher.enqueue_task(task);
+                    if let Err(e) = daemon.dispatcher.enqueue_task(task) {
+                        tracing::error!("❌ [QUEUE_REJECTED] via API: {}", e);
+                    }
                 }
                 "Spec processed and tasks queued".into_response()
             } else {
@@ -200,6 +210,7 @@ async fn submit_spec_internal(
                     title: "Parsed Task".into(),
                     description: submission.content,
                     status: TaskStatus::Pending,
+                    result: None,
                     created_at: chrono::Local::now(),
                 };
                 let _ = daemon.storage.save_task(&task);
@@ -223,11 +234,14 @@ async fn submit_spec_internal(
                     content: task.description.clone(),
                     full_code: None,
                     post_type: axon_core::PostType::Instruction,
+                    metrics: None,
                     created_at: task.created_at,
                 };
                 let _ = daemon.storage.save_post(&post);
 
-                daemon.dispatcher.enqueue_task(task);
+                if let Err(e) = daemon.dispatcher.enqueue_task(task) {
+                    tracing::error!("❌ [QUEUE_REJECTED] via API: {}", e);
+                }
                 "Spec partially processed as a single task".into_response()
             }
         }
@@ -341,8 +355,8 @@ async fn hire_agent(
     let agent_id = format!("agent-{}", uuid::Uuid::new_v4().to_string()[..8].to_string());
     let model = match req.role {
         axon_core::AgentRole::Architect => daemon.architect_model.clone(),
-        axon_core::AgentRole::Senior => daemon.senior_model.clone(),
-        axon_core::AgentRole::Junior => daemon.junior_model.clone(),
+        axon_core::AgentRole::Senior => daemon.senior_models.first().cloned().unwrap_or_else(|| daemon.architect_model.clone()),
+        axon_core::AgentRole::Junior => daemon.junior_models.first().cloned().unwrap_or_else(|| daemon.architect_model.clone()),
     };
 
     let mut runtime = axon_agent::AgentRuntime::new(
@@ -373,13 +387,26 @@ async fn fire_agent(
     Path(id): Path<String>,
     State(daemon): State<Arc<Daemon>>,
 ) -> impl IntoResponse {
-    // Succession logic: Reassign children to the parent of the fired agent (or root)
     let agents = daemon.storage.list_agents().unwrap_or_default();
     let fired_agent = agents.iter().find(|a| a.id == id);
     
     if let Some(agent) = fired_agent {
-        let new_parent = agent.parent_id.clone();
-        let _ = daemon.storage.reassign_agents_by_parent(&id, new_parent.as_deref());
+        // Enforce minimum requirements (Cannot fire the last Senior or Junior)
+        let same_role_count = agents.iter().filter(|a| a.role == agent.role).count();
+        if same_role_count <= 1 && agent.role != axon_core::AgentRole::Architect {
+            return (axum::http::StatusCode::BAD_REQUEST, "Cannot fire the last agent of this role. Minimum requirement: 1 Senior, 1 Junior.").into_response();
+        }
+
+        // CASCADING FIRE (v0.0.17): If a Senior is fired, fire all sub-juniors simultaneously
+        let children_to_fire: Vec<String> = agents.iter()
+            .filter(|a| a.parent_id.as_deref() == Some(&id))
+            .map(|a| a.id.clone())
+            .collect();
+
+        for child_id in children_to_fire {
+            let _ = daemon.storage.delete_agent(&child_id);
+        }
+
         let _ = daemon.storage.delete_agent(&id);
         
         daemon.event_bus.publish(axon_core::Event {
@@ -389,7 +416,7 @@ async fn fire_agent(
             agent_id: Some(id.clone()),
             event_type: axon_core::EventType::SystemWarning,
             source: "daemon".to_string(),
-            content: format!("Agent {} fired. Children reassigned.", agent.name),
+            content: format!("Agent {} fired. Cascading deletion applied to subordinates.", agent.name),
             payload: None,
             timestamp: chrono::Local::now(),
         });
@@ -429,4 +456,87 @@ async fn handle_socket(mut socket: WebSocket, daemon: Arc<Daemon>) {
         }
     }
     tracing::info!("WebSocket connection closed");
+}
+
+// PHASE_11: Standard API Handlers
+
+#[derive(serde::Deserialize)]
+pub struct TaskRequest {
+    pub task: String,
+    pub project_id: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+pub struct SubmitResponse {
+    pub status: String,
+    pub task_id: String,
+    pub queue_size: usize,
+}
+
+async fn submit_task(
+    State(daemon): State<Arc<Daemon>>,
+    Json(req): Json<TaskRequest>,
+) -> Json<SubmitResponse> {
+    let project_id = req.project_id.unwrap_or_else(|| "default-project".to_string());
+    let task_id = uuid::Uuid::new_v4().to_string();
+    let task = Task {
+        id: task_id.clone(),
+        project_id,
+        title: "API Task".to_string(),
+        description: req.task,
+        status: TaskStatus::Pending,
+        result: None,
+        created_at: chrono::Local::now(),
+    };
+
+    let _ = daemon.storage.save_task(&task);
+    let queue_size = daemon.dispatcher.len();
+    
+    if let Err(e) = daemon.dispatcher.enqueue_task(task) {
+        tracing::error!("❌ [QUEUE_REJECTED] via /submit: {}", e);
+        return Json(SubmitResponse {
+            status: "REJECTED".to_string(),
+            task_id,
+            queue_size,
+        });
+    }
+
+    Json(SubmitResponse {
+        status: "ACCEPTED".to_string(),
+        task_id,
+        queue_size: daemon.dispatcher.len(),
+    })
+}
+
+async fn get_task_api(
+    Path(id): Path<String>,
+    State(daemon): State<Arc<Daemon>>,
+) -> impl IntoResponse {
+    match daemon.storage.get_task(&id) {
+        Ok(Some(task)) => Json(task).into_response(),
+        Ok(None) => axum::http::StatusCode::NOT_FOUND.into_response(),
+        Err(e) => {
+            tracing::error!("Database error: {}", e);
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
+async fn health_check() -> Json<serde_json::Value> {
+    Json(serde_json::json!({ "status": "OK" }))
+}
+
+#[derive(serde::Serialize)]
+pub struct QueueResponse {
+    pub length: usize,
+    pub limit: usize,
+}
+
+async fn get_queue_api(
+    State(daemon): State<Arc<Daemon>>,
+) -> Json<QueueResponse> {
+    Json(QueueResponse {
+        length: daemon.dispatcher.len(),
+        limit: daemon.dispatcher.limit(),
+    })
 }

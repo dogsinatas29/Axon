@@ -56,6 +56,7 @@ export interface Agent {
   status: 'Idle' | 'Working' | 'Thinking';
   parent_id?: string;
   dtr: number;
+  model?: string;
 }
 
 export interface Event {

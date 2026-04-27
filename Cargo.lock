@@ -150,6 +150,7 @@ dependencies = [
  "fd-lock",
  "futures-util",
  "notify",
+ "rand",
  "serde",
  "serde_json",
  "tokio",

@@ -37,6 +37,25 @@ AXON is a high-performance, multi-agent AI coding factory designed to transform 
 - **Fixed OS Error 36**: Resolved "File name too long" issues during bootstrap.
 - **Real-time Status Sync**: Corrected thread status propagation to ensure the Studio UI correctly displays "Completed" and updates dashboard metrics.
 
+## 🏛️ Sovereign Agent Protocol: Roles & Reasoning
+
+AXON enforces a strict hierarchy and specialized reasoning frameworks for each agent to ensure production-grade output.
+
+### 👑 1. Architect (Chief Technology Officer)
+- **Role**: Strategic planning and system-wide design.
+- **Reasoning**: **Strategic Decomposition (Stage-based COT)**. Forced to think in terms of SSOT (Single Source of Truth) and modular scalability (Hub->Cluster->Node).
+- **Responsibility**: Generates the Master Architecture and breaks it down into atomic, parallelizable tasks.
+
+### 👴 2. Senior (Technical Lead / Auditor)
+- **Role**: Quality assurance and rigorous code review.
+- **Reasoning**: **Adversarial Analysis**. Operates in a "suspicion-first" mode to find hallucinations or missing logic.
+- **Responsibility**: Approves or Rejects Junior proposals. Enforces the "No Code Block = Automatic Reject" rule.
+
+### 👶 3. Junior (Software Engineer)
+- **Role**: Pure implementation and coding.
+- **Reasoning**: **Linear Execution (No-Preamble)**. Stripped of unnecessary thought processes to focus 100% on code production based on the Architect's guide.
+- **Responsibility**: Delivers full source code and technical diffs for assigned tasks.
+
 ## 🛠️ Getting Started
 
 ```bash

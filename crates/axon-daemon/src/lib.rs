@@ -261,6 +261,24 @@ impl Daemon {
                 match junior_runtime.process_task(&task, &current_arch_guide, Some(self.event_bus.clone())).await {
                     Ok(p) => {
                         let latency = start_step.elapsed().as_secs_f64() * 1000.0;
+                        
+                        // v0.0.19: Hard Fail Conditions (Strict Output Contract)
+                        let is_hard_fail = !p.content.contains("[OUTPUT]") || 
+                                           !p.content.contains("FILE:") || 
+                                           !p.content.contains("```") ||
+                                           p.content.contains("This code") ||
+                                           p.content.contains("Explanation") ||
+                                           p.content.contains("Below is") ||
+                                           p.content.contains("Here is");
+
+                        if is_hard_fail {
+                            tracing::warn!("⚠️ Junior {} retry {} Hard Fail: Output contract violation", junior_runtime.agent.name, retry_attempt + 1);
+                            if retry_attempt == max_retries {
+                                junior_failures.push(format!("Junior {}: Hard fail contract violation", junior_runtime.agent.name));
+                            }
+                            continue;
+                        }
+
                         agent_metrics.push(axon_core::AgentMetric {
                             id: junior_id.clone(),
                             role: "junior".to_string(),
@@ -834,46 +852,11 @@ impl Daemon {
 
         // Tier 3: Heuristic Extraction (Fallback)
         if files_to_commit.is_empty() {
-            tracing::info!("⚠️ Parser Tier 1/2 failed. Falling back to Tier 3 (Heuristic)...");
-            let mut current_pos = 0;
-            while let Some(start_idx) = content[current_pos..].find("```") {
-                let real_start = current_pos + start_idx;
-                let lang_end = content[real_start + 3..].find('\n').unwrap_or(0);
-                let lang = content[real_start + 3..real_start + 3 + lang_end].trim();
-                
-                let block_start = real_start + 3 + lang_end + 1;
-                if let Some(end_idx) = content[block_start..].find("```") {
-                    let real_end = block_start + end_idx;
-                    let code_part = content[block_start..real_end].trim().to_string();
-                    
-                    let lang_lower = lang.to_lowercase();
-                    if lang_lower == "markdown" || lang_lower == "md" || lang_lower == "text" || lang_lower == "tool_code" || lang_lower == "bash" || lang_lower == "sh" {
-                        current_pos = real_end + 3;
-                        continue;
-                    }
-
-                    let mut filename = format!("generated_{}.{}", uuid::Uuid::new_v4().to_string()[..4].to_string(), if lang.is_empty() { "txt" } else { lang });
-                    
-                    for line in code_part.lines().take(5) {
-                        let trimmed = line.trim();
-                        if (trimmed.starts_with("#") || trimmed.starts_with("//")) && (trimmed.contains(".") || trimmed.contains("/")) {
-                            let detected = trimmed.trim_start_matches('#').trim_start_matches('/').trim().split_whitespace().next().unwrap_or("");
-                            if detected.contains('.') && !detected.contains("..") {
-                                filename = detected.to_string();
-                                break;
-                            }
-                        }
-                    }
-
-                    if !code_part.is_empty() {
-                        files_to_commit.push((filename, code_part));
-                    }
-                    current_pos = real_end + 3;
-                } else {
-                    break;
-                }
-            }
+            // v0.0.19: Heuristic parse is NOT allowed for commit
+            tracing::error!("❌ Parser Tier 1/2 failed. Heuristic fallback is NOT allowed for commit.");
+            return Err(anyhow::anyhow!("Heuristic parse is not allowed for commit"));
         }
+                    
 
         if files_to_commit.is_empty() {
             tracing::warn!("❌ Parser failed completely. No code blocks found.");

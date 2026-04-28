@@ -157,13 +157,15 @@ impl AgentRuntime {
                  TITLE: {}\n\
                  DESCRIPTION: {}\n\n\
                  --- OUTPUT SPEC ---\n\
-                 1. NO PREAMBLE. NO THOUGHTS. OUTPUT CODE IMMEDIATELY.\n\
-                 2. MUST INCLUDE:\n\
-                    - task_id: {}\n\
-                    - changed_files: [LIST]\n\
-                    - diff: [SUMMARY]\n\
-                    - full_code: [CODE BLOCK]",
-                self.agent.persona.name, lang_name, architecture_guide, task.title, task.description, task.id
+                 1. STRICT RULE: NO PREAMBLE. NO EXPLANATION TEXT. ONLY CODE.\n\
+                 2. EXACT FORMAT REQUIRED:\n\n\
+                 [OUTPUT]\n\n\
+                 FILE: filename.ext\n\
+                 ```language\n\
+                 # full executable code here\n\
+                 ```\n\
+                 END_FILE",
+                self.agent.persona.name, lang_name, architecture_guide, task.title, task.description
             )
         };
 
@@ -221,11 +223,15 @@ impl AgentRuntime {
         
         let system_prompt = format!(
             "### TASK ###\n\
-             DESIGN MASTER ARCHITECTURE (Hub->Cluster->Node) FOR PROJECT: {}.\n\n\
-             ### PROTOCOL (Sovereign v0.2.21+) ###\n\
-             1. CORE: Define a central 'Hub' for SSOT.\n\
-             2. MODULES: Group logic into 'Clusters'.\n\
-             3. ATOMS: Define 'Nodes' for specific functions.\n\n\
+             CREATE AN EXECUTABLE IMPLEMENTATION SPECIFICATION FOR PROJECT: {}.\n\n\
+             ### ARCHITECTURE PROTOCOL (v0.0.19 Executable) ###\n\
+             DO NOT write a conceptual essay. NO abstract 'Hub/Cluster/Node' jargon.\n\
+             YOU MUST provide a concrete file-level design.\n\
+             1. PROJECT STRUCTURE: List exact filenames (e.g. main.py, database.py).\n\
+             2. MODULE RESPONSIBILITIES: Define exact functions, interfaces, and roles for each file.\n\
+             3. EXECUTION FLOW: Map the concrete execution path.\n\
+             4. DATA MODEL: Define concrete data schemas.\n\
+             5. DEPENDENCIES: List explicitly required libraries.\n\n\
              ### RULES ###\n\
              - LANGUAGE: USE {}.\n\
              - OUTPUT: ONLY markdown (architecture.md content). NO CHAT.\n\n\
@@ -276,7 +282,9 @@ impl AgentRuntime {
              1. LANGUAGE: USE {}.\n\
              2. FORMAT: VALID JSON ARRAY OF OBJECTS ONLY.\n\
              3. OBJECT SCHEMA: {{ \"id\": \"unique_id\", \"title\": \"Descriptive Title\", \"description\": \"Detailed task description for a Junior agent\" }}\n\
-             4. SCOPE: Each task must be a single file or a small logical unit.\n\n\
+             4. SCOPE: EXACTLY ONE TASK PER CONCRETE FILE (e.g., main.py, database.py).\n\
+             5. ORCHESTRATION: You MUST ensure one task is explicitly created for the main execution orchestrator (main.py).\n\
+             6. NO CONCEPTUAL TASKS: Do NOT create tasks for abstract concepts, folders, or non-executable code.\n\n\
              ### ARCHITECTURE GUIDE ###\n\
              {}",
             lang_name,
@@ -392,9 +400,11 @@ impl AgentRuntime {
              {}\n\
              {}\n\n\
              --- 검토 규격 ---\n\
-             1. 생각(<analysis>) 과정은 생략하십시오.\n\
-             2. 마지막에 반드시 'APPROVE' 또는 'REJECT'를 명시하십시오.\n\
-             3. 반려(REJECT) 시에는 짧고 명확한 사유와 수정 힌트(FIX_HINT)를 한국어로 적으십시오.",
+             1. 출력 규약 검증 (CRITICAL): 주니어의 제안에 반드시 `[OUTPUT]` 마크업과 `FILE: 파일명` 및 `END_FILE` 구조가 포함되어 있어야 합니다. 이 구조가 없거나 설명 텍스트가 섞여 있다면 **무조건 REJECT** 하십시오.\n\
+             2. 코드 및 의존성 검증: 코드가 완성된 상태인지, 실행 가능한지, 환각 라이브러리(SovereignProtocol 등)가 없는지 확인하십시오.\n\
+             3. 생각(<analysis>) 과정은 생략하십시오.\n\
+             4. 마지막에 반드시 'APPROVE' 또는 'REJECT'를 명시하십시오.\n\
+             5. 반려(REJECT) 시에는 짧고 명확한 사유와 수정 힌트(FIX_HINT)를 한국어로 적으십시오.",
             self.agent.persona.name,
             lang_name,
             task.title,

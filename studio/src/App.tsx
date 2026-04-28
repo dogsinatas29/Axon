@@ -28,9 +28,9 @@ import type { Thread, Event, Agent } from './types';
 import { initSocket } from './api/socket';
 
 const App: React.FC = () => {
-  const [projectId] = useState('AXON-FACTORY-01');
-  const [isRunning, setIsRunning] = useState(true);
   const [threads, setThreads] = useState<Thread[]>([]);
+  const projectId = threads.length > 0 ? threads[0].project_id : 'AXON-FACTORY-01';
+  const [isRunning, setIsRunning] = useState(true);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);

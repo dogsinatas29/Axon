@@ -113,7 +113,7 @@ impl ModelDriver for GeminiDriver {
             
             if let Some(error) = res_json.get("error") {
                 let err_msg = error["message"].as_str().unwrap_or("Unknown");
-                if status.as_u16() == 429 || err_msg.contains("Quota exceeded") || err_msg.contains("Too Many Requests") {
+                if status.as_u16() == 429 || status.as_u16() == 503 || err_msg.contains("Quota exceeded") || err_msg.contains("Too Many Requests") || err_msg.contains("high demand") {
                     let mut wait_secs = 60.0;
                     if let Some(idx) = err_msg.find("Please retry in ") {
                         let substr = &err_msg[idx + 16..];

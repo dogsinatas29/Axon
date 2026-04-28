@@ -494,12 +494,13 @@ impl Daemon {
         let validation = validation.unwrap();
 
         // 5. ISOLATION SYNC (v0.0.16): 최종 승인된 주니어의 코드를 프로젝트 샌드박스에 물리적 반영
-        if let Some(ref code) = review.full_code {
-            let _ = self.sync_post_to_sandbox(&task.project_id, code);
+        // v0.0.21: 시니어의 승인 여부를 확인하고 주니어의 코드를 동기화함
+        if validation.content.contains("APPROVE") || review.content.contains("APPROVE") {
+            let _ = self.sync_post_to_sandbox(&task.project_id, &proposal.content);
+            
+            // v0.0.16: 아키텍처 섹션 잠금 (격리 경로 적용)
+            let _ = self.lock_in_architecture(&task.project_id, &task.title);
         }
-
-        // v0.0.16: 아키텍처 섹션 잠금 (격리 경로 적용)
-        let _ = self.lock_in_architecture(&task.project_id, &task.title);
 
         // Final Status Update (v0.0.17: Mark as Completed)
         task.status = axon_core::TaskStatus::Completed;
@@ -646,6 +647,11 @@ impl Daemon {
                         arch_content.trim().to_string()
                     };
 
+                    if clean_arch.len() < 20 {
+                        tracing::error!("❌ [RESOURCE ERROR]: Architect generated an empty or invalid architecture ({} bytes). Local LLM might have exhausted VRAM or timed out.", clean_arch.len());
+                        return;
+                    }
+
                     let sandbox_path = project_id_clone.clone();
                     let _ = std::fs::create_dir_all(&sandbox_path);
                     let arch_file_path = format!("{}/architecture.md", sandbox_path);
@@ -775,67 +781,577 @@ impl Daemon {
         Ok(())
     }
 
-    /// v0.0.16 Isolation System: 에이전트의 결과물을 프로젝트별 샌드박스로 동기화
+    /// v0.0.18: Output Contract & Hardening Order Implementation
+    /// Tier 1 (Strict) -> Tier 2 (Relaxed) -> Tier 3 (Heuristic) -> Code Validation -> Atomic Commit
     fn sync_post_to_sandbox(&self, project_id: &str, content: &str) -> anyhow::Result<()> {
         let sandbox_path = project_id.to_string();
         let _ = std::fs::create_dir_all(&sandbox_path);
 
-        // v0.0.18: Language-agnostic code extraction
-        let mut found_code = false;
-        let mut current_pos = 0;
+        let mut files_to_commit: Vec<(String, String)> = Vec::new();
 
-        while let Some(start_idx) = content[current_pos..].find("```") {
-            let real_start = current_pos + start_idx;
-            let lang_end = content[real_start + 3..].find('\n').unwrap_or(0);
-            let lang = content[real_start + 3..real_start + 3 + lang_end].trim();
-            
-            let block_start = real_start + 3 + lang_end + 1;
-            if let Some(end_idx) = content[block_start..].find("```") {
-                let real_end = block_start + end_idx;
-                let code_part = content[block_start..real_end].trim();
-                
-                // Try to detect filename from comments (e.g., # filename.py or // filename.rs)
-                let mut filename = format!("generated_{}.{}", uuid::Uuid::new_v4().to_string()[..4].to_string(), if lang.is_empty() { "txt" } else { lang });
-                
-                for line in code_part.lines().take(5) {
-                    let trimmed = line.trim();
-                    if (trimmed.starts_with("#") || trimmed.starts_with("//")) && (trimmed.contains(".") || trimmed.contains("/")) {
-                        let detected = trimmed.trim_start_matches('#').trim_start_matches('/').trim().split_whitespace().next().unwrap_or("");
-                        if detected.contains('.') {
-                            filename = detected.to_string();
-                            break;
-                        }
-                    }
-                }
-
-                let file_path = if filename.contains('/') {
-                    format!("{}/{}", sandbox_path, filename)
-                } else {
-                    format!("{}/src/{}", sandbox_path, filename)
-                };
-
-                if let Some(parent) = std::path::Path::new(&file_path).parent() {
-                    let _ = std::fs::create_dir_all(parent);
-                }
-
-                if let Ok(_) = std::fs::write(&file_path, code_part) {
-                    tracing::info!("🔒 Isolation: Synced {} code to {}", lang, file_path);
-                    found_code = true;
-                }
-                
-                current_pos = real_end + 3;
+        // Tier 1 & 2: Output Contract Extraction
+        // Look for [OUTPUT] block
+        if let Some(output_start) = content.find("[OUTPUT]") {
+            let output_block = if let Some(end) = content[output_start..].find("END_FILE") {
+                &content[output_start..output_start+end]
             } else {
-                break;
+                &content[output_start..]
+            };
+
+            // Relaxed / Strict: extract FILE: <filename> and code blocks
+            let mut current_pos = 0;
+            while let Some(file_start) = output_block[current_pos..].find("FILE:") {
+                let real_start = current_pos + file_start;
+                let line_end = output_block[real_start..].find('\n').unwrap_or(output_block.len() - real_start);
+                let filename = output_block[real_start + 5..real_start + line_end].trim().to_string();
+                
+                if filename.is_empty() || filename.contains("..") {
+                    current_pos = real_start + line_end;
+                    continue;
+                }
+
+                current_pos = real_start + line_end;
+                
+                if let Some(code_start) = output_block[current_pos..].find("```") {
+                    let real_code_start = current_pos + code_start;
+                    let lang_end = output_block[real_code_start + 3..].find('\n').unwrap_or(0);
+                    let block_content_start = real_code_start + 3 + lang_end + 1;
+                    
+                    if let Some(code_end) = output_block[block_content_start..].find("```") {
+                        let code_content = output_block[block_content_start..block_content_start + code_end].trim().to_string();
+                        if !code_content.is_empty() {
+                            files_to_commit.push((filename, code_content));
+                        }
+                        current_pos = block_content_start + code_end + 3;
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
             }
         }
 
-        if !found_code {
+        // Tier 3: Heuristic Extraction (Fallback)
+        if files_to_commit.is_empty() {
+            tracing::info!("⚠️ Parser Tier 1/2 failed. Falling back to Tier 3 (Heuristic)...");
+            let mut current_pos = 0;
+            while let Some(start_idx) = content[current_pos..].find("```") {
+                let real_start = current_pos + start_idx;
+                let lang_end = content[real_start + 3..].find('\n').unwrap_or(0);
+                let lang = content[real_start + 3..real_start + 3 + lang_end].trim();
+                
+                let block_start = real_start + 3 + lang_end + 1;
+                if let Some(end_idx) = content[block_start..].find("```") {
+                    let real_end = block_start + end_idx;
+                    let code_part = content[block_start..real_end].trim().to_string();
+                    
+                    let lang_lower = lang.to_lowercase();
+                    if lang_lower == "markdown" || lang_lower == "md" || lang_lower == "text" || lang_lower == "tool_code" || lang_lower == "bash" || lang_lower == "sh" {
+                        current_pos = real_end + 3;
+                        continue;
+                    }
+
+                    let mut filename = format!("generated_{}.{}", uuid::Uuid::new_v4().to_string()[..4].to_string(), if lang.is_empty() { "txt" } else { lang });
+                    
+                    for line in code_part.lines().take(5) {
+                        let trimmed = line.trim();
+                        if (trimmed.starts_with("#") || trimmed.starts_with("//")) && (trimmed.contains(".") || trimmed.contains("/")) {
+                            let detected = trimmed.trim_start_matches('#').trim_start_matches('/').trim().split_whitespace().next().unwrap_or("");
+                            if detected.contains('.') && !detected.contains("..") {
+                                filename = detected.to_string();
+                                break;
+                            }
+                        }
+                    }
+
+                    if !code_part.is_empty() {
+                        files_to_commit.push((filename, code_part));
+                    }
+                    current_pos = real_end + 3;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        if files_to_commit.is_empty() {
+            tracing::warn!("❌ Parser failed completely. No code blocks found.");
             let file_path = format!("{}/README.md", sandbox_path);
             let _ = std::fs::write(&file_path, content);
-            tracing::info!("🔒 Isolation: Synced documentation to {}", file_path);
+            return Err(anyhow::anyhow!("FORMAT VIOLATION: No valid code blocks or FILE contract found."));
+        }
+
+        // v0.0.18: Dependency Intelligence - Filename Inference and Correction
+        Self::fix_filenames(&mut files_to_commit);
+
+        // Hardening Phase 1: 3-Way Merge
+        let current_map = Self::load_current_files(&sandbox_path);
+        let snapshot_map = Self::load_snapshot(&sandbox_path);
+        
+        let mut new_map = std::collections::HashMap::new();
+        for (filename, code) in files_to_commit {
+            new_map.insert(filename, code);
+        }
+
+        let merged_map_opt = Self::merge_all(&snapshot_map, &current_map, &new_map);
+        if merged_map_opt.is_none() {
+            tracing::error!("❌ 3-Way Merge Conflict detected.");
+            return Err(anyhow::anyhow!("MERGE_CONFLICT: Manual resolution or LLM Retry required."));
+        }
+        
+        let merged_map = merged_map_opt.unwrap();
+        let merged_files: Vec<(String, String)> = merged_map.into_iter().collect();
+
+        // Hardening Phase 2: Atomic Commit with Temp Dir
+        let tmp_dir = format!("{}/.tmp_{}", sandbox_path, uuid::Uuid::new_v4());
+        std::fs::create_dir_all(&tmp_dir)?;
+
+        let mut validated = true;
+        for (filename, code) in &merged_files {
+            let tmp_file_path = format!("{}/{}", tmp_dir, filename);
+            if let Some(parent) = std::path::Path::new(&tmp_file_path).parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Err(e) = std::fs::write(&tmp_file_path, code) {
+                tracing::error!("❌ Failed to write temp file {}: {}", tmp_file_path, e);
+                validated = false;
+                break;
+            }
+
+            // Hardening Phase 3: Formatting & Code Validation (Python)
+            if filename.ends_with(".py") {
+                // v0.0.18: Stabilization (Formatter)
+                let _ = std::process::Command::new("python3")
+                    .arg("-m")
+                    .arg("black")
+                    .arg("-q")
+                    .arg(&tmp_file_path)
+                    .output();
+
+                let output = std::process::Command::new("python3")
+                    .arg("-m")
+                    .arg("py_compile")
+                    .arg(&tmp_file_path)
+                    .output();
+                
+                if let Ok(out) = output {
+                    if !out.status.success() {
+                        tracing::error!("❌ Code Validation failed for {}: {:?}", filename, String::from_utf8_lossy(&out.stderr));
+                        validated = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if validated {
+            // v0.0.18: Dependency & Entry Point Validation
+            if !Self::validate_dependencies(&merged_files) {
+                let _ = std::fs::remove_dir_all(&tmp_dir);
+                tracing::error!("❌ Dependency Validation failed. Missing local dependency imports.");
+                return Err(anyhow::anyhow!("FAIL_DEPENDENCY: Missing local dependency imports."));
+            }
+
+            if !Self::has_entry_point(&merged_files) {
+                let _ = std::fs::remove_dir_all(&tmp_dir);
+                tracing::error!("❌ Entry Point Validation failed. No main entry point found.");
+                return Err(anyhow::anyhow!("FAIL_ENTRY: No __main__ entry point found."));
+            }
+
+            // v0.0.18: Incremental Diff Commit
+            if let Err(e) = Self::apply_diff(&sandbox_path, &merged_files, &tmp_dir) {
+                let _ = std::fs::remove_dir_all(&tmp_dir);
+                tracing::error!("❌ Incremental Commit failed: {}", e);
+                return Err(anyhow::anyhow!("COMMIT_FAILED: Error during incremental diff commit."));
+            }
+
+            // v0.0.18: Save Snapshot
+            Self::save_snapshot(&sandbox_path, &merged_files);
+
+            let _ = std::fs::remove_dir_all(&tmp_dir);
+            Ok(())
+        } else {
+            // Rollback
+            let _ = std::fs::remove_dir_all(&tmp_dir);
+            tracing::error!("🔙 Atomic Rollback: Temp directory destroyed due to validation failure.");
+            Err(anyhow::anyhow!("CODE INVALID: Failed syntax validation or I/O error."))
+        }
+    }
+
+    fn extract_imports(code: &str) -> Vec<(String, usize)> {
+        let mut imports = Vec::new();
+        for line in code.lines() {
+            let line = line.trim();
+            if line.starts_with("import ") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() > 1 {
+                    let imp = parts[1].split('.').next().unwrap_or("");
+                    imports.push((imp.to_string(), 0));
+                }
+            } else if line.starts_with("from ") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() > 3 && parts[2] == "import" {
+                    let module_str = parts[1];
+                    let mut level = 0;
+                    let mut mod_name = module_str;
+                    while mod_name.starts_with('.') {
+                        level += 1;
+                        mod_name = &mod_name[1..];
+                    }
+                    imports.push((mod_name.to_string(), level));
+                }
+            }
+        }
+        imports
+    }
+
+    fn resolve_import(module: &str, level: usize, current_path: &str) -> String {
+        if level == 0 {
+            return format!("{}.py", module.replace(".", "/"));
+        }
+        let mut parts: Vec<&str> = current_path.split('/').collect();
+        parts.pop();
+        
+        let keep_len = parts.len().saturating_sub(level - 1);
+        let mut base: Vec<&str> = parts.into_iter().take(keep_len).collect();
+        
+        if !module.is_empty() {
+            let mod_parts: Vec<&str> = module.split('.').collect();
+            base.extend(mod_parts);
+        }
+        
+        format!("{}.py", base.join("/"))
+    }
+
+    fn match_module_to_code(module: &str, code: &str) -> bool {
+        let cap_module = {
+            let mut c = module.chars();
+            match c.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+            }
+        };
+        let class_decl = format!("class {}", cap_module);
+        let def_decl = format!("def {}", module);
+        
+        code.contains(&class_decl) || code.contains(&def_decl)
+    }
+
+    fn fix_filenames(files: &mut Vec<(String, String)>) {
+        let filenames: std::collections::HashSet<String> = files.iter()
+            .map(|(n, _)| n.clone())
+            .collect();
+            
+        let mut missing = std::collections::HashSet::new();
+        for (name, code) in files.iter() {
+            let imports = Self::extract_imports(code);
+            for (imp, level) in imports {
+                let target = Self::resolve_import(&imp, level, name);
+                if !filenames.contains(&target) {
+                    let base_mod = target.split('/').last().unwrap_or("").replace(".py", "");
+                    if !base_mod.is_empty() {
+                        missing.insert(base_mod);
+                    }
+                }
+            }
+        }
+        
+        for (name, code) in files.iter_mut() {
+            for mod_name in &missing {
+                if Self::match_module_to_code(mod_name, code) {
+                    *name = format!("{}.py", mod_name);
+                }
+            }
+        }
+    }
+
+    fn validate_dependencies(files: &[(String, String)]) -> bool {
+        let paths: std::collections::HashSet<String> = files.iter()
+            .map(|(n, _)| n.clone())
+            .collect();
+
+        for (path, code) in files {
+            let imports = Self::extract_imports(code);
+            for (imp, level) in imports {
+                if level > 0 {
+                    let target = Self::resolve_import(&imp, level, path);
+                    if !paths.contains(&target) {
+                        tracing::error!("❌ Invalid relative import: from {} in {}", imp, path);
+                        return false;
+                    }
+                }
+            }
+        }
+        true
+    }
+
+    fn has_entry_point(files: &[(String, String)]) -> bool {
+        let mut has_main_file = false;
+        let mut has_entry_code = false;
+        
+        for (name, code) in files {
+            let n = name.to_lowercase();
+            if n.ends_with("main.py") || n.ends_with("app.py") || n.ends_with("main.rs") {
+                has_main_file = true;
+            }
+            if code.contains("if __name__ == '__main__'") 
+                || code.contains("if __name__ == \"__main__\"") 
+                || code.contains("fn main()") 
+                || code.contains("def main()") 
+            {
+                has_entry_code = true;
+            }
+        }
+        
+        if !has_main_file {
+            return true;
+        }
+        has_entry_code
+    }
+
+    fn apply_diff(base_dir: &str, new_files: &[(String, String)], tmp_dir: &str) -> anyhow::Result<()> {
+        let mut old_files = std::collections::HashMap::new();
+        if let Ok(entries) = std::fs::read_dir(base_dir) {
+            for entry in entries.flatten() {
+                if let Ok(file_type) = entry.file_type() {
+                    if file_type.is_file() {
+                        let name = entry.file_name().to_string_lossy().to_string();
+                        if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                            old_files.insert(name, content);
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut new_map = std::collections::HashMap::new();
+        for (name, code) in new_files {
+            new_map.insert(name.clone(), code.clone());
+        }
+
+        let mut added = Vec::new();
+        let mut modified = Vec::new();
+        let mut deleted = Vec::new();
+
+        for (name, code) in &new_map {
+            match old_files.get(name) {
+                None => added.push(name.clone()),
+                Some(old_code) if old_code != code => modified.push(name.clone()),
+                _ => {}
+            }
+        }
+
+        for name in old_files.keys() {
+            if !new_map.contains_key(name) {
+                deleted.push(name.clone());
+            }
+        }
+
+        for name in deleted {
+            let path = format!("{}/{}", base_dir, name);
+            let _ = std::fs::remove_file(&path);
+            tracing::info!("🗑️ Deleted old file: {}", path);
+        }
+
+        for name in added.into_iter().chain(modified.into_iter()) {
+            let src_path = format!("{}/{}", tmp_dir, name);
+            let dest_path = format!("{}/{}", base_dir, name);
+            if let Some(parent) = std::path::Path::new(&dest_path).parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Err(_) = std::fs::rename(&src_path, &dest_path) {
+                let _ = std::fs::copy(&src_path, &dest_path);
+                let _ = std::fs::remove_file(&src_path);
+            }
+            tracing::info!("📝 Applied diff to: {}", dest_path);
         }
 
         Ok(())
+    }
+
+    fn load_current_files(base_dir: &str) -> std::collections::HashMap<String, String> {
+        let mut files = std::collections::HashMap::new();
+        if let Ok(entries) = std::fs::read_dir(base_dir) {
+            for entry in entries.flatten() {
+                if let Ok(file_type) = entry.file_type() {
+                    if file_type.is_file() {
+                        let name = entry.file_name().to_string_lossy().to_string();
+                        if !name.starts_with('.') {
+                            if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                                files.insert(name, content);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        files
+    }
+
+    fn load_snapshot(base_dir: &str) -> std::collections::HashMap<String, String> {
+        let path = format!("{}/.axon/snapshot.json", base_dir);
+        if let Ok(content) = std::fs::read_to_string(path) {
+            if let Ok(map) = serde_json::from_str(&content) {
+                return map;
+            }
+        }
+        std::collections::HashMap::new()
+    }
+
+    fn save_snapshot(base_dir: &str, files: &[(String, String)]) {
+        let path = format!("{}/.axon/snapshot.json", base_dir);
+        if let Some(parent) = std::path::Path::new(&path).parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        
+        let mut map = std::collections::HashMap::new();
+        for (name, code) in files {
+            map.insert(name.clone(), code.clone());
+        }
+        
+        if let Ok(json) = serde_json::to_string_pretty(&map) {
+            let _ = std::fs::write(path, json);
+        }
+    }
+
+    fn extract_functions(code: &str) -> std::collections::HashMap<String, (usize, usize, String)> {
+        let mut funcs = std::collections::HashMap::new();
+        let lines: Vec<&str> = code.lines().collect();
+        let mut i = 0;
+        
+        while i < lines.len() {
+            let mut start_idx = i;
+            
+            // 1. Decorator Handling
+            let mut has_decorator = false;
+            while i < lines.len() && lines[i].trim().starts_with('@') {
+                has_decorator = true;
+                i += 1;
+            }
+            if i >= lines.len() { break; }
+            
+            let line = lines[i];
+            let trimmed = line.trim();
+            
+            // 2. Function / Class Detection
+            if trimmed.starts_with("def ") || trimmed.starts_with("class ") {
+                let is_class = trimmed.starts_with("class ");
+                let prefix_len = if is_class { 6 } else { 4 };
+                
+                if let Some(name_part) = trimmed[prefix_len..].split('(').next() {
+                    let name = name_part.split(':').next().unwrap_or("").trim().to_string();
+                    let base_indent = line.len() - line.trim_start().len();
+                    
+                    i += 1; // Move past the def/class line
+                    
+                    // 3. Indent Check (Find End)
+                    while i < lines.len() {
+                        let l = lines[i];
+                        let t = l.trim();
+                        if t.is_empty() || t.starts_with('#') {
+                            i += 1;
+                            continue;
+                        }
+                        let current_indent = l.len() - l.trim_start().len();
+                        if current_indent <= base_indent {
+                            break;
+                        }
+                        i += 1;
+                    }
+                    
+                    // 4. Trailing Comment Exclusion
+                    let mut end_idx = i;
+                    while end_idx > start_idx {
+                        let prev_line = lines[end_idx - 1].trim();
+                        if prev_line.is_empty() || prev_line.starts_with('#') {
+                            end_idx -= 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    
+                    let body = lines[start_idx..end_idx].join("\n");
+                    let key = if is_class { format!("class:{}", name) } else { name };
+                    funcs.insert(key, (start_idx, end_idx, body));
+                    
+                    // Continue from end_idx to avoid inner nested overlaps
+                    i = end_idx;
+                    continue;
+                }
+            } else if has_decorator {
+                // False alarm (e.g. commented out decorator or invalid syntax)
+                i += 1;
+            } else {
+                i += 1;
+            }
+        }
+        funcs
+    }
+
+    fn merge_semantic(base: &str, current: &str, new: &str) -> Option<String> {
+        // If the task didn't touch this file, preserve the current state.
+        if new.is_empty() { return Some(current.to_string()); }
+        
+        if current == base { return Some(new.to_string()); }
+        if new == base { return Some(current.to_string()); }
+        if current == new { return Some(current.to_string()); }
+
+        let base_funcs = Self::extract_functions(base);
+        let current_funcs = Self::extract_functions(current);
+        let new_funcs = Self::extract_functions(new);
+
+        let mut merged_code = current.to_string();
+        
+        for (name, (_, _, new_body)) in &new_funcs {
+            let base_body = base_funcs.get(name).map(|(_, _, b)| b.as_str()).unwrap_or("");
+            let current_body = current_funcs.get(name).map(|(_, _, b)| b.as_str()).unwrap_or("");
+            
+            if new_body == base_body {
+                continue;
+            }
+            
+            if current_body != base_body && current_body != new_body {
+                return None; // CONFLICT at function level
+            }
+            
+            if let Some((_, _, c_body)) = current_funcs.get(name) {
+                merged_code = merged_code.replace(c_body, new_body);
+            } else {
+                merged_code.push_str("\n\n");
+                merged_code.push_str(new_body);
+            }
+        }
+        
+        Some(merged_code)
+    }
+
+    fn merge_all(
+        base_map: &std::collections::HashMap<String, String>,
+        current_map: &std::collections::HashMap<String, String>,
+        new_map: &std::collections::HashMap<String, String>
+    ) -> Option<std::collections::HashMap<String, String>> {
+        let mut merged = std::collections::HashMap::new();
+        let mut all_files = std::collections::HashSet::new();
+
+        for k in base_map.keys() { all_files.insert(k.clone()); }
+        for k in current_map.keys() { all_files.insert(k.clone()); }
+        for k in new_map.keys() { all_files.insert(k.clone()); }
+
+        for f in all_files {
+            let base = base_map.get(&f).map(|s| s.as_str()).unwrap_or("");
+            let current = current_map.get(&f).map(|s| s.as_str()).unwrap_or("");
+            let new = new_map.get(&f).map(|s| s.as_str()).unwrap_or("");
+
+            if let Some(result) = Self::merge_semantic(base, current, new) {
+                if !result.is_empty() || new_map.contains_key(&f) || current_map.contains_key(&f) {
+                    merged.insert(f, result);
+                }
+            } else {
+                return None; // CONFLICT
+            }
+        }
+        Some(merged)
     }
     
     fn select_best_agent(&self, role: axon_core::AgentRole) -> (Arc<dyn axon_model::ModelDriver + Send + Sync>, String) {
@@ -982,3 +1498,69 @@ pub async fn validate_agent(driver: &dyn axon_model::ModelDriver, model_name: &s
     "FAIL".to_string()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_functions() {
+        let code = r#"
+import os
+
+@cache
+def my_func():
+    return 1
+
+# comment
+def my_func2():
+    pass
+# trailing
+"#;
+        let funcs = Daemon::extract_functions(code);
+        assert!(funcs.contains_key("my_func"));
+        assert!(funcs.contains_key("my_func2"));
+        let (_, _, b) = funcs.get("my_func").unwrap();
+        assert!(b.contains("@cache"));
+        assert!(!b.contains("# comment"));
+        
+        let (_, _, b2) = funcs.get("my_func2").unwrap();
+        assert!(!b2.contains("# trailing"));
+    }
+
+    #[test]
+    fn test_resolve_import() {
+        let path = "src/services/user.py";
+        assert_eq!(Daemon::resolve_import("database", 1, path), "src/services/database.py");
+        assert_eq!(Daemon::resolve_import("utils", 2, path), "src/utils.py");
+        assert_eq!(Daemon::resolve_import("os", 0, path), "os.py");
+    }
+
+    #[test]
+    fn test_merge_semantic() {
+        let base = r#"
+def func1():
+    pass
+
+def func2():
+    pass
+"#;
+        let current = r#"
+def func1():
+    # user comment
+    pass
+
+def func2():
+    pass
+"#;
+        let new_code = r#"
+def func1():
+    pass
+
+def func2():
+    return 42
+"#;
+        let merged = Daemon::merge_semantic(base, current, new_code).unwrap();
+        assert!(merged.contains("# user comment"));
+        assert!(merged.contains("return 42"));
+    }
+}

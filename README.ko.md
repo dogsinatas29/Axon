@@ -166,3 +166,15 @@ cargo build --release
 - **Core**: `ObservabilityReport` 및 `RuntimeMetrics`를 저장소 및 에이전트 로직에 추가했습니다.
 - **Model Driver**: 구조화된 메트릭을 반환하도록 트레이트(Trait)를 업데이트했습니다.
 - **Daemon**: 계층 기반 폴백(Fallback) 및 태스크-샌드박스 동기화 로직을 구현했습니다.
+
+## 📋 릴리즈 노트: v0.0.18 - 파이프라인 안정화 및 0바이트 살인마 퇴치 (Pipeline Stabilization)
+
+### 🚀 주요 기능 및 개선
+- **결과 생성 보장 (Output Generation Guarantee)**: 3-Tier 파서(Parser) 아키텍처 도입. 정규 파싱 실패 시 휴리스틱(Heuristic) 파서가 성공적으로 코드를 추출해냅니다.
+- **아키텍트 병목 방지**: `sampling_rate` 로직 적용으로 아키텍트의 부하를 줄이고 시니어에게 권한을 성공적으로 자동 위임합니다.
+- **모델 안정성 입증**: 주니어/시니어 모델을 `Gemma2`로 교체하여 향상된 규약 준수율(Output Contract Adherence)을 달성했습니다.
+
+### 🛠️ 치명적 버그 수정
+- **[CRITICAL] 0바이트 살인마 버그 수정**: 데몬 병합 로직 결함으로 인해 건드리지 않은 기존 정상 파일들이 0바이트로 덮어씌워지던 치명적 결함을 완벽히 해결했습니다.
+- **[CRITICAL] 구글 서버 과부하(503) 셧다운 방지**: Gemini API의 High Demand(503) 에러 시 시스템이 뻗지 않고 60초 대기 후 재시도하도록 `QUOTA_WAIT` 방어 로직을 추가했습니다.
+- **휴리스틱 쓰레기 파일 추출 방지**: 파서가 `markdown`, `tool_code`, `bash` 등의 비코드 블록을 코드 파일로 잘못 저장하는 현상을 차단했습니다.

@@ -322,7 +322,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(s) = spec {
                     s
                 } else {
-                    prompt("Enter Specification File Path (e.g., GEMINI.md): ")
+                    let msg = if final_locale == "ko_KR" {
+                        "공장 가동을 위한 요구사항 명세서 경로를 입력하세요 (예: GEMINI.md)\n[이미 진행 중인 작업을 이어서 하려면 아무것도 입력하지 말고 엔터를 누르세요]: "
+                    } else {
+                        "Enter Specification File Path (e.g., GEMINI.md)\n[Press Enter to SKIP if resuming an existing project]: "
+                    };
+                    prompt(msg)
                 }
             } else {
                 "".to_string()

@@ -112,42 +112,70 @@ impl AgentRuntime {
     }
 
     pub async fn process_task(&self, task: &Task, architecture_guide: &str, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
-        // ... (Junior logic remains same)
-        tracing::info!("Agent {} (Junior) processing task {}...", self.agent.id, task.id);
-        
         let lang_name = match self.locale.as_str() {
             "ko_KR" => "한국어 (Korean)",
             "ja_JP" => "日本語 (Japanese)",
             _ => "English",
         };
 
-        let system_prompt = format!(
-            "### SYSTEM: AI JUNIOR AGENT: {} ###\n\
-             --- 중요: 반드시 아래 지정된 언어로만 답변하십시오 (FORCE LANGUAGE) ---\n\
-             언어: {}\n\n\
-             주어진 아키텍처 가이드를 준수하여 아래 태스크를 구현하십시오.\n\n\
-             --- 아키텍처 가이드 ---\n\
-             {}\n\n\
-             --- 현재 태스크 ---\n\
-             제목: {}\n\
-             설명: {}\n\n\
-             --- 출력 규격 ---\n\
-             1. 서론이나 생각(<thought>)은 생략하고 즉시 구현 내용을 출력하십시오.\n\
-             2. 다음 형식을 반드시 포함하십시오:\n\
-                - task_id: {}\n\
-                - changed_files: [수정된 파일 목록]\n\
-                - diff: [주요 변경 사항 요약]\n\
-                - full_code: [파일의 전체 소스 코드]",
-            self.agent.persona.name,
-            lang_name,
-            architecture_guide,
-            task.title,
-            task.description,
-            task.id
-        );
+        let log_msg = match self.locale.as_str() {
+            "ko_KR" => format!("요원 {} (주니어)가 태스크 {}를 처리 중입니다...", self.agent.id, task.id),
+            "ja_JP" => format!("エージェント {} (ジュニア) がタスク {} を処理しています...", self.agent.id, task.id),
+            _ => format!("Agent {} (Junior) processing task {}...", self.agent.id, task.id),
+        };
+        tracing::info!("{}", log_msg);
+        
+        let system_prompt = if self.locale.as_str() == "ko_KR" {
+            format!(
+                "### SYSTEM: AI JUNIOR AGENT: {} ###\n\
+                 --- 중요: 반드시 아래 지정된 언어로만 답변하십시오 (FORCE LANGUAGE) ---\n\
+                 언어: {}\n\n\
+                 아키텍처 가이드를 기반으로 다음 태스크를 구현하십시오.\n\n\
+                 --- 아키텍처 가이드 ---\n\
+                 {}\n\n\
+                 --- 현재 태스크 ---\n\
+                 제목: {}\n\
+                 설명: {}\n\n\
+                 --- 출력 규격 ---\n\
+                 1. 서론이나 생각 과정을 적지 마십시오. 즉시 코드를 출력하십시오.\n\
+                 2. 반드시 다음 항목을 포함하여 작성하십시오:\n\
+                    - task_id: {}\n\
+                    - changed_files: [수정된 파일 목록]\n\
+                    - diff: [변경 사항 요약]\n\
+                    - full_code: [전체 코드 블록]",
+                self.agent.persona.name, lang_name, architecture_guide, task.title, task.description, task.id
+            )
+        } else {
+            format!(
+                "### SYSTEM: AI JUNIOR AGENT: {} ###\n\
+                 --- IMPORTANT: FORCE LANGUAGE ---\n\
+                 LANGUAGE: {}\n\n\
+                 Implement the following task based on the architecture guide.\n\n\
+                 --- ARCHITECTURE GUIDE ---\n\
+                 {}\n\n\
+                 --- CURRENT TASK ---\n\
+                 TITLE: {}\n\
+                 DESCRIPTION: {}\n\n\
+                 --- OUTPUT SPEC ---\n\
+                 1. NO PREAMBLE. NO THOUGHTS. OUTPUT CODE IMMEDIATELY.\n\
+                 2. MUST INCLUDE:\n\
+                    - task_id: {}\n\
+                    - changed_files: [LIST]\n\
+                    - diff: [SUMMARY]\n\
+                    - full_code: [CODE BLOCK]",
+                self.agent.persona.name, lang_name, architecture_guide, task.title, task.description, task.id
+            )
+        };
 
         let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
         
+        // v0.0.22: CRITICAL RESOURCE BOTTLENECK PROTECTION
+        // If Ollama returns empty content due to memory/GPU timeout, DO NOT treat it as success.
+        if resp.text.trim().is_empty() || !resp.text.contains("```") {
+            tracing::error!("❌ [RESOURCE ERROR]: Junior produced no code blocks. System may be overloaded.");
+            return Err(anyhow::anyhow!("Ollama produced empty response or missing code blocks. Check system resources."));
+        }
+
         let full_code = {
             // Strip reasoning tags to get clean content
             let mut clean = resp.text.clone();
@@ -178,7 +206,18 @@ impl AgentRuntime {
     }
 
     pub async fn process_bootstrap_step1(&self, task: &Task, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
-        tracing::info!("Agent {} (Architect) Stage 1: Designing Architecture...", self.agent.id);
+        let lang_name = match self.locale.as_str() {
+            "ko_KR" => "한국어 (Korean)",
+            "ja_JP" => "日本語 (Japanese)",
+            _ => "English",
+        };
+
+        let log_msg = match self.locale.as_str() {
+            "ko_KR" => format!("요원 {} (아키텍트) 1단계: 아키텍처 설계 중...", self.agent.id),
+            "ja_JP" => format!("エージェント {} (アー키텍트) ステージ1: アー키텍처 설계 중...", self.agent.id),
+            _ => format!("Agent {} (Architect) Stage 1: Designing Architecture...", self.agent.id),
+        };
+        tracing::info!("{}", log_msg);
         
         let system_prompt = format!(
             "### TASK ###\n\
@@ -188,12 +227,12 @@ impl AgentRuntime {
              2. MODULES: Group logic into 'Clusters'.\n\
              3. ATOMS: Define 'Nodes' for specific functions.\n\n\
              ### RULES ###\n\
-             - LANGUAGE: {}.\n\
+             - LANGUAGE: USE {}.\n\
              - OUTPUT: ONLY markdown (architecture.md content). NO CHAT.\n\n\
              ### SPECIFICATION ###\n\
              {}",
             self.agent.persona.name,
-            self.locale,
+            lang_name,
             task.description
         );
 
@@ -215,25 +254,33 @@ impl AgentRuntime {
         })
     }
 
-    pub async fn process_bootstrap_step2(&self, architecture: &str, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
-        tracing::info!("Agent {} (Architect) Stage 2: Extracting Tasks...", self.agent.id);
+    pub async fn process_bootstrap_step2(&self, architecture_content: &str, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
+        let lang_name = match self.locale.as_str() {
+            "ko_KR" => "한국어 (Korean)",
+            "ja_JP" => "日本語 (Japanese)",
+            _ => "English",
+        };
+
+        let log_msg = match self.locale.as_str() {
+            "ko_KR" => format!("요원 {} (아키텍트) 2단계: 태스크 분해 중...", self.agent.id),
+            "ja_JP" => format!("エージェント {} (アーキテクト) ステージ2: タスク分解中...", self.agent.id),
+            _ => format!("Agent {} (Architect) Stage 2: Extracting Tasks...", self.agent.id),
+        };
+        tracing::info!("{}", log_msg);
         
         let system_prompt = format!(
-            "### INSTRUCTION ###\n\
-             YOU ARE THE CHIEF TECHNOLOGY OFFICER (CTO).\n\
-             ANALYZE THE MASTER ARCHITECTURE AND DECOMPOSE IT INTO A COMPREHENSIVE SET OF ATOMIC IMPLEMENTATION TASKS.\n\n\
-             ### STRATEGY ###\n\
-             1. GRANULARITY: Each task must be small enough for a single developer to implement in one sprint. DO NOT group multiple systems into one task.\n\
-             2. PARALLELISM: Identify independent modules that can be built simultaneously by different workers.\n\
-             3. COVERAGE: Ensure 100% of the architecture nodes are covered by the generated tasks.\n\n\
-             ### RULES ###\n\
-             1. LOCALE: USE {}.\n\
-             2. FORMAT: OUTPUT ONLY RAW JSON ARRAY. NO MARKDOWN BLOCKS. NO PREAMBLE.\n\
-             3. SCHEMA: [{{ \"title\": \"...\", \"description\": \"...\" }}, ...]\n\n\
-             ### ARCHITECTURE CONTENT ###\n\
+            "### TASK ###\n\
+             ROLE: CTO & CHIEF ARCHITECT.\n\
+             DECOMPOSE THE FOLLOWING ARCHITECTURE INTO ATOMIC TASKS.\n\n\
+             ### OUTPUT RULES ###\n\
+             1. LANGUAGE: USE {}.\n\
+             2. FORMAT: VALID JSON ARRAY OF OBJECTS ONLY.\n\
+             3. OBJECT SCHEMA: {{ \"id\": \"unique_id\", \"title\": \"Descriptive Title\", \"description\": \"Detailed task description for a Junior agent\" }}\n\
+             4. SCOPE: Each task must be a single file or a small logical unit.\n\n\
+             ### ARCHITECTURE GUIDE ###\n\
              {}",
-            self.locale,
-            architecture
+            lang_name,
+            architecture_content
         );
 
         let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), None).await?;
@@ -255,23 +302,51 @@ impl AgentRuntime {
     }
 
     pub async fn generate_system_summary(&self, proposal: &Post, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
-        tracing::info!("System generating summary for proposal {}...", proposal.id);
+        let lang_name = match self.locale.as_str() {
+            "ko_KR" => "한국어 (Korean)",
+            "ja_JP" => "日本語 (Japanese)",
+            _ => "English",
+        };
+
+        let log_msg = match self.locale.as_str() {
+            "ko_KR" => format!("시스템이 제안서 {}에 대한 요약 생성 중...", proposal.id),
+            "ja_JP" => format!("システムが提案 {} の概要を生成しています...", proposal.id),
+            _ => format!("System generating summary for proposal {}...", proposal.id),
+        };
+        tracing::info!("{}", log_msg);
         
-        let system_prompt = format!(
-            "YOU ARE THE AXON SYSTEM SUMMARY LAYER.\n\n\
-             --- LANGUAGE ENFORCEMENT ---\n\
-             YOU MUST GENERATE THE SUMMARY IN THE FOLLOWING LOCALE: {}.\n\n\
-             --- JUNIOR PROPOSAL CONTENT ---\n\
-             {}\n\n\
-             --- INSTRUCTION ---\n\
-             ANALYZE THE PROPOSAL ABOVE. PROVIDE A NEUTRAL TECHNICAL SUMMARY.\n\
-             1. LIST CHANGED FILES.\n\
-             2. SUMMARIZE CORE LOGIC CHANGES IN 2-3 BULLET POINTS.\n\
-             3. DO NOT PROVIDE OPINIONS, FEEDBACK, OR RISK ANALYSIS.\n\
-             4. BE CONCISE.",
-            self.locale,
-            proposal.content
-        );
+        let system_prompt = if self.locale.as_str() == "ko_KR" {
+            format!(
+                "당신은 AXON 시스템의 요약 레이어(System Summary Layer)입니다.\n\n\
+                 --- 중요: 반드시 아래 지정된 언어로만 답변하십시오 ---\n\
+                 언어: 한국어 (Korean)\n\n\
+                 --- 주니어 제안 내용 ---\n\
+                 {}\n\n\
+                 --- 지시 사항 ---\n\
+                 위 제안을 분석하여 중립적인 기술 요약을 제공하십시오.\n\
+                 1. 변경된 파일 목록을 명시하십시오.\n\
+                 2. 핵심 로직 변경 사항을 2-3개의 글머리 기호로 요약하십시오.\n\
+                 3. 개인적인 의견, 피드백 또는 위험 분석을 제공하지 마십시오.\n\
+                 4. 최대한 간결하게 작성하십시오.",
+                 proposal.content
+            )
+        } else {
+            format!(
+                "YOU ARE THE AXON SYSTEM SUMMARY LAYER.\n\n\
+                  --- LANGUAGE ENFORCEMENT ---\n\
+                  YOU MUST GENERATE THE SUMMARY IN THE FOLLOWING LANGUAGE: {}.\n\n\
+                 --- JUNIOR PROPOSAL CONTENT ---\n\
+                 {}\n\n\
+                 --- INSTRUCTION ---\n\
+                 ANALYZE THE PROPOSAL ABOVE. PROVIDE A NEUTRAL TECHNICAL SUMMARY.\n\
+                 1. LIST CHANGED FILES.\n\
+                 2. SUMMARIZE CORE LOGIC CHANGES IN 2-3 BULLET POINTS.\n\
+                 3. DO NOT PROVIDE OPINIONS, FEEDBACK, OR RISK ANALYSIS.\n\
+                 4. BE CONCISE.",
+                 self.locale,
+                 proposal.content
+            )
+        };
 
         let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(proposal.thread_id.clone())).await?;
         

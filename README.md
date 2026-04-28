@@ -166,3 +166,15 @@ cargo build --release
 - **Core**: Added `ObservabilityReport` and `RuntimeMetrics` to storage and agent logic.
 - **Model Driver**: Updated trait to return structured metrics.
 - **Daemon**: Implemented layer-based fallback and task-to-sandbox sync logic.
+
+## 📋 Release Notes: v0.0.18 - Pipeline Stabilization & 0-Byte Bug Fix
+
+### 🚀 Key Features & Improvements
+- **Output Generation Guarantee**: Introduced the 3-Tier Parser architecture. When standard parsing fails, the Heuristic parser successfully extracts code blocks as a fallback.
+- **Architect Bottleneck Prevention**: Successfully applied the `sampling_rate` logic to bypass the Architect and automatically delegate approval authority to Senior agents.
+- **Model Stability Proven**: Replaced Junior/Senior models with `Gemma2`, achieving significantly higher Output Contract Adherence.
+
+### 🛠️ Critical Bug Fixes
+- **[CRITICAL] 0-Byte Overwrite Bug Fixed**: Resolved a critical flaw in the daemon's merge logic where unedited existing files were accidentally overwritten with 0 bytes.
+- **[CRITICAL] Gemini 503 Overload Protection**: Added bulletproof `QUOTA_WAIT` logic to pause for 60 seconds and retry (instead of crashing) when encountering Google Gemini High Demand (503) errors.
+- **Heuristic Garbage Extraction Prevented**: Blocked the parser from mistakenly saving non-code blocks (like `markdown`, `tool_code`, and `bash` logs) as project source files.

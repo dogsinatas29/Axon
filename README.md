@@ -221,6 +221,7 @@ cargo build --release
 - **Deterministic IR Convergence**: Fixed-point convergence loop for Architecture IR, ensuring stable design before implementation.
 - **Stage 3.5 Stub Generation**: Physical file materialization (Stubs) to resolve parallel dependency issues (`ModuleNotFoundError`).
 - **High-Fidelity Feedback Loop**: Upgraded `axon_property_tester.py` to capture and report specific failing inputs and stack traces to Junior agents, enabling rapid self-healing.
+- **Mandatory Senior Review Gate**: Integrated Stage 8 review, ensuring that automated passes are verified by human-level Senior/Architect logic before promotion.
 - **Strict JSON Output Contract**: Enforced mandatory JSON protocol for Junior agents, ensuring 100% parsing reliability on resource-constrained hardware.
 
 ### 🛠️ Hardware & Reliability Fixes

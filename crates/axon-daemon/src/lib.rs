@@ -548,33 +548,6 @@ impl Daemon {
                                                 match property_output {
                                                     Ok(out) if out.status.success() => {
                                                         tracing::info!("🎲 [Stage 7] Property Test (Fuzzing) Passed for Junior {}", junior_runtime.agent.name);
-                                                        
-                                                        // FINAL STEP: Versioned Promotion via Registry (SSOT Promotion)
-                                                        let tmp_files_json = format!("{}/.promote_{}.json", task.project_id, uuid::Uuid::new_v4());
-                                                        let _ = std::fs::write(&tmp_files_json, &simulated_state_json);
-                                                        
-                                                        let registry_res = std::process::Command::new("python3")
-                                                            .arg(Self::resolve_tool_path("axon_registry.py"))
-                                                            .arg("promote")
-                                                            .arg("--root")
-                                                            .arg(&task.project_id)
-                                                            .arg("--files-json")
-                                                            .arg(&tmp_files_json)
-                                                            .arg("--task-id")
-                                                            .arg(&task.id)
-                                                            .output();
-                                                        
-                                                        let _ = std::fs::remove_file(&tmp_files_json);
-                                                        
-                                                        match registry_res {
-                                                            Ok(rout) if rout.status.success() => {
-                                                                tracing::info!("🚀 [SSOT PROMOTED] Versioned snapshot created for task {}", task.id);
-                                                                return Ok(()); 
-                                                            },
-                                                            _ => {
-                                                                tracing::error!("❌ [REGISTRY ERROR] Failed to promote versioned snapshot.");
-                                                            }
-                                                        }
                                                     },
                                                     Ok(out) => {
                                                         let fuzz_msg = String::from_utf8_lossy(&out.stdout).into_owned();
@@ -865,8 +838,39 @@ impl Daemon {
         if validation.content.contains("APPROVE") || review.content.contains("APPROVE") {
             let _ = self.sync_post_to_sandbox(&task.project_id, &proposal.content);
             
+            // v0.0.22: Official SSOT Promotion after Senior/Architect Approval
+            let simulated_state_json = serde_json::to_string(&proposal.files).unwrap_or_default();
+            let tmp_files_json = format!("{}/.promote_final_{}.json", task.project_id, uuid::Uuid::new_v4());
+            let _ = std::fs::write(&tmp_files_json, &simulated_state_json);
+            
+            let registry_res = std::process::Command::new("python3")
+                .arg(Self::resolve_tool_path("axon_registry.py"))
+                .arg("promote")
+                .arg("--root")
+                .arg(&task.project_id)
+                .arg("--files-json")
+                .arg(&tmp_files_json)
+                .arg("--task-id")
+                .arg(&task.id)
+                .output();
+            
+            let _ = std::fs::remove_file(&tmp_files_json);
+            
+            if let Ok(rout) = registry_res {
+                if rout.status.success() {
+                    tracing::info!("🚀 [SSOT PROMOTED] Versioned snapshot created for task {} after Senior Review", task.id);
+                } else {
+                    tracing::error!("❌ [REGISTRY ERROR] Promotion failed at final stage.");
+                }
+            }
+
             // v0.0.16: 아키텍처 섹션 잠금 (격리 경로 적용)
             let _ = self.lock_in_architecture(&task.project_id, &task.title);
+        } else {
+            // v0.0.22: Hard-fail if not approved by Senior
+            tracing::warn!("⛔ [REJECTED]: Senior/Architect refused to approve task {}. Marking as FAILED.", task.id);
+            failures.push(format!("Review Refusal: The Senior agent did not find the solution satisfactory."));
+            return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
         }
 
         // Final Status Update (v0.0.17: Mark as Completed)

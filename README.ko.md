@@ -19,9 +19,10 @@
 
 AXON은 일반적인 소비자용 하드웨어에서도 높은 효율을 발휘하도록 설계되었습니다. 다음은 안정적인 운용이 확인된 테스트 환경입니다:
 
-- **CPU**: Intel Core i7 (Haswell)
-- **RAM**: 16GB
-- **GPU**: NVIDIA GeForce GTX 1050 Ti (4GB VRAM)
+- **CPU**: Intel(R) Core(TM) i7-4790 (8 Cores) @ 4.00 GHz
+- **RAM**: 16GB (15.07 GiB 가용)
+- **GPU**: NVIDIA GeForce GTX 1050 Ti
+- **메인보드**: H81MDV5 (5.0)
 - **LLM 엔진**: Ollama / airLLM
 - **기준 모델**: `qwen2.5:7b-instruct-q4_K_M` (GPU 부분 오프로딩 활용)
 

@@ -19,9 +19,10 @@
 
 AXON is designed to be highly efficient, even on modest consumer hardware. The following environment has been verified for stable production:
 
-- **CPU**: Intel Core i7 (Haswell)
-- **RAM**: 16GB
-- **GPU**: NVIDIA GeForce GTX 1050 Ti (4GB VRAM)
+- **CPU**: Intel(R) Core(TM) i7-4790 (8 Cores) @ 4.00 GHz
+- **RAM**: 16GB (15.07 GiB available)
+- **GPU**: NVIDIA GeForce GTX 1050 Ti
+- **Motherboard**: H81MDV5 (5.0)
 - **LLM Engine**: Ollama / airLLM
 - **Reference Model**: `qwen2.5:7b-instruct-q4_K_M` (Utilizing partial GPU offloading)
 

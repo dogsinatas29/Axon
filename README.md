@@ -221,9 +221,11 @@ cargo build --release
 ### 🚀 Key Features & Improvements
 - **Deterministic IR Convergence**: Fixed-point convergence loop for Architecture IR, ensuring stable design before implementation.
 - **Stage 3.5 Stub Generation**: Physical file materialization (Stubs) to resolve parallel dependency issues (`ModuleNotFoundError`).
+- **High-Fidelity Feedback Loop**: Upgraded `axon_property_tester.py` to capture and report specific failing inputs and stack traces to Junior agents, enabling rapid self-healing.
 - **Strict JSON Output Contract**: Enforced mandatory JSON protocol for Junior agents, ensuring 100% parsing reliability on resource-constrained hardware.
 
 ### 🛠️ Hardware & Reliability Fixes
+- **Pipeline Integrity Fix**: Resolved a critical bug where temporary state files were deleted before Stage 7 completion, ensuring 100% test data availability.
 - **GTX 1050 Ti Optimization**: Tailored GPU offloading for Qwen 2.5 7B to run stably on 4GB VRAM.
 - **Smart Mapping Validator**: Path normalization and project-state awareness to eliminate false-positive drift warnings.
 - **Real-time UI Synchronization**: Guaranteed task visibility and live signal streaming for agent activity.

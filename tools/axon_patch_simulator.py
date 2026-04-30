@@ -72,16 +72,9 @@ def simulate_state(project_root: str, junior_output_json: str):
     Parses Junior's JSON output and applies changes to a virtual copy of files.
     Returns: { "filename": "resulting_code" }
     """
-    try:
-        data = json.loads(junior_output_json)
-    except Exception as e:
-        return {"error": f"JSON Parse Error: {e}"}
-        
-    if not isinstance(data, list):
-        data = [data] # Handle single object or list
-        
     results = {}
-    # 1. Load all existing files from project_root into the virtual state
+    
+    # 1. Load all existing files from project_root into the virtual state FIRST
     if os.path.exists(project_root):
         for root, dirs, files in os.walk(project_root):
             for f in files:
@@ -93,17 +86,41 @@ def simulate_state(project_root: str, junior_output_json: str):
                 except:
                     pass
 
-    # 2. Apply patches from Junior agent
+    # 2. Extract JSON from potentially conversational response
+    raw_json = junior_output_json
+    if "```json" in junior_output_json:
+        try:
+            raw_json = junior_output_json.split("```json")[1].split("```")[0].strip()
+        except:
+            pass
+    elif "[" in junior_output_json:
+        try:
+            start = junior_output_json.find("[")
+            end = junior_output_json.rfind("]")
+            if start != -1 and end != -1:
+                raw_json = junior_output_json[start:end+1]
+        except:
+            pass
+
+    try:
+        data = json.loads(raw_json)
+    except Exception as e:
+        # If parsing fails, we still return the existing files but mark the error
+        results["error"] = f"JSON Parse Error: {e}. Raw: {raw_json[:100]}..."
+        return results
+        
+    if not isinstance(data, list):
+        data = [data] # Handle single object or list
+        
+    # 3. Apply patches from Junior agent
     for item in data:
         target = item.get("target")
         if not target: continue
         
-        base_path = os.path.join(project_root, target)
-        base_code = ""
-        if os.path.exists(base_path):
-            with open(base_path, "r", encoding="utf-8") as f:
-                base_code = f.read()
+        # Normalize target path to match our results keys
+        target = os.path.normpath(target)
         
+        base_code = results.get(target, "")
         op_type = item.get("type", "rewrite")
         
         if op_type == "rewrite":
@@ -112,7 +129,7 @@ def simulate_state(project_root: str, junior_output_json: str):
             diff = item.get("diff", "")
             new_code = apply_diff(base_code, diff)
             if new_code.startswith("ERROR:"):
-                results[target] = {"error": new_code}
+                results[f"error_{target}"] = new_code
             else:
                 results[target] = new_code
                 

@@ -76,20 +76,25 @@ def validate_mapping(arch_path, project_root, state_json_path=None):
         else:
             code_idx = CodeIndexer.build_index(project_root)
             
+        # 4. Normalize paths for matching
+        normalized_idx = {os.path.normpath(k): v for k, v in code_idx.items()}
+        
         errors = []
-        # ... (rest of validation logic same)
         for comp in arch.get("components", []):
             fname = comp.get("file")
             if not fname: continue
+            
+            norm_fname = os.path.normpath(fname)
 
             # File Check
-            if fname not in code_idx:
-                errors.append(f"[MISSING_FILE] {fname}")
+            if norm_fname not in normalized_idx:
+                found_files = ", ".join(list(normalized_idx.keys()))
+                errors.append(f"[MISSING_FILE] {fname} (Normalized: {norm_fname}). Found in index: [{found_files}]")
                 continue
 
             # Symbol Check
             symbols = comp.get("symbols", [])
-            available = code_idx[fname].get("functions", set()) | code_idx[fname].get("classes", set())
+            available = normalized_idx[norm_fname].get("functions", set()) | normalized_idx[norm_fname].get("classes", set())
 
             for s in symbols:
                 if s not in available:

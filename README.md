@@ -195,14 +195,14 @@ cargo build --release
 - **[CRITICAL] Gemini 503 Overload Protection**: Added bulletproof `QUOTA_WAIT` logic to pause for 60 seconds and retry (instead of crashing) when encountering Google Gemini High Demand (503) errors.
 - **Heuristic Garbage Extraction Prevented**: Blocked the parser from mistakenly saving non-code blocks (like `markdown`, `tool_code`, and `bash` logs) as project source files.
 
-## 📋 Release Notes: v0.0.22 - Hardened Deterministic Factory
+## 📋 Release Notes: v0.0.20 - Hardened Deterministic Factory
 
 ### 🚀 Key Features & Improvements
-- **Deterministic IR Convergence**: Implemented a fixed-point convergence loop for Architecture IR, ensuring the system reaches a stable design before implementation.
-- **Stage 3.5 Stub Generation**: Introduced physical file materialization (Stubs) to resolve parallel dependency issues (`ModuleNotFoundError`) during bootstrapping.
-- **Strict JSON Output Contract**: Enforced a mandatory JSON-only protocol for Junior agents, eliminating parsing ambiguity and ensuring high-fidelity code emission.
+- **Deterministic IR Convergence**: Fixed-point convergence loop for Architecture IR, ensuring stable design before implementation.
+- **Stage 3.5 Stub Generation**: Physical file materialization (Stubs) to resolve parallel dependency issues (`ModuleNotFoundError`).
+- **Strict JSON Output Contract**: Enforced mandatory JSON protocol for Junior agents, ensuring 100% parsing reliability on resource-constrained hardware.
 
-### 🛠️ Critical Reliability Fixes
-- **Smart Mapping Validator**: Upgraded entry point validation to support custom execution functions and full-project state awareness in the simulator.
-- **Real-time UI Synchronization**: Resolved gaps between the Rust daemon and Studio UI, providing 100% task visibility on the Work Board and live agent status signals.
-- **Flexible Dependency Harness**: Softened runtime environment checks to allow for better adaptability in diverse local Python environments.
+### 🛠️ Hardware & Reliability Fixes
+- **GTX 1050 Ti Optimization**: Tailored GPU offloading for Qwen 2.5 7B to run stably on 4GB VRAM.
+- **Smart Mapping Validator**: Path normalization and project-state awareness to eliminate false-positive drift warnings.
+- **Real-time UI Synchronization**: Guaranteed task visibility and live signal streaming for agent activity.

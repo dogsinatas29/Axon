@@ -836,9 +836,8 @@ impl Daemon {
         let validation = validation.unwrap();
 
         // 5. ISOLATION SYNC (v0.0.16): 최종 승인된 주니어의 코드를 프로젝트 샌드박스에 물리적 반영
-        // v0.0.21: 시니어의 승인 여부를 확인하고 주니어의 코드를 동기화함
+        // v0.0.22: Removed redundant sync_post_to_sandbox call as 'promote' handles SSOT updates via JSON state.
         if validation.content.contains("APPROVE") || review.content.contains("APPROVE") {
-            let _ = self.sync_post_to_sandbox(&task.project_id, &proposal.content);
             
             // v0.0.22: Official SSOT Promotion after Senior/Architect Approval
             let tmp_files_json = format!("{}/.promote_final_{}.json", task.project_id, uuid::Uuid::new_v4());

@@ -25,6 +25,20 @@ AXON uses a multi-stage validation pipeline. Understanding the error messages is
 | `Golden Test Failed` | 6 | Regression detected; new code broke existing features. | Junior agent rolls back and re-implements. |
 | `Property Test Failed` | 7 | Edge case bug found (e.g., negative input, overflow). | Junior agent optimizes logic for robustness. |
 
+## 🎭 Agent Intervention Protocol (Stage 8-9)
+
+AXON operates a hierarchical quality gate system to ensure maximum code fidelity.
+
+| Phase | Agent | Intervention Point | Condition | Responsibility |
+| :--- | :--- | :--- | :--- | :--- |
+| **Stage 8** | **Senior** | After Junior passes all auto-tests (Stage 7) | **Mandatory** (Every Task) | Code Review, Architecture Compliance, Final Approval/Rejection |
+| **Stage 9** | **Architect** | After Senior Approval | **Probabilistic** (Sampling Rate) | High-Fidelity System Integrity Validation |
+
+### 🔍 Architect's Probabilistic Bypass (v0.0.17)
+To optimize token usage while maintaining high standards, the Architect does not inspect every file. Instead, it performs **Spot Checks**:
+- **Sampling Logic**: After a Senior's approval, a random roll is performed against the `sampling_rate`.
+- **Intervention**: If the roll hits, the Architect performs a final deep-dive validation. If bypassed, the Senior's approval is promoted to the final SSOT authority.
+
 ## 🏛️ Senior Review Protocol (Stage 8)
 
 To maximize token efficiency and code quality, AXON follows a strict **"Automation First, Human-like Review Second"** policy:

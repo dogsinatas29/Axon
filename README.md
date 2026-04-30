@@ -11,6 +11,19 @@
 - [🖼️ Visual Overview](#️-visual-overview)
 - [🏛️ Sovereign Agent Protocol](#️-sovereign-agent-protocol-roles--reasoning)
 - [🛠️ Getting Started](#️-getting-started)
+- [💻 Verified Test Environment](#-verified-test-environment)
+
+---
+
+## 💻 Verified Test Environment
+
+AXON is designed to be highly efficient, even on modest consumer hardware. The following environment has been verified for stable production:
+
+- **CPU**: Intel Core i7 (Haswell)
+- **RAM**: 16GB
+- **GPU**: NVIDIA GeForce GTX 1050 Ti (4GB VRAM)
+- **LLM Engine**: Ollama / airLLM
+- **Reference Model**: `qwen2.5:7b-instruct-q4_K_M` (Utilizing partial GPU offloading)
 
 ---
 

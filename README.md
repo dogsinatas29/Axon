@@ -240,6 +240,6 @@ cargo build --release
 
 ### 🛠️ Hardware & Reliability Fixes
 - **Pipeline Integrity Fix**: Resolved a critical bug where temporary state files were deleted before Stage 7 completion, ensuring 100% test data availability.
+- **Orchestration Hardening**: Fixed an "Early Return" bug in the daemon that bypassed Senior Review. Promotion now strictly occurs ONLY after Senior/Architect approval.
+- **Architect Sampling Normalization**: Corrected the probabilistic bypass logic to ensure high-fidelity spot checks are triggered correctly based on `sampling_rate`.
 - **GTX 1050 Ti Optimization**: Tailored GPU offloading for Qwen 2.5 7B to run stably on 4GB VRAM.
-- **Smart Mapping Validator**: Path normalization and project-state awareness to eliminate false-positive drift warnings.
-- **Real-time UI Synchronization**: Guaranteed task visibility and live signal streaming for agent activity.

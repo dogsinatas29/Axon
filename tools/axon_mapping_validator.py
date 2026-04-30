@@ -22,6 +22,7 @@ class CodeIndexer:
             return {
                 "functions": set(funcs),
                 "classes": set(classes),
+                "content": code
             }
         except Exception as e:
             return {"error": str(e)}
@@ -70,6 +71,7 @@ def validate_mapping(arch_path, project_root, state_json_path=None):
                     code_idx[fname] = {
                         "functions": set(funcs),
                         "classes": set(classes),
+                        "content": code
                     }
                 except:
                     code_idx[fname] = {"error": "AST parse failed"}
@@ -94,7 +96,14 @@ def validate_mapping(arch_path, project_root, state_json_path=None):
 
             # Symbol Check
             symbols = comp.get("symbols", [])
-            available = normalized_idx[norm_fname].get("functions", set()) | normalized_idx[norm_fname].get("classes", set())
+            file_meta = normalized_idx[norm_fname]
+            code_content = file_meta.get("content", "")
+            
+            # Skip symbol check if it's still a stub
+            if "AXON STUB" in code_content:
+                continue
+
+            available = file_meta.get("functions", set()) | file_meta.get("classes", set())
 
             for s in symbols:
                 if s not in available:

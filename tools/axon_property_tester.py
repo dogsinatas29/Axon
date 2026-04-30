@@ -86,31 +86,37 @@ def run_property_test(filename, code, properties):
             
             func = getattr(module, func_name)
             fail_count = 0
+            first_error = None
             
             for _ in range(iterations):
                 year = random.randint(1900, 2025)
                 month = random.randint(1, 12)
                 day = random.randint(1, 28)
+                fuzz_input = None
                 
                 try:
                     # Adaptive Input: try string, then datetime
                     try:
                         fuzz_input = f"{year}-{month:02d}-{day:02d}"
                         actual = func(fuzz_input)
-                    except:
+                    except Exception as e:
                         fuzz_input = datetime(year, month, day)
                         actual = func(fuzz_input)
 
                     if not safe_check(actual, invariant):
                         fail_count += 1
+                        if not first_error:
+                            first_error = f"Invariant '{invariant}' failed for input {fuzz_input} (Got: {actual})"
                 except Exception as e:
                     # Any execution crash is a property failure
                     fail_count += 1
+                    if not first_error:
+                        first_error = f"Execution crashed for input {fuzz_input or 'N/A'}: {str(e)}"
             
             if fail_count == 0:
                 results.append({"status": "pass", "property": invariant, "iterations": iterations})
             else:
-                results.append({"status": "fail", "property": invariant, "fails": fail_count})
+                results.append({"status": "fail", "property": invariant, "fails": fail_count, "observation": first_error})
                 
     finally:
         if os.path.exists(tmp_path): os.remove(tmp_path)

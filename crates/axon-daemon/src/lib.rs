@@ -531,7 +531,6 @@ impl Daemon {
                                             .arg(&tmp_state_path)
                                             .output();
 
-                                        let _ = std::fs::remove_file(&tmp_state_path);
 
                                         match golden_output {
                                             Ok(out) if out.status.success() => {
@@ -543,6 +542,8 @@ impl Daemon {
                                                     .arg(&constraints_path)
                                                     .arg(&tmp_state_path)
                                                     .output();
+                                                 // v0.0.22: Clean up state file AFTER all integrity tests
+                                                 let _ = std::fs::remove_file(&tmp_state_path);
 
                                                 match property_output {
                                                     Ok(out) if out.status.success() => {
@@ -578,7 +579,7 @@ impl Daemon {
                                                     Ok(out) => {
                                                         let fuzz_msg = String::from_utf8_lossy(&out.stdout).into_owned();
                                                         tracing::warn!("❌ [Stage 7] Property Test Failed (Edge Case Found) for {}:\n{}", junior_runtime.agent.name, fuzz_msg);
-                                                        junior_error_feedback = Some(format!("PROPERTY FAILURE: Your code failed on randomized edge-cases. Invariant violated: {}", fuzz_msg));
+                                                         junior_error_feedback = Some(format!("PROPERTY FAILURE: Randomized edge-case check failed. DETAILS: {}", fuzz_msg.replace("<<<<PROPERTY_TEST_FAILED>>>>", "").trim()));
                                                         if retry_attempt == max_retries {
                                                             junior_failures.push(format!("Junior {}: Property test failed.", junior_runtime.agent.name));
                                                         }
@@ -592,7 +593,7 @@ impl Daemon {
                                             Ok(out) => {
                                                 let trace_msg = String::from_utf8_lossy(&out.stdout).into_owned();
                                                 tracing::warn!("❌ [Stage 6] Golden Test (Regression) Failed for {}:\n{}", junior_runtime.agent.name, trace_msg);
-                                                junior_error_feedback = Some(format!("REGRESSION FAILURE: Your code broke existing business logic invariants. Details: {}", trace_msg));
+                                                 junior_error_feedback = Some(format!("REGRESSION FAILURE: Business logic invariants violated. DETAILS: {}", trace_msg.replace("<<<<GOLDEN_TEST_FAILED>>>>", "").trim()));
                                                 if retry_attempt == max_retries {
                                                     junior_failures.push(format!("Junior {}: Golden test failed.", junior_runtime.agent.name));
                                                 }

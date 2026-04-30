@@ -51,9 +51,8 @@ AXON is designed to be highly efficient, even on modest consumer hardware. The f
 
 ---
 
-## 🧠 Core Philosophy
-> **"A playground for beginners, a control tower for experts."**
-
+## 🚀 Project Philosophy: SYNAPSE (Visual Architecture Control Engine)
+**"Autonomous Software Factory built on Deterministic Reliability."**
 AXON treats software development like a **SCADA process control system**. The Boss (User) only provides the blueprint, and the agents handle the rest. Agents have distinct personas; they argue, reconcile, and chat in the "Nogari" channel while completing the code.
 
 ## ⚙️ How it Works

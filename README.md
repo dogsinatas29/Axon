@@ -195,7 +195,7 @@ cargo build --release
 - **[CRITICAL] Gemini 503 Overload Protection**: Added bulletproof `QUOTA_WAIT` logic to pause for 60 seconds and retry (instead of crashing) when encountering Google Gemini High Demand (503) errors.
 - **Heuristic Garbage Extraction Prevented**: Blocked the parser from mistakenly saving non-code blocks (like `markdown`, `tool_code`, and `bash` logs) as project source files.
 
-## 📋 Release Notes: v0.0.20 - Hardened Deterministic Factory
+## 📋 Release Notes: v0.0.22 - Hardened Deterministic Factory
 
 ### 🚀 Key Features & Improvements
 - **Deterministic IR Convergence**: Fixed-point convergence loop for Architecture IR, ensuring stable design before implementation.

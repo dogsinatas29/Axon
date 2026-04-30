@@ -23,6 +23,8 @@ AXON is designed to be highly efficient, even on modest consumer hardware. The f
 - **RAM**: 16GB (15.07 GiB available)
 - **GPU**: NVIDIA GeForce GTX 1050 Ti
 - **Motherboard**: H81MDV5 (5.0)
+- **OS**: Ubuntu 25.10 x86_64
+- **Kernel**: Linux 6.18.6-generic
 - **LLM Engine**: Ollama / airLLM
 - **Reference Model**: `qwen2.5:7b-instruct-q4_K_M` (Utilizing partial GPU offloading)
 

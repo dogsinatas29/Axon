@@ -9,8 +9,29 @@
 - [🏗️ Architecture](#️-architecture)
 - [✨ Key Features](#-key-features)
 - [🖼️ Visual Overview](#️-visual-overview)
-- [🏛️ Sovereign Agent Protocol](#️-sovereign-agent-protocol-roles--reasoning)
-- [🛠️ Getting Started](#️-getting-started)
+- [🔬 Error Diagnostics & Recovery](#-error-diagnostics--recovery)
+- [🏛️ Senior Review Protocol](#-senior-review-protocol)
+
+---
+
+## 🔬 Error Diagnostics & Recovery
+
+AXON uses a multi-stage validation pipeline. Understanding the error messages is key to monitoring the factory:
+
+| Error Message | Stage | Meaning | Action |
+|:--- |:--- |:--- |:--- |
+| `MAPPING_VALIDATION_FAILED` | 4.5 | Implementation drift from Architecture IR. | System auto-normalizes paths or flags missing symbols. |
+| `Execution Fail` | 5 | Code contains syntax errors or missing dependencies. | Junior agent receives stack trace for auto-repair. |
+| `Golden Test Failed` | 6 | Regression detected; new code broke existing features. | Junior agent rolls back and re-implements. |
+| `Property Test Failed` | 7 | Edge case bug found (e.g., negative input, overflow). | Junior agent optimizes logic for robustness. |
+
+## 🏛️ Senior Review Protocol (Stage 8)
+
+To maximize token efficiency and code quality, AXON follows a strict **"Automation First, Human-like Review Second"** policy:
+
+1.  **The Junior's Battle**: The Junior agent must first fight through all automated QA gates (Stages 5, 6, and 7).
+2.  **Senior Intervention**: The Senior agent **ONLY** intervenes at **Stage 8** once the code is proven to be executable and robust.
+3.  **Role**: The Senior focuses on high-level architectural alignment, code readability, and sophisticated patterns, rather than catching simple syntax or logic bugs already filtered by the Daemon.
 - [💻 Verified Test Environment](#-verified-test-environment)
 
 ---

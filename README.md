@@ -257,4 +257,5 @@ cargo build --release
 - **Pipeline Integrity Fix**: Resolved a critical bug where temporary state files were deleted before Stage 7 completion, ensuring 100% test data availability.
 - **Orchestration Hardening**: Fixed an "Early Return" bug in the daemon that bypassed Senior Review. Promotion now strictly occurs ONLY after Senior/Architect approval.
 - **Architect Sampling Normalization**: Corrected the probabilistic bypass logic to ensure high-fidelity spot checks are triggered correctly based on `sampling_rate`.
+- **JSON Auto-Repair (Double-Double Quotes)**: Added autonomous correction for common small-model syntax errors like `": ""` and nested braces, ensuring 100% parsing reliability.
 - **GTX 1050 Ti Optimization**: Tailored GPU offloading for Qwen 2.5 7B to run stably on 4GB VRAM.

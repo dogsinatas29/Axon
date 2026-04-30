@@ -290,8 +290,18 @@ impl AgentRuntime {
             return Err(anyhow::anyhow!("Ollama produced empty response. Check context limits."));
         }
 
-        let clean_json = extract_json(&resp.text)
-            .ok_or_else(|| anyhow::anyhow!("Failed to find valid JSON in Junior response. Raw: {}", resp.text))?;
+        let clean_json = match extract_json(&resp.text) {
+            Some(j) => {
+                // v0.0.22: Auto-repair common small-model syntax errors
+                let repaired = j.replace(",,", ",")
+                                .replace("}}", "}")
+                                .replace("True", "true")
+                                .replace("False", "false")
+                                .replace("\": \"\"", "\": \""); // Fix double-double quotes
+                repaired
+            },
+            None => return Err(anyhow::anyhow!("Failed to find valid JSON in Junior response. Raw: {}", resp.text)),
+        };
 
         let full_code = Some(clean_json.clone());
 
@@ -363,7 +373,8 @@ impl AgentRuntime {
                 let repaired = j.replace(",,", ",")
                                 .replace("}}", "}")
                                 .replace("True", "true")
-                                .replace("False", "false");
+                                .replace("False", "false")
+                                .replace("\": \"\"", "\": \""); // Fix double-double quotes
                 repaired
             },
             None => {

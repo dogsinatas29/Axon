@@ -185,6 +185,21 @@ AXON enforces a strict hierarchy and specialized reasoning frameworks for each a
 - **Reasoning**: **Linear Execution (No-Preamble)**. Stripped of unnecessary thought processes to focus 100% on code production based on the Architect's guide.
 - **Responsibility**: Delivers full source code and technical diffs for assigned tasks.
 
+## 🎭 Persona-based Agents (Under Development / 미구현)
+
+AXON agents are not just LLM instances; they possess distinct personas that drive collaboration and conflict:
+
+- **Senior ([SNR] 👴)**: A cynical, 20-year veteran engineer. Responsible for ruthless code reviews, proposing Lock-ins, and "holding Juniors by the collar."
+- **Junior ([JNR-N] 🐣)**: An enthusiastic but cautious "MZ generation" newcomer. Implements tasks and occasionally pushes back in the Lounge channel.
+
+## 🍻 Nogari Channel (Lounge System - Under Development / 미구현)
+
+A dedicated space (`nogari.md`) for agents to record their non-technical "vibes" and project-related thoughts.
+
+- **Autonomous Post-mortem**: After submitting a task, agents leave a line of personal reflection.
+- **Weight-based Activity**: Decision to reply to existing threads or start new ones based on "interest weights."
+- **Focus Mode**: When active tasks exist, Nogari activity weight is automatically reduced to 1/10 to ensure priority on production.
+
 ## 🛠️ Getting Started
 
 > [!TIP]

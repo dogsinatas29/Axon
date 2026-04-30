@@ -300,6 +300,7 @@ impl Daemon {
 
         let mut proposal = None;
         let mut summary = None;
+        let mut final_simulated_state = String::new();
         let num_juniors = self.junior_models.len();
         let mut junior_failures = Vec::new();
         let mut junior_error_feedback: Option<String> = None;
@@ -637,6 +638,7 @@ impl Daemon {
                         
                         summary = Some(summary_post);
                         proposal = Some(p);
+                        final_simulated_state = simulated_state_json.clone();
                         break 'junior_fallback;
                     }
                     Err(e) => {
@@ -839,9 +841,8 @@ impl Daemon {
             let _ = self.sync_post_to_sandbox(&task.project_id, &proposal.content);
             
             // v0.0.22: Official SSOT Promotion after Senior/Architect Approval
-            let simulated_state_json = serde_json::to_string(&proposal.files).unwrap_or_default();
             let tmp_files_json = format!("{}/.promote_final_{}.json", task.project_id, uuid::Uuid::new_v4());
-            let _ = std::fs::write(&tmp_files_json, &simulated_state_json);
+            let _ = std::fs::write(&tmp_files_json, &final_simulated_state);
             
             let registry_res = std::process::Command::new("python3")
                 .arg(Self::resolve_tool_path("axon_registry.py"))

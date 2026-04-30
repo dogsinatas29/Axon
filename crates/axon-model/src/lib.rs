@@ -258,16 +258,33 @@ impl ModelDriver for OllamaDriver {
     }
 
     async fn generate(&self, prompt: String) -> Result<ModelResponse, Box<dyn std::error::Error + Send + Sync>> {
-        let url = format!("{}/api/generate", self.base_url);
+        let url_str = format!("{}/api/generate", self.base_url);
+        let url = reqwest::Url::parse(&url_str).map_err(|e| format!("Invalid Ollama URL '{}': {}", url_str, e))?;
+
+        let model_lower = self.model_name.to_lowercase();
+        let is_small = model_lower.contains("qwen") || model_lower.contains("gemma") || model_lower.contains("1.8b") || model_lower.contains("2b");
+        
+        let num_ctx = if is_small { 8192 } else { 32768 };
+        let stop: Vec<String> = vec![]; // Remove problematic stop tokens
+
         let body = serde_json::json!({
             "model": self.model_name,
             "prompt": prompt,
             "stream": false,
             "options": {
-                "num_ctx": 16384
+                "num_ctx": num_ctx,
+                "stop": stop,
+                "temperature": 0.0
             }
         });
-        let response = self.client.post(url).json(&body).send().await?;
+
+        tracing::debug!("📡 Ollama Request: URL={}, PromptSize={}", url, prompt.len());
+
+        let response = self.client.post(url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("Ollama Connection/Builder Error: {}", e))?;
         
         if !response.status().is_success() {
             let status = response.status();
@@ -277,6 +294,11 @@ impl ModelDriver for OllamaDriver {
 
         let res_json: serde_json::Value = response.json().await?;
         let text = res_json["response"].as_str().ok_or("Failed Ollama extraction")?;
+        
+        if text.trim().is_empty() {
+            tracing::warn!("⚠️ Ollama returned an empty response field. Full JSON: {}", res_json);
+        }
+
         Ok(ModelResponse {
             text: text.to_string(),
             total_duration: res_json["total_duration"].as_u64(),

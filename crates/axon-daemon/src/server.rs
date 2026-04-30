@@ -353,15 +353,22 @@ async fn hire_agent(
     Json(req): Json<HireRequest>,
 ) -> impl IntoResponse {
     let agent_id = format!("agent-{}", uuid::Uuid::new_v4().to_string()[..8].to_string());
-    let model = match req.role {
-        axon_core::AgentRole::Architect => daemon.architect_model.clone(),
-        axon_core::AgentRole::Senior => daemon.senior_models.first().cloned().unwrap_or_else(|| daemon.architect_model.clone()),
-        axon_core::AgentRole::Junior => daemon.junior_models.first().cloned().unwrap_or_else(|| daemon.architect_model.clone()),
+    let (model, model_name) = match req.role {
+        axon_core::AgentRole::Architect => (daemon.architect_model.clone(), daemon.architect_model_name.clone()),
+        axon_core::AgentRole::Senior => (
+            daemon.senior_models.first().cloned().unwrap_or_else(|| daemon.architect_model.clone()),
+            daemon.senior_model_names.first().cloned().unwrap_or_else(|| daemon.architect_model_name.clone())
+        ),
+        axon_core::AgentRole::Junior => (
+            daemon.junior_models.first().cloned().unwrap_or_else(|| daemon.architect_model.clone()),
+            daemon.junior_model_names.first().cloned().unwrap_or_else(|| daemon.architect_model_name.clone())
+        ),
     };
 
     let mut runtime = axon_agent::AgentRuntime::new(
         agent_id.clone(),
         req.role,
+        model_name,
         model,
     );
     runtime.agent.parent_id = req.parent_id;

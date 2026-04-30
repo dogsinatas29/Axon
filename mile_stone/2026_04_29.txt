@@ -1,0 +1,10 @@
+v0.0.20.md진행중
+
+tools 내부 경로명과 architecture.md 경로명 문제를 수정했음. 
+문제는  architecture.md는 생성되었지만 내용이 부실함. 
+
+
+v0.0.21로 방향전환
+chatgpt와 설계중
+현재 /home/dogsinatas/다운로드/axon/v0.0.22_deterministic_llm.md 파일까지 생성
+

@@ -162,6 +162,7 @@ pub struct Event {
 }
 
 pub mod protocol;
+pub mod ir;
 
 pub mod events {
     use super::Event;

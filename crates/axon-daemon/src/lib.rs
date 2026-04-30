@@ -23,9 +23,9 @@ use axon_core::{events, TaskStatus};
 use axon_dispatcher::{Dispatcher, Assignment};
 use axon_storage::Storage;
 use std::sync::Arc;
+use std::path::PathBuf;
 use tokio::sync::mpsc;
 use std::collections::{HashMap, VecDeque};
-use serde::Deserialize;
 
 #[derive(Debug, Clone)]
 struct RoutingParams {
@@ -72,13 +72,21 @@ impl AgentStats {
     }
 }
 
+pub struct BootstrapManager {
+    pub project_id: String,
+    pub sandbox_root: PathBuf,
+}
+
 #[derive(Clone)]
 pub struct Daemon {
     pub dispatcher: Arc<Dispatcher>,
     pub storage: Arc<Storage>,
     pub architect_model: Arc<dyn axon_model::ModelDriver + Send + Sync>,
+    pub architect_model_name: String,
     pub senior_models: Vec<Arc<dyn axon_model::ModelDriver + Send + Sync>>,
+    pub senior_model_names: Vec<String>,
     pub junior_models: Vec<Arc<dyn axon_model::ModelDriver + Send + Sync>>,
+    pub junior_model_names: Vec<String>,
     pub event_bus: Arc<events::EventBus>,
     pub architecture_guide: String,
     pub pause_tx: Arc<tokio::sync::watch::Sender<bool>>,
@@ -96,11 +104,53 @@ pub struct Daemon {
 }
 
 impl Daemon {
+    fn resolve_tool_path(name: &str) -> String {
+        if let Ok(mut curr) = std::env::current_dir() {
+            for _ in 0..10 {
+                let path = curr.join("tools").join(name);
+                if path.exists() {
+                    return path.to_string_lossy().to_string();
+                }
+                if !curr.pop() { break; }
+            }
+        }
+        format!("tools/{}", name)
+    }
+
+    fn record_failure_trace(&self, task_id: &str, error: &str, file: &str, symbol: &str, stage: &str) {
+        let trace_dir = ".axon_trace";
+        let _ = std::fs::create_dir_all(trace_dir);
+        let path = format!("{}/traces.ndjson", trace_dir);
+        
+        let trace = serde_json::json!({
+            "ts": chrono::Local::now().to_rfc3339(),
+            "task_id": task_id,
+            "error": error,
+            "file": if file.is_empty() { None } else { Some(file) },
+            "symbol": if symbol.is_empty() { None } else { Some(symbol) },
+            "stage": stage
+        });
+
+        if let Ok(content) = serde_json::to_string(&trace) {
+            use std::io::Write;
+            if let Ok(mut file) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path) 
+            {
+                let _ = writeln!(file, "{}", content);
+            }
+        }
+    }
+
     pub fn new(
         storage: Arc<Storage>, 
         architect_model: Arc<dyn axon_model::ModelDriver + Send + Sync>,
+        architect_model_name: String,
         senior_models: Vec<Arc<dyn axon_model::ModelDriver + Send + Sync>>,
+        senior_model_names: Vec<String>,
         junior_models: Vec<Arc<dyn axon_model::ModelDriver + Send + Sync>>,
+        junior_model_names: Vec<String>,
         worker_tx: mpsc::Sender<Assignment>,
         architecture_guide: String,
         sampling_rate: f64,
@@ -115,8 +165,11 @@ impl Daemon {
             dispatcher: Arc::new(Dispatcher::new(worker_tx)),
             storage: storage.clone(),
             architect_model,
+            architect_model_name,
             senior_models,
+            senior_model_names,
             junior_models,
+            junior_model_names,
             event_bus,
             architecture_guide,
             pause_tx: Arc::new(pause_tx),
@@ -235,22 +288,30 @@ impl Daemon {
         let start_total = std::time::Instant::now();
         let max_retries = 2;
 
-        // v0.0.16 Isolation
-        let arch_guide_path = format!("{}/architecture.md", task.project_id);
-        let current_arch_guide = std::fs::read_to_string(&arch_guide_path).unwrap_or_else(|_| self.architecture_guide.clone());
+        // v0.0.16 Isolation (Absolute Pathing)
+        let mut sandbox_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        sandbox_root.push(&task.project_id);
+        
+        let arch_guide_path = sandbox_root.join("architecture.md");
+        let current_arch_guide = std::fs::read_to_string(&arch_guide_path).unwrap_or_else(|_| {
+            tracing::warn!("⚠️  Architecture guide not found at {}, falling back to default.", arch_guide_path.display());
+            self.architecture_guide.clone()
+        });
 
         let mut proposal = None;
         let mut summary = None;
         let num_juniors = self.junior_models.len();
         let mut junior_failures = Vec::new();
+        let mut junior_error_feedback: Option<String> = None;
 
         'junior_fallback: for _ in 0..num_juniors {
             // PHASE_08: Adaptive Routing Selection
-            let (junior_model, junior_id) = self.select_best_agent(axon_core::AgentRole::Junior);
+            let (junior_model, junior_id, junior_name) = self.select_best_agent(axon_core::AgentRole::Junior);
 
             let mut junior_runtime = axon_agent::AgentRuntime::new(
                 junior_id.clone(),
                 axon_core::AgentRole::Junior,
+                junior_name,
                 junior_model
             );
             junior_runtime.set_locale(&self.locale);
@@ -258,26 +319,310 @@ impl Daemon {
 
             for retry_attempt in 0..=max_retries {
                 let start_step = std::time::Instant::now();
-                match junior_runtime.process_task(&task, &current_arch_guide, Some(self.event_bus.clone())).await {
+                match junior_runtime.process_task(&task, &current_arch_guide, junior_error_feedback.clone(), Some(self.event_bus.clone())).await {
                     Ok(p) => {
                         let latency = start_step.elapsed().as_secs_f64() * 1000.0;
                         
                         // v0.0.19: Hard Fail Conditions (Strict Output Contract)
-                        let is_hard_fail = !p.content.contains("[OUTPUT]") || 
-                                           !p.content.contains("FILE:") || 
-                                           !p.content.contains("```") ||
-                                           p.content.contains("This code") ||
-                                           p.content.contains("Explanation") ||
-                                           p.content.contains("Below is") ||
-                                           p.content.contains("Here is");
+                        // v0.0.22: Hardened JSON Contract Validation
+                        let is_hard_fail = p.full_code.is_none() || p.full_code.as_ref().unwrap().trim().is_empty();
 
                         if is_hard_fail {
-                            tracing::warn!("⚠️ Junior {} retry {} Hard Fail: Output contract violation", junior_runtime.agent.name, retry_attempt + 1);
+                            self.record_failure_trace(&task.id, "HARD_FAIL_CONTRACT", "junior_output", "json_missing", "JuniorOutput");
+                            tracing::warn!("⚠️ Junior {} retry {} Hard Fail: Missing structured JSON in response", junior_runtime.agent.name, retry_attempt + 1);
+                            let _ = std::fs::write(format!("{}_rejected.txt", junior_runtime.agent.id), &p.content);
                             if retry_attempt == max_retries {
-                                junior_failures.push(format!("Junior {}: Hard fail contract violation", junior_runtime.agent.name));
+                                self.record_failure_trace(&task.id, "TASK_SUMMARY", "FAIL", "all_retries_failed", "Final");
+                                junior_failures.push(format!("Junior {} failed to provide a valid JSON proposal after {} retries.", junior_id, max_retries + 1));
                             }
                             continue;
                         }
+
+                        // PHASE_06: Hardened Stage 6 - JSON AST & IR Validation
+                        let mut ir_validation_success = true;
+                        let mut ir_validation_err = String::new();
+                        let mut simulated_state_json = String::new();
+
+                        // 1. Get structured JSON from Junior's response
+                        let junior_json = p.full_code.clone().unwrap_or_default();
+
+                        let tmp_junior_json = format!("{}/.junior_{}.json", task.project_id, uuid::Uuid::new_v4());
+                        let _ = std::fs::write(&tmp_junior_json, &junior_json);
+
+                        // 2. Patch Simulation (Virtual FS)
+                        let simulation_output = std::process::Command::new("python3")
+                            .arg(Self::resolve_tool_path("axon_patch_simulator.py"))
+                            .arg(&task.project_id)
+                            .arg(&tmp_junior_json)
+                            .output();
+
+                        match simulation_output {
+                            Ok(out) if out.status.success() => {
+                                simulated_state_json = String::from_utf8_lossy(&out.stdout).into_owned();
+                            },
+                            Ok(out) => {
+                                ir_validation_success = false;
+                                ir_validation_err = format!("Patch Simulation Failed: {}", String::from_utf8_lossy(&out.stderr));
+                            },
+                            Err(e) => {
+                                ir_validation_success = false;
+                                ir_validation_err = format!("Patch Simulator Error: {}", e);
+                            }
+                        }
+
+                        // 3. Semantic IR Validation (AST & Schema)
+                        if ir_validation_success {
+                            let constraints_path = format!("{}/constraints.json", task.project_id);
+                            let tmp_state_path = format!("{}/.state_{}.json", task.project_id, uuid::Uuid::new_v4());
+                            let _ = std::fs::write(&tmp_state_path, &simulated_state_json);
+
+                            let validator_output = std::process::Command::new("python3")
+                                .arg(Self::resolve_tool_path("axon_ir_validator.py"))
+                                .arg(&constraints_path)
+                                .arg(&tmp_state_path)
+                                .arg(&task.project_id)
+                                .output();
+
+                            let _ = std::fs::remove_file(&tmp_state_path);
+
+                            match validator_output {
+                                Ok(out) if out.status.success() => {
+                                    tracing::info!("✅ [Stage 6] Semantic IR Validation Passed for {}", junior_runtime.agent.name);
+                                },
+                                Ok(out) => {
+                                    ir_validation_success = false;
+                                    ir_validation_err = format!("Semantic Validation Failed:\n{}", String::from_utf8_lossy(&out.stderr));
+                                },
+                                Err(e) => {
+                                    ir_validation_success = false;
+                                    ir_validation_err = format!("IR Validator Error: {}", e);
+                                }
+                            }
+                        }
+
+                        let _ = std::fs::remove_file(&tmp_junior_json);
+
+                        if !ir_validation_success {
+                            self.record_failure_trace(&task.id, "VALIDATION_FAIL", "semantic", "unknown", "Stage6");
+                            tracing::warn!("⚠️ [Stage 6] Validation Fail for {}: {}", junior_runtime.agent.name, ir_validation_err);
+                            junior_error_feedback = Some(ir_validation_err.clone());
+                            if retry_attempt == max_retries {
+                                junior_failures.push(format!("Junior {}: Semantic validation failed: {}", junior_runtime.agent.name, ir_validation_err));
+                            }
+                            continue;
+                        }
+
+                        // v0.0.19: Stage 5 --- Autonomous Feedback Loop (Pre-review Execution Check)
+                        if ir_validation_success {
+                            // Extract simulated files for harness
+                            let file_map: std::collections::HashMap<String, String> = serde_json::from_str(&simulated_state_json).unwrap_or_default();
+                            let mut entry_point = "main.py".to_string();
+                            
+                            for fname in file_map.keys() {
+                                if fname.to_lowercase().ends_with("main.py") {
+                                    entry_point = fname.clone();
+                                }
+                            }
+
+                            if !file_map.is_empty() {
+                                let tmp_json_path = format!("{}/.harness_{}.json", task.project_id, uuid::Uuid::new_v4());
+                                let _ = std::fs::write(&tmp_json_path, &simulated_state_json);
+
+                                // v0.0.19: Architecture Mapping Validation (Before execution)
+                                let arch_file_path = format!("{}/architecture.md", task.project_id);
+                                tracing::info!("🗺️ [Stage 4.5] Architecture Mapping Validation for Junior {}", junior_runtime.agent.name);
+                                
+                                let mapping_output = std::process::Command::new("python3")
+                                    .arg(Self::resolve_tool_path("axon_mapping_validator.py"))
+                                    .arg(&arch_file_path)
+                                    .arg(&task.project_id)
+                                    .arg("--state-json")
+                                    .arg(&tmp_json_path)
+                                    .output();
+
+                                match mapping_output {
+                                    Ok(out) if !out.status.success() => {
+                                        let err_msg = String::from_utf8_lossy(&out.stdout).into_owned();
+                                        self.record_failure_trace(&task.id, "MAPPING_DRIFT", "architecture", "structure", "Stage4.5");
+                                        // v0.0.19: Observation Mode - WARN only, do not block
+                                        tracing::warn!("🗺️ [Stage 4.5] [OBSERVATION] Architecture Drift Detected for {}:\n{}", junior_runtime.agent.name, err_msg);
+                                        // junior_error_feedback = Some(format!("Architecture Drift Detected (Warning):\n{}", err_msg));
+                                    },
+                                    Err(e) => {
+                                        tracing::error!("❌ [MAPPING VALIDATOR ERROR]: {}", e);
+                                    },
+                                    _ => {
+                                        tracing::info!("✅ [Stage 4.5] Architecture Mapping Passed for Junior {}", junior_runtime.agent.name);
+                                    }
+                                }
+
+                                // v0.0.19: Stage 4.6 --- Soft Rule Enforcement (Judge Training)
+                                let suggestions_path = ".axon_trace/suggested_rules.json";
+                                if std::path::Path::new(suggestions_path).exists() {
+                                    // Stage 4.8.8: Dependency-aware filtering
+                                    let changed_files = if let Ok(state_map) = serde_json::from_str::<std::collections::HashMap<String, String>>(&simulated_state_json) {
+                                        state_map.keys().cloned().collect::<Vec<String>>().join(",")
+                                    } else {
+                                        "".to_string()
+                                    };
+
+                                    let soft_res = std::process::Command::new("python3")
+                                        .arg(Self::resolve_tool_path("axon_soft_rule_engine.py"))
+                                        .arg(&tmp_json_path)
+                                        .arg(suggestions_path)
+                                        .arg(changed_files)
+                                        .output();
+                                    
+                                    if let Ok(out) = soft_res {
+                                        let stdout = String::from_utf8_lossy(&out.stdout);
+                                        if stdout.contains("<<<<SOFT_RULES_VIOLATION>>>>") {
+                                            for line in stdout.lines() {
+                                                if line.trim().starts_with('{') {
+                                                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+                                                        let rule_type = v["rule"]["type"].as_str().unwrap_or("unknown");
+                                                        let rule_file = v["rule"]["file"].as_str().unwrap_or("unknown");
+                                                        let rule_symbol = v["rule"]["symbol"].as_str().unwrap_or("unknown");
+                                                        self.record_failure_trace(&task.id, "RULE_VIOLATION", rule_file, rule_symbol, "Stage4.6");
+                                                        tracing::warn!("⚖️ [Stage 4.6] [SOFT VIOLATION] Rule '{}' failed for {}: {}", rule_type, rule_file, rule_symbol);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                tracing::info!("🧪 [Stage 5] Pre-review Execution Check for Junior {}", junior_runtime.agent.name);
+                                
+                                let harness_output = std::process::Command::new("python3")
+                                    .arg(Self::resolve_tool_path("axon_execution_harness.py"))
+                                    .arg("--project-root")
+                                    .arg(&task.project_id)
+                                    .arg("--files-json")
+                                    .arg(&tmp_json_path)
+                                    .arg("--entry")
+                                    .arg(&entry_point)
+                                    .output();
+
+                                let _ = std::fs::remove_file(&tmp_json_path);
+
+                                match harness_output {
+                                    Ok(out) => {
+                                        if !out.status.success() {
+                                            let err_msg = String::from_utf8_lossy(&out.stderr).into_owned();
+                                            self.record_failure_trace(&task.id, "RUNTIME_CRASH", &entry_point, "main", "Stage5");
+                                            tracing::warn!("⚠️ [Stage 5] Execution Fail for {}: {}", junior_runtime.agent.name, err_msg);
+                                            junior_error_feedback = Some(err_msg.clone());
+                                            
+                                            if retry_attempt == max_retries {
+                                                junior_failures.push(format!("Junior {}: Runtime failure: {}", junior_runtime.agent.name, err_msg));
+                                            }
+                                            continue; // RETRY with feedback
+                                        }
+                                        tracing::info!("✅ [Stage 5] Execution Pass for Junior {}", junior_runtime.agent.name);
+                                        
+                                        // PHASE_06: Operational Integrity - Golden Test (Regression)
+                                        let constraints_path = format!("{}/constraints.json", task.project_id);
+                                        let tmp_state_path = format!("{}/.state_final_{}.json", task.project_id, uuid::Uuid::new_v4());
+                                        let _ = std::fs::write(&tmp_state_path, &simulated_state_json);
+
+                                        let golden_output = std::process::Command::new("python3")
+                                            .arg(Self::resolve_tool_path("axon_golden_tester.py"))
+                                            .arg(&constraints_path)
+                                            .arg(&tmp_state_path)
+                                            .output();
+
+                                        let _ = std::fs::remove_file(&tmp_state_path);
+
+                                        match golden_output {
+                                            Ok(out) if out.status.success() => {
+                                                tracing::info!("🏆 [Stage 6] Golden Test (Regression) Passed for Junior {}", junior_runtime.agent.name);
+                                                
+                                                // PHASE_07: Operational Integrity - Property Test (Fuzzing)
+                                                let property_output = std::process::Command::new("python3")
+                                                    .arg(Self::resolve_tool_path("axon_property_tester.py"))
+                                                    .arg(&constraints_path)
+                                                    .arg(&tmp_state_path)
+                                                    .output();
+
+                                                match property_output {
+                                                    Ok(out) if out.status.success() => {
+                                                        tracing::info!("🎲 [Stage 7] Property Test (Fuzzing) Passed for Junior {}", junior_runtime.agent.name);
+                                                        
+                                                        // FINAL STEP: Versioned Promotion via Registry (SSOT Promotion)
+                                                        let tmp_files_json = format!("{}/.promote_{}.json", task.project_id, uuid::Uuid::new_v4());
+                                                        let _ = std::fs::write(&tmp_files_json, &simulated_state_json);
+                                                        
+                                                        let registry_res = std::process::Command::new("python3")
+                                                            .arg(Self::resolve_tool_path("axon_registry.py"))
+                                                            .arg("promote")
+                                                            .arg("--root")
+                                                            .arg(&task.project_id)
+                                                            .arg("--files-json")
+                                                            .arg(&tmp_files_json)
+                                                            .arg("--task-id")
+                                                            .arg(&task.id)
+                                                            .output();
+                                                        
+                                                        let _ = std::fs::remove_file(&tmp_files_json);
+                                                        
+                                                        match registry_res {
+                                                            Ok(rout) if rout.status.success() => {
+                                                                tracing::info!("🚀 [SSOT PROMOTED] Versioned snapshot created for task {}", task.id);
+                                                                return Ok(()); 
+                                                            },
+                                                            _ => {
+                                                                tracing::error!("❌ [REGISTRY ERROR] Failed to promote versioned snapshot.");
+                                                            }
+                                                        }
+                                                    },
+                                                    Ok(out) => {
+                                                        let fuzz_msg = String::from_utf8_lossy(&out.stdout).into_owned();
+                                                        tracing::warn!("❌ [Stage 7] Property Test Failed (Edge Case Found) for {}:\n{}", junior_runtime.agent.name, fuzz_msg);
+                                                        junior_error_feedback = Some(format!("PROPERTY FAILURE: Your code failed on randomized edge-cases. Invariant violated: {}", fuzz_msg));
+                                                        if retry_attempt == max_retries {
+                                                            junior_failures.push(format!("Junior {}: Property test failed.", junior_runtime.agent.name));
+                                                        }
+                                                        continue; // RETRY with fuzzing feedback
+                                                    },
+                                                    Err(e) => {
+                                                        tracing::error!("❌ Failed to execute property tester: {}", e);
+                                                    }
+                                                }
+                                            },
+                                            Ok(out) => {
+                                                let trace_msg = String::from_utf8_lossy(&out.stdout).into_owned();
+                                                tracing::warn!("❌ [Stage 6] Golden Test (Regression) Failed for {}:\n{}", junior_runtime.agent.name, trace_msg);
+                                                junior_error_feedback = Some(format!("REGRESSION FAILURE: Your code broke existing business logic invariants. Details: {}", trace_msg));
+                                                if retry_attempt == max_retries {
+                                                    junior_failures.push(format!("Junior {}: Golden test failed.", junior_runtime.agent.name));
+                                                }
+                                                continue; // RETRY with regression feedback
+                                            },
+                                            Err(e) => {
+                                                tracing::error!("❌ Failed to execute golden tester: {}", e);
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("❌ Failed to execute harness: {}", e);
+                                        ir_validation_success = false;
+                                        ir_validation_err = format!("Harness execution failed: {}", e);
+                                    }
+                                }
+                            }
+                        }
+
+
+                        if !ir_validation_success {
+                            tracing::warn!("⚠️ Junior {} retry {} Semantic Validation Fail: {}", junior_runtime.agent.name, retry_attempt + 1, ir_validation_err);
+                            junior_error_feedback = Some(ir_validation_err.clone());
+                            if retry_attempt == max_retries {
+                                junior_failures.push(format!("Junior {}: Semantic validation failed: {}", junior_runtime.agent.name, ir_validation_err));
+                            }
+                            continue;
+                        }
+
+                        tracing::info!("✅ [Stage 5] Autonomous Loop Complete for Junior {}", junior_runtime.agent.name);
 
                         agent_metrics.push(axon_core::AgentMetric {
                             id: junior_id.clone(),
@@ -289,6 +634,7 @@ impl Daemon {
                         });
 
                         // SUCCESS: Post-processing within the same scope
+                        self.record_failure_trace(&task.id, "TASK_SUMMARY", "SUCCESS", "none", "Final");
                         if let Some(m) = &p.metrics {
                             all_metrics.push(m.clone());
                         }
@@ -353,11 +699,12 @@ impl Daemon {
 
         'senior_fallback: for _ in 0..num_seniors {
             // PHASE_08: Adaptive Routing
-            let (senior_model, senior_id) = self.select_best_agent(axon_core::AgentRole::Senior);
+            let (senior_model, senior_id, senior_name) = self.select_best_agent(axon_core::AgentRole::Senior);
 
             let mut senior_runtime = axon_agent::AgentRuntime::new(
                 senior_id.clone(),
                 axon_core::AgentRole::Senior,
+                senior_name,
                 senior_model
             );
             senior_runtime.set_locale(&self.locale);
@@ -441,6 +788,7 @@ impl Daemon {
                 let mut architect_runtime = axon_agent::AgentRuntime::new(
                     "architect-agent-1".to_string(),
                     axon_core::AgentRole::Architect,
+                    self.architect_model_name.clone(),
                     self.architect_model.clone()
                 );
                 architect_runtime.set_locale(&self.locale);
@@ -600,60 +948,277 @@ impl Daemon {
             .unwrap_or("default-project")
             .to_string();
 
-        tracing::info!("Starting Architect-led bootstrapping for project '{}' from specification...", project_id);
+        let mut sandbox_path = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        sandbox_path.push(&project_id);
+
+        let manager = BootstrapManager {
+            project_id: project_id.clone(),
+            sandbox_root: sandbox_path,
+        };
+
+        let daemon = self.clone();
+        tokio::spawn(async move {
+            if let Err(e) = manager.run_v3(&daemon, spec_content).await {
+                tracing::error!("❌ [BOOTSTRAP V3 FAILED]: {}", e);
+            }
+        });
+
+        Ok(())
+    }
+}
+
+impl BootstrapManager {
+    pub async fn run_v3(&self, daemon: &Daemon, spec_content: String) -> anyhow::Result<()> {
+        tracing::info!("Starting Bootstrap V3 (Pure Rust Deterministic Pipeline) for project '{}'...", self.project_id);
+
+        let mut architect_runtime = axon_agent::AgentRuntime::new(
+            "architect-agent-001".to_string(),
+            axon_core::AgentRole::Architect,
+            daemon.architect_model_name.clone(),
+            daemon.architect_model.clone()
+        ).with_timeout(600).with_project(self.project_id.clone());
+        architect_runtime.set_locale(&daemon.locale);
+
+        // 1. Initial IR Fill
+        tracing::info!("Stage 1: Initial IR generation...");
+        daemon.event_bus.publish(axon_core::Event {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: self.project_id.clone(),
+            thread_id: None,
+            agent_id: Some("architect-agent-001".to_string()),
+            event_type: axon_core::EventType::SystemLog,
+            source: "bootstrap".to_string(),
+            content: "Stage 1: Initial IR generation started...".to_string(),
+            payload: None,
+            timestamp: chrono::Local::now(),
+        });
+
+        let mut ir = architect_runtime.generate_ir(&spec_content, Some(daemon.event_bus.clone())).await?;
+        let mut prev_hash = String::new();
+
+        // 2. Deterministic Convergence Loop
+        tracing::info!("Stage 2: Deterministic Convergence Loop (JSON IR -> Validator -> Repair)");
+        daemon.event_bus.publish(axon_core::Event {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: self.project_id.clone(),
+            thread_id: None,
+            agent_id: Some("architect-agent-001".to_string()),
+            event_type: axon_core::EventType::SystemLog,
+            source: "bootstrap".to_string(),
+            content: "Stage 2: Convergence Loop (IR Validation & Repair) started...".to_string(),
+            payload: None,
+            timestamp: chrono::Local::now(),
+        });
+
+        for attempt in 1..=10 {
+            let errors = axon_core::ir::validate(&ir);
+            if errors.is_empty() {
+                tracing::info!("✅ IR Converged on attempt {}.", attempt);
+                daemon.event_bus.publish(axon_core::Event {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    project_id: self.project_id.clone(),
+                    thread_id: None,
+                    agent_id: Some("architect-agent-001".to_string()),
+                    event_type: axon_core::EventType::SystemLog,
+                    source: "bootstrap".to_string(),
+                    content: format!("✅ IR Converged on attempt {}.", attempt),
+                    payload: None,
+                    timestamp: chrono::Local::now(),
+                });
+                break;
+            }
+
+            tracing::warn!("⚠️ Attempt {}: Found {} validation errors. Repairing...", attempt, errors.len());
+            let new_ir = architect_runtime.repair_ir(&ir, &errors, Some(daemon.event_bus.clone())).await?;
+            
+            let hash = format!("{:?}", new_ir);
+            if hash == prev_hash {
+                tracing::warn!("⏸️ IR state stabilized but errors remain. Breaking loop.");
+                break;
+            }
+            prev_hash = hash;
+            ir = new_ir;
+
+            if attempt == 10 {
+                return Err(anyhow::anyhow!("Failed to converge IR after 10 attempts."));
+            }
+        }
+
+        // 3. Sync to Markdown (Architecture.md)
+        tracing::info!("Stage 3: Generating architecture.md from converged IR...");
+        daemon.event_bus.publish(axon_core::Event {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: self.project_id.clone(),
+            thread_id: None,
+            agent_id: Some("architect-agent-001".to_string()),
+            event_type: axon_core::EventType::SystemLog,
+            source: "bootstrap".to_string(),
+            content: "Stage 3: Generating architecture.md from IR...".to_string(),
+            payload: None,
+            timestamp: chrono::Local::now(),
+        });
+
+        let arch_md = architect_runtime.generate_architecture_from_ir(&ir, Some(daemon.event_bus.clone())).await?;
+        
+        let _ = std::fs::create_dir_all(&self.sandbox_root);
+        let arch_file_path = self.sandbox_root.join("architecture.md");
+        std::fs::write(&arch_file_path, &arch_md)?;
+        
+        // 4. Save IR to constraints.json (for legacy tools compatibility)
+        let constraints_path = self.sandbox_root.join("constraints.json");
+        let ir_json = serde_json::to_string_pretty(&ir)?;
+        std::fs::write(&constraints_path, &ir_json)?;
+        
+        // 4.5 Stage 3.5: Stub Generation (Physical File Materialization)
+        // v0.0.22: Fix for cross-file import errors during parallel bootstrapping.
+        // Pre-create all files defined in the IR as empty stubs so that 'import' statements pass validation.
+        tracing::info!("Stage 3.5: Generating physical file stubs to satisfy import dependencies...");
+        for file in &ir.files {
+            let file_path = self.sandbox_root.join(&file.name);
+            if !file_path.exists() {
+                if let Some(parent) = file_path.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                // Write a minimal stub or empty file
+                let _ = std::fs::write(&file_path, format!("# AXON STUB: {}\n# Implementation pending...\n", file.name));
+            }
+        }
+
+        // 5. Extraction of Tasks (from IR)
+        tracing::info!("Stage 4: Extracting implementation tasks from IR...");
+        daemon.event_bus.publish(axon_core::Event {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: self.project_id.clone(),
+            thread_id: None,
+            agent_id: Some("architect-agent-001".to_string()),
+            event_type: axon_core::EventType::SystemLog,
+            source: "bootstrap".to_string(),
+            content: "Stage 4: Extracting tasks and creating work threads...".to_string(),
+            payload: None,
+            timestamp: chrono::Local::now(),
+        });
+
+        for file in ir.files {
+            let task_id = uuid::Uuid::new_v4().to_string();
+            let description = format!(
+                "RESPONSIBILITY: {}\n\nFUNCTIONS:\n{}",
+                file.responsibility,
+                file.functions.iter().map(|f| format!("- {}({:?}) -> {}", f.name, f.args, f.returns)).collect::<Vec<_>>().join("\n")
+            );
+
+            let task = axon_core::Task {
+                id: task_id.clone(),
+                project_id: self.project_id.clone(),
+                title: format!("Implement {}", file.name),
+                description: description.clone(),
+                status: TaskStatus::Pending,
+                result: None,
+                created_at: chrono::Local::now(),
+            };
+
+            // v0.0.22: Also create a Thread so it shows up in the Work Board
+            let thread = axon_core::Thread {
+                id: task_id.clone(),
+                project_id: self.project_id.clone(),
+                title: task.title.clone(),
+                status: axon_core::ThreadStatus::Working,
+                author: "Architect".to_string(),
+                milestone_id: None,
+                created_at: task.created_at,
+                updated_at: task.created_at,
+            };
+
+            // v0.0.22: Add an initial instruction post
+            let post = axon_core::Post {
+                id: uuid::Uuid::new_v4().to_string(),
+                thread_id: task_id.clone(),
+                author_id: "Architect".to_string(),
+                content: description,
+                full_code: None,
+                post_type: axon_core::PostType::Instruction,
+                metrics: None,
+                created_at: task.created_at,
+            };
+
+            let _ = daemon.storage.save_task(&task);
+            let _ = daemon.storage.save_thread(&thread);
+            let _ = daemon.storage.save_post(&post);
+            
+            let _ = daemon.dispatcher.enqueue_task(task);
+
+            // Signal thread creation
+            daemon.event_bus.publish(axon_core::Event {
+                id: uuid::Uuid::new_v4().to_string(),
+                project_id: self.project_id.clone(),
+                thread_id: Some(task_id),
+                agent_id: None,
+                event_type: axon_core::EventType::ThreadCreated,
+                source: "bootstrap".to_string(),
+                content: format!("New work thread created for {}", file.name),
+                payload: None,
+                timestamp: chrono::Local::now(),
+            });
+        }
+
+        tracing::info!("🚀 Bootstrap V3 complete. Factory is OPERATIONAL.");
+        daemon.event_bus.publish(axon_core::Event {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: self.project_id.clone(),
+            thread_id: None,
+            agent_id: None,
+            event_type: axon_core::EventType::SystemLog,
+            source: "bootstrap".to_string(),
+            content: "🚀 Bootstrap complete. Factory is now OPERATIONAL.".to_string(),
+            payload: None,
+            timestamp: chrono::Local::now(),
+        });
+        Ok(())
+    }
+
+    pub async fn run_v2(&self, daemon: &Daemon, spec_content: String) -> anyhow::Result<()> {
+        tracing::info!("Starting Bootstrap V2 for project '{}'...", self.project_id);
+
+        let spec_truncated = if spec_content.len() > 8000 {
+            format!("{}... [TRUNCATED DUE TO SIZE LIMIT]", &spec_content[..8000])
+        } else {
+            spec_content.clone()
+        };
 
         let task = axon_core::Task {
             id: "bootstrap-task-001".to_string(),
-            project_id: project_id.clone(),
-            title: format!("Generate Master Hub Architecture for {}", project_id),
+            project_id: self.project_id.clone(),
+            title: format!("Generate Master Hub Architecture for {}", self.project_id),
             description: format!(
-                "YOU ARE THE SYSTEM ARCHITECT. YOUR GOAL IS TO BOOTSTRAP THE PROJECT '{}' USING THE SOVEREIGN PROTOCOL (v0.2.21+).\n\n\
-                 --- LANGUAGE ENFORCEMENT ---\n\
-                 YOU MUST COMMUNICATE AND GENERATE ALL CONTENT (ARCHITECTURE.MD, TASK TITLES, TASK DESCRIPTIONS) IN THE FOLLOWING LOCALE: {}.\n\n\
-                 --- CRITICAL PROTOCOL ENFORCEMENT ---\n\
-                 Follow the domain logic of the provided SPEC CONTENT, but the **Structure** MUST be overridden by the Sovereign Protocol v0.2.21+.\n\
-                 You MUST demote the existing detailed systems (e.g., ECS, legacy architectures) to 'Node' level components, and design a new 'Hub' layer that governs them.\n\n\
-                 --- STEP 1: DEEP ANALYSIS (COT) ---\n\
-                 Analyze the provided specification in <thought> tags. Identify the Single Source of Truth (SSOT), authority boundaries (Hub -> Cluster -> Node), and modular specifications needed.\n\n\
-                 --- STEP 2: MULTI-PERSPECTIVE EVALUATION (TOT) ---\n\
-                 Evaluate at least three different architectural layouts in <evaluation> tags. Compare them based on 'Top-Down Design', 'Namespace Isolation', and 'Scalability'.\n\n\
-                 --- STEP 3: MASTER HUB OUTPUT ---\n\
-                 Generate the following two components:\n\
-                 1. A 'Master Hub' architecture.md file content. This MUST strictly follow the 'Hub -> Cluster -> Node' hierarchical structure and define clear SSOT rules.\n\
-                 2. A JSON array of initial tasks. Each task MUST include a 'title' and 'description' WRITTEN IN THE LOCALE: {}.\n\n\
+                "OBJECTIVE: Generate architecture.md for project '{}'.\n\n\
                  --- SPEC CONTENT ---\n\
                  {}",
-                project_id,
-                self.locale,
-                self.locale,
-                spec_content
+                self.project_id,
+                spec_truncated
             ),
             status: TaskStatus::Pending,
             result: None,
             created_at: chrono::Local::now(),
         };
 
-        let assignment = Assignment {
-            task,
-            agent_id: "architect-agent-001".to_string(),
-        };
+        let mut architect_runtime = axon_agent::AgentRuntime::new(
+            "architect-agent-001".to_string(),
+            axon_core::AgentRole::Architect,
+            daemon.architect_model_name.clone(),
+            daemon.architect_model.clone()
+        ).with_timeout(600);
+        architect_runtime.set_locale(&daemon.locale);
 
-        let daemon = self.clone();
-        let project_id_clone = project_id.clone();
-        tokio::spawn(async move {
-            let mut architect_runtime = axon_agent::AgentRuntime::new(
-                assignment.agent_id.clone(),
-                axon_core::AgentRole::Architect,
-                daemon.architect_model.clone()
-            ).with_timeout(600);
-            architect_runtime.set_locale(&daemon.locale);
+        tracing::info!("Stage 1: Deterministic Convergence Loop (Architecture -> Validator -> Repair)");
+        let mut error_feedback: Option<String> = None;
+        let mut architecture_ready = false;
+        let mut clean_arch = String::new();
 
-            tracing::info!("Stage 1: Architect is designing the Master Architecture...");
-            match architect_runtime.process_bootstrap_step1(&assignment.task, Some(daemon.event_bus.clone())).await {
+        for attempt in 1..=5 {
+            tracing::info!("🔄 Bootstrap Loop Attempt {}/5...", attempt);
+            match architect_runtime.process_bootstrap_step1(&task, error_feedback.clone(), Some(daemon.event_bus.clone())).await {
                 Ok(arch_proposal) => {
-                    // 1. Architecture.md Generation
                     let arch_content = &arch_proposal.content;
-                    let clean_arch = if let Some(start) = arch_content.find("```markdown") {
+                    let current_clean_arch = if let Some(start) = arch_content.find("```markdown") {
                         let remaining = &arch_content[start + 11..];
                         let end = remaining.find("```").unwrap_or(remaining.len());
                         remaining[..end].trim().to_string()
@@ -665,126 +1230,96 @@ impl Daemon {
                         arch_content.trim().to_string()
                     };
 
-                    if clean_arch.len() < 20 {
-                        tracing::error!("❌ [RESOURCE ERROR]: Architect generated an empty or invalid architecture ({} bytes). Local LLM might have exhausted VRAM or timed out.", clean_arch.len());
-                        return;
+                    if current_clean_arch.len() < 20 {
+                        error_feedback = Some("Architect generated an empty or invalid architecture. Provide more detail.".to_string());
+                        continue;
                     }
 
-                    let sandbox_path = project_id_clone.clone();
-                    let _ = std::fs::create_dir_all(&sandbox_path);
-                    let arch_file_path = format!("{}/architecture.md", sandbox_path);
-                    let _ = std::fs::write(&arch_file_path, &clean_arch);
-                    tracing::info!("✅ Architecture.md has been generated in: {}", arch_file_path);
-                    let _ = daemon.storage.save_post(&arch_proposal);
+                    let _ = std::fs::create_dir_all(&self.sandbox_root);
+                    let arch_file_path = self.sandbox_root.join("architecture.md");
+                    let _ = std::fs::write(&arch_file_path, &current_clean_arch);
 
-                    // 2. Stage 2: Task Extraction
-                    tracing::info!("Stage 2: Architect is extracting implementation tasks as RAW JSON...");
-                    match architect_runtime.process_bootstrap_step2(&clean_arch, Some(daemon.event_bus.clone())).await {
-                        Ok(task_proposal) => {
-                            let json_str = task_proposal.content.trim();
-                            
-                            // Robust JSON extraction
-                            let clean_json = if let Some(start) = json_str.find("```json") {
-                                let end = json_str[start+7..].find("```").unwrap_or(json_str.len() - start - 7);
-                                json_str[start+7..start+7+end].trim()
-                            } else {
-                                let start_arr = json_str.find("[");
-                                let start_obj = json_str.find("{");
-                                
-                                match (start_arr, start_obj) {
-                                    (Some(a), Some(o)) => {
-                                        let start = a.min(o);
-                                        let end = json_str.rfind(if a < o { "]" } else { "}" }).unwrap_or(json_str.len());
-                                        json_str[start..=end].trim()
-                                    }
-                                    (Some(a), None) => {
-                                        let end = json_str.rfind("]").unwrap_or(json_str.len());
-                                        json_str[a..=end].trim()
-                                    }
-                                    (None, Some(o)) => {
-                                        let end = json_str.rfind("}").unwrap_or(json_str.len());
-                                        json_str[o..=end].trim()
-                                    }
-                                    _ => json_str.trim(),
-                                }
-                            };
+                    // VALIDATOR: IR Compilation & Validation
+                    let constraints_path = self.sandbox_root.join("constraints.json");
+                    let compiler_res = std::process::Command::new("python3")
+                        .arg(Daemon::resolve_tool_path("axon_ir_compiler.py"))
+                        .arg(&arch_file_path)
+                        .arg("--output")
+                        .arg(&constraints_path)
+                        .output();
 
-                            let tasks_raw: Vec<serde_json::Value> = {
-                                let mut deserializer = serde_json::Deserializer::from_str(clean_json);
-                                match serde_json::Value::deserialize(&mut deserializer) {
-                                    Ok(val) => {
-                                        if val.is_array() {
-                                            val.as_array().unwrap().clone()
-                                        } else if let Some(tasks) = val.get("tasks").and_then(|t| t.as_array()) {
-                                            tasks.clone()
-                                        } else if val.is_object() {
-                                            vec![val]
-                                        } else {
-                                            Vec::new()
-                                        }
-                                    }
-                                    Err(e) => {
-                                        tracing::error!("❌ [JSON_PARSE_ERROR]: {}", e);
-                                        Vec::new()
-                                    }
-                                }
-                            };
-
-                            if !tasks_raw.is_empty() {
-                                tracing::info!("🔨 Architect proposed {} tasks for project '{}'.", tasks_raw.len(), project_id_clone);
-                                for t in tasks_raw {
-                                    let task = axon_core::Task {
-                                        id: uuid::Uuid::new_v4().to_string(),
-                                        project_id: project_id_clone.clone(), 
-                                        title: t["title"].as_str().unwrap_or("Untitled").to_string(),
-                                        description: t["description"].as_str().unwrap_or("").to_string(),
-                                        status: TaskStatus::Pending,
-                                        result: None,
-                                        created_at: chrono::Local::now(),
-                                    };
-                                    let _ = daemon.storage.save_task(&task);
-
-                                    let thread = axon_core::Thread {
-                                        id: task.id.clone(),
-                                        project_id: task.project_id.clone(),
-                                        title: task.title.clone(),
-                                        status: axon_core::ThreadStatus::Draft,
-                                        author: "Architect".to_string(),
-                                        milestone_id: None,
-                                        created_at: task.created_at,
-                                        updated_at: task.created_at,
-                                    };
-                                    let _ = daemon.storage.save_thread(&thread);
-
-                                    let post = axon_core::Post {
-                                        id: uuid::Uuid::new_v4().to_string(),
-                                        thread_id: task.id.clone(),
-                                        author_id: "Architect".to_string(),
-                                        content: task.description.clone(),
-                                        full_code: None,
-                                        post_type: axon_core::PostType::Instruction,
-                                        metrics: None,
-                                        created_at: task.created_at,
-                                    };
-                                    let _ = daemon.storage.save_post(&post);
-
-                                    let _ = daemon.dispatcher.enqueue_task(task);
-                                }
-                                tracing::info!("🚀 Bootstrapping complete. AXON Factory is now OPERATIONAL.");
-                            }
-                        }
-                        Err(e) => tracing::error!("Stage 2 Extraction failed: {}", e),
+                    match compiler_res {
+                        Ok(output) if output.status.success() => {
+                            tracing::info!("✅ [Attempt {}] Convergence reached. IR Constraints compiled.", attempt);
+                            clean_arch = current_clean_arch;
+                            architecture_ready = true;
+                            let _ = daemon.storage.save_post(&arch_proposal);
+                            break;
+                        },
+                        Ok(output) => {
+                            let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
+                            tracing::warn!("⚠️ [Attempt {}] IR Validation Failed: {}", attempt, err_msg);
+                            error_feedback = Some(format!("IR Validation Error (SSOT Violation):\n{}", err_msg));
+                        },
+                        Err(e) => return Err(anyhow::anyhow!("IR Compiler not found: {}", e)),
                     }
+                },
+                Err(e) => {
+                    tracing::error!("❌ Architect design failed on attempt {}: {}", attempt, e);
+                    error_feedback = Some(e.to_string());
                 }
-                Err(e) => tracing::error!("Stage 1 Design failed: {}", e),
             }
-        });
+        }
+
+        if !architecture_ready {
+            return Err(anyhow::anyhow!("Convergence not reached after 5 attempts."));
+        }
+
+        // Stage 2: Task Extraction
+        tracing::info!("Stage 2: Extracting implementation tasks from converged architecture...");
+        match architect_runtime.process_bootstrap_step2(&clean_arch, Some(daemon.event_bus.clone())).await {
+            Ok(task_proposal) => {
+                let clean_json = self.extract_json(&task_proposal.content);
+                let tasks_raw: Vec<serde_json::Value> = serde_json::from_str(&clean_json).unwrap_or_default();
+
+                if !tasks_raw.is_empty() {
+                    for t in tasks_raw {
+                        let task = axon_core::Task {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            project_id: self.project_id.clone(), 
+                            title: t["title"].as_str().unwrap_or("Untitled").to_string(),
+                            description: t["description"].as_str().unwrap_or("").to_string(),
+                            status: TaskStatus::Pending,
+                            result: None,
+                            created_at: chrono::Local::now(),
+                        };
+                        let _ = daemon.storage.save_task(&task);
+                        let _ = daemon.dispatcher.enqueue_task(task);
+                    }
+                    tracing::info!("🚀 Bootstrap complete. AXON Factory is now OPERATIONAL.");
+                }
+            },
+            Err(e) => tracing::error!("Stage 2 extraction failed: {}", e),
+        }
 
         Ok(())
     }
 
+    fn extract_json(&self, content: &str) -> String {
+        if let Some(start) = content.find("```json") {
+            let end = content[start+7..].find("```").unwrap_or(content.len() - start - 7);
+            content[start+7..start+7+end].trim().to_string()
+        } else {
+            content.trim().to_string()
+        }
+    }
+}
+
+impl Daemon {
     pub fn lock_in_architecture(&self, project_id: &str, thread_title: &str) -> anyhow::Result<()> {
-        let arch_path = format!("{}/architecture.md", project_id);
+        let mut arch_path = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        arch_path.push(project_id);
+        arch_path.push("architecture.md");
         if std::path::Path::new(&arch_path).exists() {
             let content = std::fs::read_to_string(&arch_path)?;
             let locked_marker = format!("## {} [✅ Locked]", thread_title);
@@ -792,8 +1327,8 @@ impl Daemon {
             
             if content.contains(&target) && !content.contains(&locked_marker) {
                 let new_content = content.replace(&target, &locked_marker);
-                std::fs::write(arch_path, new_content)?;
-                tracing::info!("Locked in architecture section: {}", thread_title);
+                std::fs::write(&arch_path, new_content)?;
+                tracing::info!("Locked in architecture section: {} at {}", thread_title, arch_path.display());
             }
         }
         Ok(())
@@ -802,7 +1337,8 @@ impl Daemon {
     /// v0.0.18: Output Contract & Hardening Order Implementation
     /// Tier 1 (Strict) -> Tier 2 (Relaxed) -> Tier 3 (Heuristic) -> Code Validation -> Atomic Commit
     fn sync_post_to_sandbox(&self, project_id: &str, content: &str) -> anyhow::Result<()> {
-        let sandbox_path = project_id.to_string();
+        let mut sandbox_path = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        sandbox_path.push(project_id);
         let _ = std::fs::create_dir_all(&sandbox_path);
 
         let mut files_to_commit: Vec<(String, String)> = Vec::new();
@@ -860,7 +1396,7 @@ impl Daemon {
 
         if files_to_commit.is_empty() {
             tracing::warn!("❌ Parser failed completely. No code blocks found.");
-            let file_path = format!("{}/README.md", sandbox_path);
+            let file_path = sandbox_path.join("README.md");
             let _ = std::fs::write(&file_path, content);
             return Err(anyhow::anyhow!("FORMAT VIOLATION: No valid code blocks or FILE contract found."));
         }
@@ -869,8 +1405,8 @@ impl Daemon {
         Self::fix_filenames(&mut files_to_commit);
 
         // Hardening Phase 1: 3-Way Merge
-        let current_map = Self::load_current_files(&sandbox_path);
-        let snapshot_map = Self::load_snapshot(&sandbox_path);
+        let current_map = Self::load_current_files(&sandbox_path.to_string_lossy());
+        let snapshot_map = Self::load_snapshot(&sandbox_path.to_string_lossy());
         
         let mut new_map = std::collections::HashMap::new();
         for (filename, code) in files_to_commit {
@@ -887,17 +1423,17 @@ impl Daemon {
         let merged_files: Vec<(String, String)> = merged_map.into_iter().collect();
 
         // Hardening Phase 2: Atomic Commit with Temp Dir
-        let tmp_dir = format!("{}/.tmp_{}", sandbox_path, uuid::Uuid::new_v4());
+        let tmp_dir = sandbox_path.join(format!(".tmp_{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&tmp_dir)?;
 
         let mut validated = true;
         for (filename, code) in &merged_files {
-            let tmp_file_path = format!("{}/{}", tmp_dir, filename);
-            if let Some(parent) = std::path::Path::new(&tmp_file_path).parent() {
+            let tmp_file_path = tmp_dir.join(filename);
+            if let Some(parent) = tmp_file_path.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }
             if let Err(e) = std::fs::write(&tmp_file_path, code) {
-                tracing::error!("❌ Failed to write temp file {}: {}", tmp_file_path, e);
+                tracing::error!("❌ Failed to write temp file {}: {}", tmp_file_path.display(), e);
                 validated = false;
                 break;
             }
@@ -905,52 +1441,69 @@ impl Daemon {
             // Hardening Phase 3: Formatting & Code Validation (Python)
             if filename.ends_with(".py") {
                 // v0.0.18: Stabilization (Formatter)
-                let _ = std::process::Command::new("python3")
-                    .arg("-m")
-                    .arg("black")
-                    .arg("-q")
-                    .arg(&tmp_file_path)
-                    .output();
-
-                let output = std::process::Command::new("python3")
-                    .arg("-m")
-                    .arg("py_compile")
-                    .arg(&tmp_file_path)
-                    .output();
-                
-                if let Ok(out) = output {
-                    if !out.status.success() {
-                        tracing::error!("❌ Code Validation failed for {}: {:?}", filename, String::from_utf8_lossy(&out.stderr));
-                        validated = false;
-                        break;
-                    }
-                }
             }
         }
 
         if validated {
-            // v0.0.18: Dependency & Entry Point Validation
-            if !Self::validate_dependencies(&merged_files) {
-                let _ = std::fs::remove_dir_all(&tmp_dir);
-                tracing::error!("❌ Dependency Validation failed. Missing local dependency imports.");
-                return Err(anyhow::anyhow!("FAIL_DEPENDENCY: Missing local dependency imports."));
+            // v0.0.19: Stage 4 --- Execution Harness
+            // Prepare file map for harness
+            let mut file_map = std::collections::HashMap::new();
+            let mut entry_point = "main.py".to_string();
+            
+            for (filename, code) in &merged_files {
+                file_map.insert(filename, code);
+                let n = filename.to_lowercase();
+                if n.ends_with("main.py") || n.ends_with("app.py") {
+                    entry_point = filename.clone();
+                }
             }
 
-            if !Self::has_entry_point(&merged_files) {
-                let _ = std::fs::remove_dir_all(&tmp_dir);
-                tracing::error!("❌ Entry Point Validation failed. No main entry point found.");
-                return Err(anyhow::anyhow!("FAIL_ENTRY: No __main__ entry point found."));
+            let file_map_json = serde_json::to_string(&file_map).unwrap_or_default();
+            let tmp_json_path = sandbox_path.join(format!(".files_{}.json", uuid::Uuid::new_v4()));
+            let _ = std::fs::write(&tmp_json_path, file_map_json);
+
+            tracing::info!("🚀 [Stage 4] Launching Execution Harness in Sandbox: {}", sandbox_path.display());
+            
+            let harness_output = std::process::Command::new("python3")
+                .arg(Daemon::resolve_tool_path("axon_execution_harness.py"))
+                .arg("--project-root")
+                .arg(&sandbox_path)
+                .arg("--files-json")
+                .arg(&tmp_json_path)
+                .arg("--entry")
+                .arg(&entry_point)
+                .output();
+
+            let _ = std::fs::remove_file(&tmp_json_path);
+
+            match harness_output {
+                Ok(out) => {
+                    if !out.status.success() {
+                        let err_msg = String::from_utf8_lossy(&out.stderr).into_owned();
+                        tracing::error!("❌ [Stage 4] Execution Harness Failed: {}", err_msg);
+                        let _ = std::fs::remove_dir_all(&tmp_dir);
+                        return Err(anyhow::anyhow!("RUNTIME_ERROR: {}", err_msg));
+                    }
+                    tracing::info!("✅ [Stage 4] Execution Harness Passed.");
+                    let stdout_msg = String::from_utf8_lossy(&out.stdout);
+                    tracing::debug!("Harness Output:\n{}", stdout_msg);
+                }
+                Err(e) => {
+                    tracing::error!("❌ [Stage 4] Failed to execute harness script: {}", e);
+                    let _ = std::fs::remove_dir_all(&tmp_dir);
+                    return Err(anyhow::anyhow!("HARNESS_EXEC_FAIL: {}", e));
+                }
             }
 
             // v0.0.18: Incremental Diff Commit
-            if let Err(e) = Self::apply_diff(&sandbox_path, &merged_files, &tmp_dir) {
+            if let Err(e) = Self::apply_diff(&sandbox_path.to_string_lossy(), &merged_files, &tmp_dir.to_string_lossy()) {
                 let _ = std::fs::remove_dir_all(&tmp_dir);
                 tracing::error!("❌ Incremental Commit failed: {}", e);
                 return Err(anyhow::anyhow!("COMMIT_FAILED: Error during incremental diff commit."));
             }
 
             // v0.0.18: Save Snapshot
-            Self::save_snapshot(&sandbox_path, &merged_files);
+            Self::save_snapshot(&sandbox_path.to_string_lossy(), &merged_files);
 
             let _ = std::fs::remove_dir_all(&tmp_dir);
             Ok(())
@@ -1049,7 +1602,7 @@ impl Daemon {
         }
     }
 
-    fn validate_dependencies(files: &[(String, String)]) -> bool {
+    fn _validate_dependencies(files: &[(String, String)]) -> bool {
         let paths: std::collections::HashSet<String> = files.iter()
             .map(|(n, _)| n.clone())
             .collect();
@@ -1069,7 +1622,7 @@ impl Daemon {
         true
     }
 
-    fn has_entry_point(files: &[(String, String)]) -> bool {
+    fn _has_entry_point(files: &[(String, String)]) -> bool {
         let mut has_main_file = false;
         let mut has_entry_code = false;
         
@@ -1132,22 +1685,22 @@ impl Daemon {
         }
 
         for name in deleted {
-            let path = format!("{}/{}", base_dir, name);
+            let path = std::path::Path::new(base_dir).join(&name);
             let _ = std::fs::remove_file(&path);
-            tracing::info!("🗑️ Deleted old file: {}", path);
+            tracing::info!("🗑️ Deleted old file: {}", path.display());
         }
 
         for name in added.into_iter().chain(modified.into_iter()) {
-            let src_path = format!("{}/{}", tmp_dir, name);
-            let dest_path = format!("{}/{}", base_dir, name);
-            if let Some(parent) = std::path::Path::new(&dest_path).parent() {
+            let src_path = std::path::Path::new(tmp_dir).join(&name);
+            let dest_path = std::path::Path::new(base_dir).join(&name);
+            if let Some(parent) = dest_path.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }
             if let Err(_) = std::fs::rename(&src_path, &dest_path) {
                 let _ = std::fs::copy(&src_path, &dest_path);
                 let _ = std::fs::remove_file(&src_path);
             }
-            tracing::info!("📝 Applied diff to: {}", dest_path);
+            tracing::info!("📝 Applied diff to: {}", dest_path.display());
         }
 
         Ok(())
@@ -1173,7 +1726,7 @@ impl Daemon {
     }
 
     fn load_snapshot(base_dir: &str) -> std::collections::HashMap<String, String> {
-        let path = format!("{}/.axon/snapshot.json", base_dir);
+        let path = std::path::Path::new(base_dir).join(".axon").join("snapshot.json");
         if let Ok(content) = std::fs::read_to_string(path) {
             if let Ok(map) = serde_json::from_str(&content) {
                 return map;
@@ -1183,7 +1736,7 @@ impl Daemon {
     }
 
     fn save_snapshot(base_dir: &str, files: &[(String, String)]) {
-        let path = format!("{}/.axon/snapshot.json", base_dir);
+        let path = std::path::Path::new(base_dir).join(".axon").join("snapshot.json");
         if let Some(parent) = std::path::Path::new(&path).parent() {
             let _ = std::fs::create_dir_all(parent);
         }
@@ -1204,7 +1757,7 @@ impl Daemon {
         let mut i = 0;
         
         while i < lines.len() {
-            let mut start_idx = i;
+            let start_idx = i;
             
             // 1. Decorator Handling
             let mut has_decorator = false;
@@ -1337,16 +1890,16 @@ impl Daemon {
         Some(merged)
     }
     
-    fn select_best_agent(&self, role: axon_core::AgentRole) -> (Arc<dyn axon_model::ModelDriver + Send + Sync>, String) {
-        let models = match role {
-            axon_core::AgentRole::Junior => &self.junior_models,
-            axon_core::AgentRole::Senior => &self.senior_models,
-            axon_core::AgentRole::Architect => return (self.architect_model.clone(), "architect-agent-1".to_string()),
+    fn select_best_agent(&self, role: axon_core::AgentRole) -> (Arc<dyn axon_model::ModelDriver + Send + Sync>, String, String) {
+        let (models, names) = match role {
+            axon_core::AgentRole::Junior => (&self.junior_models, &self.junior_model_names),
+            axon_core::AgentRole::Senior => (&self.senior_models, &self.senior_model_names),
+            axon_core::AgentRole::Architect => return (self.architect_model.clone(), "architect-agent-1".to_string(), self.architect_model_name.clone()),
         };
 
         if models.is_empty() {
             // Should not happen due to check in handle_assignment
-            return (self.architect_model.clone(), "unknown".to_string());
+            return (self.architect_model.clone(), "unknown".to_string(), self.architect_model_name.clone());
         }
 
         let stats_lock = self.agent_stats.lock().unwrap();
@@ -1378,7 +1931,7 @@ impl Daemon {
             _ => "agent"
         }, best_idx + 1);
 
-        (models[best_idx].clone(), id)
+        (models[best_idx].clone(), id, names[best_idx].clone())
     }
 
     fn record_agent_success(&self, id: &str, latency: f64) {

@@ -1,0 +1,11 @@
+/home/dogsinatas/다운로드/axon/v0.0.19_diff_dependency_semantic_merge.md
+까지 작업중 종료 다시 읽혀들여서 작업 진행할 것. 
+이후 아래 파일들을 순차적으로 작업할 것
+/home/dogsinatas/다운로드/axon/v0.0.19_semantic_merge_spec.md
+/home/dogsinatas/다운로드/axon/v0.0.19_span_patch_merge_engine.md
+/home/dogsinatas/다운로드/axon/v0.0.19_production_stabilization.md
+/home/dogsinatas/다운로드/axon/v0.0.19_execution_harness.md
+/home/dogsinatas/다운로드/axon/v0.0.19_autonomous_loop.md
+
+그러기 위해 /home/dogsinatas/다운로드/axon/v0.0.19_final_bootstrap.md 파일로 부트 스트랩 할 것.
+

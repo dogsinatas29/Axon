@@ -178,3 +178,15 @@ cargo build --release
 - **[CRITICAL] 0-Byte Overwrite Bug Fixed**: Resolved a critical flaw in the daemon's merge logic where unedited existing files were accidentally overwritten with 0 bytes.
 - **[CRITICAL] Gemini 503 Overload Protection**: Added bulletproof `QUOTA_WAIT` logic to pause for 60 seconds and retry (instead of crashing) when encountering Google Gemini High Demand (503) errors.
 - **Heuristic Garbage Extraction Prevented**: Blocked the parser from mistakenly saving non-code blocks (like `markdown`, `tool_code`, and `bash` logs) as project source files.
+
+## 📋 Release Notes: v0.0.22 - Hardened Deterministic Factory
+
+### 🚀 Key Features & Improvements
+- **Deterministic IR Convergence**: Implemented a fixed-point convergence loop for Architecture IR, ensuring the system reaches a stable design before implementation.
+- **Stage 3.5 Stub Generation**: Introduced physical file materialization (Stubs) to resolve parallel dependency issues (`ModuleNotFoundError`) during bootstrapping.
+- **Strict JSON Output Contract**: Enforced a mandatory JSON-only protocol for Junior agents, eliminating parsing ambiguity and ensuring high-fidelity code emission.
+
+### 🛠️ Critical Reliability Fixes
+- **Smart Mapping Validator**: Upgraded entry point validation to support custom execution functions and full-project state awareness in the simulator.
+- **Real-time UI Synchronization**: Resolved gaps between the Rust daemon and Studio UI, providing 100% task visibility on the Work Board and live agent status signals.
+- **Flexible Dependency Harness**: Softened runtime environment checks to allow for better adaptability in diverse local Python environments.

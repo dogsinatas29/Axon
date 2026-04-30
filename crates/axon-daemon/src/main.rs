@@ -46,8 +46,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let daemon = Daemon::new(
                 storage,
                 mock_model.clone(), // Architect
+                "mock-architect".into(),
                 vec![mock_model.clone()], // Senior
+                vec!["mock-senior".into()],
                 vec![mock_model.clone()], // Junior
+                vec!["mock-junior".into()],
                 worker_tx,
                 "Standard AXON Protocol".to_string(),
                 1.0,
@@ -212,7 +215,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 for j_cfg in &cfg.agents.juniors { j_drvs.push(get_drv(j_cfg)); }
                 (arch_drv, cfg.agents.architect.model.clone(), s_drvs, j_drvs)
             } else {
-                let mut arch_config = None;
+                let arch_config: AgentConfig;
                 let mut senior_configs = Vec::new();
                 let mut junior_configs = Vec::new();
 
@@ -272,7 +275,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     AgentConfig { runtime, provider, endpoint, model: model_name }
                 }
 
-                arch_config = Some(recruit_agent_async("Architect", &available_models, &final_locale).await);
+                arch_config = recruit_agent_async("Architect", &available_models, &final_locale).await;
                 let msg_s = if final_locale == "ko_KR" { "\n시니어 요원 수 (기본 1): " } else { "\nNumber of Seniors (default 1): " };
                 let senior_count: usize = prompt(&msg_s).parse().unwrap_or(1);
                 for i in 0..senior_count { senior_configs.push(recruit_agent_async(&format!("Senior #{}", i + 1), &available_models, &final_locale).await); }
@@ -281,7 +284,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 for i in 0..junior_count { junior_configs.push(recruit_agent_async(&format!("Junior #{}", i + 1), &available_models, &final_locale).await); }
 
                 let cfg = AxonConfig {
-                    agents: AgentsConfig { architect: arch_config.unwrap(), seniors: senior_configs, juniors: junior_configs },
+                    agents: AgentsConfig { architect: arch_config, seniors: senior_configs, juniors: junior_configs },
                     execution: ExecutionConfig { review_queue_limit: 5, sampling_rate: 0.3, fallback_enabled: true },
                     locale: final_locale.clone(),
                 };
@@ -351,8 +354,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let daemon = Arc::new(Daemon::new(
                 storage,
                 architect_model,
+                _arch_name, // Pass architect model name
                 senior_models,
+                fast_cfg.as_ref().map(|c| c.agents.seniors.iter().map(|s| s.model.clone()).collect()).unwrap_or_else(|| vec!["qwen:1.8b".into()]),
                 junior_models,
+                fast_cfg.as_ref().map(|c| c.agents.juniors.iter().map(|j| j.model.clone()).collect()).unwrap_or_else(|| vec!["qwen:1.8b".into()]),
                 worker_tx,
                 "Standard AXON Protocol".to_string(),
                 sampling_rate,

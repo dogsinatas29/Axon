@@ -17,6 +17,20 @@
 
 **[한국어 버전 (Korean Version)](README.ko.md)**
 
+## 📑 Index
+- [🚀 What you can do with Axon](#-what-you-can-do-with-axon)
+- [⚡ Try in 60 seconds](#-try-in-60-seconds)
+- [🏛️ System Architecture: The Physical Pipeline](#-system-architecture-the-physical-pipeline-v0023)
+- [🏗️ Agent Role Definitions](#-agent-role-definitions)
+- [📋 Thread-based Board (The Colosseum)](#-thread-based-board-the-colosseum)
+- [🍻 Lounge System (Nogari)](#-lounge-system-nogari)
+- [🛡️ Safety & Reliability](#-safety--reliability)
+- [🐛 Bug Arrest System](#-bug-arrest-system)
+- [🔬 Error Diagnostics & Recovery](#-error-diagnostics--recovery)
+- [🏛️ Senior Review Protocol](#-senior-review-protocol)
+- [🎭 Persona-based Agents](#-persona-based-agents)
+- [📋 Planned Features](#-planned-features)
+
 ## 🚀 What you can do with Axon
 - **Generate working code from a spec**: Skip the manual labor and turn requirements into code.
 - **Ensure constraints are satisfied**: Zero-hallucination, logic-checked output via IR validation.
@@ -40,19 +54,6 @@ cargo build --release
 </p>
 
 AXON is a high-performance, deterministic AI agent factory designed to transform architectural specifications into production-ready code with 100% physical integrity.
-
-## 📑 Index
-- [🧠 Core Philosophy](#-core-philosophy)
-- [🏛️ System Architecture: The Physical Pipeline](#-system-architecture-the-physical-pipeline-v0023)
-- [🏗️ Agent Role Definitions](#-agent-role-definitions)
-- [🔬 Error Diagnostics & Recovery](#-error-diagnostics--recovery)
-- [🏛️ Senior Review Protocol](#-senior-review-protocol)
-- [🎭 Persona-based Agents](#-persona-based-agents)
-- [🍻 Lounge System (Nogari)](#-lounge-system-nogari)
-- [🛠️ Getting Started](#-getting-started)
-- [📋 Release Notes](#-release-notes)
-
----
 
 ## 🧠 Core Philosophy: "Code as a Result of Architecture"
 AXON treats coding not as a creative writing task, but as a **Deterministic Materialization** process.

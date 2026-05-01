@@ -45,6 +45,7 @@
   - [🍻 Lounge System](#lounge-system)
   - [🎭 Persona-based Agents](#persona-based-agents)
   - [🤝 HR Board](#hr-board)
+- [💻 Test HW/SW SPEC](#test-hw-sw-spec)
 
 <a name="conceptual-workflow"></a>
 ## 🏗️ Conceptual Workflow
@@ -225,13 +226,24 @@ Also, you can inject personas into the hired agents.
 
 ---
 
-## 💻 Development & Local LLM Environment
-AXON is optimized for local-first execution. Below is the environment used for development and testing:
-- **CPU**: Intel(R) Core(TM) i7-4790 @ 4.00 GHz
-- **GPU**: NVIDIA GeForce GTX 1050 Ti (4GB VRAM)
+<a name="test-hw-sw-spec"></a>
+## 💻 Test HW/SW SPEC
+
+### 🖥️ Hardware Information
+- **CPU**: Intel(R) Core(TM) i7-4790 (8) @ 4.00 GHz
+- **GPU**: NVIDIA GeForce GTX 1050 Ti [Discrete] (4GB VRAM)
 - **RAM**: 16GB DDR3
-- **OS**: Ubuntu 25.10 x86_64 (Linux 6.18)
-- **Local LLM**: `qwen2.5:7b-instruct (q4_K_M)` via **Ollama**
+
+### ⚙️ Software Information
+- **OS**: Ubuntu 25.10 x86_64
+- **Kernel**: Linux 6.18.6-061806-generic
+
+### 🧠 Local LLM Models
+- **Model**: `qwen2.5:7b-instruct (q4_K_M)` (4.7 GB)
+- **Engines**: 
+  - [Ollama](https://github.com/ollama/ollama): Main Inference Engine (Running)
+  - [AirLLM](https://github.com/lyogavin/airllm): Memory-Optimized Layered Loading (Used)
+- **Environment**: Venv Active
 
 ---
 

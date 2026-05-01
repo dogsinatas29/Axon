@@ -13,10 +13,12 @@
   <b>Recommended: Watch at 2.0x speed</b>
 </p>
 
-### Spec-to-Code Orchestration Engine with Verifiable Output
-AXON can automatically generate verifiable code and structures from simple CLI tools to complex systems based solely on specifications (Spec).
-Through Architect→Junior→Senior orchestration, AXON ensures that code satisfies constraints and materializes it into actual physical files.
-Users can manually verify the proposal, review, and approval process of each stage, ensuring only trustworthy results are deployed.
+### What you get
+- **Spec → working code**: Turn your requirements directly into functional source code.
+- **Verified before execution**: Zero-hallucination, logic-checked results via rigorous IR validation.
+- **Real files, not suggestions**: Materializes actual source code into your project filesystem.
+- **Full review visibility**: Transparent Architect → Junior → Senior orchestration at every step.
+
 **[Source Specification (spec.md)](./spec.md)**
 
 [![English](https://img.shields.io/badge/lang-English-blue.svg)](#)

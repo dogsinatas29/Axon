@@ -3,6 +3,11 @@
 [![English](https://img.shields.io/badge/lang-English-blue.svg)](#)
 [![한국어](https://img.shields.io/badge/lang-한국어-red.svg)](README.ko.md)
 
+## 📺 AXON System Demo (Phase 07)
+[![AXON Demo Video](https://img.youtube.com/vi/gmUdrVNKrPg/0.jpg)](https://youtu.be/gmUdrVNKrPg)
+> [!TIP]
+> **Recommended: Watch at 2.0x speed** (This video is long; 2.0x playback speed is recommended for the best experience).
+
 ![AXON Concept](https://raw.githubusercontent.com/dogsinatas29/Axon/master/axon%EA%B0%9C%EB%85%90.png)
 
 AXON is a high-performance, deterministic AI agent factory designed to transform architectural specifications into production-ready code with 100% physical integrity.

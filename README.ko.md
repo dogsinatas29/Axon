@@ -3,6 +3,11 @@
 [![English](https://img.shields.io/badge/lang-English-blue.svg)](README.md)
 [![한국어](https://img.shields.io/badge/lang-한국어-red.svg)](#)
 
+## 📺 AXON 시스템 데모 (Phase 07)
+[![AXON Demo Video](https://img.youtube.com/vi/gmUdrVNKrPg/0.jpg)](https://youtu.be/gmUdrVNKrPg)
+> [!TIP]
+> **시청 권장: 2.0배속** (영상이 길기 때문에 유튜브 플레이어 설정에서 2.0배속으로 시청하시는 것을 권장합니다).
+
 ![AXON Concept](https://raw.githubusercontent.com/dogsinatas29/Axon/master/axon%EA%B0%9C%EB%85%90.png)
 
 AXON은 아키텍처 사양을 100% 물리적 무결성을 갖춘 프로덕션 코드로 변환하기 위해 설계된 고성능 결정론적 AI 에이전트 공장입니다.

@@ -13,11 +13,12 @@
   <b>Full pipeline demo</b>
 </p>
 
-### What you get
-- **Spec → working code**: Turn your requirements directly into functional source code.
-- **Verified before execution**: Zero-hallucination, logic-checked results via rigorous IR validation.
-- **Real files, not suggestions**: Materializes actual source code into your project filesystem.
-- **Full review visibility**: Transparent Architect → Junior → Senior orchestration at every step.
+### 🚀 When to use Axon?
+
+- **Structural Complexity**: Ideal for implementing complex requirements that require strict alignment with system architecture, moving beyond simple code generation.
+- **Critical Reliability**: Essential when the reliability of code generation is paramount, eliminating AI hallucinations through rigorous logical verification.
+- **Multi-Stage Validation**: Perfect for projects that need automated validation loops, covering physical file creation, compilation, and runtime testing.
+- **Transparent Governance**: Designed for users who demand direct control over a human-reviewable AI pipeline (Architect → Junior → Senior).
 
 <p align="center">
   <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="License: GPL 3.0"></a>
@@ -28,7 +29,7 @@
 **[Source Specification (spec.md)](./spec.md)**
 
 ## 📑 Index
-- [🚀 When to use Axon?](#when-to-use-axon)
+- [🚀 When to use Axon?](#-when-to-use-axon)
 - [🏗️ Conceptual Workflow](#conceptual-workflow)
 - [🏛️ System Architecture: The Physical Pipeline](#system-architecture-the-physical-pipeline-v0023)
 - [🛠️ Getting Started](#getting-started)
@@ -43,12 +44,6 @@
   - [🍻 Lounge System](#lounge-system-lounge-system-nogarimd-planned)
   - [🎭 Persona-based Agents](#persona-based-agents-planned)
   - [🤝 HR Board](#hr-board-planned)
-
-## 🚀 When to use Axon?
-- **When complex requirements need structured implementation**
-- **When reliability of code generation is critical** (Zero-hallucination)
-- **When systems require multi-stage verification** (Physical validation)
-- **When a human-reviewable AI pipeline is necessary** (Architect → Junior → Senior)
 
 
 ## 🏗️ Conceptual Workflow

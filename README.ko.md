@@ -2,7 +2,7 @@
   <h1 align="center">AXON</h1>
   <h3 align="center">자동화 소프트웨어 공장</h3>
   <p align="center">요구사항(Spec)을 검증된 프로덕션 코드로 즉시 자동 변환합니다.</p>
-  <h2 align="center">명세(Spec) → 오케스트레이션 → 코드 검증 → 물리 파일 생성</h2>
+  <h2 align="center">Spec → Orchestration → Verified Code → Files</h2>
 </p>
 
 <p align="center">

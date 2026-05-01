@@ -55,6 +55,7 @@ cargo build --release
 
 # Run the factory with an example spec
 ./target/release/axon-daemon --spec spec.md
+# → Generates real files in your project directory
 ```
 
 ---

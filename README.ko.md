@@ -61,6 +61,7 @@ cargo build --release
 
 # 예시 명세서로 공장 가동
 ./target/release/axon-daemon --spec spec.md
+# → 프로젝트 디렉토리에 실제 파일을 생성합니다.
 ```
 
 ---

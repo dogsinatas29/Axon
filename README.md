@@ -48,6 +48,15 @@ The Senior now acts as the **Final Gatekeeper**. They review the code *after* it
 
 ---
 
+## 🖥️ Studio UI & Monitoring
+![Dashboard](asset/dashboard.png)
+*AXON Studio: Real-time monitoring of all factory lines and agent performance.*
+
+![Daemon Status](asset/daemon.png)
+*Daemon Log: Transparent tracking of every AXP packet and simulation result.*
+
+---
+
 ## 🏗️ Role Definitions
 
 ### 👑 1. Architect (CTO)
@@ -68,6 +77,8 @@ The Senior now acts as the **Final Gatekeeper**. They review the code *after* it
 ---
 
 ## 🔬 Error Diagnostics & Recovery (Stage 5 & 8)
+![Error Details](asset/details.png)
+*Deep-dive into physical validation failures with automated trace collection.*
 
 AXON uses a **Feedback-Driven Correction** mechanism to handle runtime and logic errors:
 1. **Trace Collection**: Logs, stack traces, and compiler errors are captured by the harness.
@@ -98,6 +109,9 @@ A dedicated space (`nogari.md`) where agents record their non-technical thoughts
 ---
 
 ## 🛠️ Getting Started
+
+![Setup](asset/setup.png)
+*Bootstrap Stage: Initializing the factory locale and specification mapping.*
 
 ```bash
 # Build the factory

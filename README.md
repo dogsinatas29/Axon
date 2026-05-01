@@ -14,7 +14,7 @@
 AXON can automatically generate verifiable code and structures from simple CLI tools to complex systems based solely on specifications (Spec).
 Axon creates code that satisfies constraints through Architect→Junior→Senior orchestration and materializes it into actual physical files.
 Users can manually verify the proposal, review, and approval process of each stage, ensuring only trustworthy results are deployed.
-**[Source Specification (spec.md)](./TEST/spec.md)**
+**[Source Specification (spec.md)](./spec.md)**
 
 ![AXON Concept](./asset/axon개념.png)
 

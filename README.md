@@ -2,7 +2,7 @@
   <h1 align="center">AXON</h1>
   <h3 align="center">The Automated Software Factory</h3>
   <p align="center">Turn specs into verified, production-ready code.</p>
-  <p align="center"><b>Spec → Orchestration → Verified Code → Files</b></p>
+  <h2 align="center">Spec → Orchestration → Verified Code → File</h2>
 </p>
 
 <p align="center">

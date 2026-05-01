@@ -30,3 +30,4 @@ test_run_full.py
 studio/node_modules
 studio/dist
 studio/.env
+\n# Global IR Registry\n.axon_registry/global/ir

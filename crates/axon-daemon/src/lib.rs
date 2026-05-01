@@ -905,8 +905,16 @@ impl Daemon {
                 if rout.status.success() {
                     tracing::info!("🚀 [SSOT PROMOTED] Versioned snapshot created for task {} after Senior Review", task.id);
                     
-                    // v0.0.23: COMMIT_PENDING - Physical Materialization & Validation
+                    // v0.0.23: Strict Simulation Error Check
                     if let Ok(state_map) = serde_json::from_str::<std::collections::HashMap<String, String>>(&final_simulated_state) {
+                        for (k, v) in &state_map {
+                            if k.starts_with("error_") {
+                                tracing::error!("❌ [SIMULATION_FAILED] {}: {}", k, v);
+                                failures.push(format!("Simulation Error: {}", v));
+                                return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
+                            }
+                        }
+                        
                         // 1. Snapshot/Backup before commit (for Rollback)
                         let mut backups = std::collections::HashMap::new();
                         for (fname, _) in &state_map {

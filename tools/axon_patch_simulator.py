@@ -150,6 +150,7 @@ def simulate_state(project_root: str, junior_output_json: str):
                 is_valid, marker = validate_content(new_code)
                 if not is_valid:
                     results[f"error_{target}"] = f"ERROR: After patch, {target} contains forbidden marker '{marker}'. Patches must remove the stub prefix."
+                    if target in results: del results[target]
                 else:
                     results[target] = new_code
                 

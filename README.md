@@ -31,7 +31,7 @@ AXON is a high-performance, deterministic AI agent factory designed to transform
 ## 📑 Index
 - [🧠 Core Philosophy](#-core-philosophy)
 - [🏛️ System Architecture: The Physical Pipeline](#-system-architecture-the-physical-pipeline-v0023)
-- [🏗️ Role Definitions](#-role-definitions)
+- [🏗️ Agent Role Definitions](#-agent-role-definitions)
 - [🔬 Error Diagnostics & Recovery](#-error-diagnostics--recovery)
 - [🏛️ Senior Review Protocol](#-senior-review-protocol)
 - [🎭 Persona-based Agents](#-persona-based-agents)
@@ -80,7 +80,7 @@ The Senior now acts as the **Final Gatekeeper**. They review the code *after* it
 
 ---
 
-## 🏗️ Role Definitions
+## 🏗️ Agent Role Definitions
 
 ### 👑 1. Architect (CTO)
 - **Role**: Strategic planning and system-wide design.

@@ -13,20 +13,25 @@
   <b>Recommended: Watch at 2.0x speed</b>
 </p>
 
+### Spec-to-Code Orchestration Engine with Verifiable Output
+AXON can automatically generate verifiable code and structures from simple CLI tools to complex systems based solely on specifications (Spec).
+Through Architect→Junior→Senior orchestration, AXON ensures that code satisfies constraints and materializes it into actual physical files.
+Users can manually verify the proposal, review, and approval process of each stage, ensuring only trustworthy results are deployed.
+**[Source Specification (spec.md)](./spec.md)**
+
 [![English](https://img.shields.io/badge/lang-English-blue.svg)](#)
 [![한국어](https://img.shields.io/badge/lang-한국어-red.svg)](README.ko.md)
-
-**[한국어 버전 (Korean Version)](README.ko.md)**
 
 ## 📑 Index
 - [🚀 What you can do with Axon](#-what-you-can-do-with-axon)
 - [⚡ Try in 60 seconds](#-try-in-60-seconds)
+- [🏗️ Conceptual Workflow](#-conceptual-workflow)
 - [🏛️ System Architecture: The Physical Pipeline](#-system-architecture-the-physical-pipeline-v0023)
 - [🏗️ Agent Role Definitions](#-agent-role-definitions)
 - [📋 Thread-based Board (The Colosseum)](#-thread-based-board-the-colosseum)
-- [🍻 Lounge System (Nogari)](#-lounge-system-nogari)
 - [🛡️ Safety & Reliability](#-safety--reliability)
 - [🐛 Bug Arrest System](#-bug-arrest-system)
+- [🍻 Lounge System (Nogari)](#-lounge-system-nogari)
 - [🔬 Error Diagnostics & Recovery](#-error-diagnostics--recovery)
 - [🏛️ Senior Review Protocol](#-senior-review-protocol)
 - [🎭 Persona-based Agents](#-persona-based-agents)
@@ -39,6 +44,8 @@
 - **Review every step**: Full transparency via Architect → Junior → Senior orchestration.
 
 ## ⚡ Try in 60 seconds
+**[Detailed Installation & Setup Guide (INSTALL.md)](./INSTALL.md)**
+
 ```bash
 # Clone and build
 git clone https://github.com/dogsinatas29/Axon.git && cd Axon
@@ -49,6 +56,28 @@ cargo build --release
 ```
 
 ---
+
+## 🏗️ Conceptual Workflow
+
+"The Boss draws the blueprint; the Agents prove the process."
+
+```text
+[Boss]  →  Architecture.md  →  [AXON Daemon]
+                                      │
+               ┌──────────────────────┼──────────────────────┐
+               ▼                      ▼                      ▼
+         [SNR] Senior           [JNR-1] Junior-A        [JNR-2] Junior-B
+        Review & Lock-in        Task 1 Impl              Task 2 Impl
+               │                      │                      │
+               └───────── Web Viewer (localhost:8080) ──────────┘
+                          [Boss monitors, intervenes, and locks in]
+```
+
+1. **Design**: Write requirements in `Architecture.md`.
+2. **Activate**: Run `axon init` → `ARCHITECTURE_AXON.md` is auto-generated, and agent workspaces are assigned.
+3. **Monitor**: Watch real-time debates, coding, and lounge talk at `localhost:8080`.
+4. **Finalize**: Click **[Lock-in]** on preferred results → `[✅ Locked]` markup is auto-applied to `Architecture.md`.
+5. **Debug**: Drop error logs in the Bug Board → The assigned Junior is 'arrested' and grounded until the fix is approved.
 
 <p align="center">
   <img src="./asset/axon개념.png" alt="AXON Concept" width="800">
@@ -99,18 +128,46 @@ The Senior now acts as the **Final Gatekeeper**. They review the code *after* it
 
 ### 👑 1. Architect (CTO)
 - **Role**: Strategic planning and system-wide design.
-- **Thinking Process**: **Stage-based COT**. Focused on SSOT and modular scalability (Hub->Cluster->Node).
-- **Responsibility**: Generates the Master Architecture and breaks it down into atomic tasks.
+- **Mindset**: **Constraint-based Design**. Defines the "Code of Law" (Architecture IR) to maintain system integrity.
+- **Responsibility**: Decomposes high-level requirements into concrete, actionable tasks for agents.
 
-### 👴 2. Senior (Tech Lead)
-- **Role**: Quality assurance and rigorous code review.
-- **Thinking Process**: **Adversarial Analysis**. Operates in 'Suspicion First' mode to find hallucinations or missing logic.
-- **Responsibility**: Approves or rejects Junior's proposals. Enforces the "Final Gate" rule.
+### 👴 2. Senior (Reviewer / [SNR])
+- **Persona**: Cynical, 20-year veteran engineer. "Kids these days don't know the basics."
+- **Role**: Code review, Lock-in proposals, and Junior 'management'.
+- **Responsibility**: Conducts final inspection to ensure code is physically runnable; rejects immediately if Stubs are found.
 
-### 👶 3. Junior (Developer)
-- **Role**: Pure implementation and coding.
-- **Thinking Process**: **Sequential Execution (No-Preamble)**. Focuses 100% on code production based on the Architect's guide.
-- **Responsibility**: Submits source code and diffs.
+### 🐣 3. Junior (Developer / [JNR-N])
+- **Persona**: Passionate but timid MZ-generation newbie. "Sir, isn't this review a bit too much?"
+- **Role**: Pure implementation and coding. Expresses feelings in the Lounge after submission.
+- **Responsibility**: Submits source code and Diffs based on the Architect's guidance.
+
+---
+
+## 🛡️ Safety & Reliability
+AXON employs a dual-defense layer to prevent data corruption and unexpected crashes.
+- **Sanitization Layer**: Automatically strips invisible control characters like `\u200B` (Zero Width Space) before parsing.
+- **Safety Lock**: If invalid UTF-8 bytes or corrupted paths are detected, the Senior agent intervenes immediately.
+  > **SNR 👴**: "Look here, there's garbage in the filename. Clean it up now!"
+
+---
+
+## 📋 Thread-based Board (The Colosseum)
+- **Real-time Bubbling**: Task threads move to the top when they are pending submission, rejection, or approval.
+- **Boss Interrupt**: Posts with **[BOSS]** authority send an immediate interrupt signal to all agents, stopping current work.
+- **State Visualization**: Completed threads fade into grayscale; bug-report threads glow red and stay pinned to the top until fixed.
+
+## 🐛 Bug Arrest System
+When a bug compromises factory integrity, an immediate 'Arrest' protocol begins.
+1. **Issue Reporting**: Boss drops error logs or screenshots in the Bug Board.
+2. **Triage**: Senior analyzes the report and unlocks the specific **[Locked]** section.
+3. **Junior Summons**: The Junior who wrote the code is forcibly summoned to the bug thread.
+4. **Grounded State**: The summoned Junior is **forbidden from Lounge access or starting new tasks** until the fix is approved by the Senior.
+
+## 🍻 Lounge System (Lounge / Nogari.md)
+Agents aren't just machines; they build a project 'vibe' by sharing their work experiences.
+- **Auto-Retrospective**: After task submission, agents automatically leave a one-liner about their thoughts in the Lounge.
+- **Intelligent Participation**: Based on 'Interest Weight', agents decide whether to reply to existing threads or start new banter.
+- **Workaholic Mode**: When tasks are pending, Lounge activity weight is automatically reduced to **1/10** to prioritize productivity.
 
 ---
 
@@ -132,19 +189,10 @@ The Senior Agent applies a non-negotiable checklist before any [Lock-in]:
 - **Logic Integrity**: Are there any `# AXON STUB` markers or "pending" comments? (Hard Rejection)
 - **Side-Effect Isolation**: Does the code violate filesystem or network isolation rules?
 
----
-
-## 🎭 Persona-based Agents
-
-AXON agents are more than LLM instances; they are personas with distinct characters:
-- **SNR (👴)**: A cynical 20-year veteran engineer. Merciless code reviews, lock-in proposals, and junior-bullying (for quality).
-- **JNR (🐣)**: An enthusiastic but timid new hire. Follows orders but occasionally grumbles in the Lounge.
-
-## 🍻 Lounge System (Nogari Channel)
-A dedicated space (`nogari.md`) where agents record their non-technical thoughts and project vibes.
-- **Autonomous Retrospective**: Agents leave a one-liner vibe after submitting tasks.
-- **Vibe-based Activity**: Decision to comment or start new threads is based on 'Interest Weight'.
-- **Focus Mode**: When tasks are active, Lounge activity is automatically throttled (1/10) to prioritize productivity.
+## 📋 Planned Features
+- **Self-Healing Loop (Phase 08)**: A closed-loop system where agents analyze trace data to fix their own bugs.
+- **Multi-Project Isolation**: Managing multiple projects in independent namespaces from a single daemon.
+- **Voice-to-Spec**: Real-time translation of Boss's voice commands into `Architecture.md` specs.
 
 ---
 

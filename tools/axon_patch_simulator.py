@@ -9,6 +9,16 @@ import json
 import os
 import difflib
 
+# v0.0.23: STUB ERADICATION CONSTANTS
+FORBIDDEN_MARKERS = ["AXON STUB", "Implementation pending", "TODO: implement", "REWRITE ME"]
+
+def validate_content(content: str):
+    content_upper = content.upper()
+    for kw in FORBIDDEN_MARKERS:
+        if kw.upper() in content_upper:
+            return False, kw
+    return True, None
+
 def apply_diff(base_code: str, diff_str: str) -> str:
     """Applies a standard unified diff to base_code."""
     base_lines = base_code.splitlines(keepends=True)
@@ -137,8 +147,9 @@ def simulate_state(project_root: str, junior_output_json: str):
                 results[f"error_{target}"] = new_code
             else:
                 # v0.0.23: Stub Detection - Eradicate "AXON STUB" in patched results
-                if "AXON STUB" in new_code:
-                    results[f"error_{target}"] = f"ERROR: After patch, {target} still contains AXON STUB marker. Patches must remove the stub prefix."
+                is_valid, marker = validate_content(new_code)
+                if not is_valid:
+                    results[f"error_{target}"] = f"ERROR: After patch, {target} contains forbidden marker '{marker}'. Patches must remove the stub prefix."
                 else:
                     results[target] = new_code
                 

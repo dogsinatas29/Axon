@@ -34,6 +34,7 @@ AXON treats coding not as a creative writing task, but as a **Deterministic Mate
 ## 🏛️ System Architecture: The Physical Pipeline (v0.0.23+)
 
 ![AXON Architecture Concept](./asset/mermaid-diagram.png)
+*Figure 1. The Deterministic Physical Pipeline: A 5-stage enforcement loop ensuring code integrity. It bridges the gap between logical LLM reasoning and physical filesystem reality with a mandatory Senior Gate and Auto-Rollback safety net.*
 
 AXON Phase 07 implements the **"Optimistic Automation, Pessimistic Intervention"** strategy:
 
@@ -50,10 +51,10 @@ The Senior now acts as the **Final Gatekeeper**. They review the code *after* it
 
 ## 🖥️ Studio UI & Monitoring
 ![Dashboard](./asset/dashboard.png)
-*AXON Studio: Real-time monitoring of all factory lines and agent performance.*
+*Figure 2. AXON Studio Dashboard: A high-fidelity control panel monitoring multi-worker throughput. It tracks real-time agent metrics, including latency, success rates, and the evolution of the Intermediate Representation (IR) across multiple project lines.*
 
 ![Daemon Status](./asset/daemon.png)
-*Daemon Log: Transparent tracking of every AXP packet and simulation result.*
+*Figure 3. Internal Daemon Logs: Transparent tracking of the AXP (Axon Protocol) byte-stream. This view provides a low-level window into the adversarial debates between Senior and Junior agents, ensuring every decision is logged and traceable.*
 
 ---
 
@@ -78,7 +79,7 @@ The Senior now acts as the **Final Gatekeeper**. They review the code *after* it
 
 ## 🔬 Error Diagnostics & Recovery (Stage 5 & 8)
 ![Error Details](./asset/details.png)
-*Deep-dive into physical validation failures with automated trace collection.*
+*Figure 4. Physical Validation Deep-Dive: When a build or test fails, AXON captures the exact stack trace and file-system diff. This "Evidence-based Feedback" is automatically injected into the agent's context, triggering a self-correction cycle to resolve runtime bugs without human intervention.*
 
 AXON uses a **Feedback-Driven Correction** mechanism to handle runtime and logic errors:
 1. **Trace Collection**: Logs, stack traces, and compiler errors are captured by the harness.
@@ -111,7 +112,7 @@ A dedicated space (`nogari.md`) where agents record their non-technical thoughts
 ## 🛠️ Getting Started
 
 ![Setup](./asset/setup.png)
-*Bootstrap Stage: Initializing the factory locale and specification mapping.*
+*Figure 5. Bootstrap Sequence: Initializing the factory environment. This stage synchronizes locale settings and maps the unstructured source specification into a strictly typed Architectural IR, establishing the project's Single Source of Truth.*
 
 ```bash
 # Build the factory

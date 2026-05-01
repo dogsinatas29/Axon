@@ -19,25 +19,30 @@
 - **Real files, not suggestions**: Materializes actual source code into your project filesystem.
 - **Full review visibility**: Transparent Architect → Junior → Senior orchestration at every step.
 
-**[Source Specification (spec.md)](./spec.md)**
+<p align="center">
+  <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="License: GPL 3.0"></a>
+  <br>
+  <a href="README.ko.md">🇰🇷 한국어 버전 (Korean Version)</a>
+</p>
 
-[![English](https://img.shields.io/badge/lang-English-blue.svg)](#)
-[![한국어](https://img.shields.io/badge/lang-한국어-red.svg)](README.ko.md)
+**[Source Specification (spec.md)](./spec.md)**
 
 ## 📑 Index
 - [🚀 When to use Axon?](#-when-to-use-axon)
-- [⚡ Try in 60 seconds](#-try-in-60-seconds)
 - [🏗️ Conceptual Workflow](#-conceptual-workflow)
 - [🏛️ System Architecture: The Physical Pipeline](#-system-architecture-the-physical-pipeline-v0023)
+- [🛠️ Getting Started](#-getting-started)
+- [🖥️ Studio UI & Monitoring](#-studio-ui--monitoring)
 - [🏗️ Agent Role Definitions](#-agent-role-definitions)
-- [📋 Thread-based Board (The Colosseum)](#-thread-based-board-the-colosseum)
+  - [🔬 Error Diagnostics & Recovery](#-error-diagnostics--recovery)
+  - [🏛️ Senior Review Protocol](#-senior-review-protocol)
 - [🛡️ Safety & Reliability](#-safety--reliability)
+- [📋 Thread-based Board (The Colosseum)](#-thread-based-board-the-colosseum)
 - [🐛 Bug Arrest System](#-bug-arrest-system)
-- [🍻 Lounge System (Nogari)](#-lounge-system-nogari)
-- [🔬 Error Diagnostics & Recovery](#-error-diagnostics--recovery)
-- [🏛️ Senior Review Protocol](#-senior-review-protocol)
-- [🎭 Persona-based Agents](#-persona-based-agents)
-- [📋 Planned Features](#-planned-features)
+- [📋 Planned Features](#planned-features)
+  - [🍻 Lounge System](#lounge-system-lounge-system--nogarimd--planned-)
+  - [🎭 Persona-based Agents](#persona-based-agents--planned-)
+  - [🤝 HR Board](#hr-board--planned-)
 
 ## 🚀 When to use Axon?
 - **When complex requirements need structured implementation**
@@ -45,20 +50,6 @@
 - **When systems require multi-stage verification** (Physical validation)
 - **When a human-reviewable AI pipeline is necessary** (Architect → Junior → Senior)
 
-## ⚡ Try in 60 seconds
-**[Detailed Installation & Setup Guide (INSTALL.md)](./INSTALL.md)**
-
-```bash
-# Clone and build
-git clone https://github.com/dogsinatas29/Axon.git && cd Axon
-cargo build --release
-
-# Run the factory with an example spec
-./target/release/axon-daemon --spec spec.md
-# → Generates real files in your project directory
-```
-
----
 
 ## 🏗️ Conceptual Workflow
 
@@ -101,8 +92,6 @@ AXON treats coding not as a creative writing task, but as a **Deterministic Mate
 </p>
 *Figure 1. The Deterministic Physical Pipeline: A 5-stage enforcement loop ensuring code integrity. It bridges the gap between logical LLM reasoning and physical filesystem reality with a mandatory Senior Gate and Auto-Rollback safety net.*
 
-AXON Phase 07 implements the **"Optimistic Automation, Pessimistic Intervention"** strategy:
-
 1. **Logical Approval (Axon Pass)**: Junior's proposal is validated for logical consistency.
 2. **Materialization (Physical Commit)**: Code is written to the actual project filesystem.
 3. **Physical Validation (Harness v0.1)**: Automated check for file integrity (F1/F2), entry points (F3), and side-effects (F9).
@@ -111,6 +100,26 @@ AXON Phase 07 implements the **"Optimistic Automation, Pessimistic Intervention"
 
 ### 👴 Senior Intervention Point
 The Senior now acts as the **Final Gatekeeper**. They review the code *after* it has been proven to run in the physical environment. If any physical stage fails, the Senior is alerted for immediate intervention.
+
+---
+
+## 🛠️ Getting Started
+
+<p align="center">
+  <img src="./asset/setup.png" alt="Setup" width="800">
+</p>
+*Figure 5. Bootstrap Sequence: Initializing the factory environment. This stage synchronizes locale settings and maps the unstructured source specification into a strictly typed Architectural IR, establishing the project's Single Source of Truth.*
+
+```bash
+# Build the factory
+cargo build --release
+
+# Run with a specification
+./target/release/axon-daemon run GEMINI.md
+
+# Interactive mode
+./target/release/axon-daemon run
+```
 
 ---
 
@@ -144,6 +153,24 @@ The Senior now acts as the **Final Gatekeeper**. They review the code *after* it
 - **Role**: Pure implementation and coding. Expresses feelings in the Lounge after submission.
 - **Responsibility**: Submits source code and Diffs based on the Architect's guidance.
 
+### 🔬 Error Diagnostics & Recovery (Stage 5 & 8)
+<p align="center">
+  <img src="./asset/details.png" alt="Error Details" width="800">
+</p>
+*Figure 4. Physical Validation Deep-Dive: When a build or test fails, AXON captures the exact stack trace and file-system diff. This "Evidence-based Feedback" is automatically injected into the agent's context, triggering a self-correction cycle to resolve runtime bugs without human intervention.*
+
+AXON uses a **Feedback-Driven Correction** mechanism to handle runtime and logic errors:
+1. **Trace Collection**: Logs, stack traces, and compiler errors are captured by the harness.
+2. **Context Injection**: The failure data is injected back into the Junior's prompt for the next iteration.
+3. **Self-Correction**: The Junior attempts to fix the code based on the actual physical feedback, reducing token waste.
+
+### 🏛️ Senior Review Protocol (The 3 Pillars)
+
+The Senior Agent applies a non-negotiable checklist before any [Lock-in]:
+- **Architectural Drift**: Does the code match the `architecture.md` and `spec.md` exactly?
+- **Logic Integrity**: Are there any `# AXON STUB` markers or "pending" comments? (Hard Rejection)
+- **Side-Effect Isolation**: Does the code violate filesystem or network isolation rules?
+
 ---
 
 ## 🛡️ Safety & Reliability
@@ -151,8 +178,6 @@ AXON employs a dual-defense layer to prevent data corruption and unexpected cras
 - **Sanitization Layer**: Automatically strips invisible control characters like `\u200B` (Zero Width Space) before parsing.
 - **Safety Lock**: If invalid UTF-8 bytes or corrupted paths are detected, the Senior agent intervenes immediately.
   > **SNR 👴**: "Look here, there's garbage in the filename. Clean it up now!"
-
----
 
 ## 📋 Thread-based Board (The Colosseum)
 - **Real-time Bubbling**: Task threads move to the top when they are pending submission, rejection, or approval.
@@ -166,56 +191,38 @@ When a bug compromises factory integrity, an immediate 'Arrest' protocol begins.
 3. **Junior Summons**: The Junior who wrote the code is forcibly summoned to the bug thread.
 4. **Grounded State**: The summoned Junior is **forbidden from Lounge access or starting new tasks** until the fix is approved by the Senior.
 
-## 🍻 Lounge System (Lounge / Nogari.md)
-Agents aren't just machines; they build a project 'vibe' by sharing their work experiences.
-- **Auto-Retrospective**: After task submission, agents automatically leave a one-liner about their thoughts in the Lounge.
-- **Intelligent Participation**: Based on 'Interest Weight', agents decide whether to reply to existing threads or start new banter.
-- **Workaholic Mode**: When tasks are pending, Lounge activity weight is automatically reduced to **1/10** to prioritize productivity.
 
 ---
-
-## 🔬 Error Diagnostics & Recovery (Stage 5 & 8)
-<p align="center">
-  <img src="./asset/details.png" alt="Error Details" width="800">
-</p>
-*Figure 4. Physical Validation Deep-Dive: When a build or test fails, AXON captures the exact stack trace and file-system diff. This "Evidence-based Feedback" is automatically injected into the agent's context, triggering a self-correction cycle to resolve runtime bugs without human intervention.*
-
-AXON uses a **Feedback-Driven Correction** mechanism to handle runtime and logic errors:
-1. **Trace Collection**: Logs, stack traces, and compiler errors are captured by the harness.
-2. **Context Injection**: The failure data is injected back into the Junior's prompt for the next iteration.
-3. **Self-Correction**: The Junior attempts to fix the code based on the actual physical feedback, reducing token waste.
-
-## 🏛️ Senior Review Protocol (The 3 Pillars)
-
-The Senior Agent applies a non-negotiable checklist before any [Lock-in]:
-- **Architectural Drift**: Does the code match the `architecture.md` and `spec.md` exactly?
-- **Logic Integrity**: Are there any `# AXON STUB` markers or "pending" comments? (Hard Rejection)
-- **Side-Effect Isolation**: Does the code violate filesystem or network isolation rules?
 
 ## 📋 Planned Features
-- **Self-Healing Loop (Phase 08)**: A closed-loop system where agents analyze trace data to fix their own bugs.
-- **Multi-Project Isolation**: Managing multiple projects in independent namespaces from a single daemon.
-- **Voice-to-Spec**: Real-time translation of Boss's voice commands into `Architecture.md` specs.
+
+### 🍻 Lounge System (Lounge System / Nogari.md) ( Planned )
+Agents don't just work like machines; they leave reflections on their work, forming the project's 'Vibe'.
+
+- **Auto-Retrospective**: Agents automatically leave a line of their feelings in the Lounge channel after task submission.
+- **Intelligent Participation**: Based on the agent's interest weight, they reply to existing conversations or create new gossip threads.
+- **Workaholic Mode**: When there are tasks to be processed, the lounge activity weight is automatically reduced to **1/10** to focus on work.
+
+### 🎭 Persona-based Agents ( Planned )
+AXON's agents are not just LLM instances, but personas with unique personalities:
+- **Senior ([SNR] 👴)**: A cynical 20-year veteran engineer. Responsible for ruthless code reviews, Lock-in proposals, and taming juniors for quality.
+- **Junior ([JNR-N] 🐣)**: An enthusiastic but timid newcomer. Follows orders but occasionally reacts timidly in the Lounge channel.
+
+### 🤝 HR Board ( Planned )
+A board showing the hierarchy of Axon's working agents. 
+The boss can flexibly hire/fire seniors and juniors according to the workload here. 
+Also, you can inject personas into the hired agents. 
+
 
 ---
 
-## 🛠️ Getting Started
-
-<p align="center">
-  <img src="./asset/setup.png" alt="Setup" width="800">
-</p>
-*Figure 5. Bootstrap Sequence: Initializing the factory environment. This stage synchronizes locale settings and maps the unstructured source specification into a strictly typed Architectural IR, establishing the project's Single Source of Truth.*
-
-```bash
-# Build the factory
-cargo build --release
-
-# Run with a specification
-./target/release/axon-daemon run GEMINI.md
-
-# Interactive mode
-./target/release/axon-daemon run
-```
+## 💻 Development & Local LLM Environment
+AXON is optimized for local-first execution. Below is the environment used for development and testing:
+- **CPU**: Intel(R) Core(TM) i7-4790 @ 4.00 GHz
+- **GPU**: NVIDIA GeForce GTX 1050 Ti (4GB VRAM)
+- **RAM**: 16GB DDR3
+- **OS**: Ubuntu 25.10 x86_64 (Linux 6.18)
+- **Local LLM**: `qwen2.5:7b-instruct (q4_K_M)` via **Ollama**
 
 ---
 
@@ -223,23 +230,23 @@ cargo build --release
 
 ### v0.0.23 - Physical Pipeline & Anti-Stub Hardening
 - **COMMIT_PENDING Pipeline**: Split into Logical Approval → Physical Materialization → Physical Validation.
-- **Auto-Rollback**: Immediate revert on physical failure.
-- **Anti-Stub v2**: Global forbidden marker detection (No more hidden comments!).
-- **F8.1 Guardrail**: Ensures architecture functions are physically present in files.
+- **Auto-Rollback (Auto-Rollback)**: Immediate revert on physical validation failure.
+- **Anti-Stub v2**: Global forbidden marker detection (even in hidden comments).
+- **F8.1 Guardrail**: Full audit to ensure functions defined in architecture exist in files.
 
 ### v0.0.22 - Deterministic Factory Pipeline
-- **IR Convergence Loop**: Auto-repair until fixed-point IR is reached.
-- **Stage 3.5 Stubbing**: Pre-generate skeletons to solve dependency issues.
-- **High-Fidelity Feedback**: `axon_property_tester.py` reporting stack traces to agents.
+- **IR Convergence Loop**: Auto-repair loop until fixed-point IR is reached.
+- **Stage 3.5 Stub Generation**: Proactive skeleton code generation for dependency resolution.
+- **High-Fidelity Feedback**: Stack trace reporting via `axon_property_tester.py`.
 
-### v0.0.18 - 0-Byte Killer Eradication
-- **Parser Tier 1/2/3**: Guaranteed code extraction even on malformed LLM output.
-- **0-Byte Bug Fix**: Resolved critical daemon merging flaw.
-- **503 Shutdown Protection**: Quota wait logic for Gemini API.
+### v0.0.18 - Bug Arrest & Quota Management
+- **3-Tier Parser**: Guaranteed code extraction even from corrupted LLM outputs.
+- **0-byte Bug Fix**: Resolved daemon merge logic failures.
+- **503 Mitigation**: Added wait logic for Gemini API quotas.
 
 ### v0.0.17 - Control & Isolation
-- **Multi-Agent Orchestration**: JNR -> SNR -> ARCH command chain.
-- **Ollama Adapter**: Local model support and performance tracking.
+- **Multi-Agent Orchestration**: JNR -> SNR -> ARCH command hierarchy.
+- **Ollama Adapter**: Local model execution and performance tracking integration.
 
 ---
 *Created by Antigravity AI Coding Assistant.*

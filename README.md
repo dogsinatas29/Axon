@@ -10,7 +10,11 @@
 > [!TIP]
 > **Recommended: Watch at 2.0x speed** (This video is long; 2.0x playback speed is recommended for the best experience).
 
-Though it appears as a simple CLI, AXON is internally powered by a complex constraint-based state machine and validation loops. By providing a **[Source Specification (spec.md)](./TEST/spec.md)**, the Architect→Junior→Senior orchestration ensures that only verified, high-fidelity code is materialized into physical files. Users can manually monitor and validate every proposal, review, and approval step at a granular task level.
+### Spec-to-Code Orchestration Engine with Verifiable Output
+AXON can automatically generate verifiable code and structures from simple CLI tools to complex systems based solely on specifications (Spec).
+Axon creates code that satisfies constraints through Architect→Junior→Senior orchestration and materializes it into actual physical files.
+Users can manually verify the proposal, review, and approval process of each stage, ensuring only trustworthy results are deployed.
+**[Source Specification (spec.md)](./TEST/spec.md)**
 
 ![AXON Concept](./asset/axon개념.png)
 

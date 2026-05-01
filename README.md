@@ -8,7 +8,7 @@
 > [!TIP]
 > **Recommended: Watch at 2.0x speed** (This video is long; 2.0x playback speed is recommended for the best experience).
 
-![AXON Concept](https://raw.githubusercontent.com/dogsinatas29/Axon/master/axon%EA%B0%9C%EB%85%90.png)
+![AXON Concept](./asset/axon개념.png)
 
 AXON is a high-performance, deterministic AI agent factory designed to transform architectural specifications into production-ready code with 100% physical integrity.
 

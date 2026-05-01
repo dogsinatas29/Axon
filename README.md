@@ -8,6 +8,8 @@
 > [!TIP]
 > **Recommended: Watch at 2.0x speed** (This video is long; 2.0x playback speed is recommended for the best experience).
 
+Though it appears as a simple CLI, AXON is internally powered by a complex constraint-based state machine and validation loops. By providing a **[Source Specification (spec.md)](./TEST/spec.md)**, the Architect→Junior→Senior orchestration ensures that only verified, high-fidelity code is materialized into physical files. Users can manually monitor and validate every proposal, review, and approval step at a granular task level.
+
 ![AXON Concept](./asset/axon개념.png)
 
 AXON is a high-performance, deterministic AI agent factory designed to transform architectural specifications into production-ready code with 100% physical integrity.

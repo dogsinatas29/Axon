@@ -1,7 +1,8 @@
 <p align="center">
   <h1 align="center">AXON</h1>
-  <p align="center"><b>The Automated Software Factory</b></p>
-  <p align="center">Turn specs into verified, production-ready code automatically.</p>
+  <h3 align="center">The Automated Software Factory</h3>
+  <p align="center">Turn specs into verified, production-ready code.</p>
+  <p align="center"><b>Spec → Orchestration → Verified Code → Files</b></p>
 </p>
 
 <p align="center">

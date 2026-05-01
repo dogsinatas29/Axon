@@ -28,21 +28,21 @@
 **[Source Specification (spec.md)](./spec.md)**
 
 ## 📑 Index
-- [🚀 When to use Axon?](#-when-to-use-axon)
-- [🏗️ Conceptual Workflow](#-conceptual-workflow)
-- [🏛️ System Architecture: The Physical Pipeline](#-system-architecture-the-physical-pipeline-v0023)
-- [🛠️ Getting Started](#-getting-started)
-- [🖥️ Studio UI & Monitoring](#-studio-ui--monitoring)
-- [🏗️ Agent Role Definitions](#-agent-role-definitions)
-  - [🔬 Error Diagnostics & Recovery](#-error-diagnostics--recovery)
-  - [🏛️ Senior Review Protocol](#-senior-review-protocol)
-- [🛡️ Safety & Reliability](#-safety--reliability)
-- [📋 Thread-based Board (The Colosseum)](#-thread-based-board-the-colosseum)
-- [🐛 Bug Arrest System](#-bug-arrest-system)
+- [🚀 When to use Axon?](#when-to-use-axon)
+- [🏗️ Conceptual Workflow](#conceptual-workflow)
+- [🏛️ System Architecture: The Physical Pipeline](#system-architecture-the-physical-pipeline-v0023)
+- [🛠️ Getting Started](#getting-started)
+- [🖥️ Studio UI & Monitoring](#studio-ui-monitoring)
+- [🏗️ Agent Role Definitions](#agent-role-definitions)
+  - [🔬 Error Diagnostics & Recovery](#error-diagnostics-recovery)
+  - [🏛️ Senior Review Protocol](#senior-review-protocol)
+- [🛡️ Safety & Reliability](#safety-reliability)
+- [📋 Thread-based Board (The Colosseum)](#thread-based-board-the-colosseum)
+- [🐛 Bug Arrest System](#bug-arrest-system)
 - [📋 Planned Features](#planned-features)
-  - [🍻 Lounge System](#lounge-system-lounge-system--nogarimd--planned-)
-  - [🎭 Persona-based Agents](#persona-based-agents--planned-)
-  - [🤝 HR Board](#hr-board--planned-)
+  - [🍻 Lounge System](#lounge-system-lounge-system-nogarimd-planned)
+  - [🎭 Persona-based Agents](#persona-based-agents-planned)
+  - [🤝 HR Board](#hr-board-planned)
 
 ## 🚀 When to use Axon?
 - **When complex requirements need structured implementation**

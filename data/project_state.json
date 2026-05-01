@@ -1,5 +1,5 @@
 {
-  "aiCount": 98,
+  "aiCount": 142,
   "clusters": [
     {
       "collapsed": false,
@@ -47,6 +47,16 @@
       "type": "folder"
     },
     {
+      "id": "cluster_crates_axon_core_src_validator",
+      "label": "📂 validator",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_crates_axon_core_src_validator_debug",
+      "label": "📂 debug",
+      "type": "folder"
+    },
+    {
       "collapsed": false,
       "data": {
         "layer": "user"
@@ -62,6 +72,11 @@
       },
       "id": "cluster_crates_axon_daemon_src",
       "label": "📂 src",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_crates_axon_daemon_src_intelligence",
+      "label": "📂 intelligence",
       "type": "folder"
     },
     {
@@ -173,6 +188,228 @@
       "type": "folder"
     },
     {
+      "id": "cluster_TEST",
+      "label": "📂 TEST",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec",
+      "label": "📂 spec",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777632828_0f5d9239",
+      "label": "📂 v_1777632828_0f5d9239",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777632839_85c98ea7",
+      "label": "📂 v_1777632839_85c98ea7",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777632959_034d4f3c",
+      "label": "📂 v_1777632959_034d4f3c",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777632959_034d4f3c__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777632959_034d4f3c__axon_snapshots_v_1777632828_0f5d9239",
+      "label": "📂 v_1777632828_0f5d9239",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777632959_034d4f3c__axon_snapshots_v_1777632839_85c98ea7",
+      "label": "📂 v_1777632839_85c98ea7",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777632972_b4512a2c",
+      "label": "📂 v_1777632972_b4512a2c",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+      "label": "📂 v_1777632828_0f5d9239",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+      "label": "📂 v_1777632839_85c98ea7",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+      "label": "📂 v_1777633067_654f5636",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636__axon_snapshots_v_1777632828_0f5d9239",
+      "label": "📂 v_1777632828_0f5d9239",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636__axon_snapshots_v_1777632839_85c98ea7",
+      "label": "📂 v_1777632839_85c98ea7",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636__axon_snapshots_v_1777632959_034d4f3c",
+      "label": "📂 v_1777632959_034d4f3c",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636__axon_snapshots_v_1777632959_034d4f3c__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636__axon_snapshots_v_1777632959_034d4f3c__axon_snapshots_v_1777632828_0f5d9239",
+      "label": "📂 v_1777632828_0f5d9239",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636__axon_snapshots_v_1777632959_034d4f3c__axon_snapshots_v_1777632839_85c98ea7",
+      "label": "📂 v_1777632839_85c98ea7",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636__axon_snapshots_v_1777632972_b4512a2c",
+      "label": "📂 v_1777632972_b4512a2c",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+      "label": "📂 v_1777632828_0f5d9239",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+      "label": "📂 v_1777632839_85c98ea7",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+      "label": "📂 v_1777633069_e670a340",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632828_0f5d9239",
+      "label": "📂 v_1777632828_0f5d9239",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632839_85c98ea7",
+      "label": "📂 v_1777632839_85c98ea7",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+      "label": "📂 v_1777632959_034d4f3c",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c__axon_snapshots_v_1777632828_0f5d9239",
+      "label": "📂 v_1777632828_0f5d9239",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c__axon_snapshots_v_1777632839_85c98ea7",
+      "label": "📂 v_1777632839_85c98ea7",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+      "label": "📂 v_1777632972_b4512a2c",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+      "label": "📂 v_1777632828_0f5d9239",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+      "label": "📂 v_1777632839_85c98ea7",
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_tools",
+      "label": "📂 tools",
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "id": "doc_shelf",
+      "label": "📚 Documentation Shelf",
+      "type": "system"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "sys_cluster_reserved",
+      "label": "🛡️ Reserved (Internal Pending)",
+      "type": "system"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "sys_cluster_buffer",
+      "label": "🛡️ Buffer Cluster",
+      "position": {
+        "x": -400,
+        "y": 600
+      },
+      "type": "system"
+    },
+    {
       "id": "cluster_TEST3",
       "label": "📂 TEST3",
       "type": "folder"
@@ -256,43 +493,6 @@
       "id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
       "label": "📂 v_1777601977_41932dd7",
       "type": "folder"
-    },
-    {
-      "collapsed": false,
-      "data": {
-        "layer": "user"
-      },
-      "id": "cluster_tools",
-      "label": "📂 tools",
-      "type": "folder"
-    },
-    {
-      "collapsed": false,
-      "id": "doc_shelf",
-      "label": "📚 Documentation Shelf",
-      "type": "system"
-    },
-    {
-      "collapsed": false,
-      "data": {
-        "layer": "user"
-      },
-      "id": "sys_cluster_reserved",
-      "label": "🛡️ Reserved (Internal Pending)",
-      "type": "system"
-    },
-    {
-      "collapsed": false,
-      "data": {
-        "layer": "user"
-      },
-      "id": "sys_cluster_buffer",
-      "label": "🛡️ Buffer Cluster",
-      "position": {
-        "x": -400,
-        "y": 600
-      },
-      "type": "system"
     },
     {
       "id": "cluster_TEST3_architecture",
@@ -1344,7 +1544,7 @@
       "from": "mile_stone/test_run_full.py",
       "id": "mile_stone/test_run_full.py->pipeline",
       "status": "confirmed",
-      "to": "pipeline",
+      "to": "crates/axon-daemon/src/intelligence/pipeline.rs",
       "type": "reference",
       "weight": 0.2
     },
@@ -1656,7 +1856,7 @@
       "from": "test_run_full.py",
       "id": "test_run_full.py->pipeline",
       "status": "confirmed",
-      "to": "pipeline",
+      "to": "crates/axon-daemon/src/intelligence/pipeline.rs",
       "type": "reference",
       "weight": 0.2
     },
@@ -7263,7 +7463,7 @@
       },
       "degree": 0,
       "filePath": "mile_stone/v0.0.2.md",
-      "id": "TEST/mile_stone/v0.0.2.md",
+      "id": "mile_stone/v0.0.2.md",
       "label": "v0.0.2",
       "layer": "user",
       "position": {
@@ -8041,7 +8241,7 @@
       "cluster_id": "cluster_ghosts",
       "data": {
         "cluster_id": "cluster_ghosts",
-        "degree": 2,
+        "degree": 0,
         "hasAtomicSignature": false,
         "hasImportSignature": false,
         "hiddenOnCanvas": false,
@@ -15349,12 +15549,5597 @@
         "scale": 1,
         "visible": true
       }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "AnalysisResult",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://AnalysisResult",
+      "id": "AnalysisResult",
+      "label": "AnalysisResult",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "Analyzer",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://Analyzer",
+      "id": "Analyzer",
+      "label": "Analyzer",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "ArchitectureWriter",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://ArchitectureWriter",
+      "id": "ArchitectureWriter",
+      "label": "ArchitectureWriter",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "Arguments",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://Arguments",
+      "id": "Arguments",
+      "label": "Arguments",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "axon_patch_to_ir_mapping",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://axon_patch_to_ir_mapping",
+      "id": "axon_patch_to_ir_mapping",
+      "label": "axon_patch_to_ir_mapping",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "axon_validator_v2",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://axon_validator_v2",
+      "id": "axon_validator_v2",
+      "label": "axon_validator_v2",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "ClusterInfo",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://ClusterInfo",
+      "id": "ClusterInfo",
+      "label": "ClusterInfo",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "Component",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://Component",
+      "id": "Component",
+      "label": "Component",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "Constraint",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://Constraint",
+      "id": "Constraint",
+      "label": "Constraint",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "ConstraintMeta",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://ConstraintMeta",
+      "id": "ConstraintMeta",
+      "label": "ConstraintMeta",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "ConstraintProposal",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://ConstraintProposal",
+      "id": "ConstraintProposal",
+      "label": "ConstraintProposal",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_agent_src",
+      "data": {
+        "cluster_id": "cluster_crates_axon_agent_src",
+        "degree": 0,
+        "file": "crates/axon-agent/src/composer.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "composer",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-agent/src/composer.rs",
+      "id": "crates/axon-agent/src/composer.rs",
+      "label": "composer",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src",
+        "degree": 0,
+        "file": "crates/axon-core/src/ir_change.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "ir_change",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/ir_change.rs",
+      "id": "crates/axon-core/src/ir_change.rs",
+      "label": "ir_change",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src",
+        "degree": 0,
+        "file": "crates/axon-core/src/patch.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "patch",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/patch.rs",
+      "id": "crates/axon-core/src/patch.rs",
+      "label": "patch",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src",
+        "degree": 0,
+        "file": "crates/axon-core/src/rules.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "rules",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/rules.rs",
+      "id": "crates/axon-core/src/rules.rs",
+      "label": "rules",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src",
+        "degree": 0,
+        "file": "crates/axon-core/src/spec.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "spec",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/spec.rs",
+      "id": "crates/axon-core/src/spec.rs",
+      "label": "spec",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src",
+        "degree": 0,
+        "file": "crates/axon-core/src/transformer.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "transformer",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/transformer.rs",
+      "id": "crates/axon-core/src/transformer.rs",
+      "label": "transformer",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/analysis.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "analysis",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/analysis.rs",
+      "id": "crates/axon-core/src/validator/analysis.rs",
+      "label": "analysis",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/debug/analysis_contract.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "analysis_contract",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/debug/analysis_contract.rs",
+      "id": "crates/axon-core/src/validator/debug/analysis_contract.rs",
+      "label": "analysis_contract",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/debug/ast_printer.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "ast_printer",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/debug/ast_printer.rs",
+      "id": "crates/axon-core/src/validator/debug/ast_printer.rs",
+      "label": "ast_printer",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/debug/clusterer.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "clusterer",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/debug/clusterer.rs",
+      "id": "crates/axon-core/src/validator/debug/clusterer.rs",
+      "label": "clusterer",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/debug/contract.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "contract",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/debug/contract.rs",
+      "id": "crates/axon-core/src/validator/debug/contract.rs",
+      "label": "contract",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/debug/coverage.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "coverage",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/debug/coverage.rs",
+      "id": "crates/axon-core/src/validator/debug/coverage.rs",
+      "label": "coverage",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/debug/extractor_test.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "extractor_test",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/debug/extractor_test.rs",
+      "id": "crates/axon-core/src/validator/debug/extractor_test.rs",
+      "label": "extractor_test",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/debug/matcher_test.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "matcher_test",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/debug/matcher_test.rs",
+      "id": "crates/axon-core/src/validator/debug/matcher_test.rs",
+      "label": "matcher_test",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/debug/mod.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "mod",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/debug/mod.rs",
+      "id": "crates/axon-core/src/validator/debug/mod.rs",
+      "label": "mod",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/debug/rule_generator.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "rule_generator",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/debug/rule_generator.rs",
+      "id": "crates/axon-core/src/validator/debug/rule_generator.rs",
+      "label": "rule_generator",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator_debug",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/debug/test_gen.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "test_gen",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/debug/test_gen.rs",
+      "id": "crates/axon-core/src/validator/debug/test_gen.rs",
+      "label": "test_gen",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/error.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "error",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/error.rs",
+      "id": "crates/axon-core/src/validator/error.rs",
+      "label": "error",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/integration.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "integration",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/integration.rs",
+      "id": "crates/axon-core/src/validator/integration.rs",
+      "label": "integration",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/mod.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "mod",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/mod.rs",
+      "id": "crates/axon-core/src/validator/mod.rs",
+      "label": "mod",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/test_pipeline.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "test_pipeline",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/test_pipeline.rs",
+      "id": "crates/axon-core/src/validator/test_pipeline.rs",
+      "label": "test_pipeline",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/types.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "types",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/types.rs",
+      "id": "crates/axon-core/src/validator/types.rs",
+      "label": "types",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/debug_hook.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "debug_hook",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/debug_hook.rs",
+      "id": "crates/axon-daemon/src/debug_hook.rs",
+      "label": "debug_hook",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/commit.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "commit",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/commit.rs",
+      "id": "crates/axon-daemon/src/intelligence/commit.rs",
+      "label": "commit",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/constraint_meta.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "constraint_meta",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/constraint_meta.rs",
+      "id": "crates/axon-daemon/src/intelligence/constraint_meta.rs",
+      "label": "constraint_meta",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/decision.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "decision",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/decision.rs",
+      "id": "crates/axon-daemon/src/intelligence/decision.rs",
+      "label": "decision",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/global_registry.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "global_registry",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/global_registry.rs",
+      "id": "crates/axon-daemon/src/intelligence/global_registry.rs",
+      "label": "global_registry",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/ir_diff.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "ir_diff",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/ir_diff.rs",
+      "id": "crates/axon-daemon/src/intelligence/ir_diff.rs",
+      "label": "ir_diff",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/mod.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "mod",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/mod.rs",
+      "id": "crates/axon-daemon/src/intelligence/mod.rs",
+      "label": "mod",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/orchestrator.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "orchestrator",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/orchestrator.rs",
+      "id": "crates/axon-daemon/src/intelligence/orchestrator.rs",
+      "label": "orchestrator",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 2,
+        "file": "crates/axon-daemon/src/intelligence/pipeline.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "pipeline",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/pipeline.rs",
+      "id": "crates/axon-daemon/src/intelligence/pipeline.rs",
+      "label": "pipeline",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/priority.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "priority",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/priority.rs",
+      "id": "crates/axon-daemon/src/intelligence/priority.rs",
+      "label": "priority",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/promotion.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "promotion",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/promotion.rs",
+      "id": "crates/axon-daemon/src/intelligence/promotion.rs",
+      "label": "promotion",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/rule_engine.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "rule_engine",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/rule_engine.rs",
+      "id": "crates/axon-daemon/src/intelligence/rule_engine.rs",
+      "label": "rule_engine",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/rule_registry.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "rule_registry",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/rule_registry.rs",
+      "id": "crates/axon-daemon/src/intelligence/rule_registry.rs",
+      "label": "rule_registry",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/selection.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "selection",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/selection.rs",
+      "id": "crates/axon-daemon/src/intelligence/selection.rs",
+      "label": "selection",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/staging.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "staging",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/staging.rs",
+      "id": "crates/axon-daemon/src/intelligence/staging.rs",
+      "label": "staging",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/writer.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "writer",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/writer.rs",
+      "id": "crates/axon-daemon/src/intelligence/writer.rs",
+      "label": "writer",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "debug",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://debug",
+      "id": "debug",
+      "label": "debug",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "DefaultHasher",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://DefaultHasher",
+      "id": "DefaultHasher",
+      "label": "DefaultHasher",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "diff",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://diff",
+      "id": "diff",
+      "label": "diff",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "ExecutionArtifact",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://ExecutionArtifact",
+      "id": "ExecutionArtifact",
+      "label": "ExecutionArtifact",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "extract_functions",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://extract_functions",
+      "id": "extract_functions",
+      "label": "extract_functions",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "FailureEvent",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://FailureEvent",
+      "id": "FailureEvent",
+      "label": "FailureEvent",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "Function",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://Function",
+      "id": "Function",
+      "label": "Function",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "FunctionSig",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://FunctionSig",
+      "id": "FunctionSig",
+      "label": "FunctionSig",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "Hash",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://Hash",
+      "id": "Hash",
+      "label": "Hash",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "Hasher",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://Hasher",
+      "id": "Hasher",
+      "label": "Hasher",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "HashSet",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://HashSet",
+      "id": "HashSet",
+      "label": "HashSet",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "intelligence",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://intelligence",
+      "id": "intelligence",
+      "label": "intelligence",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "IRCommitLayer",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://IRCommitLayer",
+      "id": "IRCommitLayer",
+      "label": "IRCommitLayer",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "IRDiff",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://IRDiff",
+      "id": "IRDiff",
+      "label": "IRDiff",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "lazy_static",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://lazy_static",
+      "id": "lazy_static",
+      "label": "lazy_static",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "match_all",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://match_all",
+      "id": "match_all",
+      "label": "match_all",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/physical_validator_checklist_v0.1.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "physical_validator_checklist_v0.1",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/physical_validator_checklist_v0.1.md",
+      "id": "mile_stone/physical_validator_checklist_v0.1.md",
+      "label": "physical_validator_checklist_v0.1",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/senior_gate_reject_rules_v0.1.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "senior_gate_reject_rules_v0.1",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/senior_gate_reject_rules_v0.1.md",
+      "id": "mile_stone/senior_gate_reject_rules_v0.1.md",
+      "label": "senior_gate_reject_rules_v0.1",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/synapse_axon_ir_spec_v0.5.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "synapse_axon_ir_spec_v0.5",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/synapse_axon_ir_spec_v0.5.md",
+      "id": "mile_stone/synapse_axon_ir_spec_v0.5.md",
+      "label": "synapse_axon_ir_spec_v0.5",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.23.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.23",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.23.md",
+      "id": "mile_stone/v0.0.23.md",
+      "label": "v0.0.23",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "NaiveDate",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://NaiveDate",
+      "id": "NaiveDate",
+      "label": "NaiveDate",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "Parse",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://Parse",
+      "id": "Parse",
+      "label": "Parse",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "ProjectIR",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://ProjectIR",
+      "id": "ProjectIR",
+      "label": "ProjectIR",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "propose_from_diff",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://propose_from_diff",
+      "id": "propose_from_diff",
+      "label": "propose_from_diff",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "release_note/v0.0.23_release_notes.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.23_release_notes",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "release_note/v0.0.23_release_notes.md",
+      "id": "release_note/v0.0.23_release_notes.md",
+      "label": "v0.0.23_release_notes",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "result",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://result",
+      "id": "result",
+      "label": "result",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "Rule",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://Rule",
+      "id": "Rule",
+      "label": "Rule",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "RuleCandidate",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://RuleCandidate",
+      "id": "RuleCandidate",
+      "label": "RuleCandidate",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "RuleEngine",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://RuleEngine",
+      "id": "RuleEngine",
+      "label": "RuleEngine",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "RuleRegistry",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://RuleRegistry",
+      "id": "RuleRegistry",
+      "label": "RuleRegistry",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "RuleState",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://RuleState",
+      "id": "RuleState",
+      "label": "RuleState",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "spec.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "spec",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "spec.md",
+      "id": "spec.md",
+      "label": "spec",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "Stmt",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://Stmt",
+      "id": "Stmt",
+      "label": "Stmt",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "StmtFunctionDef",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://StmtFunctionDef",
+      "id": "StmtFunctionDef",
+      "label": "StmtFunctionDef",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "Suite",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://Suite",
+      "id": "Suite",
+      "label": "Suite",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "SystemTime",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://SystemTime",
+      "id": "SystemTime",
+      "label": "SystemTime",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "TEST/Nogari.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "Nogari",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "TEST/Nogari.md",
+      "id": "TEST/Nogari.md",
+      "label": "Nogari",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "TEST/spec.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "spec",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec.md",
+      "id": "TEST/spec.md",
+      "label": "spec",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/architecture.md",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/architecture.md",
+      "label": "architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/bypass.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "bypass",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/bypass.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/bypass.rs",
+      "label": "bypass",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/calculate.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "calculate",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/calculate.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/calculate.rs",
+      "label": "calculate",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/control.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "control",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/control.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/control.rs",
+      "label": "control",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/db_check.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "db_check",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/db_check.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/db_check.rs",
+      "label": "db_check",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/input.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/input.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/input.rs",
+      "label": "input",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/main.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/main.py",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/main.py",
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/save_db.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "save_db",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/save_db.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/save_db.rs",
+      "label": "save_db",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632828_0f5d9239",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/validation.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "validation",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/validation.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/validation.rs",
+      "label": "validation",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/architecture.md",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/architecture.md",
+      "label": "architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/bypass.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "bypass",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/bypass.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/bypass.rs",
+      "label": "bypass",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/calculate.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "calculate",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/calculate.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/calculate.rs",
+      "label": "calculate",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/control.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "control",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/control.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/control.rs",
+      "label": "control",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/db_check.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "db_check",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/db_check.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/db_check.rs",
+      "label": "db_check",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/input.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/input.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/input.rs",
+      "label": "input",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/main.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/main.py",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/main.py",
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/save_db.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "save_db",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/save_db.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/save_db.rs",
+      "label": "save_db",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c__axon_snapshots_v_1777632839_85c98ea7",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/validation.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "validation",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/validation.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/validation.rs",
+      "label": "validation",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/architecture.md",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/architecture.md",
+      "label": "architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/bypass.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "bypass",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/bypass.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/bypass.rs",
+      "label": "bypass",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/calculate.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "calculate",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/calculate.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/calculate.rs",
+      "label": "calculate",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/control.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "control",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/control.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/control.rs",
+      "label": "control",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/db_check.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "db_check",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/db_check.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/db_check.rs",
+      "label": "db_check",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/input.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/input.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/input.rs",
+      "label": "input",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/main.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/main.py",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/main.py",
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/save_db.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "save_db",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/save_db.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/save_db.rs",
+      "label": "save_db",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632959_034d4f3c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/validation.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "validation",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/validation.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632959_034d4f3c/validation.rs",
+      "label": "validation",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/architecture.md",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/architecture.md",
+      "label": "architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/bypass.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "bypass",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/bypass.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/bypass.rs",
+      "label": "bypass",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/calculate.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "calculate",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/calculate.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/calculate.rs",
+      "label": "calculate",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/control.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "control",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/control.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/control.rs",
+      "label": "control",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/db_check.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "db_check",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/db_check.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/db_check.rs",
+      "label": "db_check",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/input.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/input.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/input.rs",
+      "label": "input",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/main.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/main.py",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/main.py",
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/save_db.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "save_db",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/save_db.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/save_db.rs",
+      "label": "save_db",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340__axon_snapshots_v_1777632972_b4512a2c",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/validation.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "validation",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/validation.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/validation.rs",
+      "label": "validation",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/architecture.md",
+      "id": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/architecture.md",
+      "label": "architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/bypass.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "bypass",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/bypass.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/bypass.rs",
+      "label": "bypass",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/calculate.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "calculate",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/calculate.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/calculate.rs",
+      "label": "calculate",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/control.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "control",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/control.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/control.rs",
+      "label": "control",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/db_check.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "db_check",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/db_check.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/db_check.rs",
+      "label": "db_check",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/input.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/input.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/input.rs",
+      "label": "input",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/main.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/main.py",
+      "id": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/main.py",
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/save_db.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "save_db",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/save_db.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/save_db.rs",
+      "label": "save_db",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633067_654f5636",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/validation.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "validation",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/validation.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633067_654f5636/validation.rs",
+      "label": "validation",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/architecture.md",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/architecture.md",
+      "label": "architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/bypass.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "bypass",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/bypass.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/bypass.rs",
+      "label": "bypass",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/calculate.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "calculate",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/calculate.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/calculate.rs",
+      "label": "calculate",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/control.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "control",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/control.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/control.rs",
+      "label": "control",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/db_check.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "db_check",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/db_check.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/db_check.rs",
+      "label": "db_check",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/input.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/input.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/input.rs",
+      "label": "input",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/main.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/main.py",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/main.py",
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/save_db.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "save_db",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/save_db.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/save_db.rs",
+      "label": "save_db",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+      "data": {
+        "cluster_id": "cluster_TEST_spec__axon_snapshots_v_1777633069_e670a340",
+        "degree": 0,
+        "file": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/validation.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "validation",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/validation.rs",
+      "id": "TEST/spec/.axon_snapshots/v_1777633069_e670a340/validation.rs",
+      "label": "validation",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "TEST/spec/architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/architecture.md",
+      "id": "TEST/spec/architecture.md",
+      "label": "architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec",
+      "data": {
+        "cluster_id": "cluster_TEST_spec",
+        "degree": 0,
+        "file": "TEST/spec/bypass.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "bypass",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/bypass.rs",
+      "id": "TEST/spec/bypass.rs",
+      "label": "bypass",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec",
+      "data": {
+        "cluster_id": "cluster_TEST_spec",
+        "degree": 0,
+        "file": "TEST/spec/calculate.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "calculate",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/calculate.rs",
+      "id": "TEST/spec/calculate.rs",
+      "label": "calculate",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec",
+      "data": {
+        "cluster_id": "cluster_TEST_spec",
+        "degree": 0,
+        "file": "TEST/spec/control.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "control",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/control.rs",
+      "id": "TEST/spec/control.rs",
+      "label": "control",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec",
+      "data": {
+        "cluster_id": "cluster_TEST_spec",
+        "degree": 0,
+        "file": "TEST/spec/db_check.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "db_check",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/db_check.rs",
+      "id": "TEST/spec/db_check.rs",
+      "label": "db_check",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec",
+      "data": {
+        "cluster_id": "cluster_TEST_spec",
+        "degree": 0,
+        "file": "TEST/spec/input.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/input.rs",
+      "id": "TEST/spec/input.rs",
+      "label": "input",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec",
+      "data": {
+        "cluster_id": "cluster_TEST_spec",
+        "degree": 0,
+        "file": "TEST/spec/main.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/main.py",
+      "id": "TEST/spec/main.py",
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec",
+      "data": {
+        "cluster_id": "cluster_TEST_spec",
+        "degree": 0,
+        "file": "TEST/spec/save_db.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "save_db",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/save_db.rs",
+      "id": "TEST/spec/save_db.rs",
+      "label": "save_db",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST_spec",
+      "data": {
+        "cluster_id": "cluster_TEST_spec",
+        "degree": 0,
+        "file": "TEST/spec/validation.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "validation",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST/spec/validation.rs",
+      "id": "TEST/spec/validation.rs",
+      "label": "validation",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "TestCase",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://TestCase",
+      "id": "TestCase",
+      "label": "TestCase",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_tools",
+      "data": {
+        "cluster_id": "cluster_tools",
+        "degree": 0,
+        "file": "tools/axon_ir_mapper.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "axon_ir_mapper",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "tools/axon_ir_mapper.py",
+      "id": "tools/axon_ir_mapper.py",
+      "label": "axon_ir_mapper",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "UNIX_EPOCH",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://UNIX_EPOCH",
+      "id": "UNIX_EPOCH",
+      "label": "UNIX_EPOCH",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.22_verification_report",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ghost://v0.0.22_verification_report",
+      "id": "v0.0.22_verification_report",
+      "label": "v0.0.22_verification_report",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "documentation",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.23_ir_first_plan",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ghost://v0.0.23_ir_first_plan",
+      "id": "v0.0.23_ir_first_plan",
+      "label": "v0.0.23_ir_first_plan",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "documentation",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "ValidationError",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://ValidationError",
+      "id": "ValidationError",
+      "label": "ValidationError",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
     }
   ],
-  "userCount": 280,
+  "userCount": 392,
   "_iron_guard": {
     "version": "0.2.18.1",
-    "byte_size": 268383,
+    "byte_size": 383450,
     "encoding": "UTF-8",
     "alignment": 8
   }

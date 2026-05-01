@@ -1,12 +1,8 @@
 <p align="center">
-  <h1 align="center">AXON: The Automated Software Factory (Phase 07)</h1>
-  <p align="center"><b>Spec-driven AI orchestration engine for verified code generation.</b></p>
+  <h1 align="center">AXON</h1>
+  <p align="center"><b>The Automated Software Factory</b></p>
+  <p align="center">Turn specs into verified, production-ready code automatically.</p>
 </p>
-
-[![English](https://img.shields.io/badge/lang-English-blue.svg)](#)
-[![한국어](https://img.shields.io/badge/lang-한국어-red.svg)](README.ko.md)
-
-**[한국어 버전 (Korean Version)](README.ko.md)**
 
 <p align="center">
   <a href="https://youtu.be/gmUdrVNKrPg">
@@ -16,11 +12,28 @@
   <b>Recommended: Watch at 2.0x speed</b>
 </p>
 
-### Spec-to-Code Orchestration Engine with Verifiable Output
-AXON can automatically generate verifiable code and structures from simple CLI tools to complex systems based solely on specifications (Spec).
-Axon creates code that satisfies constraints through Architect→Junior→Senior orchestration and materializes it into actual physical files.
-Users can manually verify the proposal, review, and approval process of each stage, ensuring only trustworthy results are deployed.
-**[Source Specification (spec.md)](./spec.md)**
+[![English](https://img.shields.io/badge/lang-English-blue.svg)](#)
+[![한국어](https://img.shields.io/badge/lang-한국어-red.svg)](README.ko.md)
+
+**[한국어 버전 (Korean Version)](README.ko.md)**
+
+## 🚀 What you can do with Axon
+- **Generate working code from a spec**: Skip the manual labor and turn requirements into code.
+- **Ensure constraints are satisfied**: Zero-hallucination, logic-checked output via IR validation.
+- **Produce real, runnable files**: Not just text suggestions, but actual materialized source code.
+- **Review every step**: Full transparency via Architect → Junior → Senior orchestration.
+
+## ⚡ Try in 60 seconds
+```bash
+# Clone and build
+git clone https://github.com/dogsinatas29/Axon.git && cd Axon
+cargo build --release
+
+# Run the factory with an example spec
+./target/release/axon-daemon --spec spec.md
+```
+
+---
 
 <p align="center">
   <img src="./asset/axon개념.png" alt="AXON Concept" width="800">

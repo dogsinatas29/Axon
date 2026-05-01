@@ -1,10 +1,19 @@
 <p align="center">
-  <h1 align="center">AXON: 자동화 소프트웨어 공장 (Phase 07)</h1>
-  <p align="center"><b>Spec-driven AI orchestration engine for verified code generation.</b></p>
+  <h1 align="center">AXON</h1>
+  <p align="center"><b>자동화 소프트웨어 공장</b></p>
+  <p align="center">요구사항(Spec)을 검증된 프로덕션 코드로 즉시 자동 변환합니다.</p>
 </p>
 
 <p align="center">
-  <a href="https://github.com/your-repo/path">
+  <a href="https://youtu.be/gmUdrVNKrPg">
+    <img src="https://img.youtube.com/vi/gmUdrVNKrPg/0.jpg" alt="AXON 데모 영상" width="600">
+  </a>
+  <br>
+  <b>시청 권장: 2.0배속</b>
+</p>
+
+<p align="center">
+  <a href="README.md">
     <img src="https://img.shields.io/badge/lang-English-blue.svg" alt="English">
   </a>
   <a href="#">
@@ -12,19 +21,23 @@
   </a>
 </p>
 
-<p align="center">
-  <a href="https://youtu.be/gmUdrVNKrPg">
-    <img src="https://img.youtube.com/vi/gmUdrVNKrPg/0.jpg" alt="AXON Demo Video" width="600">
-  </a>
-  <br>
-  <b>시청 권장: 2.0배속</b>
-</p>
+## 🚀 Axon으로 무엇을 할 수 있나요?
+- **명세(Spec)에서 작동하는 코드 생성**: 지루한 코딩 노동을 자동화합니다.
+- **제약 조건(Constraints) 완벽 준수**: 환각 없는, 논리적으로 검증된 결과물을 보장합니다.
+- **실제 실행 가능한 파일 생성**: 단순한 제안이 아닌, 물리적으로 컴파일 가능한 소스 코드를 출력합니다.
+- **전 공정 모니터링 및 승인**: Architect → Junior → Senior 오케스트레이션의 모든 단계를 직접 확인하고 제어합니다.
 
-### Spec-to-Code Orchestration Engine with Verifiable Output
-액슨은 간단한 CLI부터 복잡한 시스템까지, 명세(Spec)만으로 검증 가능한 코드와 구조를 자동 생성할 수 있습니다.
-Axon은 Architect→Junior→Senior 오케스트레이션을 거쳐 제약을 만족하는 코드를 만들고 실제 파일까지 생성합니다.
-각 단계의 제안·리뷰·승인 과정을 사람이 직접 확인하며 신뢰 가능한 결과만 배포할 수 있습니다.
-**[요구사항 명세서(spec.md)](./spec.md)**
+## ⚡ 60초 만에 시작하기
+```bash
+# 클론 및 빌드
+git clone https://github.com/dogsinatas29/Axon.git && cd Axon
+cargo build --release
+
+# 예시 명세서로 공장 가동
+./target/release/axon-daemon --spec spec.md
+```
+
+---
 
 <p align="center">
   <img src="./asset/axon개념.png" alt="AXON Concept" width="800">

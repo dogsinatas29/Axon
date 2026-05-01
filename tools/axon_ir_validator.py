@@ -149,8 +149,9 @@ if __name__ == "__main__":
     errors = []
     
     for filename, code in state.items():
-        if isinstance(code, dict) and "error" in code:
-            errors.append(f"Patch Simulation Error in {filename}: {code['error']}")
+        if filename == "error" or (isinstance(code, dict) and "error" in code):
+            err_msg = code if isinstance(code, str) else code.get("error", "Unknown error")
+            errors.append(f"Simulation Error in {filename}: {err_msg}")
             all_ok = False
             continue
             

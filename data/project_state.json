@@ -1,5 +1,5 @@
 {
-  "aiCount": 97,
+  "aiCount": 98,
   "clusters": [
     {
       "collapsed": false,
@@ -173,6 +173,91 @@
       "type": "folder"
     },
     {
+      "id": "cluster_TEST3",
+      "label": "📂 TEST3",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI",
+      "label": "📂 GEMINI",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777601927_4a680724",
+      "label": "📂 v_1777601927_4a680724",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777601977_41932dd7",
+      "label": "📂 v_1777601977_41932dd7",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602176_686a9299",
+      "label": "📂 v_1777602176_686a9299",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602176_686a9299__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+      "label": "📂 v_1777601927_4a680724",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+      "label": "📂 v_1777601977_41932dd7",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+      "label": "📂 v_1777602251_72e10b1f",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777601927_4a680724",
+      "label": "📂 v_1777601927_4a680724",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777601977_41932dd7",
+      "label": "📂 v_1777601977_41932dd7",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+      "label": "📂 v_1777602176_686a9299",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+      "label": "📂 v_1777601927_4a680724",
+      "type": "folder"
+    },
+    {
+      "id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+      "label": "📂 v_1777601977_41932dd7",
+      "type": "folder"
+    },
+    {
       "collapsed": false,
       "data": {
         "layer": "user"
@@ -208,6 +293,11 @@
         "y": 600
       },
       "type": "system"
+    },
+    {
+      "id": "cluster_TEST3_architecture",
+      "label": "📂 architecture",
+      "type": "folder"
     }
   ],
   "deletedNodeIds": [],
@@ -12805,12 +12895,2466 @@
         "scale": 1,
         "visible": true
       }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.22_json_parse_fix.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.22_json_parse_fix",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.22_json_parse_fix.md",
+      "id": "mile_stone/v0.0.22_json_parse_fix.md",
+      "label": "v0.0.22_json_parse_fix",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.22_verification_report.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.22_verification_report",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.22_verification_report.md",
+      "id": "mile_stone/v0.0.22_verification_report.md",
+      "label": "v0.0.22_verification_report",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "TEST3/architecture/architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "TEST3/architecture/architecture.md",
+      "id": "TEST3/architecture/architecture.md",
+      "label": "architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_architecture",
+      "data": {
+        "cluster_id": "cluster_TEST3_architecture",
+        "degree": 0,
+        "file": "TEST3/architecture/calculator.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "calculator",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/architecture/calculator.py",
+      "id": "TEST3/architecture/calculator.py",
+      "label": "calculator",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_architecture",
+      "data": {
+        "cluster_id": "cluster_TEST3_architecture",
+        "degree": 0,
+        "file": "TEST3/architecture/database.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "database",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/architecture/database.py",
+      "id": "TEST3/architecture/database.py",
+      "label": "database",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_architecture",
+      "data": {
+        "cluster_id": "cluster_TEST3_architecture",
+        "degree": 0,
+        "file": "TEST3/architecture/input_day.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_day",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/architecture/input_day.py",
+      "id": "TEST3/architecture/input_day.py",
+      "label": "input_day",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_architecture",
+      "data": {
+        "cluster_id": "cluster_TEST3_architecture",
+        "degree": 0,
+        "file": "TEST3/architecture/input_month.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_month",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/architecture/input_month.py",
+      "id": "TEST3/architecture/input_month.py",
+      "label": "input_month",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_architecture",
+      "data": {
+        "cluster_id": "cluster_TEST3_architecture",
+        "degree": 0,
+        "file": "TEST3/architecture/input_year.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_year",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/architecture/input_year.py",
+      "id": "TEST3/architecture/input_year.py",
+      "label": "input_year",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_architecture",
+      "data": {
+        "cluster_id": "cluster_TEST3_architecture",
+        "degree": 0,
+        "file": "TEST3/architecture/main.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/architecture/main.py",
+      "id": "TEST3/architecture/main.py",
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_architecture",
+      "data": {
+        "cluster_id": "cluster_TEST3_architecture",
+        "degree": 0,
+        "file": "TEST3/architecture/valid_day.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_day",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/architecture/valid_day.py",
+      "id": "TEST3/architecture/valid_day.py",
+      "label": "valid_day",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_architecture",
+      "data": {
+        "cluster_id": "cluster_TEST3_architecture",
+        "degree": 0,
+        "file": "TEST3/architecture/valid_month.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_month",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/architecture/valid_month.py",
+      "id": "TEST3/architecture/valid_month.py",
+      "label": "valid_month",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_architecture",
+      "data": {
+        "cluster_id": "cluster_TEST3_architecture",
+        "degree": 0,
+        "file": "TEST3/architecture/valid_year.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_year",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/architecture/valid_year.py",
+      "id": "TEST3/architecture/valid_year.py",
+      "label": "valid_year",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_architecture",
+      "data": {
+        "cluster_id": "cluster_TEST3_architecture",
+        "degree": 0,
+        "file": "TEST3/architecture/validators.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "validators",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/architecture/validators.py",
+      "id": "TEST3/architecture/validators.py",
+      "label": "validators",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "relativedelta",
+        "layer": "ai",
+        "opacity": 1,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://relativedelta",
+      "id": "relativedelta",
+      "label": "relativedelta",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/architecture.md",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/architecture.md",
+      "label": "architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/calculator.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "calculator",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/calculator.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/calculator.py",
+      "label": "calculator",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/database.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "database",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/database.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/database.py",
+      "label": "database",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/input_day.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_day",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/input_day.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/input_day.py",
+      "label": "input_day",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/input_month.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_month",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/input_month.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/input_month.py",
+      "label": "input_month",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/input_year.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_year",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/input_year.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/input_year.py",
+      "label": "input_year",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/main.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/main.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/main.py",
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/valid_day.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_day",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/valid_day.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/valid_day.py",
+      "label": "valid_day",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/valid_month.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_month",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/valid_month.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/valid_month.py",
+      "label": "valid_month",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/valid_year.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_year",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/valid_year.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/valid_year.py",
+      "label": "valid_year",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601927_4a680724",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/validators.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "validators",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/validators.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601927_4a680724/validators.py",
+      "label": "validators",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/architecture.md",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/architecture.md",
+      "label": "architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/calculator.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "calculator",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/calculator.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/calculator.py",
+      "label": "calculator",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/database.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "database",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/database.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/database.py",
+      "label": "database",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/input_day.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_day",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/input_day.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/input_day.py",
+      "label": "input_day",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/input_month.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_month",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/input_month.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/input_month.py",
+      "label": "input_month",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/input_year.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_year",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/input_year.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/input_year.py",
+      "label": "input_year",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/main.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/main.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/main.py",
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/valid_day.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_day",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/valid_day.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/valid_day.py",
+      "label": "valid_day",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/valid_month.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_month",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/valid_month.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/valid_month.py",
+      "label": "valid_month",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/valid_year.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_year",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/valid_year.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/valid_year.py",
+      "label": "valid_year",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299__axon_snapshots_v_1777601977_41932dd7",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/validators.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "validators",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/validators.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/.axon_snapshots/v_1777601977_41932dd7/validators.py",
+      "label": "validators",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/architecture.md",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/architecture.md",
+      "label": "architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/calculator.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "calculator",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/calculator.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/calculator.py",
+      "label": "calculator",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/database.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "database",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/database.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/database.py",
+      "label": "database",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/input_day.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_day",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/input_day.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/input_day.py",
+      "label": "input_day",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/input_month.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_month",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/input_month.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/input_month.py",
+      "label": "input_month",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/input_year.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_year",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/input_year.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/input_year.py",
+      "label": "input_year",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/main.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/main.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/main.py",
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/valid_day.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_day",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/valid_day.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/valid_day.py",
+      "label": "valid_day",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/valid_month.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_month",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/valid_month.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/valid_month.py",
+      "label": "valid_month",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/valid_year.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_year",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/valid_year.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/valid_year.py",
+      "label": "valid_year",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f__axon_snapshots_v_1777602176_686a9299",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/validators.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "validators",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/validators.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/.axon_snapshots/v_1777602176_686a9299/validators.py",
+      "label": "validators",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/architecture.md",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/architecture.md",
+      "label": "architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/calculator.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "calculator",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/calculator.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/calculator.py",
+      "label": "calculator",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/database.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "database",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/database.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/database.py",
+      "label": "database",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/input_day.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_day",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/input_day.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/input_day.py",
+      "label": "input_day",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/input_month.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_month",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/input_month.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/input_month.py",
+      "label": "input_month",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/input_year.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_year",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/input_year.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/input_year.py",
+      "label": "input_year",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/main.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/main.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/main.py",
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/valid_day.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_day",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/valid_day.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/valid_day.py",
+      "label": "valid_day",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/valid_month.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_month",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/valid_month.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/valid_month.py",
+      "label": "valid_month",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/valid_year.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_year",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/valid_year.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/valid_year.py",
+      "label": "valid_year",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI__axon_snapshots_v_1777602251_72e10b1f",
+        "degree": 0,
+        "file": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/validators.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "validators",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/validators.py",
+      "id": "TEST3/GEMINI/.axon_snapshots/v_1777602251_72e10b1f/validators.py",
+      "label": "validators",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI",
+        "degree": 0,
+        "file": "TEST3/GEMINI/calculator.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "calculator",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/calculator.py",
+      "id": "TEST3/GEMINI/calculator.py",
+      "label": "calculator",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI",
+        "degree": 0,
+        "file": "TEST3/GEMINI/database.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "database",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/database.py",
+      "id": "TEST3/GEMINI/database.py",
+      "label": "database",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI",
+        "degree": 0,
+        "file": "TEST3/GEMINI/input_day.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_day",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/input_day.py",
+      "id": "TEST3/GEMINI/input_day.py",
+      "label": "input_day",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI",
+        "degree": 0,
+        "file": "TEST3/GEMINI/input_month.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_month",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/input_month.py",
+      "id": "TEST3/GEMINI/input_month.py",
+      "label": "input_month",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI",
+        "degree": 0,
+        "file": "TEST3/GEMINI/input_year.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input_year",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/input_year.py",
+      "id": "TEST3/GEMINI/input_year.py",
+      "label": "input_year",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI",
+        "degree": 0,
+        "file": "TEST3/GEMINI/main.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/main.py",
+      "id": "TEST3/GEMINI/main.py",
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI",
+        "degree": 0,
+        "file": "TEST3/GEMINI/valid_day.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_day",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/valid_day.py",
+      "id": "TEST3/GEMINI/valid_day.py",
+      "label": "valid_day",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI",
+        "degree": 0,
+        "file": "TEST3/GEMINI/valid_month.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_month",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/valid_month.py",
+      "id": "TEST3/GEMINI/valid_month.py",
+      "label": "valid_month",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI",
+        "degree": 0,
+        "file": "TEST3/GEMINI/valid_year.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "valid_year",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/valid_year.py",
+      "id": "TEST3/GEMINI/valid_year.py",
+      "label": "valid_year",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
+    },
+    {
+      "cluster_id": "cluster_TEST3_GEMINI",
+      "data": {
+        "cluster_id": "cluster_TEST3_GEMINI",
+        "degree": 0,
+        "file": "TEST3/GEMINI/validators.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "validators",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "TEST3/GEMINI/validators.py",
+      "id": "TEST3/GEMINI/validators.py",
+      "label": "validators",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "file",
+      "visual": {
+        "opacity": 1,
+        "scale": 1,
+        "visible": true
+      }
     }
   ],
-  "userCount": 213,
+  "userCount": 280,
   "_iron_guard": {
     "version": "0.2.18.1",
-    "byte_size": 208213,
+    "byte_size": 268383,
     "encoding": "UTF-8",
     "alignment": 8
   }

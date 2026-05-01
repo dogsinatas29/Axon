@@ -1,13 +1,31 @@
 # AXON: The Automated Software Factory (Phase 07)
 [한국어 버전 (Korean)](README.ko.md)
 
+![AXON Architecture Concept](asset/mermaid-diagram.png)
+
 ![AXON Concept](https://raw.githubusercontent.com/dogsinatas29/Axon/master/axon%EA%B0%9C%EB%85%90.png)
 
 ## 📑 Index
 - [🧠 Core Philosophy](#-core-philosophy)
-- [⚙️ How it Works](#️-how-it-works)
+- [🏛️ System Architecture: The Physical Pipeline](#-system-architecture-the-physical-pipeline-v0023)
 - [🏗️ Architecture](#️-architecture)
 - [✨ Key Features](#-key-features)
+
+## 🏛️ System Architecture: The Physical Pipeline (v0.0.23+)
+
+![AXON Architecture Concept](asset/mermaid-diagram.png)
+
+AXON Phase 07 implements the **"Optimistic Automation, Pessimistic Intervention"** strategy:
+
+1. **Logical Approval (Axon Pass)**: Junior's proposal is validated for logical consistency.
+2. **Materialization (Physical Commit)**: Code is written to the actual project filesystem.
+3. **Physical Validation (Harness v0.1)**: Automated check for file integrity (F1/F2), entry points (F3), and side-effects (F9).
+4. **Senior Gate (Final Lock-in)**: Human/Senior Agent reviews the *actual* materialized code.
+5. **Auto-Rollback**: Any failure in step 3 or 4 triggers an immediate revert to keep the factory clean.
+
+### 👴 Senior Intervention Point
+In previous versions, the Senior acted as a logical reviewer. Now, the Senior acts as the **Final Gatekeeper** who reviews the code *after* it has been proven to run in the physical environment. If the automation fails at any physical stage, an interrupt is triggered for immediate Senior intervention.
+
 - [🖼️ Visual Overview](#️-visual-overview)
 - [🔬 Error Diagnostics & Recovery](#-error-diagnostics--recovery)
 - [🏛️ Senior Review Protocol](#-senior-review-protocol)
@@ -258,4 +276,6 @@ cargo build --release
 - **Orchestration Hardening**: Fixed an "Early Return" bug in the daemon that bypassed Senior Review. Promotion now strictly occurs ONLY after Senior/Architect approval.
 - **Architect Sampling Normalization**: Corrected the probabilistic bypass logic to ensure high-fidelity spot checks are triggered correctly based on `sampling_rate`.
 - **JSON Auto-Repair (Double-Double Quotes)**: Added autonomous correction for common small-model syntax errors like `": ""` and nested braces, ensuring 100% parsing reliability.
+- **Toolchain Hardening (v0.0.22)**: Hardened `axon_patch_simulator.py` and `axon_ir_validator.py` to fail immediately on JSON parse errors, preventing "Silent Stub Promotion".
+- **Physical Verification Audit**: Identified stub-only generation in `TEST3/GEMINI` and patched toolchain to guarantee real logic materialization.
 - **GTX 1050 Ti Optimization**: Tailored GPU offloading for Qwen 2.5 7B to run stably on 4GB VRAM.

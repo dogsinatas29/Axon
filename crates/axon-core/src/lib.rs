@@ -163,6 +163,12 @@ pub struct Event {
 
 pub mod protocol;
 pub mod ir;
+pub mod ir_change;
+pub mod patch;
+pub mod spec;
+pub mod transformer;
+pub mod validator;
+pub mod rules;
 
 pub mod events {
     use super::Event;

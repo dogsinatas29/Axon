@@ -86,14 +86,39 @@ def validate_runtime_environment():
         # We don't return False anymore, let it try to run and fail naturally if needed
     return True, None
 
+def verify_file_integrity(target_dir: str, expected_files: list):
+    """F1, F2: Checks if files exist, are not empty, and are valid UTF-8."""
+    errors = []
+    for fname in expected_files:
+        fpath = os.path.join(target_dir, fname)
+        # F1: Exist check
+        if not os.path.exists(fpath):
+            errors.append(f"F1: Missing expected file '{fname}' after materialization.")
+            continue
+        
+        # F2: Integrity check
+        try:
+            size = os.path.getsize(fpath)
+            if size == 0:
+                errors.append(f"F2: File '{fname}' is empty (0 bytes).")
+            
+            with open(fpath, 'r', encoding='utf-8') as f:
+                f.read() # Try reading to verify UTF-8
+        except UnicodeDecodeError:
+            errors.append(f"F2: File '{fname}' contains invalid UTF-8 encoding.")
+        except Exception as e:
+            errors.append(f"F2: Integrity error on '{fname}': {e}")
+            
+    return errors
+
 def execution_harness(project_root: str, file_map: dict, entry_point: str = "main.py"):
     """
     1. Validate runtime environment
     2. Snapshot existing files
     3. Sandbox run in temp directory
-    4. If success, commit to project_root
+    4. F1~F10 Physical Checklist Validation
     """
-    # 0. Runtime Check
+    # 0. Runtime Check (F5)
     env_ok, env_err = validate_runtime_environment()
     if not env_ok:
         return False, env_err
@@ -101,17 +126,17 @@ def execution_harness(project_root: str, file_map: dict, entry_point: str = "mai
     # 1. Sandbox run
     with tempfile.TemporaryDirectory() as tmp_dir:
         # Prepare sandbox
-        # Copy existing files first to simulate full project
         if os.path.exists(project_root):
             for root, dirs, files in os.walk(project_root):
                 rel_path = os.path.relpath(root, project_root)
-                if rel_path == ".":
-                    rel_path = ""
+                if rel_path == ".": rel_path = ""
                 
                 target_dir = os.path.join(tmp_dir, rel_path)
                 os.makedirs(target_dir, exist_ok=True)
                 
                 for f in files:
+                    # Filter out temporary files
+                    if f.startswith(".harness_") or f.startswith(".state_"): continue
                     shutil.copy2(os.path.join(root, f), os.path.join(target_dir, f))
 
         # Apply new/modified files to sandbox
@@ -121,20 +146,43 @@ def execution_harness(project_root: str, file_map: dict, entry_point: str = "mai
             with open(fpath, "w", encoding="utf-8") as f:
                 f.write(code)
 
-        # Execute
+        # F1~F2: Physical Integrity Audit
+        if file_map: # Only if we have new files to check
+            integrity_errors = verify_file_integrity(tmp_dir, list(file_map.keys()))
+            if integrity_errors:
+                return False, "\n".join(integrity_errors)
+
+        # F3: Entry Point Validation
         entry_path = os.path.join(tmp_dir, entry_point)
         if not os.path.exists(entry_path):
-            return False, f"CRITICAL: Entry point '{entry_point}' is missing. Every project MUST have an executable entry point."
+            return False, f"F3: Entry point '{entry_point}' is missing or path is incorrect."
             
-        # Check if file is empty
         if os.path.getsize(entry_path) < 10:
-             return False, f"CRITICAL: Entry point '{entry_point}' is empty or too small to be functional."
+             return False, f"F3: Entry point '{entry_point}' is non-functional (too small)."
 
+        # F9: Side-Effect Monitoring (Pre-scan)
+        pre_files = set()
+        for root, _, files in os.walk(tmp_dir):
+            for f in files:
+                pre_files.add(os.path.relpath(os.path.join(root, f), tmp_dir))
+
+        # F6: Runtime Execution
         result = run_code(entry_path)
         is_ok, err_msg = basic_test(result)
         
         if not is_ok:
-            return False, f"Runtime Error in {entry_point}:\n{err_msg}"
+            return False, f"F6: Runtime Crash in {entry_point}:\n{err_msg}"
+
+        # F9: Side-Effect Monitoring (Post-scan)
+        post_files = set()
+        for root, _, files in os.walk(tmp_dir):
+            for f in files:
+                post_files.add(os.path.relpath(os.path.join(root, f), tmp_dir))
+        
+        new_files = post_files - pre_files
+        if new_files:
+            # v0.1: Warning for side-effect drift
+            print(f"⚠️ [F9] Side-effect detected: {', '.join(new_files)} created during execution.", file=sys.stderr)
             
         return True, result.get("stdout", "")
 

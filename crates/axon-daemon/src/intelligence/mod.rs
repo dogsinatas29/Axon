@@ -1,0 +1,14 @@
+pub mod rule_registry;
+pub mod rule_engine;
+pub mod promotion;
+pub mod selection;
+pub mod global_registry;
+pub mod decision;
+pub mod staging;
+pub mod commit;
+pub mod writer;
+pub mod priority;
+pub mod ir_diff;
+pub mod pipeline;
+pub mod constraint_meta;
+pub mod orchestrator;

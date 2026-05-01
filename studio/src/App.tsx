@@ -126,7 +126,7 @@ const App: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <Activity color={isRunning ? 'var(--status-running)' : 'var(--status-hold)'} className={isRunning ? 'animate-pulse' : ''} />
           <h1 style={{ fontFamily: 'Orbitron', fontSize: '1.2rem', letterSpacing: '2px' }}>
-            AXON <span style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>WORKSPACE: {projectId} / v0.1.0 [Control Tower]</span>
+            AXON <span style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>WORKSPACE: {projectId} [Control Tower]</span>
           </h1>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>

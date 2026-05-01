@@ -105,9 +105,9 @@ def simulate_state(project_root: str, junior_output_json: str):
     try:
         data = json.loads(raw_json)
     except Exception as e:
-        # If parsing fails, we still return the existing files but mark the error
-        results["error"] = f"JSON Parse Error: {e}. Raw: {raw_json[:100]}..."
-        return results
+        # v0.0.22: Hard Fail on parse error
+        print(f"ERROR: JSON Parse Error: {e}. Raw: {raw_json[:100]}...", file=sys.stderr)
+        sys.exit(1)
         
     if not isinstance(data, list):
         data = [data] # Handle single object or list
@@ -124,14 +124,23 @@ def simulate_state(project_root: str, junior_output_json: str):
         op_type = item.get("type", "rewrite")
         
         if op_type == "rewrite":
-            results[target] = item.get("code", "")
+            new_code = item.get("code", "")
+            # v0.0.23: Stub Detection - Eradicate "AXON STUB"
+            if "AXON STUB" in new_code:
+                results[f"error_{target}"] = f"ERROR: Proposed code for {target} still contains AXON STUB marker. You must completely replace the stub with actual implementation."
+            else:
+                results[target] = new_code
         elif op_type == "patch":
             diff = item.get("diff", "")
             new_code = apply_diff(base_code, diff)
             if new_code.startswith("ERROR:"):
                 results[f"error_{target}"] = new_code
             else:
-                results[target] = new_code
+                # v0.0.23: Stub Detection - Eradicate "AXON STUB" in patched results
+                if "AXON STUB" in new_code:
+                    results[f"error_{target}"] = f"ERROR: After patch, {target} still contains AXON STUB marker. Patches must remove the stub prefix."
+                else:
+                    results[target] = new_code
                 
     return results
 

@@ -18,6 +18,7 @@
 
 pub mod persona;
 pub mod lounge;
+pub mod composer;
 
 use axon_core::{Agent, Post, PostType, AgentRole, Task};
 use axon_model::{ModelDriver, ModelResponse};
@@ -264,19 +265,30 @@ impl AgentRuntime {
 
         let system_prompt = format!(
             "### AI JUNIOR AGENT: {} ###\n\
-             ROLE: Implement the task below using the provided guide.\n\
+             ROLE: Implement the task below using AXON Patch Protocol v2.\n\
              LANG: {}\n\n\
              {}\n\n\
-             ### ARCHITECTURE GUIDE ###\n\
+             ### ARCHITECTURE GUIDE (IR Single Source of Truth) ###\n\
              {}\n\n\
+             ### IR CONTRACT ENFORCEMENT ###\n\
+             - Your code will be validated against the symbols defined in architecture.md.\n\
+             - You MUST implement ALL required functions for the target file.\n\
+             - DO NOT add extra functions or drift from the defined signatures.\n\n\
              ### TASK ###\n\
              TITLE: {}\n\
              DESC: {}\n\n\
-             ### OUTPUT RULE (STRICT) ###\n\
-             1. YOU MUST OUTPUT A VALID JSON ARRAY ONLY.\n\
-             2. NO EXPLANATORY TEXT. NO MARKDOWN OUTSIDE THE JSON.\n\
-             3. FORMAT: [{{ \"target\": \"filename\", \"type\": \"rewrite\", \"code\": \"...\" }}]\n\
-             4. Ensure the 'code' field contains the full source code for the file.",
+             ### OUTPUT RULE: AXON Patch Protocol v2 (STRICT) ###\n\
+             1. YOU MUST OUTPUT ONLY IN THE FOLLOWING FORMAT:\n\n\
+             ===AXON_PATCH_START===\n\n\
+             FILE: <relative_path>\n\
+             ACTION: <rewrite|append|delete>\n\n\
+             ---CODE START---\n\
+             <RAW CODE (no escaping)>\n\
+             ---CODE END---\n\n\
+             ===AXON_PATCH_END===\n\n\
+             2. NO JSON. NO EXPLANATIONS. NO MARKDOWN.\n\
+             3. USE VALID PYTHON SYNTAX ONLY. NO JAVASCRIPT.\n\
+             4. MULTI-FILE SUPPORT: You can repeat the FILE/ACTION/CODE block within the START/END markers.",
             self.agent.persona.name, lang_name, feedback_block, short_guide, task.title, task.description
         );
 
@@ -290,20 +302,33 @@ impl AgentRuntime {
             return Err(anyhow::anyhow!("Ollama produced empty response. Check context limits."));
         }
 
-        let clean_json = match extract_json(&resp.text) {
-            Some(j) => {
-                // v0.0.22: Auto-repair common small-model syntax errors
-                let repaired = j.replace(",,", ",")
-                                .replace("}}", "}")
-                                .replace("True", "true")
-                                .replace("False", "false")
-                                .replace("\": \"\"", "\": \""); // Fix double-double quotes
-                repaired
+        // PHASE 09: AXON Patch Protocol v2 Pipeline
+        let repaired_text = auto_repair_v2(&resp.text);
+        
+        let full_code = match extract_axon_patch_v2(&repaired_text) {
+            Some(patch) => {
+                // For backward compatibility with Stage 6 validators that expect the [ { target, type, code } ] JSON
+                let json_legacy = serde_json::json!(patch.files.iter().map(|f| {
+                    serde_json::json!({
+                        "target": f.path,
+                        "type": match f.action {
+                            axon_core::patch::PatchAction::Rewrite => "rewrite",
+                            axon_core::patch::PatchAction::Append => "append",
+                            axon_core::patch::PatchAction::Delete => "delete",
+                        },
+                        "code": f.code
+                    })
+                }).collect::<Vec<_>>());
+                Some(json_legacy.to_string())
             },
-            None => return Err(anyhow::anyhow!("Failed to find valid JSON in Junior response. Raw: {}", resp.text)),
+            None => {
+                tracing::warn!("❌ [PARSER FAIL] Failed to parse AXON Patch v2. Attempting legacy JSON extraction...");
+                match extract_json(&repaired_text) {
+                    Some(j) => Some(j),
+                    None => return Err(anyhow::anyhow!("Failed to parse AXON Patch v2 or Legacy JSON. Raw: {}", resp.text)),
+                }
+            }
         };
-
-        let full_code = Some(clean_json.clone());
 
         Ok(Post {
             id: uuid::Uuid::new_v4().to_string(),
@@ -321,7 +346,7 @@ impl AgentRuntime {
         })
     }
 
-    pub async fn generate_ir(&self, spec: &str, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::ir::IR> {
+    pub async fn generate_ir(&self, spec: &str, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::ir::ProjectIR> {
         // v0.0.22: Token Overflow Protection (Simple Truncate for 1.8B models)
         let model_name = self.agent.model.to_lowercase();
         let is_small = model_name.contains("qwen") || model_name.contains("1.8b") || model_name.contains("2b");
@@ -334,28 +359,45 @@ impl AgentRuntime {
         };
 
         let system_prompt = format!(
-            "### SOURCE SPECIFICATION ###\n\
+            "You are generating a deterministic architecture specification for AXON.\n\
+             Your output MUST follow these rules exactly.\n\n\
+             ### SOURCE SPECIFICATION ###\n\
              {}\n\n\
-             ### TASK ###\n\
-             Based on the specification above, define the system architecture in the following JSON IR format.\n\
-             STRICT RULES:\n\
-             1. ONLY output the JSON object. NO talk.\n\
-             2. Use lowercase 'true'/'false'.\n\
-             3. Do NOT use Python comments (#).\n\
-             4. The root key MUST be \"files\".\n\n\
-             ### EXPECTED OUTPUT FORMAT ###\n\
+             ### OUTPUT STRUCTURE ###\n\
+             You MUST output:\n\
+             1. Human-readable Markdown (Components + Functions)\n\
+             2. A machine-readable JSON block (AXON:SPEC)\n\n\
+             ### CRITICAL RULES ###\n\
+             1. JSON is the Single Source of Truth (SSOT)\n\
+                - The JSON block defines the exact system structure.\n\
+                - Markdown MUST match JSON exactly.\n\
+                - Do NOT add anything outside JSON.\n\
+             2. Function Signature Rules (STRICT)\n\
+                - Format: function_name(arg1,arg2)\n\
+                - NO type hints, NO default values, NO extra spaces.\n\
+                - MUST match exactly between Markdown and JSON.\n\
+             3. JSON Schema (STRICT)\n\
+                - Root key MUST be \"components\".\n\
+                - Each component MUST have \"name\", \"file\", and \"functions\".\n\
+                - Each function MUST have \"name\" and \"signature\".\n\
+             4. Deterministic Ordering\n\
+                - Sort components alphabetically.\n\
+                - Sort functions alphabetically.\n\
+             5. NO extra explanations or conversational text.\n\n\
+             ### EXPECTED JSON SCHEMA ###\n\
              {{\n\
-               \"files\": [\n\
+               \"components\": [\n\
                  {{\n\
-                   \"name\": \"example.rs\",\n\
-                   \"responsibility\": \"Example role\",\n\
+                   \"name\": \"database\",\n\
+                   \"file\": \"database.py\",\n\
                    \"functions\": [\n\
-                     {{ \"name\": \"example_func\", \"args\": [], \"returns\": \"()\" }}\n\
+                     {{ \"name\": \"init_db\", \"signature\": \"init_db()\" }},\n\
+                     {{ \"name\": \"save_user\", \"signature\": \"save_user(id,data)\" }}\n\
                    ]\n\
                  }}\n\
                ]\n\
              }}\n\n\
-             Generate the JSON IR starting with '{{ \"files\": ' now:",
+             Generate the architecture now:",
             processed_spec
         );
 
@@ -383,12 +425,12 @@ impl AgentRuntime {
             }
         };
 
-        let ir: axon_core::ir::IR = serde_json::from_str(&clean_json)
+        let ir = parse_ir_from_llm_json(&clean_json)
             .map_err(|e| anyhow::anyhow!("JSON Parse Error: {} | Raw: {}", e, clean_json))?;
         Ok(ir)
     }
 
-    pub async fn repair_ir(&self, ir: &axon_core::ir::IR, errors: &[axon_core::ir::ValidationError], event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::ir::IR> {
+    pub async fn repair_ir(&self, ir: &axon_core::ir::ProjectIR, errors: &[String], event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::ir::ProjectIR> {
         let system_prompt = format!(
             "### TASK: REPAIR JSON IR ###\n\
              STRICT RULE: RETURN ONLY THE FIXED JSON OBJECT. NO EXPLANATIONS.\n\n\
@@ -402,7 +444,7 @@ impl AgentRuntime {
              {}\n\n\
              FINAL REMINDER: RETURN ONLY VALID JSON.",
             serde_json::to_string_pretty(ir).unwrap(),
-            serde_json::to_string_pretty(errors).unwrap()
+            errors.join("\n")
         );
 
         let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), None).await?;
@@ -415,12 +457,12 @@ impl AgentRuntime {
         let clean_json = extract_json(raw_text)
             .ok_or_else(|| anyhow::anyhow!("Failed to find JSON object in LLM response during repair: {}", raw_text))?;
 
-        let ir: axon_core::ir::IR = serde_json::from_str(&clean_json)
+        let ir: axon_core::ir::ProjectIR = serde_json::from_str(&clean_json)
             .map_err(|e| anyhow::anyhow!("JSON Parse Error during repair: {} | Raw: {}", e, clean_json))?;
         Ok(ir)
     }
 
-    pub async fn generate_architecture_from_ir(&self, ir: &axon_core::ir::IR, _event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<String> {
+    pub async fn generate_architecture_from_ir(&self, ir: &axon_core::ir::ProjectIR, _event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<String> {
         tracing::info!("🛠️ Generating deterministic architecture from IR...");
         
         let mut md = String::new();
@@ -430,21 +472,38 @@ impl AgentRuntime {
         md.push_str("## Components\n");
         let mut components_json = serde_json::json!({ "components": [] });
         
-        for file in &ir.files {
-            md.push_str(&format!("### {}\n", file.name));
-            md.push_str(&format!("- **Responsibility**: {}\n", file.responsibility));
+        // Sort components alphabetically for determinism
+        let mut comp_names: Vec<_> = ir.components.keys().collect();
+        comp_names.sort();
+
+        for name in comp_names {
+            let comp = &ir.components[name];
+            md.push_str(&format!("### Component: {}\n", comp.name));
+            md.push_str(&format!("- **File**: {}\n", comp.file_path));
             md.push_str("- **Functions**:\n");
-            for func in &file.functions {
-                md.push_str(&format!("  - `{}({})` -> `{}`\n", func.name, func.args.join(", "), func.returns));
+            
+            // Sort functions alphabetically
+            let mut func_names: Vec<_> = comp.functions.keys().collect();
+            func_names.sort();
+
+            let mut json_functions = Vec::new();
+            for f_name in func_names {
+                let func = &comp.functions[f_name];
+                md.push_str(&format!("  - {}\n", func.signature));
+                
+                json_functions.push(serde_json::json!({
+                    "name": func.name,
+                    "signature": func.signature
+                }));
             }
             md.push_str("\n");
             
             // Build the mandatory marker data
             components_json["components"].as_array_mut().unwrap().push(serde_json::json!({
-                "name": file.name.split('.').next().unwrap_or("Module"),
-                "file": file.name,
-                "symbols": file.functions.iter().map(|f| f.name.clone()).collect::<Vec<_>>(),
-                "type": if file.name.contains("main") { "entry" } else { "module" }
+                "name": comp.name,
+                "file": comp.file_path,
+                "functions": json_functions,
+                "type": if comp.name.contains("main") { "entry" } else { "module" }
             }));
         }
         
@@ -920,11 +979,11 @@ impl AgentRuntime {
              {}\n\
              {}\n\n\
              --- 검토 규격 ---\n\
-             1. 출력 규약 검증 (CRITICAL): 주니어의 제안이 유효한 JSON 배열 형식을 따르고 있는지 확인하십시오. 이 형식이 아니면 **무조건 REJECT** 하십시오.\n\
+             1. 출력 규약 검증 (CRITICAL): 주니어의 제안이 유효한 JSON 배열 형식 또는 새로운 Raw Code Tag 포맷(# TARGET, ---CODE START---)을 따르고 있는지 확인하십시오. 형식이 파괴되었거나 태그가 누락되었다면 **무조건 REJECT** 하십시오.\n\
              2. 코드 및 의존성 검증: 코드가 완성된 상태인지, 실행 가능한지, 환각 라이브러리(SovereignProtocol 등)가 없는지 확인하십시오.\n\
              3. 생각(<analysis>) 과정은 생략하십시오.\n\
              4. 마지막에 반드시 'APPROVE' 또는 'REJECT'를 명시하십시오.\n\
-             5. 반려(REJECT) 시에는 짧고 명확한 사유와 수정 힌트(FIX_HINT)를 한국어로 적으십시오.",
+             5. 반려(REJECT) 시에는 짧고 명확한 사유와 수정 힌트(FIX_HINT)를 한국어로 적으십시오. (예: ---CODE START--- 태그가 누락되었습니다.)",
             self.agent.persona.name,
             lang_name,
             task.title,
@@ -997,17 +1056,117 @@ impl AgentRuntime {
     }
 }
 
-/// v0.0.22: Robust JSON Extraction Helper
+/// Parses LLM JSON output into a ProjectIR.
+/// Handles both formats LLMs produce:
+///   - `"components": [{ "name": "foo", "file": "foo.py", "functions": [...] }]` (array — common)
+///   - `"components": { "foo": { ... } }` (hashmap — strict)
+fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR> {
+    use std::collections::{HashMap, HashSet};
+    use axon_core::ir::{Component, Function};
+
+    #[derive(serde::Deserialize)]
+    struct RawFunction {
+        name: String,
+        #[serde(default)]
+        signature: String,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct RawComponent {
+        name: String,
+        #[serde(default)]
+        file: String,
+        #[serde(alias = "functions", default)]
+        functions: Vec<RawFunction>,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct RawIR {
+        components: Vec<RawComponent>,
+    }
+
+    let raw: RawIR = serde_json::from_str(json)?;
+
+    let mut components = HashMap::new();
+    for c in raw.components {
+        let mut functions = HashMap::new();
+        for f in c.functions {
+            let sig = if f.signature.is_empty() {
+                format!("{}()", f.name)
+            } else {
+                f.signature.clone()
+            };
+            functions.insert(f.name.clone(), Function {
+                name: f.name.clone(),
+                signature: sig,
+                dependencies: HashSet::new(),
+                body_hash: None,
+            });
+        }
+        let file = if c.file.is_empty() {
+            format!("{}.py", c.name)
+        } else {
+            c.file.clone()
+        };
+        components.insert(c.name.clone(), Component {
+            name: c.name,
+            file_path: file,
+            functions,
+            imports: HashSet::new(),
+        });
+    }
+
+    Ok(axon_core::ir::ProjectIR {
+        components,
+        constraints: Vec::new(),
+        constraint_ids: std::collections::HashSet::new(),
+    })
+}
+
+/// v0.0.22: Universal JSON Extraction Helper (Supports { } and [ ])
 fn extract_json(raw: &str) -> Option<String> {
-    let start = raw.find('{')?;
+    let bytes = raw.as_bytes();
+
+    // Find the first real JSON array start '[' — must be followed by '{', '"', digit, '[', or whitespace.
+    // This filters out GitHub-style markdown alerts like [!NOTE], [!TIP], etc.
+    let start_obj = raw.find('{');
+    let start_arr = {
+        let mut found = None;
+        let mut pos = 0;
+        while pos < bytes.len() {
+            if bytes[pos] == b'[' {
+                let next = bytes.get(pos + 1).copied().unwrap_or(0);
+                // Valid JSON array start: '[' followed by '{', '"', '[', digit, space, or ']' (empty)
+                if matches!(next, b'{' | b'"' | b'[' | b']' | b'\n' | b'\r' | b' ' | b'0'..=b'9') {
+                    found = Some(pos);
+                    break;
+                }
+                // Skip markdown alert: [!NOTE], [!TIP], [!WARNING], [!CAUTION], [!IMPORTANT]
+            }
+            pos += 1;
+        }
+        found
+    };
+    
+    let (start, open_char, close_char) = match (start_obj, start_arr) {
+        (Some(i), Some(j)) if i < j => (i, b'{', b'}'),
+        (Some(i), Some(j)) if j < i => (j, b'[', b']'),
+        (Some(i), None) => (i, b'{', b'}'),
+        (None, Some(j)) => (j, b'[', b']'),
+        _ => {
+            tracing::warn!("⚠️ No '{{' or '[' found in LLM response.");
+            return None;
+        }
+    };
+    
     let mut count = 0;
     let mut end = None;
     let bytes = raw.as_bytes();
 
     for i in start..bytes.len() {
-        if bytes[i] == b'{' {
+        if bytes[i] == open_char {
             count += 1;
-        } else if bytes[i] == b'}' {
+        } else if bytes[i] == close_char {
             count -= 1;
             if count == 0 {
                 end = Some(i);
@@ -1016,7 +1175,222 @@ fn extract_json(raw: &str) -> Option<String> {
         }
     }
 
-    let end_idx = end?;
-    Some(raw[start..=end_idx].to_string())
+    match end {
+        Some(end_idx) => Some(raw[start..=end_idx].to_string()),
+        None => {
+            // v0.0.22 Self-Healing: Try to balance the JSON if it was truncated
+            if count > 0 {
+                tracing::warn!("⚠️ Unbalanced JSON detected (char='{}', count={}). Attempting auto-repair...", open_char as char, count);
+                let mut repaired = raw[start..].to_string();
+                for _ in 0..count {
+                    repaired.push(close_char as char);
+                }
+                // Double check if it parses now
+                if serde_json::from_str::<serde_json::Value>(&repaired).is_ok() {
+                    tracing::info!("✅ Auto-balanced JSON successfully.");
+                    return Some(repaired);
+                }
+            }
+            None
+        }
+    }
 }
+
+/// AXON Patch Protocol v2: Deterministic FSM Parser
+fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
+    #[derive(PartialEq)]
+    enum State { Idle, InPatch, InFile, InCode }
+    
+    let mut state = State::Idle;
+    let mut current_file: Option<axon_core::patch::FilePatch> = None;
+    let mut patch = axon_core::patch::Patch::new();
+
+    for line in input.lines() {
+        let line_trimmed = line.trim();
+        
+        match state {
+            State::Idle => {
+                if line_trimmed == "===AXON_PATCH_START===" {
+                    state = State::InPatch;
+                }
+            }
+            State::InPatch => {
+                if line_trimmed == "===AXON_PATCH_END===" {
+                    state = State::Idle;
+                } else if line_trimmed.starts_with("FILE:") {
+                    let path = line_trimmed[5..].trim().to_string();
+                    current_file = Some(axon_core::patch::FilePatch {
+                        path,
+                        action: axon_core::patch::PatchAction::Rewrite,
+                        code: String::new(),
+                    });
+                    state = State::InFile;
+                }
+            }
+            State::InFile => {
+                if line_trimmed.starts_with("ACTION:") {
+                    let action_str = line_trimmed[7..].trim().to_lowercase();
+                    if let Some(ref mut f) = current_file {
+                        f.action = match action_str.as_str() {
+                            "append" => axon_core::patch::PatchAction::Append,
+                            "delete" => axon_core::patch::PatchAction::Delete,
+                            _ => axon_core::patch::PatchAction::Rewrite,
+                        };
+                    }
+                } else if line_trimmed == "---CODE START---" {
+                    state = State::InCode;
+                } else if line_trimmed == "===AXON_PATCH_END===" {
+                    // Level 1.5: Sudden end after metadata
+                    if let Some(f) = current_file.take() {
+                        patch.files.push(f);
+                    }
+                    state = State::Idle;
+                }
+            }
+            State::InCode => {
+                if line_trimmed == "---CODE END---" {
+                    if let Some(f) = current_file.take() {
+                        patch.files.push(f);
+                    }
+                    state = State::InPatch;
+                } else {
+                    if let Some(ref mut f) = current_file {
+                        f.code.push_str(line);
+                        f.code.push('\n');
+                    }
+                }
+            }
+        }
+    }
+    
+    // Level 1.2: EOF recovery
+    if state == State::InCode {
+        if let Some(f) = current_file.take() {
+            patch.files.push(f);
+        }
+    }
+    
+    if patch.files.is_empty() { None } else { Some(patch) }
+}
+
+fn auto_repair_v2(input: &str) -> String {
+    let lines: Vec<String> = input.lines().map(|l| l.to_string()).collect();
+    let mut repaired = Vec::new();
+
+    // --- Level 1: Safe Fixes ---
+    // 1. Ensure Start/End Markers
+    let has_start = lines.iter().any(|l| l.trim() == "===AXON_PATCH_START===");
+    let has_end = lines.iter().any(|l| l.trim() == "===AXON_PATCH_END===");
+    
+    if !has_start {
+        repaired.push("===AXON_PATCH_START===".to_string());
+    }
+
+    let mut in_file_spec = false;
+    let mut in_code_block = false;
+
+    for line in lines {
+        let trimmed = line.trim();
+        
+        // Level 2: Language Pollution Removal
+        if trimmed == "\"use strict\";" || trimmed == "'use strict';" || trimmed.starts_with("export default") {
+            continue;
+        }
+
+        if trimmed.starts_with("FILE:") {
+            if in_code_block {
+                repaired.push("---CODE END---".to_string());
+                in_code_block = false;
+            }
+            in_file_spec = true;
+            repaired.push(line);
+            continue;
+        }
+
+        if trimmed.starts_with("ACTION:") {
+            repaired.push(line);
+            continue;
+        }
+
+        if trimmed == "---CODE START---" {
+            in_code_block = true;
+            in_file_spec = false;
+            repaired.push(line);
+            continue;
+        }
+
+        if trimmed == "---CODE END---" {
+            in_code_block = false;
+            repaired.push(line);
+            continue;
+        }
+
+        // Level 1.5: Missing ---CODE START--- after FILE
+        if in_file_spec && !trimmed.is_empty() && !trimmed.starts_with("ACTION:") {
+            repaired.push("---CODE START---".to_string());
+            in_code_block = true;
+            in_file_spec = false;
+        }
+
+        repaired.push(line);
+    }
+
+    if in_code_block {
+        repaired.push("---CODE END---".to_string());
+    }
+    if !has_end {
+        repaired.push("===AXON_PATCH_END===".to_string());
+    }
+
+    let mut output = repaired.join("\n");
+
+    // Level 2.2: Escape Recovery
+    output = output.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\");
+
+    // Level 3: Aggressive Recovery (No structure at all)
+    if !output.contains("FILE:") && (output.contains("def ") || output.contains("import ")) {
+        output = format!(
+            "===AXON_PATCH_START===\nFILE: unknown_recovery.py\nACTION: rewrite\n---CODE START---\n{}\n---CODE END---\n===AXON_PATCH_END===",
+            output
+        );
+    }
+
+    output
+}
+
+/// v0.0.23: Legacy Raw Code Tagging Parser (Kept for fallback)
+#[allow(dead_code)]
+fn extract_raw_code_as_json(raw: &str) -> Option<String> {
+    let mut target = "unknown";
+    let mut patch_type = "rewrite";
+    
+    for line in raw.lines() {
+        let line_trimmed = line.trim();
+        if line_trimmed.to_uppercase().starts_with("# TARGET:") {
+            target = line_trimmed[9..].trim();
+        } else if line_trimmed.to_uppercase().starts_with("# TYPE:") {
+            patch_type = line_trimmed[7..].trim();
+        }
+        if line_trimmed.contains("---CODE START---") {
+            break;
+        }
+    }
+
+    let start_tag = "---CODE START---";
+    let end_tag = "---CODE END---";
+    
+    let start_idx = raw.find(start_tag)? + start_tag.len();
+    let end_idx = raw.find(end_tag)?;
+    
+    let code = raw[start_idx..end_idx].trim();
+    
+    let patch = serde_json::json!([{
+        "target": target,
+        "type": patch_type,
+        "code": code
+    }]);
+    
+    Some(patch.to_string())
+}
+
 

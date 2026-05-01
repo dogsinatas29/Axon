@@ -1,14 +1,20 @@
-# AXON: The Automated Software Factory (Phase 07)
+<p align="center">
+  <h1 align="center">AXON: The Automated Software Factory (Phase 07)</h1>
+  <p align="center"><b>Spec-driven AI orchestration engine for verified code generation.</b></p>
+</p>
 
 [![English](https://img.shields.io/badge/lang-English-blue.svg)](#)
 [![한국어](https://img.shields.io/badge/lang-한국어-red.svg)](README.ko.md)
 
 **[한국어 버전 (Korean Version)](README.ko.md)**
 
-## 📺 AXON System Demo (Phase 07)
-[![AXON Demo Video](https://img.youtube.com/vi/gmUdrVNKrPg/0.jpg)](https://youtu.be/gmUdrVNKrPg)
-> [!TIP]
-> **Recommended: Watch at 2.0x speed** (This video is long; 2.0x playback speed is recommended for the best experience).
+<p align="center">
+  <a href="https://youtu.be/gmUdrVNKrPg">
+    <img src="https://img.youtube.com/vi/gmUdrVNKrPg/0.jpg" alt="AXON Demo Video" width="600">
+  </a>
+  <br>
+  <b>Recommended: Watch at 2.0x speed</b>
+</p>
 
 ### Spec-to-Code Orchestration Engine with Verifiable Output
 AXON can automatically generate verifiable code and structures from simple CLI tools to complex systems based solely on specifications (Spec).
@@ -16,7 +22,9 @@ Axon creates code that satisfies constraints through Architect→Junior→Senior
 Users can manually verify the proposal, review, and approval process of each stage, ensuring only trustworthy results are deployed.
 **[Source Specification (spec.md)](./spec.md)**
 
-![AXON Concept](./asset/axon개념.png)
+<p align="center">
+  <img src="./asset/axon개념.png" alt="AXON Concept" width="800">
+</p>
 
 AXON is a high-performance, deterministic AI agent factory designed to transform architectural specifications into production-ready code with 100% physical integrity.
 
@@ -41,7 +49,9 @@ AXON treats coding not as a creative writing task, but as a **Deterministic Mate
 
 ## 🏛️ System Architecture: The Physical Pipeline (v0.0.23+)
 
-![AXON Architecture Concept](./asset/mermaid-diagram.png)
+<p align="center">
+  <img src="./asset/mermaid-diagram.png" alt="AXON Architecture Concept" width="800">
+</p>
 *Figure 1. The Deterministic Physical Pipeline: A 5-stage enforcement loop ensuring code integrity. It bridges the gap between logical LLM reasoning and physical filesystem reality with a mandatory Senior Gate and Auto-Rollback safety net.*
 
 AXON Phase 07 implements the **"Optimistic Automation, Pessimistic Intervention"** strategy:
@@ -58,10 +68,14 @@ The Senior now acts as the **Final Gatekeeper**. They review the code *after* it
 ---
 
 ## 🖥️ Studio UI & Monitoring
-![Dashboard](./asset/dashboard.png)
+<p align="center">
+  <img src="./asset/dashboard.png" alt="Dashboard" width="800">
+</p>
 *Figure 2. AXON Studio Dashboard: A high-fidelity control panel monitoring multi-worker throughput. It tracks real-time agent metrics, including latency, success rates, and the evolution of the Intermediate Representation (IR) across multiple project lines.*
 
-![Daemon Status](./asset/daemon.png)
+<p align="center">
+  <img src="./asset/daemon.png" alt="Daemon Status" width="800">
+</p>
 *Figure 3. Internal Daemon Logs: Transparent tracking of the AXP (Axon Protocol) byte-stream. This view provides a low-level window into the adversarial debates between Senior and Junior agents, ensuring every decision is logged and traceable.*
 
 ---
@@ -86,7 +100,9 @@ The Senior now acts as the **Final Gatekeeper**. They review the code *after* it
 ---
 
 ## 🔬 Error Diagnostics & Recovery (Stage 5 & 8)
-![Error Details](./asset/details.png)
+<p align="center">
+  <img src="./asset/details.png" alt="Error Details" width="800">
+</p>
 *Figure 4. Physical Validation Deep-Dive: When a build or test fails, AXON captures the exact stack trace and file-system diff. This "Evidence-based Feedback" is automatically injected into the agent's context, triggering a self-correction cycle to resolve runtime bugs without human intervention.*
 
 AXON uses a **Feedback-Driven Correction** mechanism to handle runtime and logic errors:
@@ -119,7 +135,9 @@ A dedicated space (`nogari.md`) where agents record their non-technical thoughts
 
 ## 🛠️ Getting Started
 
-![Setup](./asset/setup.png)
+<p align="center">
+  <img src="./asset/setup.png" alt="Setup" width="800">
+</p>
 *Figure 5. Bootstrap Sequence: Initializing the factory environment. This stage synchronizes locale settings and maps the unstructured source specification into a strictly typed Architectural IR, establishing the project's Single Source of Truth.*
 
 ```bash

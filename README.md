@@ -3,6 +3,8 @@
 [![English](https://img.shields.io/badge/lang-English-blue.svg)](#)
 [![한국어](https://img.shields.io/badge/lang-한국어-red.svg)](README.ko.md)
 
+**[한국어 버전 (Korean Version)](README.ko.md)**
+
 ## 📺 AXON System Demo (Phase 07)
 [![AXON Demo Video](https://img.youtube.com/vi/gmUdrVNKrPg/0.jpg)](https://youtu.be/gmUdrVNKrPg)
 > [!TIP]

@@ -111,6 +111,36 @@ def verify_file_integrity(target_dir: str, expected_files: list):
             
     return errors
 
+def verify_logic_presence(target_dir: str, architecture_path: str):
+    """F8.1: Ensures that functions defined in architecture are present in files."""
+    if not os.path.exists(architecture_path):
+        return []
+    
+    try:
+        with open(architecture_path, "r", encoding="utf-8") as f:
+            arch_content = f.read()
+            
+        # Basic extraction of component blocks from architecture.md
+        # This is a simplified regex; a real one would be more robust
+        components = re.findall(r"### Component: (\w+).*?Functions:\n(.*?)(?=\n###|$)", arch_content, re.DOTALL)
+        
+        errors = []
+        for comp_name, functions in components:
+            fname = f"{comp_name}.rs" # Assuming Rust for now
+            fpath = os.path.join(target_dir, fname)
+            if not os.path.exists(fpath): continue
+            
+            with open(fpath, "r", encoding="utf-8") as f:
+                code = f.read()
+                
+            func_names = [line.strip().split("(")[0].replace("- ", "") for line in functions.strip().split("\n")]
+            for fn in func_names:
+                if fn and fn not in code:
+                    errors.append(f"F8.1: Defined function '{fn}' is missing from {fname}. Logic might have been accidentally wiped.")
+        return errors
+    except Exception as e:
+        return [f"F8.1: Failed to audit architecture mapping: {e}"]
+
 def execution_harness(project_root: str, file_map: dict, entry_point: str = "main.py"):
     """
     1. Validate runtime environment
@@ -154,6 +184,13 @@ def execution_harness(project_root: str, file_map: dict, entry_point: str = "mai
 
         # F3: Entry Point Validation
         entry_path = os.path.join(tmp_dir, entry_point)
+        arch_path = os.path.join(tmp_dir, "architecture.md")
+        
+        # F8.1: Logic Presence Audit (Check against architecture.md)
+        mapping_errors = verify_logic_presence(tmp_dir, arch_path)
+        if mapping_errors:
+            return False, "\n".join(mapping_errors)
+
         if not os.path.exists(entry_path):
             return False, f"F3: Entry point '{entry_point}' is missing or path is incorrect."
             

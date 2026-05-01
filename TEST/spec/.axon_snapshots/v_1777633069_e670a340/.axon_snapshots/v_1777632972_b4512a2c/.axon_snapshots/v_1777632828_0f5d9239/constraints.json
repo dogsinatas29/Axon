@@ -1,0 +1,138 @@
+{
+  "components": {
+    "validation": {
+      "name": "validation",
+      "file_path": "validation.rs",
+      "functions": {
+        "validate_year": {
+          "name": "validate_year",
+          "signature": "validate_year(year: i32) -> Result<(), String>",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "validate_month": {
+          "name": "validate_month",
+          "signature": "validate_month(month: u8) -> Result<(), String>",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "validate_day": {
+          "name": "validate_day",
+          "signature": "validate_day(day: u8, month: u8, year: i32) -> Result<(), String>",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": []
+    },
+    "bypass": {
+      "name": "bypass",
+      "file_path": "bypass.rs",
+      "functions": {
+        "skip_input_flow": {
+          "name": "skip_input_flow",
+          "signature": "skip_input_flow()",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": []
+    },
+    "save_db": {
+      "name": "save_db",
+      "file_path": "save_db.rs",
+      "functions": {
+        "store_user": {
+          "name": "store_user",
+          "signature": "store_user(id: &str, age: i32)",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "update_user": {
+          "name": "update_user",
+          "signature": "update_user(id: &str, age: i32)",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": []
+    },
+    "calculate": {
+      "name": "calculate",
+      "file_path": "calculate.rs",
+      "functions": {
+        "compute_age": {
+          "name": "compute_age",
+          "signature": "compute_age(year: i32, month: u8, day: u8)",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": []
+    },
+    "control": {
+      "name": "control",
+      "file_path": "control.rs",
+      "functions": {
+        "start_flow": {
+          "name": "start_flow",
+          "signature": "start_flow()",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "end_flow": {
+          "name": "end_flow",
+          "signature": "end_flow()",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": []
+    },
+    "db_check": {
+      "name": "db_check",
+      "file_path": "db_check.rs",
+      "functions": {
+        "query_db": {
+          "name": "query_db",
+          "signature": "query_db(name: &str) -> Result<bool, String>",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": []
+    },
+    "input": {
+      "name": "input",
+      "file_path": "input.rs",
+      "functions": {
+        "get_name": {
+          "name": "get_name",
+          "signature": "get_name()",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "get_year": {
+          "name": "get_year",
+          "signature": "get_year()",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "get_month": {
+          "name": "get_month",
+          "signature": "get_month()",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "get_day": {
+          "name": "get_day",
+          "signature": "get_day()",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": []
+    }
+  },
+  "constraints": []
+}

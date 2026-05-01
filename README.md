@@ -33,7 +33,7 @@ AXON treats coding not as a creative writing task, but as a **Deterministic Mate
 
 ## 🏛️ System Architecture: The Physical Pipeline (v0.0.23+)
 
-![AXON Architecture Concept](asset/mermaid-diagram.png)
+![AXON Architecture Concept](./asset/mermaid-diagram.png)
 
 AXON Phase 07 implements the **"Optimistic Automation, Pessimistic Intervention"** strategy:
 
@@ -49,10 +49,10 @@ The Senior now acts as the **Final Gatekeeper**. They review the code *after* it
 ---
 
 ## 🖥️ Studio UI & Monitoring
-![Dashboard](asset/dashboard.png)
+![Dashboard](./asset/dashboard.png)
 *AXON Studio: Real-time monitoring of all factory lines and agent performance.*
 
-![Daemon Status](asset/daemon.png)
+![Daemon Status](./asset/daemon.png)
 *Daemon Log: Transparent tracking of every AXP packet and simulation result.*
 
 ---
@@ -77,7 +77,7 @@ The Senior now acts as the **Final Gatekeeper**. They review the code *after* it
 ---
 
 ## 🔬 Error Diagnostics & Recovery (Stage 5 & 8)
-![Error Details](asset/details.png)
+![Error Details](./asset/details.png)
 *Deep-dive into physical validation failures with automated trace collection.*
 
 AXON uses a **Feedback-Driven Correction** mechanism to handle runtime and logic errors:
@@ -110,7 +110,7 @@ A dedicated space (`nogari.md`) where agents record their non-technical thoughts
 
 ## 🛠️ Getting Started
 
-![Setup](asset/setup.png)
+![Setup](./asset/setup.png)
 *Bootstrap Stage: Initializing the factory locale and specification mapping.*
 
 ```bash

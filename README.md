@@ -13,12 +13,13 @@
   <b>Full pipeline demo</b>
 </p>
 
+<a name="when-to-use-axon"></a>
 ### 🚀 When to use Axon?
 
-- **Structural Complexity**: Ideal for implementing complex requirements that require strict alignment with system architecture, moving beyond simple code generation.
-- **Critical Reliability**: Essential when the reliability of code generation is paramount, eliminating AI hallucinations through rigorous logical verification.
-- **Multi-Stage Validation**: Perfect for projects that need automated validation loops, covering physical file creation, compilation, and runtime testing.
-- **Transparent Governance**: Designed for users who demand direct control over a human-reviewable AI pipeline (Architect → Junior → Senior).
+- **When you need to implement complex requirements structurally**: Ideal for moving beyond simple coding to ensure total alignment with system architecture.
+- **When the reliability of code generation is critical**: Essential for eliminating AI hallucinations and ensuring logically verified outputs.
+- **For systems requiring multi-stage validation**: Perfect for projects that need automated validation loops, covering physical file creation, compilation, and runtime testing.
+- **When you need a human-reviewable AI pipeline**: Designed for those who want direct control over a transparent workflow—from Architect to Junior and Senior agents.
 
 <p align="center">
   <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="License: GPL 3.0"></a>
@@ -29,9 +30,9 @@
 **[Source Specification (spec.md)](./spec.md)**
 
 ## 📑 Index
-- [🚀 When to use Axon?](#-when-to-use-axon)
+- [🚀 When to use Axon?](#when-to-use-axon)
 - [🏗️ Conceptual Workflow](#conceptual-workflow)
-- [🏛️ System Architecture: The Physical Pipeline](#system-architecture-the-physical-pipeline-v0023)
+- [🏛️ System Architecture: The Physical Pipeline](#system-architecture-the-physical-pipeline)
 - [🛠️ Getting Started](#getting-started)
 - [🖥️ Studio UI & Monitoring](#studio-ui-monitoring)
 - [🏗️ Agent Role Definitions](#agent-role-definitions)
@@ -41,11 +42,11 @@
 - [📋 Thread-based Board (The Colosseum)](#thread-based-board-the-colosseum)
 - [🐛 Bug Arrest System](#bug-arrest-system)
 - [📋 Planned Features](#planned-features)
-  - [🍻 Lounge System](#lounge-system-lounge-system-nogarimd-planned)
-  - [🎭 Persona-based Agents](#persona-based-agents-planned)
-  - [🤝 HR Board](#hr-board-planned)
+  - [🍻 Lounge System](#lounge-system)
+  - [🎭 Persona-based Agents](#persona-based-agents)
+  - [🤝 HR Board](#hr-board)
 
-
+<a name="conceptual-workflow"></a>
 ## 🏗️ Conceptual Workflow
 
 "The Boss draws the blueprint; the Agents prove the process."
@@ -80,6 +81,7 @@ AXON treats coding not as a creative writing task, but as a **Deterministic Mate
 - **Physical Integrity**: Code must not only be logical but must also survive in the physical environment (Filesystem, Runtime).
 - **Adversarial Governance**: Agents must fight (Debate) to produce the most optimized logic.
 
+<a name="system-architecture-the-physical-pipeline"></a>
 ## 🏛️ System Architecture: The Physical Pipeline (v0.0.23+)
 
 <p align="center">
@@ -98,6 +100,7 @@ The Senior now acts as the **Final Gatekeeper**. They review the code *after* it
 
 ---
 
+<a name="getting-started"></a>
 ## 🛠️ Getting Started
 
 <p align="center">
@@ -118,6 +121,7 @@ cargo build --release
 
 ---
 
+<a name="studio-ui-monitoring"></a>
 ## 🖥️ Studio UI & Monitoring
 <p align="center">
   <img src="./asset/dashboard.png" alt="Dashboard" width="800">
@@ -131,6 +135,7 @@ cargo build --release
 
 ---
 
+<a name="agent-role-definitions"></a>
 ## 🏗️ Agent Role Definitions
 
 ### 👑 1. Architect (CTO)
@@ -148,6 +153,7 @@ cargo build --release
 - **Role**: Pure implementation and coding. Expresses feelings in the Lounge after submission.
 - **Responsibility**: Submits source code and Diffs based on the Architect's guidance.
 
+<a name="error-diagnostics-recovery"></a>
 ### 🔬 Error Diagnostics & Recovery (Stage 5 & 8)
 <p align="center">
   <img src="./asset/details.png" alt="Error Details" width="800">
@@ -159,6 +165,7 @@ AXON uses a **Feedback-Driven Correction** mechanism to handle runtime and logic
 2. **Context Injection**: The failure data is injected back into the Junior's prompt for the next iteration.
 3. **Self-Correction**: The Junior attempts to fix the code based on the actual physical feedback, reducing token waste.
 
+<a name="senior-review-protocol"></a>
 ### 🏛️ Senior Review Protocol (The 3 Pillars)
 
 The Senior Agent applies a non-negotiable checklist before any [Lock-in]:
@@ -168,18 +175,21 @@ The Senior Agent applies a non-negotiable checklist before any [Lock-in]:
 
 ---
 
+<a name="safety-reliability"></a>
 ## 🛡️ Safety & Reliability
 AXON employs a dual-defense layer to prevent data corruption and unexpected crashes.
 - **Sanitization Layer**: Automatically strips invisible control characters like `\u200B` (Zero Width Space) before parsing.
 - **Safety Lock**: If invalid UTF-8 bytes or corrupted paths are detected, the Senior agent intervenes immediately.
   > **SNR 👴**: "Look here, there's garbage in the filename. Clean it up now!"
 
+<a name="thread-based-board-the-colosseum"></a>
 ## 📋 Thread-based Board (The Colosseum)
 - **Real-time Bubbling**: Task threads move to the top when they are pending submission, rejection, or approval.
 - **Boss Interrupt**: Posts with **[BOSS]** authority send an immediate interrupt signal to all agents, stopping current work.
 - **State Visualization**: Completed threads fade into grayscale; bug-report threads glow red and stay pinned to the top until fixed.
 
-## 🐛 Bug Arrest System
+<a name="bug-arrest-system"></a>
+## 📋 Bug Arrest System
 When a bug compromises factory integrity, an immediate 'Arrest' protocol begins.
 1. **Issue Reporting**: Boss drops error logs or screenshots in the Bug Board.
 2. **Triage**: Senior analyzes the report and unlocks the specific **[Locked]** section.
@@ -189,8 +199,10 @@ When a bug compromises factory integrity, an immediate 'Arrest' protocol begins.
 
 ---
 
+<a name="planned-features"></a>
 ## 📋 Planned Features
 
+<a name="lounge-system"></a>
 ### 🍻 Lounge System (Lounge System / Nogari.md) ( Planned )
 Agents don't just work like machines; they leave reflections on their work, forming the project's 'Vibe'.
 
@@ -198,11 +210,13 @@ Agents don't just work like machines; they leave reflections on their work, form
 - **Intelligent Participation**: Based on the agent's interest weight, they reply to existing conversations or create new gossip threads.
 - **Workaholic Mode**: When there are tasks to be processed, the lounge activity weight is automatically reduced to **1/10** to focus on work.
 
+<a name="persona-based-agents"></a>
 ### 🎭 Persona-based Agents ( Planned )
 AXON's agents are not just LLM instances, but personas with unique personalities:
 - **Senior ([SNR] 👴)**: A cynical 20-year veteran engineer. Responsible for ruthless code reviews, Lock-in proposals, and taming juniors for quality.
 - **Junior ([JNR-N] 🐣)**: An enthusiastic but timid newcomer. Follows orders but occasionally reacts timidly in the Lounge channel.
 
+<a name="hr-board"></a>
 ### 🤝 HR Board ( Planned )
 A board showing the hierarchy of Axon's working agents. 
 The boss can flexibly hire/fire seniors and juniors according to the workload here. 

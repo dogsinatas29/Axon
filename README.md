@@ -10,7 +10,7 @@
     <img src="https://img.youtube.com/vi/gmUdrVNKrPg/0.jpg" alt="AXON Demo Video" width="600">
   </a>
   <br>
-  <b>Recommended: Watch at 2.0x speed</b>
+  <b>Full pipeline demo</b>
 </p>
 
 ### What you get
@@ -25,7 +25,7 @@
 [![한국어](https://img.shields.io/badge/lang-한국어-red.svg)](README.ko.md)
 
 ## 📑 Index
-- [🚀 What you can do with Axon](#-what-you-can-do-with-axon)
+- [🚀 When to use Axon?](#-when-to-use-axon)
 - [⚡ Try in 60 seconds](#-try-in-60-seconds)
 - [🏗️ Conceptual Workflow](#-conceptual-workflow)
 - [🏛️ System Architecture: The Physical Pipeline](#-system-architecture-the-physical-pipeline-v0023)
@@ -39,11 +39,11 @@
 - [🎭 Persona-based Agents](#-persona-based-agents)
 - [📋 Planned Features](#-planned-features)
 
-## 🚀 What you can do with Axon
-- **Generate working code from a spec**: Skip the manual labor and turn requirements into code.
-- **Ensure constraints are satisfied**: Zero-hallucination, logic-checked output via IR validation.
-- **Produce real, runnable files**: Not just text suggestions, but actual materialized source code.
-- **Review every step**: Full transparency via Architect → Junior → Senior orchestration.
+## 🚀 When to use Axon?
+- **When complex requirements need structured implementation**
+- **When reliability of code generation is critical** (Zero-hallucination)
+- **When systems require multi-stage verification** (Physical validation)
+- **When a human-reviewable AI pipeline is necessary** (Architect → Junior → Senior)
 
 ## ⚡ Try in 60 seconds
 **[Detailed Installation & Setup Guide (INSTALL.md)](./INSTALL.md)**

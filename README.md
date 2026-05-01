@@ -62,7 +62,7 @@ cargo build --release
 "The Boss draws the blueprint; the Agents prove the process."
 
 ```text
-[Boss]  →  Architecture.md  →  [AXON Daemon]
+[Boss]  →  spec.md  →  [AXON Daemon]
                                       │
                ┌──────────────────────┼──────────────────────┐
                ▼                      ▼                      ▼
@@ -73,7 +73,7 @@ cargo build --release
                           [Boss monitors, intervenes, and locks in]
 ```
 
-1. **Design**: Write requirements in `Architecture.md`.
+1. **Design**: Write requirements in `spec.md`.
 2. **Activate**: Run `axon init` → `ARCHITECTURE_AXON.md` is auto-generated, and agent workspaces are assigned.
 3. **Monitor**: Watch real-time debates, coding, and lounge talk at `localhost:8080`.
 4. **Finalize**: Click **[Lock-in]** on preferred results → `[✅ Locked]` markup is auto-applied to `Architecture.md`.

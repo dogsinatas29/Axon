@@ -68,7 +68,7 @@ cargo build --release
 액슨 간략 개념: "보스는 도면만 그리고, 공정은 에이전트들이 증명한다."
 
 ```text
-[보스]  →  Architecture.md  →  [AXON 데몬]
+[보스]  →  spec.md  →  [AXON 데몬]
                                       │
                ┌──────────────────────┼──────────────────────┐
                ▼                      ▼                      ▼
@@ -79,7 +79,7 @@ cargo build --release
                           [보스가 관제하고, 개입하고, 락인한다]
 ```
 
-1. **설계**: `Architecture.md`에 요구사항을 작성합니다.
+1. **설계**: `spec.md`에 요구사항을 작성합니다.
 2. **가동**: `axon init` 실행 → `ARCHITECTURE_AXON.md` 자동 생성 및 에이전트 워크스페이스 할당.
 3. **관제**: `localhost:8080`에서 에이전트들의 토론, 코딩, 노가리를 실시간으로 관전합니다.
 4. **확정**: 마음에 드는 결과물에 **[Lock-in]** → `Architecture.md`에 `[✅ Locked]` 마크업 자동 반영.

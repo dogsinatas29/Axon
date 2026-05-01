@@ -11,6 +11,8 @@ AXON is a high-performance, deterministic AI agent factory designed to transform
 - [🧠 Core Philosophy](#-core-philosophy)
 - [🏛️ System Architecture: The Physical Pipeline](#-system-architecture-the-physical-pipeline-v0023)
 - [🏗️ Role Definitions](#-role-definitions)
+- [🔬 Error Diagnostics & Recovery](#-error-diagnostics--recovery)
+- [🏛️ Senior Review Protocol](#-senior-review-protocol)
 - [🎭 Persona-based Agents](#-persona-based-agents)
 - [🍻 Lounge System (Nogari)](#-lounge-system-nogari)
 - [🛠️ Getting Started](#-getting-started)
@@ -57,6 +59,22 @@ The Senior now acts as the **Final Gatekeeper**. They review the code *after* it
 - **Role**: Pure implementation and coding.
 - **Thinking Process**: **Sequential Execution (No-Preamble)**. Focuses 100% on code production based on the Architect's guide.
 - **Responsibility**: Submits source code and diffs.
+
+---
+
+## 🔬 Error Diagnostics & Recovery (Stage 5 & 8)
+
+AXON uses a **Feedback-Driven Correction** mechanism to handle runtime and logic errors:
+1. **Trace Collection**: Logs, stack traces, and compiler errors are captured by the harness.
+2. **Context Injection**: The failure data is injected back into the Junior's prompt for the next iteration.
+3. **Self-Correction**: The Junior attempts to fix the code based on the actual physical feedback, reducing token waste.
+
+## 🏛️ Senior Review Protocol (The 3 Pillars)
+
+The Senior Agent applies a non-negotiable checklist before any [Lock-in]:
+- **Architectural Drift**: Does the code match the `architecture.md` and `spec.md` exactly?
+- **Logic Integrity**: Are there any `# AXON STUB` markers or "pending" comments? (Hard Rejection)
+- **Side-Effect Isolation**: Does the code violate filesystem or network isolation rules?
 
 ---
 

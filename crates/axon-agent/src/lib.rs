@@ -398,40 +398,44 @@ impl AgentRuntime {
              ### SOURCE SPECIFICATION ###\n\
              {}\n\n\
              ### OUTPUT STRUCTURE ###\n\
-             You MUST output:\n\
              1. Human-readable Markdown (Components + Functions)\n\
              2. A machine-readable JSON block (AXON:SPEC)\n\n\
              ### CRITICAL RULES ###\n\
-             1. JSON is the Single Source of Truth (SSOT)\n\
+             1. **1:1 Mapping**: spec의 모든 논리 노드를 개별 파일로 1:1 매핑하라. (압축/요약 절대 금지)\n\
+             2. **Count Parity**: 컴포넌트 수가 spec 노드 수보다 적으면 스스로 IR 생성을 거부하고 다시 설계하라.\n\
+             3. JSON is the Single Source of Truth (SSOT)\n\
                 - The JSON block defines the exact system structure.\n\
                 - Markdown MUST match JSON exactly.\n\
                 - Do NOT add anything outside JSON.\n\
-             2. Function Signature Rules (STRICT)\n\
+             4. Function Signature Rules (STRICT)\n\
                 - Format: function_name(arg1,arg2)\n\
                 - NO type hints, NO default values, NO extra spaces.\n\
                 - MUST match exactly between Markdown and JSON.\n\
-             3. JSON Schema (STRICT)\n\
-                - Root key MUST be \"components\".\n\
-                - Each component MUST have \"name\", \"file\", and \"functions\".\n\
-                - Each function MUST have \"name\" and \"signature\".\n\
-             4. Deterministic Ordering\n\
+             5. Deterministic Ordering\n\
                 - Sort components alphabetically.\n\
                 - Sort functions alphabetically.\n\
-             5. NO extra explanations or conversational text.\n\n\
+             6. NO extra explanations or conversational text.\n\n\
              ### EXPECTED JSON SCHEMA ###\n\
              {{\n\
                \"components\": [\n\
                  {{\n\
-                   \"name\": \"database\",\n\
-                   \"file\": \"database.py\",\n\
+                   \"name\": \"input_handler\",\n\
+                   \"file\": \"input.rs\",\n\
                    \"functions\": [\n\
-                     {{ \"name\": \"init_db\", \"signature\": \"init_db()\" }},\n\
-                     {{ \"name\": \"save_user\", \"signature\": \"save_user(id,data)\" }}\n\
+                     {{ \"name\": \"get_year\", \"signature\": \"get_year()\" }},\n\
+                     {{ \"name\": \"get_name\", \"signature\": \"get_name()\" }}\n\
+                   ]\n\
+                 }},\n\
+                 {{\n\
+                   \"name\": \"validator\",\n\
+                   \"file\": \"validation.rs\",\n\
+                   \"functions\": [\n\
+                     {{ \"name\": \"validate_year\", \"signature\": \"validate_year(year)\" }}\n\
                    ]\n\
                  }}\n\
                ]\n\
              }}\n\n\
-             Generate the architecture now:",
+             Analyze the source spec and generate a high-fidelity, modular architecture now:",
             processed_spec
         );
 

@@ -1,0 +1,24 @@
+{
+  "components": {
+    "age_calculator": {
+      "name": "age_calculator",
+      "file_path": "age_calculator.py",
+      "functions": {
+        "init_db": {
+          "name": "init_db",
+          "signature": "init_db()",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "save_user": {
+          "name": "save_user",
+          "signature": "save_user(id,data)",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": []
+    }
+  },
+  "constraints": []
+}

@@ -127,17 +127,26 @@ def simulate_state(project_root: str, junior_output_json: str):
         target = item.get("target")
         if not target: continue
         
-        # Normalize target path to match our results keys
+        # Normalize target path
         target = os.path.normpath(target)
         
+        # v0.0.23: Fuzzy Path Matching
+        # If target 'foo.rs' is not found, check if 'any/path/foo.rs' exists
+        if target not in results:
+            for existing_path in list(results.keys()):
+                if existing_path.endswith(f"/{target}") or existing_path.endswith(f"\\{target}"):
+                    target = existing_path
+                    break
+
         base_code = results.get(target, "")
         op_type = item.get("type", "rewrite")
         
         if op_type == "rewrite":
             new_code = item.get("code", "")
             # v0.0.23: Stub Detection - Eradicate "AXON STUB"
-            if "AXON STUB" in new_code:
-                results[f"error_{target}"] = f"ERROR: Proposed code for {target} still contains AXON STUB marker. You must completely replace the stub with actual implementation."
+            is_valid, marker = validate_content(new_code)
+            if not is_valid:
+                results[f"error_{target}"] = f"ERROR: Proposed code for {target} still contains forbidden marker '{marker}'. You must completely replace the stub."
             else:
                 results[target] = new_code
         elif op_type == "patch":

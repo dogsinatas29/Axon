@@ -1,0 +1,24 @@
+{
+  "project": "SYNAPSE",
+  "version": "v0.3.0",
+  "blacklist": {
+    "folders": [
+      "node_modules",
+      ".git",
+      "dist",
+      "build",
+      "TEST",
+      "TEST2",
+      "TEST3"
+    ],
+    "files": []
+  },
+  "architecture_guardrail": {
+    "supported_languages": [
+      ".ts",
+      ".js",
+      ".py",
+      ".md"
+    ]
+  }
+}

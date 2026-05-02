@@ -47,8 +47,9 @@ impl Storage {
             [],
         )?;
 
-        // Migration: Add result to tasks if it doesn't exist
+        // Migration: Add result and dependencies to tasks if they don't exist
         let _ = conn.execute("ALTER TABLE tasks ADD COLUMN result TEXT", []);
+        let _ = conn.execute("ALTER TABLE tasks ADD COLUMN dependencies TEXT", []);
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS threads (
@@ -137,14 +138,15 @@ impl Storage {
     pub fn save_task(&self, task: &axon_core::Task) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT OR REPLACE INTO tasks (id, project_id, title, description, status, result, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT OR REPLACE INTO tasks (id, project_id, title, description, status, dependencies, result, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
                 task.id,
                 task.project_id,
                 task.title,
                 task.description,
                 format!("{:?}", task.status),
+                serde_json::to_string(&task.dependencies).unwrap_or_else(|_| "[]".to_string()),
                 task.result,
                 task.created_at.to_rfc3339(),
             ],
@@ -337,7 +339,7 @@ impl Storage {
 
     pub fn list_all_tasks(&self) -> Result<Vec<axon_core::Task>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, result, created_at FROM tasks ORDER BY created_at DESC")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, dependencies, result, created_at FROM tasks ORDER BY created_at DESC")?;
         let task_iter = stmt.query_map([], |row| {
             Ok(axon_core::Task {
                 id: row.get(0)?,
@@ -345,8 +347,9 @@ impl Storage {
                 title: row.get(2)?,
                 description: row.get(3)?,
                 status: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(4)?)).unwrap_or(axon_core::TaskStatus::Pending),
-                result: row.get(5)?,
-                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),
+                dependencies: serde_json::from_str(&row.get::<_, String>(5).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
+                result: row.get(6)?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?).unwrap().with_timezone(&Local),
             })
         })?;
 
@@ -359,7 +362,7 @@ impl Storage {
 
     pub fn get_task(&self, id: &str) -> Result<Option<axon_core::Task>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, result, created_at FROM tasks WHERE id = ?1")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, dependencies, result, created_at FROM tasks WHERE id = ?1")?;
         let mut task_iter = stmt.query_map(params![id], |row| {
             Ok(axon_core::Task {
                 id: row.get(0)?,
@@ -367,8 +370,9 @@ impl Storage {
                 title: row.get(2)?,
                 description: row.get(3)?,
                 status: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(4)?)).unwrap_or(axon_core::TaskStatus::Pending),
-                result: row.get(5)?,
-                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),
+                dependencies: serde_json::from_str(&row.get::<_, String>(5).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
+                result: row.get(6)?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?).unwrap().with_timezone(&Local),
             })
         })?;
 

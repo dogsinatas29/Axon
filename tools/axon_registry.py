@@ -59,6 +59,9 @@ class Registry:
         hashes = {}
         # 1. Verification & Pre-flight
         for fname, code in files_map.items():
+            if is_protected(fname, self.project_root):
+                continue # Skip internal system files proposed by agents
+            
             snap_path = os.path.join(snapshot_dir, fname)
             os.makedirs(os.path.dirname(snap_path), exist_ok=True)
             with open(snap_path, "w", encoding="utf-8") as f:

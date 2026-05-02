@@ -54,6 +54,27 @@ impl Dispatcher {
         queue.pop_front()
     }
 
+    /// v0.0.23: DAG-Aware Popping
+    /// Pops the first task whose dependencies are satisfied based on the provided checker.
+    pub fn pop_ready_task<F>(&self, check_ready: F) -> Option<Task>
+    where F: Fn(&Task) -> bool {
+        let mut queue = self.task_queue.lock().unwrap();
+        let mut target_idx = None;
+        
+        for (idx, task) in queue.iter().enumerate() {
+            if check_ready(task) {
+                target_idx = Some(idx);
+                break;
+            }
+        }
+
+        if let Some(idx) = target_idx {
+            queue.remove(idx)
+        } else {
+            None
+        }
+    }
+
     pub async fn schedule(&self, available_agents: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
         let mut queue = self.task_queue.lock().unwrap();
         

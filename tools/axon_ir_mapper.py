@@ -7,6 +7,7 @@ Checks if the LLM-provided code satisfies the IR contract.
 import ast
 import json
 import sys
+import os
 
 def extract_symbols(code):
     try:

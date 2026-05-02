@@ -11,6 +11,7 @@ import shutil
 import sys
 import argparse
 import json
+import re
 
 def run_code(entry_file: str, timeout=5):
     """Executes the entry file and captures output with resource limits."""
@@ -86,7 +87,7 @@ def validate_runtime_environment():
         # We don't return False anymore, let it try to run and fail naturally if needed
     return True, None
 
-def verify_file_integrity(target_dir: str, expected_files: list):
+def verify_file_integrity(target_dir: str, expected_files: list, target_file: str = None):
     """F1, F2: Checks if files exist, are not empty, and are valid UTF-8."""
     errors = []
     for fname in expected_files:
@@ -102,8 +103,29 @@ def verify_file_integrity(target_dir: str, expected_files: list):
             if size == 0:
                 errors.append(f"F2: File '{fname}' is empty (0 bytes).")
             
-            with open(fpath, 'r', encoding='utf-8') as f:
-                f.read() # Try reading to verify UTF-8
+            # v0.0.23: STRICT CHECKS ONLY FOR TARGET FILE
+            # This prevents bootstrap stubs from failing the harness
+            is_target = (target_file and (fname == target_file or os.path.basename(fname) == target_file))
+            
+            if is_target:
+                if size < 120: # v0.0.23 [Stage 2: 120 bytes 강화]
+                    errors.append(f"F2.2: File '{fname}' is too small ({size} bytes). Min 120 bytes required.")
+            
+                with open(fpath, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    # v0.0.23: F2.1 Stub Detection (TODO & Placeholder)
+                    if "TODO" in content or "Implementation pending" in content:
+                        errors.append(f"F2.1: File '{fname}' contains TODO or placeholders. Likely a stub.")
+                    
+                    # v0.0.23: Anti-Hardcoding Guard
+                    # LLMs often hardcode 2023/2024 from training data. Reject these in logic files.
+                    if not is_doc_or_data and any(year in content for year in ["2023", "2024"]):
+                        errors.append(f"F2.4: Hardcoded year detected in '{fname}'. Use dynamic system time instead of 2023/2024.")
+                    
+                    # v0.0.23: Function presence check (Exempt .md and .json files)
+                    is_doc_or_data = fname.endswith(".md") or fname.endswith(".json")
+                    if not is_doc_or_data and not any(marker in content for marker in ["fn ", "class ", "pub ", "def "]):
+                        errors.append(f"F2.3: File '{fname}' contains no executable logic (fn/class/pub/def missing).")
         except UnicodeDecodeError:
             errors.append(f"F2: File '{fname}' contains invalid UTF-8 encoding.")
         except Exception as e:
@@ -141,7 +163,7 @@ def verify_logic_presence(target_dir: str, architecture_path: str):
     except Exception as e:
         return [f"F8.1: Failed to audit architecture mapping: {e}"]
 
-def execution_harness(project_root: str, file_map: dict, entry_point: str = "main.py"):
+def execution_harness(project_root: str, file_map: dict, entry_point: str = "main.py", target_file: str = None):
     """
     1. Validate runtime environment
     2. Snapshot existing files
@@ -178,7 +200,7 @@ def execution_harness(project_root: str, file_map: dict, entry_point: str = "mai
 
         # F1~F2: Physical Integrity Audit
         if file_map: # Only if we have new files to check
-            integrity_errors = verify_file_integrity(tmp_dir, list(file_map.keys()))
+            integrity_errors = verify_file_integrity(tmp_dir, list(file_map.keys()), target_file=target_file)
             if integrity_errors:
                 return False, "\n".join(integrity_errors)
 
@@ -228,6 +250,7 @@ if __name__ == "__main__":
     parser.add_argument("--project-root", required=True, help="Target project directory")
     parser.add_argument("--files-json", required=True, help="JSON map of {filename: content}")
     parser.add_argument("--entry", default="main.py", help="Entry point file")
+    parser.add_argument("--target-file", help="The specific file currently being implemented (for strict validation).")
     parser.add_argument("--commit", action="store_true", help="Actually commit files if successful")
     
     args = parser.parse_args()
@@ -239,7 +262,7 @@ if __name__ == "__main__":
         print(f"ERROR: Failed to load files-json: {e}", file=sys.stderr)
         sys.exit(1)
         
-    success, output = execution_harness(args.project_root, file_map, args.entry)
+    success, output = execution_harness(args.project_root, file_map, args.entry, target_file=args.target_file)
     
     if success:
         if args.commit:

@@ -16,16 +16,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export type ThreadStatus = 'Draft' | 'JuniorProposal' | 'SeniorReview' | 'PatchReady' | 'BossApproval' | 'Completed' | 'Paused' | 'Working' | 'Approved';
+export type ThreadStatus = 'Draft' | 'JuniorProposal' | 'SeniorReview' | 'PatchReady' | 'BossApproval' | 'Completed' | 'Paused' | 'Working' | 'Approved' | 'Rejected';
 
 export interface Thread {
   id: string;
   title: string;
   status: ThreadStatus;
   author: string;
+  project_id?: string;
   milestone_id?: string;
   created_at: string;
   updated_at: string;
+  rejection_count?: number;
 }
 
 export type PostType = 'Proposal' | 'Review' | 'Patch' | 'Nogari' | 'System' | 'Instruction';

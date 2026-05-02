@@ -168,6 +168,7 @@ async fn submit_spec_internal(
                         title: t["title"].as_str().unwrap_or("Untitled").into(),
                         description: t["description"].as_str().unwrap_or("").into(),
                         status: TaskStatus::Pending,
+                        dependencies: Vec::new(), // Initialized as empty for now
                         result: None,
                         created_at: chrono::Local::now(),
                     };
@@ -210,6 +211,7 @@ async fn submit_spec_internal(
                     title: "Parsed Task".into(),
                     description: submission.content,
                     status: TaskStatus::Pending,
+                    dependencies: Vec::new(),
                     result: None,
                     created_at: chrono::Local::now(),
                 };
@@ -492,6 +494,7 @@ async fn submit_task(
         title: "API Task".to_string(),
         description: req.task,
         status: TaskStatus::Pending,
+        dependencies: Vec::new(),
         result: None,
         created_at: chrono::Local::now(),
     };

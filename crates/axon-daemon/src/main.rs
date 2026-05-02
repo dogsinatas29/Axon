@@ -19,6 +19,7 @@
 mod cli;
 
 use axon_daemon::Daemon;
+use axon_model::ModelDriver;
 use clap::Parser;
 use cli::{Cli, Commands};
 use std::sync::Arc;
@@ -83,6 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             title: title.to_string(),
                             description: format!("Automated task generated from spec: {}", title),
                             status: axon_core::TaskStatus::Pending,
+                            dependencies: Vec::new(),
                             result: None,
                             created_at: chrono::Local::now(),
                         };
@@ -205,21 +207,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             };
 
-            let (architect_model, _arch_name, senior_models, junior_models) = if let Some(cfg) = &fast_cfg {
+            // --- SMART MODEL DISCOVERY (v0.0.23) ---
+            // 누군가 처음 설치했을 때 하드코딩된 모델이 없어도 에러 없이 돌아가도록 합니다.
+            let mut default_model = "qwen:1.8b".to_string();
+            let temp_drv = Arc::new(axon_model::OllamaDriver::new("http://localhost:11434".to_string(), "".into()));
+            if let Ok(models) = temp_drv.list_available_models().await {
+                if let Some(first) = models.first() {
+                    default_model = first.clone();
+                    tracing::info!("✨ [AUTO_DISCOVERY] No config found. Using first available local model: {}", default_model);
+                } else {
+                    tracing::warn!("⚠️ [OOB_WARNING] No local models found in Ollama. Falling back to default: {}. Please run 'ollama pull qwen:1.8b'", default_model);
+                }
+            }
+
+            let (architect_model, arch_name, senior_models, senior_model_names, junior_models, junior_model_names) = if let Some(cfg) = &fast_cfg {
                 let msg = if final_locale == "ko_KR" { "✅ 저장된 설정으로부터 공장 가동을 재개합니다..." } else { "✅ Resuming factory operation from saved configuration..." };
                 println!("{}", msg);
                 let arch_drv = get_drv(&cfg.agents.architect);
                 let mut s_drvs = Vec::new();
-                for s_cfg in &cfg.agents.seniors { s_drvs.push(get_drv(s_cfg)); }
+                let mut s_names = Vec::new();
+                for s_cfg in &cfg.agents.seniors { 
+                    s_drvs.push(get_drv(s_cfg)); 
+                    s_names.push(s_cfg.model.clone());
+                }
                 let mut j_drvs = Vec::new();
-                for j_cfg in &cfg.agents.juniors { j_drvs.push(get_drv(j_cfg)); }
-                (arch_drv, cfg.agents.architect.model.clone(), s_drvs, j_drvs)
+                let mut j_names = Vec::new();
+                for j_cfg in &cfg.agents.juniors { 
+                    j_drvs.push(get_drv(j_cfg)); 
+                    j_names.push(j_cfg.model.clone());
+                }
+                (arch_drv, cfg.agents.architect.model.clone(), s_drvs, s_names, j_drvs, j_names)
             } else {
                 let arch_config: AgentConfig;
                 let mut senior_configs = Vec::new();
                 let mut junior_configs = Vec::new();
 
-                async fn recruit_agent_async(role: &str, available_models: &Vec<(&str, String)>, locale: &str) -> AgentConfig {
+                let mut global_local_endpoint: Option<String> = None;
+                let mut use_global_endpoint = false;
+
+                async fn recruit_agent_async(
+                    role: &str, 
+                    available_models: &Vec<(&str, String)>, 
+                    locale: &str,
+                    cached_endpoint: &mut Option<String>,
+                    use_cached: &mut bool
+                ) -> AgentConfig {
                     let title = if locale == "ko_KR" { format!("{} 모집", role) } else { format!("RECRUITING: {}", role.to_uppercase()) };
                     println!("\n--- [{}] ---", title);
                     if locale == "ko_KR" { println!("🔍 사용 가능한 엔진:"); } else { println!("Q Available Intelligence:"); }
@@ -229,8 +261,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let msg = if locale == "ko_KR" { format!("{}를 위한 제공자 선택 (번호 또는 L): ", role) } else { format!("Select Provider for {} (Number or L): ", role) };
                     let p_idx_str = prompt(&msg);
                     let (runtime, provider, endpoint) = if p_idx_str.to_lowercase() == "l" {
-                        let msg_e = if locale == "ko_KR" { "로컬 엔드포인트 입력: " } else { "Enter Local Endpoint: " };
-                        ("local".to_string(), None, Some(prompt(&msg_e).trim_end_matches('/').to_string()))
+                        let final_ep = if *use_cached && cached_endpoint.is_some() {
+                            cached_endpoint.clone().unwrap()
+                        } else {
+                            let msg_e = if locale == "ko_KR" { "로컬 엔드포인트 입력: " } else { "Enter Local Endpoint: " };
+                            let ep = prompt(&msg_e).trim_end_matches('/').to_string();
+                            
+                            if cached_endpoint.is_none() {
+                                *cached_endpoint = Some(ep.clone());
+                                let msg_q = if locale == "ko_KR" { "이후 모든 요원에게 이 주소를 동일하게 적용할까요? [Y/n]: " } else { "Use this endpoint for all subsequent agents? [Y/n]: " };
+                                if prompt(&msg_q).to_lowercase() != "n" {
+                                    *use_cached = true;
+                                }
+                            }
+                            ep
+                        };
+                        ("local".to_string(), None, Some(final_ep))
                     } else {
                         let idx: usize = p_idx_str.parse().unwrap_or(1);
                         let name = available_models.get(idx - 1).map(|(n, _)| *n).unwrap_or("Gemini");
@@ -275,13 +321,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     AgentConfig { runtime, provider, endpoint, model: model_name }
                 }
 
-                arch_config = recruit_agent_async("Architect", &available_models, &final_locale).await;
+                arch_config = recruit_agent_async("Architect", &available_models, &final_locale, &mut global_local_endpoint, &mut use_global_endpoint).await;
                 let msg_s = if final_locale == "ko_KR" { "\n시니어 요원 수 (기본 1): " } else { "\nNumber of Seniors (default 1): " };
                 let senior_count: usize = prompt(&msg_s).parse().unwrap_or(1);
-                for i in 0..senior_count { senior_configs.push(recruit_agent_async(&format!("Senior #{}", i + 1), &available_models, &final_locale).await); }
+                for i in 0..senior_count { senior_configs.push(recruit_agent_async(&format!("Senior #{}", i + 1), &available_models, &final_locale, &mut global_local_endpoint, &mut use_global_endpoint).await); }
                 let msg_j = if final_locale == "ko_KR" { "\n주니어 요원 수 (기본 1): " } else { "\nNumber of Juniors (default 1): " };
                 let junior_count: usize = prompt(&msg_j).parse().unwrap_or(1);
-                for i in 0..junior_count { junior_configs.push(recruit_agent_async(&format!("Junior #{}", i + 1), &available_models, &final_locale).await); }
+                for i in 0..junior_count { junior_configs.push(recruit_agent_async(&format!("Junior #{}", i + 1), &available_models, &final_locale, &mut global_local_endpoint, &mut use_global_endpoint).await); }
 
                 let cfg = AxonConfig {
                     agents: AgentsConfig { architect: arch_config, seniors: senior_configs, juniors: junior_configs },
@@ -295,10 +341,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("{}", msg_save);
                 }
                 let mut s_drvs = Vec::new();
-                for s_cfg in &cfg.agents.seniors { s_drvs.push(get_drv(s_cfg)); }
+                let mut s_names = Vec::new();
+                for s_cfg in &cfg.agents.seniors { 
+                    s_drvs.push(get_drv(s_cfg)); 
+                    s_names.push(s_cfg.model.clone());
+                }
                 let mut j_drvs = Vec::new();
-                for j_cfg in &cfg.agents.juniors { j_drvs.push(get_drv(j_cfg)); }
-                (get_drv(&cfg.agents.architect), cfg.agents.architect.model.clone(), s_drvs, j_drvs)
+                let mut j_names = Vec::new();
+                for j_cfg in &cfg.agents.juniors { 
+                    j_drvs.push(get_drv(j_cfg)); 
+                    j_names.push(j_cfg.model.clone());
+                }
+                (get_drv(&cfg.agents.architect), cfg.agents.architect.model.clone(), s_drvs, s_names, j_drvs, j_names)
             };
 
             // Stage 4: Factory Initialization (Spec)
@@ -354,11 +408,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let daemon = Arc::new(Daemon::new(
                 storage,
                 architect_model,
-                _arch_name, // Pass architect model name
+                arch_name, // v0.0.23: Use the explicitly selected name
                 senior_models,
-                fast_cfg.as_ref().map(|c| c.agents.seniors.iter().map(|s| s.model.clone()).collect()).unwrap_or_else(|| vec!["qwen:1.8b".into()]),
+                senior_model_names, // v0.0.23: Use the explicitly selected names
                 junior_models,
-                fast_cfg.as_ref().map(|c| c.agents.juniors.iter().map(|j| j.model.clone()).collect()).unwrap_or_else(|| vec!["qwen:1.8b".into()]),
+                junior_model_names, // v0.0.23: Use the explicitly selected names
                 worker_tx,
                 "Standard AXON Protocol".to_string(),
                 sampling_rate,

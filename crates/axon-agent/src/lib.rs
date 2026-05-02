@@ -263,8 +263,25 @@ impl AgentRuntime {
             architecture_guide.to_string()
         };
 
+        let target_file = task.title.split_whitespace().last().unwrap_or("unknown");
         let system_prompt = format!(
-            "### AI JUNIOR AGENT: {} ###\n\
+            "[CRITICAL - READ FIRST]\n\
+             You are assigned EXACTLY ONE file: {}\n\
+             Do NOT generate any other files.\n\n\
+             [INSTANT REJECTION CONDITIONS]\n\
+             Your output will be IMMEDIATELY REJECTED if:\n\
+             - Contains TODO, FIXME, Implementation pending, or 'pass'\n\
+             - Contains placeholder comments\n\
+             - Code block is empty\n\
+             - File size < 120 bytes\n\
+             - More than ONE file generated\n\n\
+             [EXCEPTION]\n\
+             JSON data files and Markdown documentation do not require functions/classes.\n\
+             Only .py/.rs/.ts files are subject to executable logic validation.\n\n\
+             [YOUR FATE]\n\
+             Rejection is logged permanently in the AXON trace.\n\
+             Repeated failures result in agent termination and replacement.\n\n\
+             ### AI JUNIOR AGENT: {} ###\n\
              ROLE: Implement the task below using AXON Patch Protocol v2.\n\
              LANG: {}\n\n\
              {}\n\n\
@@ -278,18 +295,16 @@ impl AgentRuntime {
              TITLE: {}\n\
              DESC: {}\n\n\
              ### OUTPUT RULE: AXON Patch Protocol v2 (STRICT) ###\n\
-             1. YOU MUST OUTPUT ONLY IN THE FOLLOWING FORMAT:\n\n\
-             ===AXON_PATCH_START===\n\n\
-             FILE: <relative_path>\n\
-             ACTION: <rewrite|append|delete>\n\n\
+             1. FORMAT:\n\n\
+             ===AXON_PATCH_START===\n\
+             FILE: {}\n\
+             ACTION: rewrite\n\n\
              ---CODE START---\n\
-             <RAW CODE (no escaping)>\n\
-             ---CODE END---\n\n\
+             <COMPLETE EXECUTABLE CODE>\n\
+             ---CODE END---\n\
              ===AXON_PATCH_END===\n\n\
-             2. NO JSON. NO EXPLANATIONS. NO MARKDOWN.\n\
-             3. USE VALID PYTHON SYNTAX ONLY. NO JAVASCRIPT.\n\
-             4. MULTI-FILE SUPPORT: You can repeat the FILE/ACTION/CODE block within the START/END markers.",
-            self.agent.persona.name, lang_name, feedback_block, short_guide, task.title, task.description
+             2. NO TALKING. NO JSON. NO MARKDOWN. ONLY THE PATCH.",
+            target_file, self.agent.persona.name, lang_name, feedback_block, short_guide, task.title, task.description, target_file
         );
 
         let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
@@ -307,8 +322,27 @@ impl AgentRuntime {
         
         let full_code = match extract_axon_patch_v2(&repaired_text) {
             Some(patch) => {
-                // For backward compatibility with Stage 6 validators that expect the [ { target, type, code } ] JSON
-                let json_legacy = serde_json::json!(patch.files.iter().map(|f| {
+                // v0.0.23: SINGLE-FILE FOCUS ENFORCEMENT
+                // Filter out any files that aren't mentioned in the task title or aren't the primary focus
+                let mut filtered_files = Vec::new();
+                let num_files = patch.files.len();
+                
+                for f in &patch.files {
+                    let f_lower = f.path.to_lowercase();
+                    let title_lower = task.title.to_lowercase();
+                    let desc_lower = task.description.to_lowercase();
+                    
+                    // Heuristic: Does the task title or description mention this file?
+                    // Or is it the ONLY file? (If it's the only one, we assume it's the target)
+                    if title_lower.contains(&f_lower) || desc_lower.contains(&f_lower) || num_files == 1 {
+                        filtered_files.push(f.clone());
+                    } else {
+                        tracing::warn!("🛡️ [FILTER_SHIELD] Dropped unauthorized patch for '{}' from Junior response.", f.path);
+                    }
+                }
+
+                // For backward compatibility
+                let json_legacy = serde_json::json!(filtered_files.iter().map(|f| {
                     serde_json::json!({
                         "target": f.path,
                         "type": match f.action {
@@ -978,12 +1012,14 @@ impl AgentRuntime {
              --- 주니어 제안 ---\n\
              {}\n\
              {}\n\n\
-             --- 검토 규격 ---\n\
-             1. 출력 규약 검증 (CRITICAL): 주니어의 제안이 유효한 JSON 배열 형식 또는 새로운 Raw Code Tag 포맷(# TARGET, ---CODE START---)을 따르고 있는지 확인하십시오. 형식이 파괴되었거나 태그가 누락되었다면 **무조건 REJECT** 하십시오.\n\
-             2. 코드 및 의존성 검증: 코드가 완성된 상태인지, 실행 가능한지, 환각 라이브러리(SovereignProtocol 등)가 없는지 확인하십시오.\n\
-             3. 생각(<analysis>) 과정은 생략하십시오.\n\
-             4. 마지막에 반드시 'APPROVE' 또는 'REJECT'를 명시하십시오.\n\
-             5. 반려(REJECT) 시에는 짧고 명확한 사유와 수정 힌트(FIX_HINT)를 한국어로 적으십시오. (예: ---CODE START--- 태그가 누락되었습니다.)",
+             --- 검토 규격 (CRITICAL) ---\n\
+             1. **Strict Reject Rules**: 논리적 중복(예: x - x), 하드코딩(예: 2023, 2024), 비효율적 조건문 발견 시 **즉시 REJECT**하고 날카로운 독설을 섞은 피드백을 남기십시오.\n\
+             2. **KISS 원칙 강제**: '가장 단순한 코드가 최고의 코드'입니다. 불필요하게 복잡하게 꼬아놓은 로직은 지능의 부족을 가리기 위한 기만으로 간주하고 엄격히 평가하십시오.\n\
+             3. 출력 규약 검증: 주니어의 제안이 유효한 JSON 배열 형식 또는 새로운 Raw Code Tag 포맷(# TARGET, ---CODE START---)을 따르고 있는지 확인하십시오. 형식이 파괴되었거나 태그가 누락되었다면 **무조건 REJECT** 하십시오.\n\
+             4. 코드 및 의존성 검증: 코드가 완성된 상태인지, 실행 가능한지, 환각 라이브러리가 없는지 확인하십시오.\n\
+             5. 생각(<analysis>) 과정은 생략하십시오.\n\
+             6. 마지막에 반드시 'APPROVE' 또는 'REJECT'를 명시하십시오.\n\
+             7. 반려(REJECT) 시에는 짧고 명확한 사유와 수정 힌트(FIX_HINT)를 한국어로 적으십시오.",
             self.agent.persona.name,
             lang_name,
             task.title,

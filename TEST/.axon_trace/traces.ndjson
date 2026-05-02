@@ -1,9 +1,0 @@
-{"error":"TASK_SUMMARY","file":"SUCCESS","stage":"Final","symbol":"none","task_id":"0f5d9239-18d4-4b69-adda-bd125bfaa8f1","ts":"2026-05-01T19:52:48.506118896+09:00"}
-{"error":"TASK_SUMMARY","file":"SUCCESS","stage":"Final","symbol":"none","task_id":"85c98ea7-cbc5-4edb-919f-7634054e9d7c","ts":"2026-05-01T19:52:58.933443636+09:00"}
-{"error":"TASK_SUMMARY","file":"SUCCESS","stage":"Final","symbol":"none","task_id":"034d4f3c-a0ba-43ef-9e43-9c98cc5fb306","ts":"2026-05-01T19:54:29.622309891+09:00"}
-{"error":"TASK_SUMMARY","file":"SUCCESS","stage":"Final","symbol":"none","task_id":"b4512a2c-3525-41c5-959c-8e5982db5302","ts":"2026-05-01T19:54:55.424120983+09:00"}
-{"error":"TASK_SUMMARY","file":"SUCCESS","stage":"Final","symbol":"none","task_id":"654f5636-9a9b-4331-b6ac-11905d07b25e","ts":"2026-05-01T19:56:24.828333182+09:00"}
-{"error":"TASK_SUMMARY","file":"SUCCESS","stage":"Final","symbol":"none","task_id":"e670a340-e15b-4907-88f0-4b2d29402377","ts":"2026-05-01T19:56:46.867347306+09:00"}
-{"error":"RUNTIME_CRASH","file":".axon_snapshots/v_1777633067_654f5636/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632828_0f5d9239/main.py","stage":"Stage5","symbol":"main","task_id":"2ff1c570-9f4b-4733-a98e-3775b9c19466","ts":"2026-05-01T19:58:40.517154587+09:00"}
-{"error":"RUNTIME_CRASH","file":".axon_snapshots/v_1777633069_e670a340/.axon_snapshots/v_1777632972_b4512a2c/.axon_snapshots/v_1777632839_85c98ea7/main.py","stage":"Stage5","symbol":"main","task_id":"2ff1c570-9f4b-4733-a98e-3775b9c19466","ts":"2026-05-01T19:59:32.196021945+09:00"}
-{"error":"RUNTIME_CRASH","file":"main.py","stage":"Stage5","symbol":"main","task_id":"2ff1c570-9f4b-4733-a98e-3775b9c19466","ts":"2026-05-01T19:59:47.015184573+09:00"}

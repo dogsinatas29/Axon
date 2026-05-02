@@ -39,8 +39,24 @@ const App: React.FC = () => {
   const fetchThreads = async () => {
     try {
       const res = await fetch('http://localhost:8080/api/threads');
-      const data = await res.json();
-      setThreads(data);
+      const data: Thread[] = await res.json();
+      
+      // v0.0.23: Priority Sorting (Active Threads at Top)
+      const sorted = [...data].sort((a, b) => {
+        const getPriority = (status: string) => {
+          if (['Working', 'SeniorReview', 'JuniorProposal', 'PatchReady'].includes(status)) return 0;
+          if (['Completed'].includes(status)) return 2;
+          return 1;
+        };
+        
+        const prioA = getPriority(a.status);
+        const prioB = getPriority(b.status);
+        
+        if (prioA !== prioB) return prioA - prioB;
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      });
+      
+      setThreads(sorted);
     } catch (err) {
       console.error('Failed to fetch threads', err);
     }

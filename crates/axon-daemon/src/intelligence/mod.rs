@@ -12,3 +12,4 @@ pub mod ir_diff;
 pub mod pipeline;
 pub mod constraint_meta;
 pub mod orchestrator;
+pub mod planner;

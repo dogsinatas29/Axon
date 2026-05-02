@@ -38,6 +38,7 @@ pub struct Task {
     pub title: String,
     pub description: String,
     pub status: TaskStatus,
+    pub dependencies: Vec<String>, // v0.0.23: List of Task IDs that must be completed first
     pub result: Option<String>,
     pub created_at: DateTime<Local>,
 }

@@ -1,69 +1,111 @@
-/*
- * AXON - The Automated Software Factory
- * Copyright (C) 2026 dogsinatas
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 import React from 'react';
-import { motion } from 'framer-motion';
-import { MessageSquare, Clock, CheckCircle, AlertTriangle, Shield } from 'lucide-react';
 import type { Thread, ThreadStatus } from '../types';
+import { 
+  CheckCircle, 
+  Clock, 
+  AlertCircle, 
+  ShieldCheck, 
+  Zap
+} from 'lucide-react';
 
 interface ThreadCardProps {
   thread: Thread;
-  onClick?: (id: string) => void;
+  onClick: (id: string) => void;
 }
 
 const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onClick }) => {
-  const getStatusInfo = (status: ThreadStatus) => {
+  const { id, title, status, updated_at, rejection_count } = thread;
+
+  const getStatusConfig = (status: ThreadStatus) => {
     switch (status) {
-      case 'Draft': return { color: '#666', icon: <Clock size={12} />, label: 'Draft' };
-      case 'JuniorProposal': return { color: 'var(--accent-primary)', icon: <MessageSquare size={12} />, label: 'Proposal' };
-      case 'SeniorReview': return { color: 'var(--accent-secondary)', icon: <AlertTriangle size={12} />, label: 'Reviewing' };
-      case 'PatchReady': return { color: '#00ff95', icon: <CheckCircle size={12} />, label: 'Patch Ready' };
-      case 'BossApproval': return { color: '#ffcc00', icon: <Shield size={12} />, label: 'BOSS Final' };
-      case 'Completed': return { color: '#aaa', icon: <CheckCircle size={12} />, label: 'Closed' };
-      default: return { color: '#333', icon: null, label: status };
+      case 'Approved':
+        return { color: '#00e5ff', icon: <ShieldCheck size={18} />, glow: '0 0 20px rgba(0, 229, 255, 0.4)' };
+      case 'Completed':
+        return { color: '#00ff88', icon: <CheckCircle size={18} />, glow: '0 0 20px rgba(0, 255, 136, 0.4)' };
+      case 'Rejected':
+        return { color: '#ff4444', icon: <AlertCircle size={18} />, glow: '0 0 20px rgba(255, 68, 68, 0.4)' };
+      case 'Working':
+        return { color: '#ffd700', icon: <Zap size={18} className="animate-pulse" />, glow: '0 0 15px rgba(255, 215, 0, 0.3)' };
+      default:
+        return { color: '#888', icon: <Clock size={18} />, glow: 'none' };
     }
   };
 
-  const info = getStatusInfo(thread.status);
+  const config = getStatusConfig(status);
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.02 }}
-      className="card"
-      onClick={() => onClick?.(thread.id)}
-      style={{ cursor: 'pointer', borderColor: info.color + '44' }}
+    <div 
+      onClick={() => onClick(id)}
+      style={{
+        backgroundColor: '#1a1a1a',
+        borderRadius: '12px',
+        padding: '20px',
+        cursor: 'pointer',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        border: `1px solid ${config.color}`,
+        boxShadow: config.glow,
+        position: 'relative',
+        overflow: 'hidden',
+        marginBottom: '16px'
+      }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-        <span style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>{thread.id}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.65rem', color: info.color }}>
-          {info.icon}
-          {info.label}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+        <span style={{ fontSize: '10px', color: '#666', fontFamily: 'monospace' }}>{id}</span>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '6px', 
+          color: config.color,
+          fontSize: '12px',
+          fontWeight: 'bold',
+          textTransform: 'uppercase',
+          letterSpacing: '1px'
+        }}>
+          {config.icon}
+          {status}
         </div>
       </div>
-      <h3 style={{ fontSize: '0.9rem', marginBottom: '0.5rem', fontFamily: 'Orbitron' }}>{thread.title}</h3>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
-        <span style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>
-          Updated {new Date(thread.updated_at).toLocaleTimeString()}
-        </span>
+
+      <h3 style={{ 
+        margin: '0 0 12px 0', 
+        fontSize: '18px', 
+        color: status === 'Working' ? '#ffd700' : '#fff',
+        fontWeight: '600'
+      }}>
+        {title}
+      </h3>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: '12px', color: '#888' }}>
+          Updated {updated_at}
+        </div>
+        
+        {rejection_count !== undefined && rejection_count > 0 && (
+          <div style={{ 
+            fontSize: '11px', 
+            color: '#ff4444', 
+            backgroundColor: 'rgba(255, 68, 68, 0.1)',
+            padding: '2px 8px',
+            borderRadius: '4px',
+            border: '1px solid rgba(255, 68, 68, 0.3)'
+          }}>
+            {rejection_count} REJECTIONS
+          </div>
+        )}
       </div>
-    </motion.div>
+      
+      {status === 'Working' && (
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          height: '2px',
+          width: '100%',
+          background: 'linear-gradient(90deg, transparent, #ffd700, transparent)',
+          animation: 'scan 2s linear infinite'
+        }} />
+      )}
+    </div>
   );
 };
 

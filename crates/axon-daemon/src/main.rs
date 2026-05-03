@@ -86,6 +86,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             status: axon_core::TaskStatus::Pending,
                             dependencies: Vec::new(),
                             result: None,
+                            target_file: None,     // v0.0.23 added
+                            error_feedback: None,  // v0.0.23 added
                             created_at: chrono::Local::now(),
                         };
                         daemon.storage.save_task(&task).expect("Failed to save task");
@@ -96,9 +98,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::Run { resume, spec } => {
-            println!("\n====================================================");
-            println!("🏭 AXON: Automated Software Factory Bootstrapper");
-            println!("====================================================\n");
+            println!("\n====================================================
+🏭 AXON: Automated Software Factory v0.0.23_HARDENED
+====================================================
+======================\n");
 
             // ... (rest of the config logic remains same)
 

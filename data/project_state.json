@@ -1,7 +1,64 @@
 {
-  "aiCount": 145,
+  "aiCount": 146,
   "cluster_flows": [],
   "clusters": [
+    {
+      "bounds": {
+        "height": 0,
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      "children": [],
+      "collapsed": false,
+      "data": {},
+      "id": "cluster_ARCHITECTURE_AXON",
+      "label": "📂 ARCHITECTURE_AXON",
+      "nodes": [],
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "bounds": {
+        "height": 0,
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      "children": [],
+      "collapsed": false,
+      "data": {},
+      "id": "cluster_ARCHITECTURE_AXON__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "nodes": [],
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "bounds": {
+        "height": 0,
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      "children": [],
+      "collapsed": false,
+      "data": {},
+      "id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+      "label": "📂 v_1777804623_91e9f3a8",
+      "nodes": [],
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
     {
       "collapsed": false,
       "data": {
@@ -16479,12 +16536,785 @@
       "visual": {
         "opacity": 0.5
       }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/planner.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "planner",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/planner.rs",
+      "id": "crates/axon-daemon/src/intelligence/planner.rs",
+      "intelligence": {},
+      "label": "planner",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "ARCHITECTURE_AXON",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON.md",
+      "id": "ARCHITECTURE_AXON.md",
+      "intelligence": {},
+      "label": "ARCHITECTURE_AXON",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/architecture.md",
+      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/architecture.md",
+      "intelligence": {},
+      "label": "architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/calculation.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "calculation",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/calculation.rs",
+      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/calculation.rs",
+      "intelligence": {},
+      "label": "calculation",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/control.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "control",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/control.rs",
+      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/control.rs",
+      "intelligence": {},
+      "label": "control",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/dependencies.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "dependencies",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/dependencies.rs",
+      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/dependencies.rs",
+      "intelligence": {},
+      "label": "dependencies",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/input.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/input.rs",
+      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/input.rs",
+      "intelligence": {},
+      "label": "input",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/main.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/main.py",
+      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/main.py",
+      "intelligence": {},
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/output.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "output",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/output.rs",
+      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/output.rs",
+      "intelligence": {},
+      "label": "output",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/persistence.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "persistence",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/persistence.rs",
+      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/persistence.rs",
+      "intelligence": {},
+      "label": "persistence",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/validation.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "validation",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/validation.rs",
+      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/validation.rs",
+      "intelligence": {},
+      "label": "validation",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/architecture.md",
+      "id": "ARCHITECTURE_AXON/architecture.md",
+      "intelligence": {},
+      "label": "architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/calculation.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "calculation",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/calculation.rs",
+      "id": "ARCHITECTURE_AXON/calculation.rs",
+      "intelligence": {},
+      "label": "calculation",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/control.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "control",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/control.rs",
+      "id": "ARCHITECTURE_AXON/control.rs",
+      "intelligence": {},
+      "label": "control",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/dependencies.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "dependencies",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/dependencies.rs",
+      "id": "ARCHITECTURE_AXON/dependencies.rs",
+      "intelligence": {},
+      "label": "dependencies",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/input.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "input",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/input.rs",
+      "id": "ARCHITECTURE_AXON/input.rs",
+      "intelligence": {},
+      "label": "input",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/main.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/main.py",
+      "id": "ARCHITECTURE_AXON/main.py",
+      "intelligence": {},
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/output.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "output",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/output.rs",
+      "id": "ARCHITECTURE_AXON/output.rs",
+      "intelligence": {},
+      "label": "output",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/persistence.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "persistence",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/persistence.rs",
+      "id": "ARCHITECTURE_AXON/persistence.rs",
+      "intelligence": {},
+      "label": "persistence",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ARCHITECTURE_AXON",
+      "data": {
+        "cluster_id": "cluster_ARCHITECTURE_AXON",
+        "degree": 0,
+        "file": "ARCHITECTURE_AXON/validation.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "validation",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "ARCHITECTURE_AXON/validation.rs",
+      "id": "ARCHITECTURE_AXON/validation.rs",
+      "intelligence": {},
+      "label": "validation",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "architecture.bak.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture.bak",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "architecture.bak.md",
+      "id": "architecture.bak.md",
+      "intelligence": {},
+      "label": "architecture.bak",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "👻",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "let rr_pos = *entry % ties.len()",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "ghost://let rr_pos = *entry % ties.len()",
+      "id": "let rr_pos = *entry % ties.len()",
+      "intelligence": {},
+      "label": "let rr_pos = *entry % ties.len()",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "source",
+      "visual": {
+        "opacity": 0.5
+      }
     }
   ],
-  "userCount": 254,
+  "userCount": 275,
   "_iron_guard": {
     "version": "0.2.18.1",
-    "byte_size": 271976,
+    "byte_size": 287335,
     "encoding": "UTF-8",
     "alignment": 8
   }

@@ -40,6 +40,8 @@ pub struct Task {
     pub status: TaskStatus,
     pub dependencies: Vec<String>, // v0.0.23: List of Task IDs that must be completed first
     pub result: Option<String>,
+    pub target_file: Option<String>,   // v0.0.23: Explicit target file for S.T.E. Shield
+    pub error_feedback: Option<String>, // v0.0.23: Feedback loop for failed attempts
     pub created_at: DateTime<Local>,
 }
 

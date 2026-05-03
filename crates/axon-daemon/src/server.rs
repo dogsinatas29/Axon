@@ -170,6 +170,8 @@ async fn submit_spec_internal(
                         status: TaskStatus::Pending,
                         dependencies: Vec::new(), // Initialized as empty for now
                         result: None,
+                        target_file: None,     // v0.0.23 added
+                        error_feedback: None,  // v0.0.23 added
                         created_at: chrono::Local::now(),
                     };
                     let _ = daemon.storage.save_task(&task);
@@ -213,6 +215,8 @@ async fn submit_spec_internal(
                     status: TaskStatus::Pending,
                     dependencies: Vec::new(),
                     result: None,
+                    target_file: None,     // v0.0.23 added
+                    error_feedback: None,  // v0.0.23 added
                     created_at: chrono::Local::now(),
                 };
                 let _ = daemon.storage.save_task(&task);
@@ -496,6 +500,8 @@ async fn submit_task(
         status: TaskStatus::Pending,
         dependencies: Vec::new(),
         result: None,
+        target_file: None,     // v0.0.23 added
+        error_feedback: None,  // v0.0.23 added
         created_at: chrono::Local::now(),
     };
 

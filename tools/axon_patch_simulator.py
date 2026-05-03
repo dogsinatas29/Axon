@@ -87,6 +87,10 @@ def simulate_state(project_root: str, junior_output_json: str):
     # 1. Load all existing files from project_root into the virtual state FIRST
     if os.path.exists(project_root):
         for root, dirs, files in os.walk(project_root):
+            # v0.0.23: SYSTEM DIRECTORY SHIELD
+            # Skip internal/hidden directories to prevent recursion and sideways glances
+            dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ["target", "crates", "tools", "mile_stone"]]
+            
             for f in files:
                 if f.startswith('.') or f.endswith('.pyc'): continue
                 rel_path = os.path.relpath(os.path.join(root, f), project_root)

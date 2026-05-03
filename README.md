@@ -249,11 +249,15 @@ Also, you can inject personas into the hired agents.
 
 ## 📋 Release Notes
 
-### v0.0.23 - Physical Pipeline & Anti-Stub Hardening
-- **COMMIT_PENDING Pipeline**: Split into Logical Approval → Physical Materialization → Physical Validation.
-- **Auto-Rollback (Auto-Rollback)**: Immediate revert on physical validation failure.
-- **Anti-Stub v2**: Global forbidden marker detection (even in hidden comments).
-- **F8.1 Guardrail**: Full audit to ensure functions defined in architecture exist in files.
+### v0.0.24 - Syntax Cleanliness & Anti-Pollution
+- **Pollution Shield**: Automatic detection and rejection of markdown code blocks (triple backticks) within source files to ensure pure code integrity.
+- **Strict Logic Density Check**: Enhanced physical validation to reject empty functions or trivial stubs.
+
+### v0.0.23 - Maximum Harness & Signature Persistence
+- **Maximum Harness Protocol**: Integrated physical existence checks (Signature Matching) and high-density logic verification gates.
+- **Agent Signature Persistence**: Guaranteed embedding of Agent ID and Task ID into promoted source files for full traceability.
+- **S.T.E. Shield & WIPE_SHIELD**: Hardened security and integrity enforcement against unauthorized file drifts and low-quality code.
+- **Auto-Requeue Feedback Loop**: Implementation of persistent self-correction for failed tasks.
 
 ### v0.0.22 - Deterministic Factory Pipeline
 - **IR Convergence Loop**: Auto-repair loop until fixed-point IR is reached.

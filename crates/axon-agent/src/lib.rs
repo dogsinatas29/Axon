@@ -238,10 +238,10 @@ impl AgentRuntime {
     }
 
     pub async fn process_task(&self, task: &Task, architecture_guide: &str, error_feedback: Option<String>, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
-        let lang_name = match self.locale.as_str() {
-            "ko_KR" => "한국어 (Korean)",
-            "ja_JP" => "日本語 (Japanese)",
-            _ => "English",
+        let (lang_name, lang_instruction) = match self.locale.as_str() {
+            "ko_KR" => ("한국어 (Korean)", "모든 주석과 출력 문자열은 반드시 한국어(Korean)로 작성하십시오. 절대 중국어(Chinese)를 사용하지 마십시오."),
+            "ja_JP" => ("日本語 (Japanese)", "すべてのコメントと出力文字列は 반드시 日本語で作成してください。中国語は絶対に使用しないでください。"),
+            _ => ("English", "All comments and output strings must be written in English. Do not use any other languages."),
         };
 
         let log_msg = match self.locale.as_str() {
@@ -251,45 +251,109 @@ impl AgentRuntime {
         };
         tracing::info!("{}", log_msg);
         
-        let feedback_block = match &error_feedback {
-            Some(err) => format!("\n--- [CRITICAL] PREVIOUS ATTEMPT FAILED ---\nERROR: {}\nFIX THE CODE BASED ON THIS ERROR.\n", err),
-            None => "".to_string(),
-        };
-
-        let guide_limit = 2000;
-        let short_guide = if architecture_guide.len() > guide_limit {
-            format!("{}... [TRUNCATED]", &architecture_guide[..guide_limit])
+        let feedback_block = if let Some(err) = &task.error_feedback {
+            format!("\n--- [CRITICAL] PREVIOUS ATTEMPT FAILED ---\nERROR: {}\nFIX THE CODE BASED ON THIS ERROR.\n", err)
+        } else if let Some(err) = &error_feedback {
+            format!("\n--- [CRITICAL] PREVIOUS ATTEMPT FAILED ---\nERROR: {}\nFIX THE CODE BASED ON THIS ERROR.\n", err)
         } else {
-            architecture_guide.to_string()
+            "".to_string()
         };
 
-        let target_file = task.title.split_whitespace().last().unwrap_or("unknown");
+        // v0.0.23: Use explicit target_file if available, fallback to title parsing
+        let target_file_owned = if let Some(target) = &task.target_file {
+            target.clone()
+        } else {
+            let raw_target = task.title.split_whitespace().last().unwrap_or("unknown");
+            raw_target
+                .trim_matches(|c| c == '[' || c == ']' || c == '(' || c == ')' || c == '`' || c == '*')
+                .split(']')
+                .next()
+                .unwrap_or(raw_target)
+                .split('(')
+                .next()
+                .unwrap_or(raw_target)
+                .to_string()
+        };
+        let target_file = &target_file_owned;
+
+        // v0.0.23: IR Chunking (Fixed) - Extract only the block that mentions the target_file
+        let filtered_guide = {
+            let lines: Vec<&str> = architecture_guide.lines().collect();
+            let mut result = String::new();
+            let mut target_section_start = None;
+
+            // 1. Find the section index that contains the target_file
+            for (i, line) in lines.iter().enumerate() {
+                // Precise match to avoid picking up similar filenames in comments
+                if line.contains(target_file) && (line.contains("- **File**:") || line.contains("FILE:")) {
+                    // We found the file line. Now look backwards for the component header.
+                    for j in (0..=i).rev() {
+                        if lines[j].starts_with("##") {
+                            target_section_start = Some(j);
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+
+            // 2. If found, capture until the next header
+            if let Some(start) = target_section_start {
+                for i in start..lines.len() {
+                    if i > start && lines[i].starts_with("##") {
+                        break;
+                    }
+                    result.push_str(lines[i]);
+                    result.push('\n');
+                }
+            }
+
+            if result.is_empty() { 
+                tracing::warn!("⚠️ [CHUNK_FAIL] Could not find IR section for {}. Using full guide as safety fallback.", target_file);
+                architecture_guide.to_string()
+            } else { 
+                result 
+            }
+        };
+
+        let guide_limit = 3000;
+        let short_guide = if filtered_guide.len() > guide_limit {
+            format!("{}... [TRUNCATED]", &filtered_guide[..guide_limit])
+        } else {
+            filtered_guide
+        };
+
         let system_prompt = format!(
-            "[CRITICAL - READ FIRST]\n\
-             You are assigned EXACTLY ONE file: {}\n\
-             Do NOT generate any other files.\n\n\
-             [INSTANT REJECTION CONDITIONS]\n\
-             Your output will be IMMEDIATELY REJECTED if:\n\
-             - Contains TODO, FIXME, Implementation pending, or 'pass'\n\
-             - Contains placeholder comments\n\
-             - Code block is empty\n\
-             - File size < 120 bytes\n\
-             - More than ONE file generated\n\n\
-             [EXCEPTION]\n\
-             JSON data files and Markdown documentation do not require functions/classes.\n\
-             Only .py/.rs/.ts files are subject to executable logic validation.\n\n\
+            "[AXON FACTORY CORE PRINCIPLE - READ FIRST]\n\
+             1. [Think Before Coding]: DO NOT GUESS. If the spec is ambiguous, ask for clarification (though in this automated mode, assume best-practice defaults).\n\
+             2. [Simplicity First]: Code must be minimal but FULLY FUNCTIONAL. No placeholders, no stubs.\n\
+             3. [No Stub Violation]: YOUR WORK WILL BE REJECTED IF IT CONTAINS ONLY PRINT STATEMENTS OR NO LOGIC. IMPLEMENT THE ACTUAL ALGORITHM.\n\
+             4. [No Hallucinated APIs]: Only use libraries confirmed in the context.\n\n\
+             [CRITICAL CONSTRAINTS]\n\
+             - YOU ARE ASSIGNED EXACTLY ONE FILE: {}\n\
+             - DO NOT ATTEMPT TO MODIFY ANY OTHER FILES.\n\
+             - YOUR TARGET: '{}'\n\n\
+             [STRICT OUTPUT RULE]\n\
+             - You MUST use EXACTLY ONE '===AXON_PATCH_START===' block.\n\
+             - Multiple file patches will be DISCARDED and result in failure.\n\n\
+             [INSTANT REJECTION CRITERIA]\n\
+             - Target file mismatch (Expected: {})\n\
+             - Target file mismatch in 'FILE:' field (Expected: {})\n\
+             - **NO TODO, FIXME, or placeholders allowed.**\n\
+             - **Minimum Logic Density**: Must contain actual logic (if, match, calculations), not just print calls.\n\
+             - **NO Markdown code blocks (```rust) allowed.**\n\n\
              [YOUR FATE]\n\
-             Rejection is logged permanently in the AXON trace.\n\
-             Repeated failures result in agent termination and replacement.\n\n\
+             Failure to follow these instructions will result in your immediate replacement and task auto-requeue.\n\n\
              ### AI JUNIOR AGENT: {} ###\n\
-             ROLE: Implement the task below using AXON Patch Protocol v2.\n\
-             LANG: {}\n\n\
+             ROLE: Implement the task for '{}' using AXON Patch Protocol v2.\n\
+             LANG: {} ({})\n\n\
              {}\n\n\
-             ### ARCHITECTURE GUIDE (IR Single Source of Truth) ###\n\
+             ### ARCHITECTURE GUIDE (Relevant Section for {}) ###\n\
              {}\n\n\
              ### IR CONTRACT ENFORCEMENT ###\n\
              - Your code will be validated against the symbols defined in architecture.md.\n\
              - You MUST implement ALL required functions for the target file.\n\
+             - [RUST VISIBILITY]: ALWAYS use `pub` for interface functions.\n\
              - DO NOT add extra functions or drift from the defined signatures.\n\n\
              ### TASK ###\n\
              TITLE: {}\n\
@@ -304,7 +368,7 @@ impl AgentRuntime {
              ---CODE END---\n\
              ===AXON_PATCH_END===\n\n\
              2. NO TALKING. NO JSON. NO MARKDOWN. ONLY THE PATCH.",
-            target_file, self.agent.persona.name, lang_name, feedback_block, short_guide, task.title, task.description, target_file
+            target_file, target_file, target_file, target_file, self.agent.persona.name, target_file, lang_name, lang_instruction, feedback_block, target_file, short_guide, task.title, task.description, target_file
         );
 
         let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
@@ -1236,7 +1300,7 @@ fn extract_json(raw: &str) -> Option<String> {
     }
 }
 
-/// AXON Patch Protocol v2: Deterministic FSM Parser
+/// AXON Patch Protocol v2: Deterministic FSM Parser (Robust)
 fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
     #[derive(PartialEq)]
     enum State { Idle, InPatch, InFile, InCode }
@@ -1250,26 +1314,33 @@ fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
         
         match state {
             State::Idle => {
-                if line_trimmed == "===AXON_PATCH_START===" {
+                if line_trimmed.contains("===AXON_PATCH_START===") {
                     state = State::InPatch;
                 }
             }
             State::InPatch => {
-                if line_trimmed == "===AXON_PATCH_END===" {
+                if line_trimmed.contains("===AXON_PATCH_END===") {
                     state = State::Idle;
-                } else if line_trimmed.starts_with("FILE:") {
-                    let path = line_trimmed[5..].trim().to_string();
-                    current_file = Some(axon_core::patch::FilePatch {
-                        path,
-                        action: axon_core::patch::PatchAction::Rewrite,
-                        code: String::new(),
-                    });
-                    state = State::InFile;
+                } else {
+                    // Stricter FILE: detection (must be at the start of the logical line)
+                    let clean_line = line_trimmed.trim_start_matches(|c| c == '/' || c == '#' || c == ' ' || c == '*').trim();
+                    if clean_line.starts_with("FILE:") {
+                        let path = clean_line[5..].trim().trim_matches(|c| c == '`' || c == '"' || c == '\'').to_string();
+                        if !path.is_empty() {
+                            current_file = Some(axon_core::patch::FilePatch {
+                                path,
+                                action: axon_core::patch::PatchAction::Rewrite,
+                                code: String::new(),
+                            });
+                            state = State::InFile;
+                        }
+                    }
                 }
             }
             State::InFile => {
-                if line_trimmed.starts_with("ACTION:") {
-                    let action_str = line_trimmed[7..].trim().to_lowercase();
+                let clean_line = line_trimmed.trim_start_matches(|c| c == '/' || c == '#' || c == ' ' || c == '*').trim();
+                if clean_line.starts_with("ACTION:") {
+                    let action_str = clean_line[7..].trim().to_lowercase();
                     if let Some(ref mut f) = current_file {
                         f.action = match action_str.as_str() {
                             "append" => axon_core::patch::PatchAction::Append,
@@ -1277,10 +1348,9 @@ fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
                             _ => axon_core::patch::PatchAction::Rewrite,
                         };
                     }
-                } else if line_trimmed == "---CODE START---" {
+                } else if clean_line.contains("---CODE START---") {
                     state = State::InCode;
-                } else if line_trimmed == "===AXON_PATCH_END===" {
-                    // Level 1.5: Sudden end after metadata
+                } else if clean_line.contains("===AXON_PATCH_END===") {
                     if let Some(f) = current_file.take() {
                         patch.files.push(f);
                     }
@@ -1288,7 +1358,7 @@ fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
                 }
             }
             State::InCode => {
-                if line_trimmed == "---CODE END---" {
+                if line_trimmed.contains("---CODE END---") {
                     if let Some(f) = current_file.take() {
                         patch.files.push(f);
                     }
@@ -1303,7 +1373,6 @@ fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
         }
     }
     
-    // Level 1.2: EOF recovery
     if state == State::InCode {
         if let Some(f) = current_file.take() {
             patch.files.push(f);
@@ -1318,9 +1387,8 @@ fn auto_repair_v2(input: &str) -> String {
     let mut repaired = Vec::new();
 
     // --- Level 1: Safe Fixes ---
-    // 1. Ensure Start/End Markers
-    let has_start = lines.iter().any(|l| l.trim() == "===AXON_PATCH_START===");
-    let has_end = lines.iter().any(|l| l.trim() == "===AXON_PATCH_END===");
+    let has_start = lines.iter().any(|l| l.contains("===AXON_PATCH_START==="));
+    let has_end = lines.iter().any(|l| l.contains("===AXON_PATCH_END==="));
     
     if !has_start {
         repaired.push("===AXON_PATCH_START===".to_string());
@@ -1331,13 +1399,9 @@ fn auto_repair_v2(input: &str) -> String {
 
     for line in lines {
         let trimmed = line.trim();
+        let clean = trimmed.trim_start_matches(|c| c == '/' || c == '#' || c == ' ' || c == '*').trim();
         
-        // Level 2: Language Pollution Removal
-        if trimmed == "\"use strict\";" || trimmed == "'use strict';" || trimmed.starts_with("export default") {
-            continue;
-        }
-
-        if trimmed.starts_with("FILE:") {
+        if clean.starts_with("FILE:") {
             if in_code_block {
                 repaired.push("---CODE END---".to_string());
                 in_code_block = false;
@@ -1347,26 +1411,25 @@ fn auto_repair_v2(input: &str) -> String {
             continue;
         }
 
-        if trimmed.starts_with("ACTION:") {
+        if clean.starts_with("ACTION:") {
             repaired.push(line);
             continue;
         }
 
-        if trimmed == "---CODE START---" {
+        if clean.contains("---CODE START---") {
             in_code_block = true;
             in_file_spec = false;
             repaired.push(line);
             continue;
         }
 
-        if trimmed == "---CODE END---" {
+        if clean.contains("---CODE END---") {
             in_code_block = false;
             repaired.push(line);
             continue;
         }
 
-        // Level 1.5: Missing ---CODE START--- after FILE
-        if in_file_spec && !trimmed.is_empty() && !trimmed.starts_with("ACTION:") {
+        if in_file_spec && !trimmed.is_empty() && !clean.starts_with("ACTION:") {
             repaired.push("---CODE START---".to_string());
             in_code_block = true;
             in_file_spec = false;
@@ -1383,14 +1446,11 @@ fn auto_repair_v2(input: &str) -> String {
     }
 
     let mut output = repaired.join("\n");
-
-    // Level 2.2: Escape Recovery
     output = output.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\");
 
-    // Level 3: Aggressive Recovery (No structure at all)
-    if !output.contains("FILE:") && (output.contains("def ") || output.contains("import ")) {
+    if !output.contains("FILE:") && (output.contains("def ") || output.contains("fn ") || output.contains("pub ")) {
         output = format!(
-            "===AXON_PATCH_START===\nFILE: unknown_recovery.py\nACTION: rewrite\n---CODE START---\n{}\n---CODE END---\n===AXON_PATCH_END===",
+            "===AXON_PATCH_START===\nFILE: recovery_logic.rs\nACTION: rewrite\n---CODE START---\n{}\n---CODE END---\n===AXON_PATCH_END===",
             output
         );
     }

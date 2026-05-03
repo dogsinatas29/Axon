@@ -380,7 +380,7 @@ impl Daemon {
         let mut final_simulated_state = String::new();
         let num_juniors = self.junior_models.len();
         let mut junior_failures = Vec::new();
-        let mut junior_error_feedback: Option<String> = None;
+        let mut junior_error_feedback: Option<String> = task.error_feedback.clone();
 
         'junior_fallback: for _ in 0..num_juniors {
             // PHASE_08: Adaptive Routing Selection
@@ -795,247 +795,189 @@ impl Daemon {
 
         // v0.0.23: Phase 6 - Materialization & Final Gateway
         if logical_pass {
-            // v0.0.22: Official SSOT Promotion after Senior/Architect Approval
-            let tmp_files_json = format!("{}/.promote_final_{}.json", task.project_id, uuid::Uuid::new_v4());
-            let _ = std::fs::write(&tmp_files_json, &final_simulated_state);
-            
-            let registry_res = std::process::Command::new("python3")
-                .arg(Self::resolve_tool_path("axon_registry.py"))
-                .arg("promote")
-                .arg("--root")
-                .arg(&task.project_id)
-                .arg("--files-json")
-                .arg(&tmp_files_json)
-                .arg("--task-id")
-                .arg(&task.id)
-                .output();
-            
-            let _ = std::fs::remove_file(&tmp_files_json);
+            // v0.0.23: Final Pipeline Logic (Verify-then-Commit-then-Promote)
+            if let Ok(state_map) = serde_json::from_str::<std::collections::HashMap<String, String>>(&final_simulated_state) {
+                let mut final_map = state_map.clone();
+                // 1. S.T.E. Shield (Security Check)
+                let target_path = if let Some(target) = &task.target_file {
+                    target.clone()
+                } else {
+                    let raw_target = task.title.split_whitespace().last().unwrap_or("unknown");
+                    raw_target
+                        .trim_matches(|c| c == '[' || c == ']' || c == '(' || c == ')' || c == '`' || c == '*')
+                        .split(']')
+                        .next()
+                        .unwrap_or(raw_target)
+                        .split('(')
+                        .next()
+                        .unwrap_or(raw_target)
+                        .to_string()
+                };
 
-            if let Ok(rout) = registry_res {
-                if rout.status.success() {
-                    tracing::info!("🚀 [SSOT PROMOTED] Versioned snapshot created for task {} after Simulation", task.id);
+                for (fname, new_content) in &state_map {
+                    let fpath = std::path::Path::new(&task.project_id).join(fname);
+                    let is_modified = if fpath.exists() {
+                        if let Ok(old_content) = std::fs::read_to_string(&fpath) {
+                            old_content.trim() != new_content.trim()
+                        } else { true }
+                    } else { !new_content.trim().is_empty() };
+
+                    if is_modified && *fname != target_path {
+                        tracing::error!("🛡️ [STE_SHIELD] Unauthorized modification! Agent tried to write to {}. Expected {}.", fname, target_path);
+                        failures.push(format!("Target Mismatch Violation: You are ONLY allowed to modify '{}'. You tried to modify '{}'.", target_path, fname));
+                    }
+
+                    // v0.0.24: Pollution Shield - Detect markdown code blocks
+                    if new_content.contains("```") {
+                        tracing::error!("❌ [POLLUTION_DETECTED] Markdown code blocks found in {}", fname);
+                        failures.push(format!("Markdown Pollution Violation: Triple backticks (```) are NOT allowed in source files. Submit RAW code ONLY within the AXON protocol blocks."));
+                    }
+                }
+
+                // v0.0.23: Maximum Harness - Physical Signature Matching
+                let required_functions = Self::extract_required_functions(&task.description);
+                for (fname, new_content) in &state_map {
+                    if *fname == target_path {
+                        for func in &required_functions {
+                            // Check if function name exists as a definition (fn name, pub fn name, def name)
+                            let pattern1 = format!("fn {}", func.split('(').next().unwrap_or(func).trim());
+                            let pattern2 = format!("def {}", func.split('(').next().unwrap_or(func).trim());
+                            if !new_content.contains(&pattern1) && !new_content.contains(&pattern2) {
+                                tracing::error!("❌ [SIGNATURE_MISMATCH] Missing function: {} in {}", func, fname);
+                                failures.push(format!("Signature Violation: You MUST implement the function '{}' as defined in the task.", func));
+                            }
+                        }
+                    }
+                }
+                
+                if !failures.is_empty() {
+                    return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
+                }
+
+                // 2. Physical Commit & Backup
+                let mut backups = std::collections::HashMap::new();
+                for (fname, new_content) in &state_map {
+                    let fpath = std::path::Path::new(&task.project_id).join(fname);
+                    let is_modified = if fpath.exists() {
+                        if let Ok(old_content) = std::fs::read_to_string(&fpath) {
+                            old_content.trim() != new_content.trim()
+                        } else { true }
+                    } else { !new_content.trim().is_empty() };
+
+                    if !is_modified { continue; }
+
+                    if fpath.exists() {
+                        if let Ok(content) = std::fs::read_to_string(&fpath) {
+                            backups.insert(fname.clone(), content);
+                        }
+                    }
+
+                    // v0.0.23: Refined WIPE_SHIELD - check raw content length first
+                    let raw_len = new_content.trim().len();
+                    if raw_len < 120 {
+                        tracing::error!("🛡️ [WIPE_SHIELD] Blocked small write ({} bytes) to {}.", raw_len, fpath.display());
+                        failures.push(format!("Physical Integrity Error: Content too small for '{}'. (Minimum 120 bytes of actual code required)", fname));
+                        return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
+                    }
+
+                    if let Some(parent) = fpath.parent() { let _ = std::fs::create_dir_all(parent); }
                     
-                    // v0.0.23: Strict Simulation Error Check
-                    if let Ok(state_map) = serde_json::from_str::<std::collections::HashMap<String, String>>(&final_simulated_state) {
-                        for (k, v) in &state_map {
-                            if k.starts_with("error_") {
-                                tracing::error!("❌ [SIMULATION_FAILED] {}: {}", k, v);
-                                failures.push(format!("Simulation Error: {}", v));
-                                return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
-                            }
-                        }
+                    // v0.0.23: Agent Signature Injection
+                    let signed_content = Self::sign_code(new_content, &format!("junior-agent-{}", worker_id + 1), &task.id, fname);
+                    let _ = std::fs::write(&fpath, &signed_content);
+                    
+                    // v0.0.23: Update the map to ensure the registry also gets the signed version
+                    final_map.insert(fname.clone(), signed_content);
+                }
 
-                        // v0.0.23: S.T.E. (Strict Target Enforcement) - Path-based
-                        // v0.0.23: Security Gate Moved Up - Check authority BEFORE doing anything (like backups)
-                        let target_path = task.title.split_whitespace().last().unwrap_or("unknown");
-                        for (fname, _) in &state_map {
-                            if fname != target_path {
-                                tracing::error!("🛡️ [STE_SHIELD] Path mismatch! Agent tried to write to {}. Expected {}.", fname, target_path);
-                                failures.push(format!("Target Mismatch Violation: You are ONLY allowed to write to '{}'. You tried to write to '{}'.", target_path, fname));
-                                return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
-                            }
-                        }
+                // Update final_simulated_state with signed content
+                final_simulated_state = serde_json::to_string(&final_map).unwrap_or(final_simulated_state);
+
+                // 3. Physical Harness Verification
+                tracing::info!("🧪 [FINAL VERIFICATION] Running harness on physical files for task {}...", task.id);
+                let dummy_json_path = format!("{}/.harness_dummy_{}.json", task.project_id, uuid::Uuid::new_v4());
+                let _ = std::fs::write(&dummy_json_path, &final_simulated_state);
+
+                let final_harness = std::process::Command::new("python3")
+                    .arg(Self::resolve_tool_path("axon_execution_harness.py"))
+                    .arg("--project-root")
+                    .arg(&task.project_id)
+                    .arg("--files-json")
+                    .arg(&dummy_json_path)
+                    .arg("--entry")
+                    .arg(&final_entry_point)
+                    .arg("--target-file")
+                    .arg(target_path)
+                    .output();
+                
+                let _ = std::fs::remove_file(&dummy_json_path);
+                
+                match final_harness {
+                    Ok(out) if out.status.success() => {
+                        tracing::info!("✅ [HARNESS_SUCCESS] Passed. Proceeding to SSOT Promotion...");
                         
-                        // 1. Snapshot/Backup before commit (for Rollback)
-                        let mut backups = std::collections::HashMap::new();
-                        for (fname, _) in &state_map {
-                            let fpath = std::path::Path::new(&task.project_id).join(fname);
-                            if fpath.exists() {
-                                if let Ok(content) = std::fs::read_to_string(&fpath) {
-                                    backups.insert(fname.clone(), content);
-                                }
-                            }
-                        }
-
-                        for (fname, code) in &state_map {
-                            let fpath = std::path::Path::new(&task.project_id).join(fname);
-                            let trimmed_code = code.trim();
-
-                            // v0.0.23 [Stage 2: Stub Validation 강화]
-                            // Protect against 0-byte wipes and Stub Regression (Stub is ~52 bytes)
-                            if trimmed_code.len() < 120 {
-                                tracing::error!("🛡️ [WIPE_SHIELD] Blocked small write ({} bytes) to {}. Min 120 bytes required.", code.len(), fpath.display());
-                                failures.push(format!("Physical Integrity Error: Content too small ({} bytes) for '{}'. Min 120 required.", code.len(), fname));
-                                return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
-                            }
-                            
-                            if trimmed_code.contains("TODO") || trimmed_code.contains("Implementation pending") {
-                                tracing::warn!("🛡️ [STUB_SHIELD] Blocked TODO/Placeholder regression for {}.", fpath.display());
-                                failures.push(format!("Stub Regression: Proposed code for '{}' contains TODO or placeholders.", fname));
-                                return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
-                            }
-
-                            let is_doc_or_data = fname.ends_with(".md") || fname.ends_with(".json");
-                            if !is_doc_or_data && !trimmed_code.contains("fn ") && !trimmed_code.contains("class ") && !trimmed_code.contains("pub ") && !trimmed_code.contains("def ") {
-                                tracing::error!("🛡️ [STRUCTURE_SHIELD] No executable logic (fn/class/pub/def) found in {}.", fpath.display());
-                                failures.push(format!("Structure Error: No executable functions or classes found in '{}'.", fname));
-                                return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
-                            }
-
-                            if let Some(parent) = fpath.parent() {
-                                let _ = std::fs::create_dir_all(parent);
-                            }
-                            if let Err(e) = std::fs::write(&fpath, code) {
-                                tracing::error!("❌ [COMMIT FAILED] Critical IO error at {}: {}", fpath.display(), e);
-                                failures.push(format!("Physical Commit Failed: {}", e));
-                                return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
-                            }
-                        }
-
-                        // 2. Final Physical Harness (on the REAL project root)
-                        tracing::info!("🧪 [FINAL VERIFICATION] Running harness on physical files for task {}...", task.id);
-                        
-                        // v0.0.23: Pass the ACTUAL state for physical integrity audit
-                        let dummy_json_path = format!("{}/.harness_dummy_{}.json", task.project_id, uuid::Uuid::new_v4());
-                        let _ = std::fs::write(&dummy_json_path, &final_simulated_state);
-
-                        let target_file = task.title.split_whitespace().last().unwrap_or("unknown");
-                        let final_harness = std::process::Command::new("python3")
-                            .arg(Self::resolve_tool_path("axon_execution_harness.py"))
-                            .arg("--project-root")
-                            .arg(&task.project_id)
-                            .arg("--files-json")
-                            .arg(&dummy_json_path)
-                            .arg("--entry")
-                            .arg(&final_entry_point)
-                            .arg("--target-file")
-                            .arg(target_file)
+                        // 4. SSOT Promotion
+                        let tmp_files_json = format!("{}/.registry_files_{}.json", task.project_id, uuid::Uuid::new_v4());
+                        let _ = std::fs::write(&tmp_files_json, &final_simulated_state);
+                        let _ = std::process::Command::new("python3")
+                            .arg(Self::resolve_tool_path("axon_registry.py"))
+                            .arg("promote")
+                            .arg("--root").arg(&task.project_id)
+                            .arg("--files-json").arg(&tmp_files_json)
+                            .arg("--task-id").arg(&task.id)
                             .output();
-                        
-                        let _ = std::fs::remove_file(&dummy_json_path);
-                        
-                        match final_harness {
-                            Ok(out) if out.status.success() => {
-                                tracing::info!("✅ [HARNESS_SUCCESS] Physical validation passed. Proceeding to Final Senior Gate...");
-                            },
-                            _ => {
-                                // v0.0.23: PESSIMISTIC INTERVENTION & AUTO-ROLLBACK
-                                let err_msg = if let Ok(out) = final_harness {
-                                    String::from_utf8_lossy(&out.stderr).into_owned()
-                                } else {
-                                    "Execution failure".to_string()
-                                };
-                                
-                                tracing::error!("🚨 [HARNESS_FAILED] Physical validation failed for task {}: {}", task.id, err_msg);
-                                tracing::warn!("📢 [AUTO-ROLLBACK] Reverting files to previous state.");
-                                
-                                // Perform Rollback
-                                for (fname, content) in backups {
-                                    let fpath = std::path::Path::new(&task.project_id).join(fname);
-                                    let _ = std::fs::write(fpath, content);
-                                }
+                        let _ = std::fs::remove_file(&tmp_files_json);
+                        tracing::info!("🚀 [SSOT PROMOTED] Task {} successfully versioned.", task.id);
 
-                                failures.push(format!("PHYSICAL_VALIDATE Failure: {}", err_msg));
-                                return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
-                            }
-                        }
-
-                        // ---------------------------------------------------------
-                        // v0.0.23: FINAL GATE - Senior Review & Architect Validation
-                        // ---------------------------------------------------------
+                        // 5. Final Gate Review
                         tracing::info!("🎖️ [FINAL_GATE]: Materialization complete. Invoking Senior Reviewer...");
-                        
                         let (senior_model, senior_id, senior_name) = self.select_best_agent(axon_core::AgentRole::Senior);
-                        let mut senior_runtime = axon_agent::AgentRuntime::new(
-                            senior_id.clone(),
-                            axon_core::AgentRole::Senior,
-                            senior_name,
-                            senior_model
-                        );
+                        let mut senior_runtime = axon_agent::AgentRuntime::new(senior_id.clone(), axon_core::AgentRole::Senior, senior_name, senior_model);
                         senior_runtime.set_locale(&self.locale);
                         senior_runtime.throttler = Some(self.throttler.clone());
 
-                        // Senior reviews the proposal but now knows it passed physical harness
                         let review = senior_runtime.review_proposal(&task, &proposal, Some(&summary), Some(self.event_bus.clone())).await?;
-                        execution_path.push(("senior".to_string(), "senior-agent-1".to_string()));
                         let _ = self.storage.save_post(&review);
                         
-                        // Notify event bus
-                        self.event_bus.publish(axon_core::Event {
-                            id: uuid::Uuid::new_v4().to_string(),
-                            project_id: task.project_id.clone(),
-                            thread_id: Some(task.id.clone()),
-                            agent_id: Some(senior_runtime.agent.id.clone()),
-                            event_type: axon_core::EventType::AgentAction,
-                            source: senior_runtime.agent.id.clone(),
-                            content: format!("Senior {} completed Final Gate review", senior_runtime.agent.name),
-                            payload: None,
-                            timestamp: chrono::Local::now(),
-                        });
-
                         let mut validation: Option<axon_core::Post> = None;
-                        
-                        // Deterministic Sampling for Architect
                         use rand::Rng;
                         let roll = rand::thread_rng().gen_range(0.0..1.0);
-                        
                         if roll <= self.sampling_rate {
-                            tracing::info!("🔍 [SAMPLING]: Architect selected for Final Validation (roll: {:.2}/{:.2})", roll, self.sampling_rate);
                             let (arch_model, arch_id, arch_name) = self.select_best_agent(axon_core::AgentRole::Architect);
-                            let mut architect_runtime = axon_agent::AgentRuntime::new(
-                                arch_id.clone(),
-                                axon_core::AgentRole::Architect,
-                                arch_name,
-                                arch_model
-                            );
+                            let mut architect_runtime = axon_agent::AgentRuntime::new(arch_id.clone(), axon_core::AgentRole::Architect, arch_name, arch_model);
                             architect_runtime.set_locale(&self.locale);
                             architect_runtime.throttler = Some(self.throttler.clone());
-
-                            match architect_runtime.validate_architecture(&task, &review, &self.architecture_guide, Some(self.event_bus.clone())).await {
-                                Ok(v) => {
-                                    execution_path.push(("architect".to_string(), "architect-agent-1".to_string()));
-                                    let _ = self.storage.save_post(&v);
-                                    validation = Some(v);
-                                }
-                                Err(e) => {
-                                    tracing::warn!("⚠️ Architect validation failed: {}", e);
-                                    failures.push(format!("Architect Rejection: {}", e));
-                                }
+                            if let Ok(v) = architect_runtime.validate_architecture(&task, &review, &self.architecture_guide, Some(self.event_bus.clone())).await {
+                                let _ = self.storage.save_post(&v);
+                                validation = Some(v);
                             }
                         } else {
-                            tracing::info!("⚡ [BYPASS]: Architect skipped. Promoting Senior review as Final Gate.");
                             validation = Some(review.clone());
                         }
 
-                        // FINAL APPROVAL CHECK
                         if let Some(v) = validation {
                             if v.content.contains("APPROVE") || v.content.contains("COMPLIANT") {
                                 tracing::info!("✅ [FINAL_GATE_PASSED]: Task {} authorized for Lock-in.", task.id);
                                 task.result = Some(v.content.clone());
-                                
-                                // Sync Thread Status
-                                if let Ok(Some(mut thread)) = self.storage.get_thread(&task.id) {
-                                    thread.status = axon_core::ThreadStatus::Approved;
-                                    thread.updated_at = chrono::Local::now();
-                                    let _ = self.storage.save_thread(&thread);
-                                }
                             } else {
-                                tracing::warn!("🚨 [FINAL_GATE_REJECTED]: Senior/Architect found issues after materialization.");
-                                // Rollback
-                                for (fname, content) in backups {
-                                    let fpath = std::path::Path::new(&task.project_id).join(fname);
-                                    let _ = std::fs::write(fpath, content);
-                                }
-                                failures.push("Final Gate Rejection: Senior agent refused to authorize implementation.".to_string());
+                                tracing::warn!("🚨 [FINAL_GATE_REJECTED]: Rolling back.");
+                                for (fname, content) in backups { let fpath = std::path::Path::new(&task.project_id).join(fname); let _ = std::fs::write(fpath, content); }
+                                failures.push("Final Gate Rejection.".to_string());
                                 return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
                             }
-                        } else {
-                            // Rollback
-                            for (fname, content) in backups {
-                                let fpath = std::path::Path::new(&task.project_id).join(fname);
-                                let _ = std::fs::write(fpath, content);
-                            }
-                            failures.push("Final Gate Error: Validation failed to complete.".to_string());
-                            return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
                         }
+                    },
+                    _ => {
+                        let err_msg = if let Ok(out) = final_harness { String::from_utf8_lossy(&out.stderr).into_owned() } else { "Execution failure".to_string() };
+                        tracing::error!("🚨 [HARNESS_FAILED] Rolling back: {}", err_msg);
+                        for (fname, content) in backups { let fpath = std::path::Path::new(&task.project_id).join(fname); let _ = std::fs::write(fpath, content); }
+                        failures.push(format!("PHYSICAL_VALIDATE Failure: {}", err_msg));
+                        return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
                     }
-                } else {
-                    tracing::error!("❌ [REGISTRY ERROR] Promotion failed at final stage.");
                 }
             }
 
-            // v0.0.16: 아키텍처 섹션 잠금 (격리 경로 적용)
+            // v0.0.16: 아키텍처 섹션 잠금
             let _ = self.lock_in_architecture(&task.project_id, &task.title);
         } else {
             // v0.0.22: Hard-fail if not approved by Senior
@@ -1267,11 +1209,13 @@ impl BootstrapManager {
             let task = axon_core::Task {
                 id: task_id.clone(),
                 project_id: self.project_id.clone(),
-                title: format!("Implement {}", comp.file_path), // v0.0.23: Use exact path for STE
+                title: format!("Implement {}", comp.file_path),
                 description: description.clone(),
                 status: axon_core::TaskStatus::Pending,
                 dependencies: Vec::new(),
                 result: None,
+                target_file: Some(comp.file_path.clone()), // v0.0.23: Explicit target for STE
+                error_feedback: None,
                 created_at: chrono::Local::now(),
             };
 
@@ -1357,6 +1301,8 @@ impl BootstrapManager {
             status: axon_core::TaskStatus::Pending,
             dependencies: Vec::new(),
             result: None,
+            target_file: None,     // v0.0.23 added
+            error_feedback: None,  // v0.0.23 added
             created_at: chrono::Local::now(),
         };
 
@@ -1452,6 +1398,8 @@ impl BootstrapManager {
                             status: axon_core::TaskStatus::Pending,
                             dependencies: Vec::new(),
                             result: None,
+                            target_file: None,     // v0.0.23 added
+                            error_feedback: None,  // v0.0.23 added
                             created_at: chrono::Local::now(),
                         };
                         let _ = daemon.storage.save_task(&task);
@@ -1915,6 +1863,44 @@ impl Daemon {
         }
     }
 
+    fn sign_code(code: &str, agent_name: &str, task_id: &str, file_name: &str) -> String {
+        format!(
+            "// === AXON GENERATED CODE ===\n\
+             // Agent: {}\n\
+             // Task : {}\n\
+             // File : {}\n\
+             // ===========================\n\n\
+             {}",
+            agent_name, task_id, file_name, code
+        )
+    }
+
+    fn extract_required_functions(description: &str) -> Vec<String> {
+        let mut functions = Vec::new();
+        let mut in_functions_block = false;
+        
+        for line in description.lines() {
+            let trimmed = line.trim();
+            if trimmed.to_uppercase().starts_with("FUNCTIONS:") {
+                in_functions_block = true;
+                continue;
+            }
+            if in_functions_block {
+                if trimmed.is_empty() { continue; }
+                if trimmed.starts_with('-') {
+                    let func = trimmed[1..].trim();
+                    if !func.is_empty() {
+                        functions.push(func.to_string());
+                    }
+                } else if trimmed.starts_with('#') || (trimmed.contains(':') && !trimmed.starts_with('-')) {
+                    // Stop if we hit another header or section
+                    break;
+                }
+            }
+        }
+        functions
+    }
+
     fn extract_functions(code: &str) -> std::collections::HashMap<String, (usize, usize, String)> {
         let mut funcs = std::collections::HashMap::new();
         let lines: Vec<&str> = code.lines().collect();
@@ -2058,7 +2044,7 @@ impl Daemon {
         let (models, names) = match role {
             axon_core::AgentRole::Junior => (&self.junior_models, &self.junior_model_names),
             axon_core::AgentRole::Senior => (&self.senior_models, &self.senior_model_names),
-            axon_core::AgentRole::Architect => return (self.architect_model.clone(), "architect-agent-1".to_string(), self.architect_model_name.clone()),
+            axon_core::AgentRole::Architect => return (self.architect_model.clone(), format!("architect-agent-1({})", self.architect_model_name), self.architect_model_name.clone()),
         };
 
         if models.is_empty() {
@@ -2069,31 +2055,50 @@ impl Daemon {
         let stats_lock = self.agent_stats.lock().unwrap();
         let params_lock = self.routing_params.lock().unwrap();
         
-        let best_idx = (0..models.len())
-            .min_by(|&a, &b| {
-                let id_a = format!("{}-agent-{}", match role {
+        let best_idx = {
+            let mut rr_indices = self.rr_indices.lock().unwrap();
+            let entry = rr_indices.entry(role.clone()).or_insert(0);
+            
+            // 1. Calculate scores for all candidate models
+            let mut candidate_scores = Vec::new();
+            for i in 0..models.len() {
+                let id = format!("{}-agent-{}({})", match role {
                     axon_core::AgentRole::Junior => "junior",
                     axon_core::AgentRole::Senior => "senior",
                     _ => "agent"
-                }, a + 1);
-                let id_b = format!("{}-agent-{}", match role {
-                    axon_core::AgentRole::Junior => "junior",
-                    axon_core::AgentRole::Senior => "senior",
-                    _ => "agent"
-                }, b + 1);
-                
-                let score_a = stats_lock.get(&id_a).map(|s| s.score(&params_lock)).unwrap_or(f64::INFINITY);
-                let score_b = stats_lock.get(&id_b).map(|s| s.score(&params_lock)).unwrap_or(f64::INFINITY);
-                
-                score_a.partial_cmp(&score_b).unwrap_or(std::cmp::Ordering::Equal)
-            })
-            .unwrap_or(0);
+                }, i + 1, &names[i]);
+                let score = stats_lock.get(&id).map(|s| s.score(&params_lock)).unwrap_or(f64::INFINITY);
+                candidate_scores.push((i, score));
+            }
 
-        let id = format!("{}-agent-{}", match role {
+            // 2. Find the minimum score
+            let min_score = candidate_scores.iter()
+                .map(|(_, s)| *s)
+                .fold(f64::INFINITY, f64::min);
+
+            // 3. Collect all indices that have this minimum score (Ties)
+            let ties: Vec<usize> = candidate_scores.iter()
+                .filter(|(_, s)| (*s - min_score).abs() < f64::EPSILON || (s.is_infinite() && min_score.is_infinite()))
+                .map(|(i, _)| *i)
+                .collect();
+
+            // 4. If there's a tie (especially at startup where all are INFINITY), use Round-Robin
+            if ties.len() > 1 {
+                let rr_pos = *entry % ties.len();
+                let chosen_idx = ties[rr_pos];
+                *entry = (*entry + 1) % ties.len();
+                chosen_idx
+            } else {
+                ties[0]
+            }
+        };
+
+        let model_name = &names[best_idx];
+        let id = format!("{}-agent-{}({})", match role {
             axon_core::AgentRole::Junior => "junior",
             axon_core::AgentRole::Senior => "senior",
             _ => "agent"
-        }, best_idx + 1);
+        }, best_idx + 1, model_name);
 
         (models[best_idx].clone(), id, names[best_idx].clone())
     }
@@ -2148,13 +2153,34 @@ impl Daemon {
     
     async fn abort_with_failure(&self, task: &mut axon_core::Task, failures: Vec<String>, path: Vec<(String, String)>, metrics_list: Vec<axon_core::RuntimeMetrics>, agent_metrics: Vec<axon_core::AgentMetric>, start_total: std::time::Instant, worker_id: usize) -> anyhow::Result<()> {
         task.status = axon_core::TaskStatus::Failed;
-        task.result = Some(failures.join("\n"));
+        let failure_reason = failures.join("\n");
+        task.result = Some(failure_reason.clone());
+        task.error_feedback = Some(failure_reason);
         let _ = self.storage.save_task(task);
 
         // v0.0.23: Reset Work Board UI on failure
         if let Ok(Some(mut thread)) = self.storage.get_thread(&task.id) {
             thread.status = axon_core::ThreadStatus::Draft;
             let _ = self.storage.save_thread(&thread);
+            
+            // v0.0.23: Record failure reason as a Post for UI visibility
+            let failure_msg = format!("### ❌ [PIPELINE_FAILED]\n\n{}", failures.join("\n"));
+            let _ = self.storage.save_post(&axon_core::Post {
+                id: uuid::Uuid::new_v4().to_string(),
+                thread_id: task.id.clone(),
+                author_id: "system-harness".to_string(),
+                content: failure_msg,
+                full_code: None,
+                post_type: axon_core::PostType::System,
+                metrics: None,
+                created_at: chrono::Local::now(),
+            });
+
+            // v0.0.23: Auto-Requeue (Self-Correction Loop)
+            // Put the task back into the dispatcher so a worker can try again with the new feedback
+            task.status = axon_core::TaskStatus::Pending; // Set back to pending for retry
+            let _ = self.dispatcher.enqueue_task(task.clone());
+            tracing::info!("♻️ [AUTO_REQUEUE] Task {} sent back to dispatcher for self-correction retry.", task.id);
         }
 
         let last_metrics = metrics_list.last().cloned().unwrap_or_default();

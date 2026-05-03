@@ -117,13 +117,16 @@ def verify_file_integrity(target_dir: str, expected_files: list, target_file: st
                     if "TODO" in content or "Implementation pending" in content:
                         errors.append(f"F2.1: File '{fname}' contains TODO or placeholders. Likely a stub.")
                     
-                    # v0.0.23: Anti-Hardcoding Guard
-                    # LLMs often hardcode 2023/2024 from training data. Reject these in logic files.
-                    if not is_doc_or_data and any(year in content for year in ["2023", "2024"]):
-                        errors.append(f"F2.4: Hardcoded year detected in '{fname}'. Use dynamic system time instead of 2023/2024.")
-                    
                     # v0.0.23: Function presence check (Exempt .md and .json files)
                     is_doc_or_data = fname.endswith(".md") or fname.endswith(".json")
+                    
+                    # v0.0.23: Anti-Hardcoding Guard
+                    # LLMs often hardcode 2023/2024 from training data. Reject these in logic files.
+                    # v0.0.23: Strip string literals to prevent false positives in prompts/logs
+                    clean_content = re.sub(r'".*?"', '""', content)
+                    if not is_doc_or_data and any(year in clean_content for year in ["2023", "2024"]):
+                        errors.append(f"F2.4: Hardcoded year detected in '{fname}'. Use dynamic system time instead of 2023/2024.")
+                    
                     if not is_doc_or_data and not any(marker in content for marker in ["fn ", "class ", "pub ", "def "]):
                         errors.append(f"F2.3: File '{fname}' contains no executable logic (fn/class/pub/def missing).")
         except UnicodeDecodeError:
@@ -180,6 +183,10 @@ def execution_harness(project_root: str, file_map: dict, entry_point: str = "mai
         # Prepare sandbox
         if os.path.exists(project_root):
             for root, dirs, files in os.walk(project_root):
+                # v0.0.23: SYSTEM DIRECTORY SHIELD
+                # Skip internal/hidden directories to prevent sandbox pollution and recursion
+                dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ["target", "crates", "tools", "mile_stone"]]
+                
                 rel_path = os.path.relpath(root, project_root)
                 if rel_path == ".": rel_path = ""
                 

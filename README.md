@@ -249,15 +249,13 @@ Also, you can inject personas into the hired agents.
 
 ## 📋 Release Notes
 
-### v0.0.24 - Syntax Cleanliness & Anti-Pollution
-- **Pollution Shield**: Automatic detection and rejection of markdown code blocks (triple backticks) within source files to ensure pure code integrity.
-- **Strict Logic Density Check**: Enhanced physical validation to reject empty functions or trivial stubs.
-
-### v0.0.23 - Maximum Harness & Signature Persistence
-- **Maximum Harness Protocol**: Integrated physical existence checks (Signature Matching) and high-density logic verification gates.
-- **Agent Signature Persistence**: Guaranteed embedding of Agent ID and Task ID into promoted source files for full traceability.
-- **S.T.E. Shield & WIPE_SHIELD**: Hardened security and integrity enforcement against unauthorized file drifts and low-quality code.
-- **Auto-Requeue Feedback Loop**: Implementation of persistent self-correction for failed tasks.
+### v0.0.23 - Maximum Harness & Physical Hardening
+- **Maximum Harness Protocol**: Integrated physical signature matching (F8.1) and high-density logic verification gates.
+- **Pollution Shield**: Automatic detection and rejection of markdown code blocks (triple backticks) to ensure code purity.
+- **COMMIT_PENDING Pipeline**: Split into Logical Approval → Materialization → Physical Validation.
+- **Agent Signature Persistence**: Guaranteed embedding of Agent ID/Task ID for 100% traceability.
+- **S.T.E. Shield & WIPE_SHIELD**: Hardened security against unauthorized drifts and low-quality stubs (Anti-Stub v2).
+- **Auto-Rollback & Requeue**: Immediate revert on failure with persistent self-correction loop.
 
 ### v0.0.22 - Deterministic Factory Pipeline
 - **IR Convergence Loop**: Auto-repair loop until fixed-point IR is reached.

@@ -257,12 +257,13 @@ Also, you can inject personas into the hired agents.
 - **Physical Write Gate**: Mandatory restriction of file system commits to the assigned `target_file` only.
 - **Execution Validator Optimization**: Harness runs only on the final node of the dependency chain, reducing validation noise by 80%.
 
-### v0.0.24 - Factory Pipeline Hardening
-- **SSOT Drift Prevention**: Newline-agnostic comparison logic to eliminate false-positive Target Mismatch errors.
-- **Harness Threshold Relaxation**: Lowered minimum code size to 60B to support small handler stubs.
-- **Connectivity Guard**: Real-time LLM endpoint accessibility check during initialization.
-- **Diagnostic Visibility**: Integrated Mapping Validator `stderr` and internal Python errors into daemon logs.
-- **Audit Preservation**: Mandatory DB logging for all failed proposals in the `posts` table.
+### v0.0.24 - Factory Pipeline Hardening & i18n
+- **Parallel Race Condition Fix**: Refactored `STE_SHIELD` and `WRITE_GATE` to validate against 'Initial Simulated State' instead of physical disk, enabling stable multi-worker execution.
+- **Full i18n Stack**: Global support for KR/EN/JP across CLI and Studio UI with production build optimization.
+- **Lounge Activation**: Real-time EventBus broadcasting for agent "Nogari" (chatter). Dynamic inner thoughts are now visible on the dashboard.
+- **Approval Flexibility**: Senior/Architect gates now accept Markdown bolding (`**APPROVE**`) for better small-model compatibility.
+- **Connectivity Guard**: Real-time validation of LLM endpoints during initialization to prevent silent connection failures.
+- **Audit Preservation**: Mandatory DB logging for all failed proposals in the `posts` table for easier debugging.
 
 ### v0.0.23 - Maximum Harness & Physical Hardening
 - **Maximum Harness Protocol**: Integrated physical signature matching (F8.1) and high-density logic verification gates.

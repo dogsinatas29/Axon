@@ -826,7 +826,8 @@ impl Daemon {
             // v0.0.23: Final Pipeline Logic (Verify-then-Commit-then-Promote)
             if let Ok(state_map) = serde_json::from_str::<std::collections::HashMap<String, String>>(&final_simulated_state) {
                 let mut final_map = state_map.clone();
-                // 1. S.T.E. Shield (Security Check)
+                let initial_state_map: std::collections::HashMap<String, String> = serde_json::from_str(&current_simulated_state).unwrap_or_default();
+
                 let target_path = if let Some(target) = &task.target_file {
                     target.clone()
                 } else {
@@ -852,14 +853,13 @@ impl Daemon {
                 }
 
                 for (fname, new_content) in &state_map {
-                    let fpath = std::path::Path::new(&task.project_id).join(fname);
-                    let is_modified = if fpath.exists() {
-                        if let Ok(old_content) = std::fs::read_to_string(&fpath) {
-                            let old_norm = old_content.replace("\r\n", "\n").trim().to_string();
-                            let new_norm = new_content.replace("\r\n", "\n").trim().to_string();
-                            old_norm != new_norm
-                        } else { true }
-                    } else { !new_content.trim().is_empty() };
+                    let is_modified = if let Some(old_content) = initial_state_map.get(fname) {
+                        let old_norm = old_content.replace("\r\n", "\n").trim().to_string();
+                        let new_norm = new_content.replace("\r\n", "\n").trim().to_string();
+                        old_norm != new_norm
+                    } else {
+                        !new_content.trim().is_empty()
+                    };
 
                     if is_modified && *fname != target_path {
                         tracing::error!("🛡️ [STE_SHIELD] Unauthorized modification! Agent tried to write to {}. Expected {}.", fname, target_path);
@@ -1047,7 +1047,7 @@ impl Daemon {
 
                         if let Some(v) = validation {
                             let content_upper = v.content.to_uppercase();
-                            if content_upper.contains("[APPROVE]") || content_upper.contains("[COMPLIANT]") {
+                            if content_upper.contains("[APPROVE]") || content_upper.contains("**APPROVE**") || content_upper.contains("[COMPLIANT]") || content_upper.contains("**COMPLIANT**") {
                                 tracing::info!("✅ [FINAL_GATE_PASSED]: Task {} authorized for Lock-in.", task.id);
                                 task.result = Some(v.content.clone());
                             } else {

@@ -331,19 +331,22 @@ impl AgentRuntime {
              4. [No Hallucinated APIs]: Only use libraries confirmed in the context.\n\n\
              [CRITICAL CONSTRAINTS]\n\
              - YOU ARE ASSIGNED EXACTLY ONE FILE: {}\n\
-             - DO NOT ATTEMPT TO MODIFY ANY OTHER FILES.\n\
+             - [STRICT ISOLATION]: You are FORBIDDEN from implementing, mentioning, or referencing code meant for other files.\n\
+             - DO NOT ATTEMPT TO MODIFY OR SUGGEST CHANGES TO ANY OTHER FILES.\n\
+             - [FORBIDDEN_FILES]: You are NOT authorized to modify 'architecture.md', 'mile_stone/', 'release_note/', or '.gemini/'.\n\
              - YOUR TARGET: '{}'\n\n\
              [STRICT OUTPUT RULE]\n\
              - You MUST use EXACTLY ONE '===AXON_PATCH_START===' block.\n\
+             - Any mention of other files in your patch will result in immediate REJECTION.\n\
              - Multiple file patches will be DISCARDED and result in failure.\n\n\
              [INSTANT REJECTION CRITERIA]\n\
              - Target file mismatch (Expected: {})\n\
              - Target file mismatch in 'FILE:' field (Expected: {})\n\
              - **NO TODO, FIXME, or placeholders allowed.**\n\
              - **Minimum Logic Density**: Must contain actual logic (if, match, calculations), not just print calls.\n\
-             - **NO Markdown code blocks (```rust) allowed.**\n\n\
+             - **NO Markdown code blocks (```) allowed.** Use AXON Patch Protocol markers instead.\n\n\
              [YOUR FATE]\n\
-             Failure to follow these instructions will result in your immediate replacement and task auto-requeue.\n\n\
+             Failure to follow these instructions—especially by trying to be 'helpful' with other files—will result in your immediate replacement and task auto-requeue.\n\n\
              ### AI JUNIOR AGENT: {} ###\n\
              ROLE: Implement the task for '{}' using AXON Patch Protocol v2.\n\
              LANG: {} ({})\n\n\
@@ -728,15 +731,11 @@ impl AgentRuntime {
                     contract.push(format!("- [FORBIDDEN]: Do NOT use the word '{}'.", word.as_str().unwrap_or("")));
                 }
             }
-            if let Some(conditional) = forbidden["conditional"].as_array() {
-                for rule in conditional {
-                    contract.push(format!("- [FORBIDDEN]: '{}' is forbidden unless {}.", 
-                        rule["token"].as_str().unwrap_or(""), 
-                        rule["allow_if"].as_str().unwrap_or("")
-                    ));
-                }
-            }
         }
+        
+        // v0.0.24: Sovereign Protocol - Forbidden Files (Hard Blacklist)
+        contract.push("- [FORBIDDEN_FILES]: You are NOT authorized to modify 'architecture.md', 'mile_stone/', 'release_note/', or '.gemini/'. Any attempt will be REJECTED.".to_string());
+        contract.push("- [NO_MARKDOWN]: Do NOT use markdown code blocks (```) inside the AXON protocol. Use ---CODE START--- instead.".to_string());
 
         let contract_text = contract.join("\n");
         let hot_hints = {

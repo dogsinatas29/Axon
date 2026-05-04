@@ -264,22 +264,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let msg = if locale == "ko_KR" { format!("{}를 위한 제공자 선택 (번호 또는 L): ", role) } else { format!("Select Provider for {} (Number or L): ", role) };
                     let p_idx_str = prompt(&msg);
                     let (runtime, provider, endpoint) = if p_idx_str.to_lowercase() == "l" {
-                        let final_ep = if *use_cached && cached_endpoint.is_some() {
+                        let ep = if *use_cached && cached_endpoint.is_some() {
                             cached_endpoint.clone().unwrap()
                         } else {
-                            let msg_e = if locale == "ko_KR" { "로컬 엔드포인트 입력: " } else { "Enter Local Endpoint: " };
-                            let ep = prompt(&msg_e).trim_end_matches('/').to_string();
-                            
-                            if cached_endpoint.is_none() {
-                                *cached_endpoint = Some(ep.clone());
-                                let msg_q = if locale == "ko_KR" { "이후 모든 요원에게 이 주소를 동일하게 적용할까요? [Y/n]: " } else { "Use this endpoint for all subsequent agents? [Y/n]: " };
-                                if prompt(&msg_q).to_lowercase() != "n" {
-                                    *use_cached = true;
+                            loop {
+                                let msg_e = if locale == "ko_KR" { "로컬 엔드포인트 입력: " } else { "Enter Local Endpoint: " };
+                                let input_ep = prompt(&msg_e).trim_end_matches('/').to_string();
+                                
+                                // v0.0.24: Connectivity Guard
+                                let msg_v = if locale == "ko_KR" { format!("⏳ {} 연결 확인 중...", input_ep) } else { format!("⏳ Validating connection to {}...", input_ep) };
+                                println!("{}", msg_v);
+                                
+                                match reqwest::Client::builder()
+                                    .timeout(std::time::Duration::from_secs(3))
+                                    .build()
+                                    .unwrap()
+                                    .get(&input_ep)
+                                    .send()
+                                    .await 
+                                {
+                                    Ok(_) => {
+                                        println!("✅ [SUCCESS] Endpoint is reachable.\n");
+                                        break input_ep;
+                                    }
+                                    Err(e) => {
+                                        let msg_f = if locale == "ko_KR" { format!("❌ [CONNECTION FAILED]: {}\n다시 입력하시겠습니까? (서버가 켜져 있는지 확인하세요)", e) } else { format!("❌ [CONNECTION FAILED]: {}\nRetry? (Ensure your local AI server is running)", e) };
+                                        println!("{}", msg_f);
+                                    }
                                 }
                             }
-                            ep
                         };
-                        ("local".to_string(), None, Some(final_ep))
+
+                        if cached_endpoint.is_none() {
+                            *cached_endpoint = Some(ep.clone());
+                            let msg_q = if locale == "ko_KR" { "이후 모든 요원에게 이 주소를 동일하게 적용할까요? [Y/n]: " } else { "Use this endpoint for all subsequent agents? [Y/n]: " };
+                            if prompt(&msg_q).to_lowercase() != "n" {
+                                *use_cached = true;
+                            }
+                        }
+                        ("local".to_string(), None, Some(ep))
                     } else {
                         let idx: usize = p_idx_str.parse().unwrap_or(1);
                         let name = available_models.get(idx - 1).map(|(n, _)| *n).unwrap_or("Gemini");

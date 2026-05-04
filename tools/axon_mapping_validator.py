@@ -50,7 +50,7 @@ class ArchParser:
         return json.loads(m.group(1).strip())
 
 # 3. Main Mapping Validator
-def validate_mapping(arch_path, project_root, state_json_path=None):
+def validate_mapping(arch_path, project_root, state_json_path=None, target_file=None):
     try:
         arch = ArchParser.parse_arch(arch_path)
         
@@ -87,6 +87,12 @@ def validate_mapping(arch_path, project_root, state_json_path=None):
             if not fname: continue
             
             norm_fname = os.path.normpath(fname)
+            
+            # v0.0.24: Isolation Guard - Only validate the target file if specified
+            if target_file:
+                norm_target = os.path.normpath(target_file)
+                if norm_fname != norm_target and os.path.basename(norm_fname) != os.path.basename(norm_target):
+                    continue
 
             # File Check
             if norm_fname not in normalized_idx:
@@ -126,9 +132,10 @@ if __name__ == "__main__":
     parser.add_argument("arch_path")
     parser.add_argument("project_root")
     parser.add_argument("--state-json", help="Path to simulated state JSON")
+    parser.add_argument("--target-file", help="Only validate this specific file")
     args = parser.parse_args()
     
-    errors = validate_mapping(args.arch_path, args.project_root, args.state_json)
+    errors = validate_mapping(args.arch_path, args.project_root, args.state_json, args.target_file)
     
     if not errors:
         print("<<<<MAPPING_VALIDATION_SUCCESS>>>>")

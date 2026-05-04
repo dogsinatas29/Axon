@@ -328,6 +328,7 @@ async fn resume_daemon(
 struct StatusResponse {
     is_paused: bool,
     active_threads: usize,
+    locale: String,
 }
 
 async fn get_status(
@@ -338,6 +339,7 @@ async fn get_status(
     Json(StatusResponse {
         is_paused,
         active_threads: threads.len(),
+        locale: daemon.locale.clone(),
     })
 }
 

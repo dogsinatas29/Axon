@@ -3,63 +3,6 @@
   "cluster_flows": [],
   "clusters": [
     {
-      "bounds": {
-        "height": 0,
-        "width": 0,
-        "x": 0,
-        "y": 0
-      },
-      "children": [],
-      "collapsed": false,
-      "data": {},
-      "id": "cluster_ARCHITECTURE_AXON",
-      "label": "📂 ARCHITECTURE_AXON",
-      "nodes": [],
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "type": "folder"
-    },
-    {
-      "bounds": {
-        "height": 0,
-        "width": 0,
-        "x": 0,
-        "y": 0
-      },
-      "children": [],
-      "collapsed": false,
-      "data": {},
-      "id": "cluster_ARCHITECTURE_AXON__axon_snapshots",
-      "label": "📂 .axon_snapshots",
-      "nodes": [],
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "type": "folder"
-    },
-    {
-      "bounds": {
-        "height": 0,
-        "width": 0,
-        "x": 0,
-        "y": 0
-      },
-      "children": [],
-      "collapsed": false,
-      "data": {},
-      "id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-      "label": "📂 v_1777804623_91e9f3a8",
-      "nodes": [],
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "type": "folder"
-    },
-    {
       "collapsed": false,
       "data": {
         "layer": "user"
@@ -217,6 +160,19 @@
       "data": {
         "layer": "user"
       },
+      "id": "cluster_scratch",
+      "label": "📂 scratch",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
       "id": "cluster_studio",
       "label": "📂 studio",
       "type": "folder"
@@ -293,6 +249,162 @@
         "y": 600
       },
       "type": "system"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_ARCHITECTURE_AXON",
+      "label": "📂 ARCHITECTURE_AXON",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_back_up_TEST",
+      "label": "📂 back_up_TEST",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_back_up_TEST_spec",
+      "label": "📂 spec",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_back_up_TEST_spec__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_back_up_TEST_spec__axon_snapshots_v_1777814777_639419f1",
+      "label": "📂 v_1777814777_639419f1",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_back_up_TEST_spec__axon_snapshots_v_1777814917_e97b7405",
+      "label": "📂 v_1777814917_e97b7405",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_back_up_TEST_spec__axon_snapshots_v_1777815013_6e9fe7ae",
+      "label": "📂 v_1777815013_6e9fe7ae",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_back_up_TEST_spec__axon_snapshots_v_1777815091_8717a2fe",
+      "label": "📂 v_1777815091_8717a2fe",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_back_up_TEST_spec__axon_snapshots_v_1777815152_db4ec0a6",
+      "label": "📂 v_1777815152_db4ec0a6",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_back_up_TEST_spec__axon_snapshots_v_1777815299_09ae66d0",
+      "label": "📂 v_1777815299_09ae66d0",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_ARCHITECTURE_AXON__axon_snapshots",
+      "label": "📂 .axon_snapshots",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
+      "label": "📂 v_1777804623_91e9f3a8",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
     },
     {
       "collapsed": false,
@@ -2188,8 +2300,8 @@
       "label": "Agent",
       "layer": "ai",
       "position": {
-        "x": 800,
-        "y": 440
+        "x": 640,
+        "y": 1400
       },
       "status": "ghost",
       "type": "external",
@@ -2577,8 +2689,8 @@
       "label": "AsyncReadExt",
       "layer": "ai",
       "position": {
-        "x": -360,
-        "y": 480
+        "x": -520,
+        "y": 640
       },
       "status": "ghost",
       "type": "external",
@@ -2647,8 +2759,8 @@
       "label": "AsyncWriteExt",
       "layer": "ai",
       "position": {
-        "x": -80,
-        "y": 440
+        "x": -40,
+        "y": 680
       },
       "status": "ghost",
       "type": "external",
@@ -2927,8 +3039,8 @@
       "label": "context_builder",
       "layer": "ai",
       "position": {
-        "x": -1240,
-        "y": 1720
+        "x": -1280,
+        "y": 1680
       },
       "status": "ghost",
       "type": "external",
@@ -3035,8 +3147,8 @@
       "label": "lib",
       "layer": "user",
       "position": {
-        "x": -560,
-        "y": 2120
+        "x": -6160,
+        "y": -1160
       },
       "status": "active",
       "type": "file",
@@ -3071,8 +3183,8 @@
       "label": "lounge",
       "layer": "user",
       "position": {
-        "x": 1240,
-        "y": 2400
+        "x": -4800,
+        "y": -1440
       },
       "status": "active",
       "type": "file",
@@ -3107,8 +3219,8 @@
       "label": "persona",
       "layer": "user",
       "position": {
-        "x": 360,
-        "y": 2040
+        "x": -5280,
+        "y": -1160
       },
       "status": "active",
       "type": "file",
@@ -3179,7 +3291,7 @@
       "label": "admin",
       "layer": "user",
       "position": {
-        "x": -1040,
+        "x": -1840,
         "y": -2360
       },
       "status": "active",
@@ -3215,8 +3327,8 @@
       "label": "cli",
       "layer": "user",
       "position": {
-        "x": -3000,
-        "y": -2240
+        "x": -3800,
+        "y": -2200
       },
       "status": "active",
       "type": "file",
@@ -3251,8 +3363,8 @@
       "label": "controller",
       "layer": "user",
       "position": {
-        "x": -2160,
-        "y": -2280
+        "x": -3000,
+        "y": -2200
       },
       "status": "active",
       "type": "file",
@@ -3287,8 +3399,8 @@
       "label": "main",
       "layer": "user",
       "position": {
-        "x": -3640,
-        "y": -2320
+        "x": -4440,
+        "y": -2280
       },
       "status": "active",
       "type": "file",
@@ -3323,8 +3435,8 @@
       "label": "server",
       "layer": "user",
       "position": {
-        "x": -1800,
-        "y": -2240
+        "x": -2600,
+        "y": -2160
       },
       "status": "active",
       "type": "file",
@@ -3394,7 +3506,7 @@
       "layer": "ai",
       "position": {
         "x": -280,
-        "y": 880
+        "y": 960
       },
       "status": "ghost",
       "type": "external",
@@ -3463,8 +3575,8 @@
       "label": "dashboard",
       "layer": "ai",
       "position": {
-        "x": -3400,
-        "y": -320
+        "x": -3440,
+        "y": -280
       },
       "status": "ghost",
       "type": "external",
@@ -3498,8 +3610,8 @@
       "label": "Deserialize",
       "layer": "ai",
       "position": {
-        "x": 1040,
-        "y": 440
+        "x": 1240,
+        "y": 2240
       },
       "status": "ghost",
       "type": "external",
@@ -3568,8 +3680,8 @@
       "label": "Dispatcher",
       "layer": "ai",
       "position": {
-        "x": 240,
-        "y": -40
+        "x": 680,
+        "y": 2040
       },
       "status": "ghost",
       "type": "external",
@@ -8234,7 +8346,7 @@
       "label": "ModelResponse",
       "layer": "ai",
       "position": {
-        "x": -640,
+        "x": -800,
         "y": -120
       },
       "status": "ghost",
@@ -8446,8 +8558,8 @@
       "label": "OpenOptions",
       "layer": "ai",
       "position": {
-        "x": 1760,
-        "y": 1480
+        "x": 1800,
+        "y": 1840
       },
       "status": "ghost",
       "type": "external",
@@ -9160,8 +9272,8 @@
       "label": "SliceRandom",
       "layer": "ai",
       "position": {
-        "x": 600,
-        "y": -80
+        "x": 920,
+        "y": 2040
       },
       "status": "ghost",
       "type": "external",
@@ -9301,8 +9413,8 @@
       "label": "eslint.config",
       "layer": "user",
       "position": {
-        "x": -4080,
-        "y": 1960
+        "x": -4000,
+        "y": 2000
       },
       "status": "active",
       "type": "file",
@@ -9337,7 +9449,7 @@
       "label": "socket",
       "layer": "user",
       "position": {
-        "x": 1560,
+        "x": 1600,
         "y": 2320
       },
       "status": "active",
@@ -9373,8 +9485,8 @@
       "label": "App",
       "layer": "user",
       "position": {
-        "x": 2840,
-        "y": -1120
+        "x": 2680,
+        "y": -1400
       },
       "status": "active",
       "type": "file",
@@ -9409,8 +9521,8 @@
       "label": "BossBoard",
       "layer": "user",
       "position": {
-        "x": 3280,
-        "y": -1040
+        "x": 3800,
+        "y": 2760
       },
       "status": "active",
       "type": "file",
@@ -9445,8 +9557,8 @@
       "label": "Lounge",
       "layer": "user",
       "position": {
-        "x": 3280,
-        "y": -1200
+        "x": 3640,
+        "y": 2760
       },
       "status": "active",
       "type": "file",
@@ -9481,8 +9593,8 @@
       "label": "Office",
       "layer": "user",
       "position": {
-        "x": 3640,
-        "y": -1240
+        "x": 3680,
+        "y": 200
       },
       "status": "active",
       "type": "file",
@@ -9517,8 +9629,8 @@
       "label": "ThreadCard",
       "layer": "user",
       "position": {
-        "x": 3520,
-        "y": -1040
+        "x": 3960,
+        "y": 2760
       },
       "status": "active",
       "type": "file",
@@ -9553,8 +9665,8 @@
       "label": "ThreadDetail",
       "layer": "user",
       "position": {
-        "x": 3440,
-        "y": -1200
+        "x": 3520,
+        "y": 200
       },
       "status": "active",
       "type": "file",
@@ -9589,8 +9701,8 @@
       "label": "main",
       "layer": "user",
       "position": {
-        "x": 2680,
-        "y": -1080
+        "x": 2480,
+        "y": -1360
       },
       "status": "active",
       "type": "file",
@@ -9661,8 +9773,8 @@
       "label": "vite.config",
       "layer": "user",
       "position": {
-        "x": -4440,
-        "y": 2040
+        "x": -4480,
+        "y": 2160
       },
       "status": "active",
       "type": "file",
@@ -9696,8 +9808,8 @@
       "label": "Subcommand",
       "layer": "ai",
       "position": {
-        "x": -3040,
-        "y": -1520
+        "x": -3360,
+        "y": -1200
       },
       "status": "ghost",
       "type": "external",
@@ -9802,8 +9914,8 @@
       "label": "test_run_full",
       "layer": "ai",
       "position": {
-        "x": -1240,
-        "y": 2040
+        "x": -760,
+        "y": 2440
       },
       "status": "active",
       "type": "file",
@@ -10119,8 +10231,8 @@
       "label": "VecDeque",
       "layer": "ai",
       "position": {
-        "x": 440,
-        "y": -200
+        "x": 880,
+        "y": 1640
       },
       "status": "ghost",
       "type": "external",
@@ -10224,8 +10336,8 @@
       "label": "Write",
       "layer": "ai",
       "position": {
-        "x": -3120,
-        "y": -320
+        "x": -4040,
+        "y": -720
       },
       "status": "ghost",
       "type": "external",
@@ -10260,8 +10372,8 @@
       "label": "mock_ollama",
       "layer": "ai",
       "position": {
-        "x": 1480,
-        "y": 2200
+        "x": 1520,
+        "y": 2160
       },
       "status": "active",
       "type": "file",
@@ -10665,8 +10777,8 @@
       "label": "argparse",
       "layer": "ai",
       "position": {
-        "x": -400,
-        "y": 1360
+        "x": -360,
+        "y": 1320
       },
       "status": "ghost",
       "type": "external",
@@ -10701,7 +10813,7 @@
       "layer": "ai",
       "position": {
         "x": 200,
-        "y": 1360
+        "y": 1320
       },
       "status": "ghost",
       "type": "external",
@@ -11032,7 +11144,7 @@
       "label": "axon_semantic_merge",
       "layer": "user",
       "position": {
-        "x": -7040,
+        "x": -6160,
         "y": -160
       },
       "status": "active",
@@ -11172,8 +11284,8 @@
       "label": "subprocess",
       "layer": "ai",
       "position": {
-        "x": 1000,
-        "y": 800
+        "x": 1040,
+        "y": 1760
       },
       "status": "ghost",
       "type": "external",
@@ -11208,7 +11320,7 @@
       "layer": "ai",
       "position": {
         "x": 200,
-        "y": 840
+        "y": 880
       },
       "status": "ghost",
       "type": "external",
@@ -11278,7 +11390,7 @@
       "label": "axon_execution_harness",
       "layer": "user",
       "position": {
-        "x": -7160,
+        "x": -6280,
         "y": 80
       },
       "status": "active",
@@ -11314,7 +11426,7 @@
       "label": "merge_imports_stage3",
       "layer": "user",
       "position": {
-        "x": -6960,
+        "x": -6080,
         "y": 280
       },
       "status": "active",
@@ -11350,7 +11462,7 @@
       "label": "axon_ir_compiler",
       "layer": "user",
       "position": {
-        "x": -6480,
+        "x": -5520,
         "y": 0
       },
       "status": "active",
@@ -11421,7 +11533,7 @@
       "label": "axon_patch_simulator",
       "layer": "user",
       "position": {
-        "x": -7160,
+        "x": -6280,
         "y": -520
       },
       "status": "active",
@@ -11457,8 +11569,8 @@
       "label": "axon_ir_validator",
       "layer": "user",
       "position": {
-        "x": -6720,
-        "y": 320
+        "x": -5800,
+        "y": 280
       },
       "status": "active",
       "type": "file",
@@ -11562,8 +11674,8 @@
       "label": "collections",
       "layer": "ai",
       "position": {
-        "x": -520,
-        "y": 0
+        "x": -880,
+        "y": 40
       },
       "status": "ghost",
       "type": "external",
@@ -11668,7 +11780,7 @@
       "layer": "ai",
       "position": {
         "x": -3520,
-        "y": -560
+        "y": -600
       },
       "status": "ghost",
       "type": "external",
@@ -11737,8 +11849,8 @@
       "label": "random",
       "layer": "ai",
       "position": {
-        "x": 960,
-        "y": 1360
+        "x": 1000,
+        "y": 1600
       },
       "status": "ghost",
       "type": "external",
@@ -11808,7 +11920,7 @@
       "label": "axon_golden_tester",
       "layer": "user",
       "position": {
-        "x": -5920,
+        "x": -5000,
         "y": 80
       },
       "status": "active",
@@ -11844,7 +11956,7 @@
       "label": "axon_mapping_validator",
       "layer": "user",
       "position": {
-        "x": -5640,
+        "x": -4760,
         "y": -120
       },
       "status": "active",
@@ -11880,8 +11992,8 @@
       "label": "axon_monitor",
       "layer": "user",
       "position": {
-        "x": -6600,
-        "y": -400
+        "x": -5720,
+        "y": -360
       },
       "status": "active",
       "type": "file",
@@ -11916,7 +12028,7 @@
       "label": "axon_org_registry",
       "layer": "user",
       "position": {
-        "x": -5800,
+        "x": -4920,
         "y": -360
       },
       "status": "active",
@@ -11952,8 +12064,8 @@
       "label": "axon_pattern_aggregator",
       "layer": "user",
       "position": {
-        "x": -6560,
-        "y": 320
+        "x": -5680,
+        "y": 360
       },
       "status": "active",
       "type": "file",
@@ -11988,7 +12100,7 @@
       "label": "axon_policy_engine",
       "layer": "user",
       "position": {
-        "x": -6240,
+        "x": -5360,
         "y": 680
       },
       "status": "active",
@@ -12024,7 +12136,7 @@
       "label": "axon_profile_manager",
       "layer": "user",
       "position": {
-        "x": -6320,
+        "x": -5440,
         "y": -360
       },
       "status": "active",
@@ -12060,7 +12172,7 @@
       "label": "axon_profile_resolver",
       "layer": "user",
       "position": {
-        "x": -6160,
+        "x": -5280,
         "y": -320
       },
       "status": "active",
@@ -12096,7 +12208,7 @@
       "label": "axon_promotion_engine",
       "layer": "user",
       "position": {
-        "x": -5800,
+        "x": -4920,
         "y": 200
       },
       "status": "active",
@@ -12132,7 +12244,7 @@
       "label": "axon_propagator",
       "layer": "user",
       "position": {
-        "x": -5640,
+        "x": -4760,
         "y": 360
       },
       "status": "active",
@@ -12168,7 +12280,7 @@
       "label": "axon_property_tester",
       "layer": "user",
       "position": {
-        "x": -6240,
+        "x": -5360,
         "y": -160
       },
       "status": "active",
@@ -12204,7 +12316,7 @@
       "label": "axon_registry_manager",
       "layer": "user",
       "position": {
-        "x": -6200,
+        "x": -5320,
         "y": 280
       },
       "status": "active",
@@ -12240,7 +12352,7 @@
       "label": "axon_registry",
       "layer": "user",
       "position": {
-        "x": -6440,
+        "x": -5560,
         "y": -240
       },
       "status": "active",
@@ -12276,7 +12388,7 @@
       "label": "axon_rule_clusterer",
       "layer": "user",
       "position": {
-        "x": -6040,
+        "x": -5160,
         "y": -40
       },
       "status": "active",
@@ -12312,7 +12424,7 @@
       "label": "axon_soft_rule_engine",
       "layer": "user",
       "position": {
-        "x": -6360,
+        "x": -5480,
         "y": 160
       },
       "status": "active",
@@ -13363,8 +13475,8 @@
       "label": "axon_patch_to_ir_mapping",
       "layer": "ai",
       "position": {
-        "x": -680,
-        "y": -440
+        "x": -760,
+        "y": -480
       },
       "status": "ghost",
       "type": "external",
@@ -13433,8 +13545,8 @@
       "label": "ClusterInfo",
       "layer": "ai",
       "position": {
-        "x": -200,
-        "y": -560
+        "x": -400,
+        "y": -760
       },
       "status": "ghost",
       "type": "external",
@@ -13573,8 +13685,8 @@
       "label": "ConstraintProposal",
       "layer": "ai",
       "position": {
-        "x": 960,
-        "y": 1040
+        "x": 1160,
+        "y": 1640
       },
       "status": "ghost",
       "type": "external",
@@ -13609,8 +13721,8 @@
       "label": "composer",
       "layer": "user",
       "position": {
-        "x": -400,
-        "y": 2360
+        "x": -5840,
+        "y": -1280
       },
       "status": "active",
       "type": "file",
@@ -13861,8 +13973,8 @@
       "label": "analysis_contract",
       "layer": "user",
       "position": {
-        "x": 2720,
-        "y": 160
+        "x": 2160,
+        "y": 1840
       },
       "status": "active",
       "type": "file",
@@ -13897,8 +14009,8 @@
       "label": "ast_printer",
       "layer": "user",
       "position": {
-        "x": 2760,
-        "y": -40
+        "x": 2320,
+        "y": 1840
       },
       "status": "active",
       "type": "file",
@@ -13933,8 +14045,8 @@
       "label": "clusterer",
       "layer": "user",
       "position": {
-        "x": 2880,
-        "y": 360
+        "x": 2960,
+        "y": 1840
       },
       "status": "active",
       "type": "file",
@@ -13969,8 +14081,8 @@
       "label": "contract",
       "layer": "user",
       "position": {
-        "x": 3080,
-        "y": 400
+        "x": 3120,
+        "y": 1840
       },
       "status": "active",
       "type": "file",
@@ -14005,8 +14117,8 @@
       "label": "coverage",
       "layer": "user",
       "position": {
-        "x": 2760,
-        "y": -600
+        "x": 2640,
+        "y": 1840
       },
       "status": "active",
       "type": "file",
@@ -14041,8 +14153,8 @@
       "label": "extractor_test",
       "layer": "user",
       "position": {
-        "x": 3160,
-        "y": 0
+        "x": 3440,
+        "y": 2880
       },
       "status": "active",
       "type": "file",
@@ -14077,8 +14189,8 @@
       "label": "matcher_test",
       "layer": "user",
       "position": {
-        "x": 2920,
-        "y": 0
+        "x": 2800,
+        "y": 1840
       },
       "status": "active",
       "type": "file",
@@ -14113,8 +14225,8 @@
       "label": "mod",
       "layer": "user",
       "position": {
-        "x": 3160,
-        "y": -200
+        "x": 3280,
+        "y": 1840
       },
       "status": "active",
       "type": "file",
@@ -14149,8 +14261,8 @@
       "label": "rule_generator",
       "layer": "user",
       "position": {
-        "x": 2400,
-        "y": -80
+        "x": 2000,
+        "y": 1840
       },
       "status": "active",
       "type": "file",
@@ -14185,8 +14297,8 @@
       "label": "test_gen",
       "layer": "user",
       "position": {
-        "x": 2680,
-        "y": -760
+        "x": 2480,
+        "y": 1840
       },
       "status": "active",
       "type": "file",
@@ -14401,8 +14513,8 @@
       "label": "debug_hook",
       "layer": "user",
       "position": {
-        "x": -520,
-        "y": -2200
+        "x": -3520,
+        "y": -2280
       },
       "status": "active",
       "type": "file",
@@ -14437,8 +14549,8 @@
       "label": "commit",
       "layer": "user",
       "position": {
-        "x": -2840,
-        "y": 2360
+        "x": -1440,
+        "y": 2840
       },
       "status": "active",
       "type": "file",
@@ -14473,8 +14585,8 @@
       "label": "constraint_meta",
       "layer": "user",
       "position": {
-        "x": -2320,
-        "y": 2320
+        "x": -840,
+        "y": 3080
       },
       "status": "active",
       "type": "file",
@@ -14509,8 +14621,8 @@
       "label": "decision",
       "layer": "user",
       "position": {
-        "x": -3440,
-        "y": 2440
+        "x": -2040,
+        "y": 3000
       },
       "status": "active",
       "type": "file",
@@ -14545,8 +14657,8 @@
       "label": "global_registry",
       "layer": "user",
       "position": {
-        "x": -3120,
-        "y": 2520
+        "x": -1720,
+        "y": 3040
       },
       "status": "active",
       "type": "file",
@@ -14581,8 +14693,8 @@
       "label": "ir_diff",
       "layer": "user",
       "position": {
-        "x": -2520,
-        "y": 2480
+        "x": -1160,
+        "y": 3000
       },
       "status": "active",
       "type": "file",
@@ -14617,8 +14729,8 @@
       "label": "mod",
       "layer": "user",
       "position": {
-        "x": -3080,
-        "y": 2280
+        "x": -1680,
+        "y": 2800
       },
       "status": "active",
       "type": "file",
@@ -14653,8 +14765,8 @@
       "label": "orchestrator",
       "layer": "user",
       "position": {
-        "x": -3360,
-        "y": 2320
+        "x": -1960,
+        "y": 2840
       },
       "status": "active",
       "type": "file",
@@ -14689,8 +14801,8 @@
       "label": "pipeline",
       "layer": "user",
       "position": {
-        "x": -1680,
-        "y": 2200
+        "x": -120,
+        "y": 3080
       },
       "status": "active",
       "type": "file",
@@ -14725,8 +14837,8 @@
       "label": "priority",
       "layer": "user",
       "position": {
-        "x": -3080,
-        "y": 2680
+        "x": -1680,
+        "y": 3200
       },
       "status": "active",
       "type": "file",
@@ -14761,8 +14873,8 @@
       "label": "promotion",
       "layer": "user",
       "position": {
-        "x": -2600,
-        "y": 2320
+        "x": -1200,
+        "y": 2840
       },
       "status": "active",
       "type": "file",
@@ -14797,8 +14909,8 @@
       "label": "rule_engine",
       "layer": "user",
       "position": {
-        "x": -3280,
-        "y": 2560
+        "x": -1880,
+        "y": 3080
       },
       "status": "active",
       "type": "file",
@@ -14833,8 +14945,8 @@
       "label": "rule_registry",
       "layer": "user",
       "position": {
-        "x": -2760,
-        "y": 2640
+        "x": -1360,
+        "y": 3240
       },
       "status": "active",
       "type": "file",
@@ -14869,8 +14981,8 @@
       "label": "selection",
       "layer": "user",
       "position": {
-        "x": -1840,
-        "y": 2280
+        "x": -520,
+        "y": 2920
       },
       "status": "active",
       "type": "file",
@@ -14905,8 +15017,8 @@
       "label": "staging",
       "layer": "user",
       "position": {
-        "x": -2760,
-        "y": 2480
+        "x": -1320,
+        "y": 2960
       },
       "status": "active",
       "type": "file",
@@ -14941,8 +15053,8 @@
       "label": "writer",
       "layer": "user",
       "position": {
-        "x": -1800,
-        "y": 2560
+        "x": -520,
+        "y": 3160
       },
       "status": "active",
       "type": "file",
@@ -14977,7 +15089,7 @@
       "layer": "ai",
       "position": {
         "x": 800,
-        "y": 1360
+        "y": 2120
       },
       "status": "ghost",
       "type": "external",
@@ -15046,8 +15158,8 @@
       "label": "diff",
       "layer": "ai",
       "position": {
-        "x": -240,
-        "y": 560
+        "x": -280,
+        "y": 800
       },
       "status": "ghost",
       "type": "external",
@@ -15151,8 +15263,8 @@
       "label": "FailureEvent",
       "layer": "ai",
       "position": {
-        "x": -640,
-        "y": 560
+        "x": -680,
+        "y": 640
       },
       "status": "ghost",
       "type": "external",
@@ -15221,8 +15333,8 @@
       "label": "FunctionSig",
       "layer": "ai",
       "position": {
-        "x": 800,
-        "y": 960
+        "x": 840,
+        "y": 1480
       },
       "status": "ghost",
       "type": "external",
@@ -15291,8 +15403,8 @@
       "label": "Hasher",
       "layer": "ai",
       "position": {
-        "x": 960,
-        "y": 640
+        "x": 1160,
+        "y": 2080
       },
       "status": "ghost",
       "type": "external",
@@ -15326,7 +15438,7 @@
       "label": "HashSet",
       "layer": "ai",
       "position": {
-        "x": -800,
+        "x": -840,
         "y": 600
       },
       "status": "ghost",
@@ -15431,8 +15543,8 @@
       "label": "IRDiff",
       "layer": "ai",
       "position": {
-        "x": -280,
-        "y": 0
+        "x": -640,
+        "y": -200
       },
       "status": "ghost",
       "type": "external",
@@ -15466,8 +15578,8 @@
       "label": "lazy_static",
       "layer": "ai",
       "position": {
-        "x": 240,
-        "y": 440
+        "x": 400,
+        "y": 640
       },
       "status": "ghost",
       "type": "external",
@@ -15501,8 +15613,8 @@
       "label": "match_all",
       "layer": "ai",
       "position": {
-        "x": -440,
-        "y": -320
+        "x": -640,
+        "y": -520
       },
       "status": "ghost",
       "type": "external",
@@ -15684,8 +15796,8 @@
       "label": "NaiveDate",
       "layer": "ai",
       "position": {
-        "x": 320,
-        "y": 960
+        "x": 360,
+        "y": 1000
       },
       "status": "ghost",
       "type": "external",
@@ -15720,7 +15832,7 @@
       "layer": "ai",
       "position": {
         "x": 80,
-        "y": 640
+        "y": 840
       },
       "status": "ghost",
       "type": "external",
@@ -15755,7 +15867,7 @@
       "layer": "ai",
       "position": {
         "x": -160,
-        "y": 1320
+        "y": 1280
       },
       "status": "ghost",
       "type": "external",
@@ -15861,8 +15973,8 @@
       "label": "result",
       "layer": "ai",
       "position": {
-        "x": -80,
-        "y": 640
+        "x": -120,
+        "y": 840
       },
       "status": "ghost",
       "type": "external",
@@ -15931,8 +16043,8 @@
       "label": "RuleCandidate",
       "layer": "ai",
       "position": {
-        "x": 520,
-        "y": 1040
+        "x": 360,
+        "y": 1720
       },
       "status": "ghost",
       "type": "external",
@@ -15966,7 +16078,7 @@
       "label": "RuleEngine",
       "layer": "ai",
       "position": {
-        "x": -3840,
+        "x": -3960,
         "y": -560
       },
       "status": "ghost",
@@ -16001,8 +16113,8 @@
       "label": "RuleRegistry",
       "layer": "ai",
       "position": {
-        "x": 400,
-        "y": 560
+        "x": 520,
+        "y": 1760
       },
       "status": "ghost",
       "type": "external",
@@ -16108,8 +16220,8 @@
       "label": "Stmt",
       "layer": "ai",
       "position": {
-        "x": 1120,
-        "y": 1280
+        "x": 1200,
+        "y": 1800
       },
       "status": "ghost",
       "type": "external",
@@ -16143,7 +16255,7 @@
       "label": "StmtFunctionDef",
       "layer": "ai",
       "position": {
-        "x": -600,
+        "x": -800,
         "y": -320
       },
       "status": "ghost",
@@ -16178,7 +16290,7 @@
       "label": "Suite",
       "layer": "ai",
       "position": {
-        "x": -640,
+        "x": -760,
         "y": 400
       },
       "status": "ghost",
@@ -16213,8 +16325,8 @@
       "label": "SystemTime",
       "layer": "ai",
       "position": {
-        "x": -200,
-        "y": 400
+        "x": -360,
+        "y": 640
       },
       "status": "ghost",
       "type": "external",
@@ -16249,7 +16361,7 @@
       "layer": "ai",
       "position": {
         "x": 720,
-        "y": 800
+        "y": 1560
       },
       "status": "ghost",
       "type": "external",
@@ -16284,7 +16396,7 @@
       "label": "axon_ir_mapper",
       "layer": "user",
       "position": {
-        "x": -6000,
+        "x": -5160,
         "y": 440
       },
       "status": "active",
@@ -16319,8 +16431,8 @@
       "label": "UNIX_EPOCH",
       "layer": "ai",
       "position": {
-        "x": 760,
-        "y": 1200
+        "x": 640,
+        "y": 1880
       },
       "status": "ghost",
       "type": "external",
@@ -16460,8 +16572,8 @@
       "label": "*",
       "layer": "ai",
       "position": {
-        "x": 120,
-        "y": 40
+        "x": 280,
+        "y": 760
       },
       "status": "ghost",
       "type": "external",
@@ -16494,8 +16606,8 @@
       "label": "extract::",
       "layer": "ai",
       "position": {
-        "x": -40,
-        "y": 0
+        "x": 400,
+        "y": 320
       },
       "status": "ghost",
       "type": "external",
@@ -16563,8 +16675,8 @@
       "label": "planner",
       "layer": "user",
       "position": {
-        "x": 0,
-        "y": 0
+        "x": 1040,
+        "y": 2680
       },
       "status": "active",
       "type": "source",
@@ -16604,638 +16716,6 @@
       },
       "status": "active",
       "type": "document",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "doc_shelf",
-      "data": {
-        "cluster_id": "doc_shelf",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/architecture.md",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": true,
-        "icon": "📚",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "architecture",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active",
-        "type": "document"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/architecture.md",
-      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/architecture.md",
-      "intelligence": {},
-      "label": "architecture",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "document",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/calculation.rs",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "calculation",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/calculation.rs",
-      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/calculation.rs",
-      "intelligence": {},
-      "label": "calculation",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/control.rs",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "control",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/control.rs",
-      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/control.rs",
-      "intelligence": {},
-      "label": "control",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/dependencies.rs",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "dependencies",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/dependencies.rs",
-      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/dependencies.rs",
-      "intelligence": {},
-      "label": "dependencies",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/input.rs",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "input",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/input.rs",
-      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/input.rs",
-      "intelligence": {},
-      "label": "input",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/main.py",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "main",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/main.py",
-      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/main.py",
-      "intelligence": {},
-      "label": "main",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/output.rs",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "output",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/output.rs",
-      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/output.rs",
-      "intelligence": {},
-      "label": "output",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/persistence.rs",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "persistence",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/persistence.rs",
-      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/persistence.rs",
-      "intelligence": {},
-      "label": "persistence",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON__axon_snapshots_v_1777804623_91e9f3a8",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/validation.rs",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "validation",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/validation.rs",
-      "id": "ARCHITECTURE_AXON/.axon_snapshots/v_1777804623_91e9f3a8/validation.rs",
-      "intelligence": {},
-      "label": "validation",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "doc_shelf",
-      "data": {
-        "cluster_id": "doc_shelf",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/architecture.md",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": true,
-        "icon": "📚",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "architecture",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active",
-        "type": "document"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/architecture.md",
-      "id": "ARCHITECTURE_AXON/architecture.md",
-      "intelligence": {},
-      "label": "architecture",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "document",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/calculation.rs",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "calculation",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/calculation.rs",
-      "id": "ARCHITECTURE_AXON/calculation.rs",
-      "intelligence": {},
-      "label": "calculation",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/control.rs",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "control",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/control.rs",
-      "id": "ARCHITECTURE_AXON/control.rs",
-      "intelligence": {},
-      "label": "control",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/dependencies.rs",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "dependencies",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/dependencies.rs",
-      "id": "ARCHITECTURE_AXON/dependencies.rs",
-      "intelligence": {},
-      "label": "dependencies",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/input.rs",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "input",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/input.rs",
-      "id": "ARCHITECTURE_AXON/input.rs",
-      "intelligence": {},
-      "label": "input",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/main.py",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "main",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/main.py",
-      "id": "ARCHITECTURE_AXON/main.py",
-      "intelligence": {},
-      "label": "main",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/output.rs",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "output",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/output.rs",
-      "id": "ARCHITECTURE_AXON/output.rs",
-      "intelligence": {},
-      "label": "output",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/persistence.rs",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "persistence",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/persistence.rs",
-      "id": "ARCHITECTURE_AXON/persistence.rs",
-      "intelligence": {},
-      "label": "persistence",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
-      "visual": {
-        "opacity": 1
-      }
-    },
-    {
-      "cluster_id": "cluster_ARCHITECTURE_AXON",
-      "data": {
-        "cluster_id": "cluster_ARCHITECTURE_AXON",
-        "degree": 0,
-        "file": "ARCHITECTURE_AXON/validation.rs",
-        "hasAtomicSignature": false,
-        "hasImportSignature": false,
-        "hiddenOnCanvas": false,
-        "icon": "📄",
-        "isScoped": false,
-        "isSovereign": true,
-        "isUserCreated": true,
-        "label": "validation",
-        "layer": "user",
-        "opacity": 1,
-        "scale": 1,
-        "status": "active"
-      },
-      "degree": 0,
-      "filePath": "ARCHITECTURE_AXON/validation.rs",
-      "id": "ARCHITECTURE_AXON/validation.rs",
-      "intelligence": {},
-      "label": "validation",
-      "layer": "user",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "status": "active",
-      "type": "source",
       "visual": {
         "opacity": 1
       }
@@ -17301,20 +16781,377 @@
       "label": "let rr_pos = *entry % ties.len()",
       "layer": "ai",
       "position": {
-        "x": 0,
-        "y": 0
+        "x": 360,
+        "y": -200
       },
       "status": "ghost",
       "type": "source",
       "visual": {
         "opacity": 0.5
       }
+    },
+    {
+      "cluster_id": "cluster_scratch",
+      "data": {
+        "cluster_id": "cluster_scratch",
+        "degree": 0,
+        "file": "scratch/check_db.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "check_db",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "scratch/check_db.rs",
+      "id": "scratch/check_db.rs",
+      "intelligence": {},
+      "label": "check_db",
+      "layer": "user",
+      "position": {
+        "x": -960,
+        "y": 2200
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_studio_src",
+      "data": {
+        "cluster_id": "cluster_studio_src",
+        "degree": 0,
+        "file": "studio/src/i18n.ts",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "i18n",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "studio/src/i18n.ts",
+      "id": "studio/src/i18n.ts",
+      "intelligence": {},
+      "label": "i18n",
+      "layer": "user",
+      "position": {
+        "x": 2800,
+        "y": -1200
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.24_bootstrap.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.24_bootstrap",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.24_bootstrap.md",
+      "id": "mile_stone/v0.0.24_bootstrap.md",
+      "intelligence": {},
+      "label": "v0.0.24_bootstrap",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.24_diff_enforcement.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.24_diff_enforcement",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.24_diff_enforcement.md",
+      "id": "mile_stone/v0.0.24_diff_enforcement.md",
+      "intelligence": {},
+      "label": "v0.0.24_diff_enforcement",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.24_mkdn_solution.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.24_mkdn_solution",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.24_mkdn_solution.md",
+      "id": "mile_stone/v0.0.24_mkdn_solution.md",
+      "intelligence": {},
+      "label": "v0.0.24_mkdn_solution",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.24_scope_control_basic.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.24_scope_control_basic",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.24_scope_control_basic.md",
+      "id": "mile_stone/v0.0.24_scope_control_basic.md",
+      "intelligence": {},
+      "label": "v0.0.24_scope_control_basic",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.24_scope_diff.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.24_scope_diff",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.24_scope_diff.md",
+      "id": "mile_stone/v0.0.24_scope_diff.md",
+      "intelligence": {},
+      "label": "v0.0.24_scope_diff",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.24_spec.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.24_spec",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.24_spec.md",
+      "id": "mile_stone/v0.0.24_spec.md",
+      "intelligence": {},
+      "label": "v0.0.24_spec",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.24.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.24",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.24.md",
+      "id": "mile_stone/v0.0.24.md",
+      "intelligence": {},
+      "label": "v0.0.24",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "tools/test_harness_v0.0.24.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "test_harness_v0.0.24",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "tools/test_harness_v0.0.24.py",
+      "id": "tools/test_harness_v0.0.24.py",
+      "intelligence": {},
+      "label": "test_harness_v0.0.24",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
     }
   ],
-  "userCount": 275,
+  "userCount": 267,
   "_iron_guard": {
     "version": "0.2.18.1",
-    "byte_size": 287335,
+    "byte_size": 282567,
     "encoding": "UTF-8",
     "alignment": 8
   }

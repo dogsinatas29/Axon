@@ -45,7 +45,7 @@
   - [🍻 Lounge System](#lounge-system)
   - [🎭 Persona-based Agents](#persona-based-agents)
   - [🤝 HR Board](#hr-board)
-- [💻 Test HW/SW SPEC](#test-hw-sw-spec)
+- [💻 LLM SERVER Test HW/SW SPEC](#llm-server-test-hw-sw-spec)
 
 <a name="conceptual-workflow"></a>
 ## 🏗️ Conceptual Workflow
@@ -226,8 +226,8 @@ Also, you can inject personas into the hired agents.
 
 ---
 
-<a name="test-hw-sw-spec"></a>
-## 💻 Test HW/SW SPEC
+<a name="llm-server-test-hw-sw-spec"></a>
+## 💻 LLM SERVER Test HW/SW SPEC
 
 ### 🖥️ Hardware Information
 - **CPU**: Intel(R) Core(TM) i7-4790 (8) @ 4.00 GHz
@@ -239,7 +239,9 @@ Also, you can inject personas into the hired agents.
 - **Kernel**: Linux 6.18.6-061806-generic
 
 ### 🧠 Local LLM Models
-- **Model**: `qwen2.5:7b-instruct (q4_K_M)` (4.7 GB)
+- **Models**: 
+  - `qwen2.5:7b-instruct (q4_K_M)` (4.7 GB)
+  - `Llama3:latest` (365c0bd3c000, 4.7 GB)
 - **Engines**: 
   - [Ollama](https://github.com/ollama/ollama): Main Inference Engine (Running)
   - [AirLLM](https://github.com/lyogavin/airllm): Memory-Optimized Layered Loading (Used)
@@ -248,6 +250,13 @@ Also, you can inject personas into the hired agents.
 ---
 
 ## 📋 Release Notes
+
+### v0.0.24 - Factory Pipeline Hardening
+- **SSOT Drift Prevention**: Newline-agnostic comparison logic to eliminate false-positive Target Mismatch errors.
+- **Harness Threshold Relaxation**: Lowered minimum code size to 60B to support small handler stubs.
+- **Connectivity Guard**: Real-time LLM endpoint accessibility check during initialization.
+- **Diagnostic Visibility**: Integrated Mapping Validator `stderr` and internal Python errors into daemon logs.
+- **Audit Preservation**: Mandatory DB logging for all failed proposals in the `posts` table.
 
 ### v0.0.23 - Maximum Harness & Physical Hardening
 - **Maximum Harness Protocol**: Integrated physical signature matching (F8.1) and high-density logic verification gates.

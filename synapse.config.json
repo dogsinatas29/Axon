@@ -9,7 +9,9 @@
       "build",
       "TEST",
       "TEST2",
-      "TEST3"
+      "TEST3",
+      "back_up_TEST",
+      "ARCHITECTURE_AXON"
     ],
     "files": []
   },

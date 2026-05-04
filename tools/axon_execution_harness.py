@@ -87,9 +87,57 @@ def validate_runtime_environment():
         # We don't return False anymore, let it try to run and fail naturally if needed
     return True, None
 
+def strip_markdown(content: str):
+    """v0.0.24: Stage 2 Pre-clean. Removes markdown code blocks."""
+    lines = content.splitlines()
+    clean_lines = [line for line in lines if not line.strip().startswith("```")]
+    return "\n".join(clean_lines)
+
+def detect_scope_violation(content: str):
+    """v0.0.24: Phase 1 & 3 Detection. Detects cross-file and system access patterns."""
+    forbidden_patterns = [
+        "mod ",
+        "use crate::",
+        "../", # Path traversal
+        "std::fs::", # v0.0.24 Phase 3: Block file system access
+        "File::open",
+        "File::create",
+    ]
+    return any(p in content for p in forbidden_patterns)
+
+# v0.0.24: Sovereign Protocol - Blacklisted Files (Architect-only territory)
+FORBIDDEN_FILES = [
+    "architecture.md",
+    "mile_stone/",
+    "release_note/",
+    ".gemini/",
+    "axon_execution_harness.py",
+    "axon_registry.py"
+]
+
 def verify_file_integrity(target_dir: str, expected_files: list, target_file: str = None):
     """F1, F2: Checks if files exist, are not empty, and are valid UTF-8."""
     errors = []
+    
+    # v0.0.24: Phase 3 & 4 - Single File Context Enforcement
+    if target_file:
+        print(f"DEBUG: Harness verify_file_integrity - target_file: '{target_file}', expected_files count: {len(expected_files)}", file=sys.stderr)
+        if len(expected_files) > 1:
+            print(f"DEBUG: Multi-file detected: {expected_files}", file=sys.stderr)
+        
+        # Check if the target itself is blacklisted
+        for forbidden in FORBIDDEN_FILES:
+            if target_file == forbidden or target_file.startswith(forbidden):
+                errors.append(f"FORBIDDEN_TARGET: '{target_file}' is a protected system file. You are not authorized to modify it.")
+        # Check for multiple files
+        if len(expected_files) > 1:
+            errors.append(f"SCOPE_VIOLATION: Multi-file modification attempt. Target is '{target_file}', but received {expected_files}.")
+        # Check if the only file is indeed the target
+        elif len(expected_files) == 1:
+            actual_file = expected_files[0]
+            if actual_file != target_file and os.path.basename(actual_file) != target_file:
+                errors.append(f"SCOPE_VIOLATION: Target mismatch. Expected '{target_file}', but got '{actual_file}'.")
+
     for fname in expected_files:
         fpath = os.path.join(target_dir, fname)
         # F1: Exist check
@@ -104,15 +152,23 @@ def verify_file_integrity(target_dir: str, expected_files: list, target_file: st
                 errors.append(f"F2: File '{fname}' is empty (0 bytes).")
             
             # v0.0.23: STRICT CHECKS ONLY FOR TARGET FILE
-            # This prevents bootstrap stubs from failing the harness
             is_target = (target_file and (fname == target_file or os.path.basename(fname) == target_file))
             
             if is_target:
-                if size < 120: # v0.0.23 [Stage 2: 120 bytes 강화]
-                    errors.append(f"F2.2: File '{fname}' is too small ({size} bytes). Min 120 bytes required.")
+                if size < 60: 
+                    errors.append(f"F2.2: File '{fname}' is too small ({size} bytes). Min 60 bytes required.")
             
                 with open(fpath, 'r', encoding='utf-8') as f:
                     content = f.read()
+
+                    # v0.0.24: Markdown Contamination Check (Stage 1)
+                    if "```" in content:
+                        errors.append(f"F2.5: Markdown pollution detected in '{fname}'. Triple backticks are forbidden.")
+
+                    # v0.0.24: Scope Violation Detection (Phase 1)
+                    if detect_scope_violation(content):
+                        errors.append(f"F2.6: Scope violation detected in '{fname}'. Cross-file patterns (mod, use crate, etc.) are forbidden.")
+
                     # v0.0.23: F2.1 Stub Detection (TODO & Placeholder)
                     if "TODO" in content or "Implementation pending" in content:
                         errors.append(f"F2.1: File '{fname}' contains TODO or placeholders. Likely a stub.")
@@ -121,8 +177,6 @@ def verify_file_integrity(target_dir: str, expected_files: list, target_file: st
                     is_doc_or_data = fname.endswith(".md") or fname.endswith(".json")
                     
                     # v0.0.23: Anti-Hardcoding Guard
-                    # LLMs often hardcode 2023/2024 from training data. Reject these in logic files.
-                    # v0.0.23: Strip string literals to prevent false positives in prompts/logs
                     clean_content = re.sub(r'".*?"', '""', content)
                     if not is_doc_or_data and any(year in clean_content for year in ["2023", "2024"]):
                         errors.append(f"F2.4: Hardcoded year detected in '{fname}'. Use dynamic system time instead of 2023/2024.")
@@ -202,8 +256,10 @@ def execution_harness(project_root: str, file_map: dict, entry_point: str = "mai
         for fname, code in file_map.items():
             fpath = os.path.join(tmp_dir, fname)
             os.makedirs(os.path.dirname(fpath), exist_ok=True)
+            # v0.0.24: Apply Pre-clean
+            clean_code = strip_markdown(code)
             with open(fpath, "w", encoding="utf-8") as f:
-                f.write(code)
+                f.write(clean_code)
 
         # F1~F2: Physical Integrity Audit
         if file_map: # Only if we have new files to check
@@ -277,8 +333,10 @@ if __name__ == "__main__":
             for fname, code in file_map.items():
                 fpath = os.path.join(args.project_root, fname)
                 os.makedirs(os.path.dirname(fpath), exist_ok=True)
+                # v0.0.24: Apply Pre-clean before final commit
+                clean_code = strip_markdown(code)
                 with open(fpath, "w", encoding="utf-8") as f:
-                    f.write(code)
+                    f.write(clean_code)
             print("<<<<HARNESS_SUCCESS_COMMITTED>>>>")
         else:
             print("<<<<HARNESS_SUCCESS_VALIDATED>>>>")

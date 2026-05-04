@@ -33,3 +33,8 @@ studio/.env
 
 # Global IR Registry
 .axon_registry/
+.axon_trace
+
+# Python Cache
+__pycache__/
+*.pyc

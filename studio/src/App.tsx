@@ -26,6 +26,7 @@ import Office from './components/Office';
 import BossBoard from './components/BossBoard';
 import type { Thread, Event, Agent } from './types';
 import { initSocket } from './api/socket';
+import { getTranslation } from './i18n';
 
 const App: React.FC = () => {
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -34,7 +35,10 @@ const App: React.FC = () => {
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [locale, setLocale] = useState<string>('ko_KR');
   const [activeChannel, setActiveChannel] = useState<'dashboard' | 'work' | 'office' | 'boss' | 'nogari' | 'signals'>('dashboard');
+  
+  const t = getTranslation(locale);
 
   const fetchThreads = async () => {
     try {
@@ -77,6 +81,9 @@ const App: React.FC = () => {
       const res = await fetch('http://localhost:8080/api/status');
       const data = await res.json();
       setIsRunning(!data.is_paused);
+      if (data.locale) {
+        setLocale(data.locale);
+      }
     } catch (err) {
       console.error('Failed to fetch status', err);
     }
@@ -142,7 +149,7 @@ const App: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <Activity color={isRunning ? 'var(--status-running)' : 'var(--status-hold)'} className={isRunning ? 'animate-pulse' : ''} />
           <h1 style={{ fontFamily: 'Orbitron', fontSize: '1.2rem', letterSpacing: '2px' }}>
-            AXON <span style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>WORKSPACE: {projectId} [Control Tower]</span>
+            AXON <span style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>WORKSPACE: {projectId} [{t.controlTower}]</span>
           </h1>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -152,56 +159,56 @@ const App: React.FC = () => {
             style={{ borderColor: isRunning ? 'var(--status-hold)' : 'var(--status-running)' }}
           >
             {isRunning ? <Pause size={16} /> : <Play size={16} />} 
-            {isRunning ? 'PAUSE FACTORY' : 'RESUME FACTORY'}
+            {isRunning ? t.pauseFactory : t.resumeFactory}
           </button>
         </div>
       </header>
 
       <div className="sidebar">
         <section className="panel" style={{ padding: '0' }}>
-          <div className="panel-header" style={{ opacity: 0.7, fontSize: '0.6rem' }}>BOARDS / 게시판</div>
+          <div className="panel-header" style={{ opacity: 0.7, fontSize: '0.6rem' }}>BOARDS / {t.boards}</div>
           <nav className="nav-menu">
             <button 
               className={`nav-item ${activeChannel === 'dashboard' ? 'active' : ''}`}
               onClick={() => setActiveChannel('dashboard')}
             >
               <LayoutIcon size={18} />
-              <span>종합 대시보드</span>
+              <span>{t.dashboard}</span>
             </button>
             <button 
               className={`nav-item ${activeChannel === 'work' ? 'active' : ''}`}
               onClick={() => setActiveChannel('work')}
             >
               <ClipboardList size={18} />
-              <span>작업 게시판 (Work Board)</span>
+              <span>{t.workBoard}</span>
             </button>
             <button 
               className={`nav-item ${activeChannel === 'office' ? 'active' : ''}`}
               onClick={() => setActiveChannel('office')}
             >
               <Users size={18} />
-              <span>인사 관리 (Office)</span>
+              <span>{t.office}</span>
             </button>
             <button 
               className={`nav-item ${activeChannel === 'boss' ? 'active' : ''}`}
               onClick={() => setActiveChannel('boss')}
             >
               <Shield size={18} />
-              <span>사장 게시판 (Boss)</span>
+              <span>{t.boss}</span>
             </button>
             <button 
               className={`nav-item ${activeChannel === 'nogari' ? 'active' : ''}`}
               onClick={() => setActiveChannel('nogari')}
             >
               <MessageSquare size={18} />
-              <span>노가리 게시판 (Lounge)</span>
+              <span>{t.nogari}</span>
             </button>
             <button 
               className={`nav-item ${activeChannel === 'signals' ? 'active' : ''}`}
               onClick={() => setActiveChannel('signals')}
             >
               <Activity size={18} />
-              <span>실시간 시그널 (Signals)</span>
+              <span>{t.signals}</span>
             </button>
           </nav>
         </section>
@@ -239,7 +246,7 @@ const App: React.FC = () => {
                     {threads.slice(0, 6).map(t => (
                         <ThreadCard key={t.id} thread={t} onClick={() => setSelectedThreadId(t.id)} />
                     ))}
-                    {threads.length === 0 && <div className="empty-state">No threads active.</div>}
+                    {threads.length === 0 && <div className="empty-state">{t.noThreads}</div>}
                 </div>
             </section>
           </div>
@@ -282,7 +289,7 @@ const App: React.FC = () => {
                         </div>
                     </div>
                 ))}
-                {events.length === 0 && <div className="empty-state">Silence in the factory...</div>}
+                {events.length === 0 && <div className="empty-state">{t.silenceInFactory}</div>}
             </div>
           </section>
         )}

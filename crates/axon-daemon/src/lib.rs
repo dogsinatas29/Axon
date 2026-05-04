@@ -399,6 +399,8 @@ impl Daemon {
                 let start_step = std::time::Instant::now();
                 match junior_runtime.process_task(&task, &current_arch_guide, junior_error_feedback.clone(), Some(self.event_bus.clone())).await {
                     Ok(p) => {
+                        // v0.0.24: Audit Preservation - Save EVERY proposal to the DB for debugging
+                        let _ = self.storage.save_post(&p);
                         let latency = start_step.elapsed().as_secs_f64() * 1000.0;
                         
                         // v0.0.19: Hard Fail Conditions (Strict Output Contract)
@@ -420,6 +422,13 @@ impl Daemon {
                         let mut ir_validation_success = true;
                         let mut ir_validation_err = String::new();
                         let mut simulated_state_json = String::new();
+
+                        // v0.0.24: Determine target path for strict validation
+                        let target_path = if let Some(target) = &task.target_file {
+                            target.clone()
+                        } else {
+                            task.title.split_whitespace().last().unwrap_or("main.py").to_string()
+                        };
 
                         // 1. Get structured JSON/Patch from Junior's response
                         let junior_json = p.full_code.clone().unwrap_or_default();
@@ -544,8 +553,20 @@ impl Daemon {
                             }
 
                             if !file_map.is_empty() {
+                                // v0.0.24: Only send the TARGET file to the harness even in Stage 5
+                                let mut harness_map = std::collections::HashMap::new();
+                                if let Some(target_content) = file_map.get(&target_path) {
+                                    harness_map.insert(target_path.clone(), target_content.clone());
+                                } else {
+                                    tracing::warn!("⚠️ [Stage 5] Target file {} not found in simulated state. Falling back to whole map.", target_path);
+                                    harness_map = file_map.clone();
+                                }
+
+                                let harness_json = serde_json::to_string(&harness_map).unwrap_or_else(|_| "{}".to_string());
                                 let tmp_json_path = format!("{}/.harness_{}.json", task.project_id, uuid::Uuid::new_v4());
-                                let _ = std::fs::write(&tmp_json_path, &simulated_state_json);
+                                let _ = std::fs::write(&tmp_json_path, &harness_json);
+
+                                tracing::info!("🧪 [Stage 5] Pre-review Execution Check ({} files) for Junior {}", harness_map.len(), junior_runtime.agent.name);
 
                                 // v0.0.19: Architecture Mapping Validation (Before execution)
                                 let arch_file_path = format!("{}/architecture.md", task.project_id);
@@ -557,11 +578,16 @@ impl Daemon {
                                     .arg(&task.project_id)
                                     .arg("--state-json")
                                     .arg(&tmp_json_path)
+                                    .arg("--target-file")
+                                    .arg(&target_path)
                                     .output();
 
                                 match mapping_output {
                                     Ok(out) if !out.status.success() => {
-                                        let err_msg = String::from_utf8_lossy(&out.stdout).into_owned();
+                                        let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+                                        let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+                                        let err_msg = format!("{}{}", stdout, stderr);
+                                        
                                         self.record_failure_trace(&task.id, "MAPPING_DRIFT", "architecture", "structure", "Stage4.5");
                                         // v0.0.19: Observation Mode - WARN only, do not block
                                         tracing::warn!("🗺️ [Stage 4.5] [OBSERVATION] Architecture Drift Detected for {}:\n{}", junior_runtime.agent.name, err_msg);
@@ -620,6 +646,8 @@ impl Daemon {
                                     .arg(&tmp_json_path)
                                     .arg("--entry")
                                     .arg(&final_entry_point)
+                                    .arg("--target-file")
+                                    .arg(&target_path)
                                     .output();
 
                                 let _ = std::fs::remove_file(&tmp_json_path);
@@ -813,12 +841,23 @@ impl Daemon {
                         .unwrap_or(raw_target)
                         .to_string()
                 };
+                
+                // v0.0.24: Sovereign Protocol - Forbidden Files Blacklist (Architect-only Territory)
+                let forbidden_files = vec!["architecture.md", "mile_stone/", "release_note/", ".gemini/"];
+                for forbidden in &forbidden_files {
+                    if target_path == *forbidden || target_path.starts_with(forbidden) {
+                        tracing::error!("🛡️ [FORBIDDEN_TARGET] Unauthorized targeting! Agent tried to target protected file: {}", target_path);
+                        failures.push(format!("Forbidden Target Violation: '{}' is a protected system file. Junior/Senior agents are NOT authorized to modify it. Only the Architect can update this file.", target_path));
+                    }
+                }
 
                 for (fname, new_content) in &state_map {
                     let fpath = std::path::Path::new(&task.project_id).join(fname);
                     let is_modified = if fpath.exists() {
                         if let Ok(old_content) = std::fs::read_to_string(&fpath) {
-                            old_content.trim() != new_content.trim()
+                            let old_norm = old_content.replace("\r\n", "\n").trim().to_string();
+                            let new_norm = new_content.replace("\r\n", "\n").trim().to_string();
+                            old_norm != new_norm
                         } else { true }
                     } else { !new_content.trim().is_empty() };
 
@@ -874,9 +913,9 @@ impl Daemon {
 
                     // v0.0.23: Refined WIPE_SHIELD - check raw content length first
                     let raw_len = new_content.trim().len();
-                    if raw_len < 120 {
+                    if raw_len < 60 {
                         tracing::error!("🛡️ [WIPE_SHIELD] Blocked small write ({} bytes) to {}.", raw_len, fpath.display());
-                        failures.push(format!("Physical Integrity Error: Content too small for '{}'. (Minimum 120 bytes of actual code required)", fname));
+                        failures.push(format!("Physical Integrity Error: Content too small for '{}'. (Minimum 60 bytes of actual code required)", fname));
                         return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
                     }
 
@@ -894,9 +933,20 @@ impl Daemon {
                 final_simulated_state = serde_json::to_string(&final_map).unwrap_or(final_simulated_state);
 
                 // 3. Physical Harness Verification
-                tracing::info!("🧪 [FINAL VERIFICATION] Running harness on physical files for task {}...", task.id);
-                let dummy_json_path = format!("{}/.harness_dummy_{}.json", task.project_id, uuid::Uuid::new_v4());
-                let _ = std::fs::write(&dummy_json_path, &final_simulated_state);
+                
+                // v0.0.24: Only send the TARGET file to the harness to avoid SCOPE_VIOLATION on whole-project maps
+                let mut harness_map = std::collections::HashMap::new();
+                if let Some(target_content) = final_map.get(&target_path) {
+                    harness_map.insert(target_path.clone(), target_content.clone());
+                } else {
+                    tracing::warn!("⚠️ [HARNESS_WARNING] Target file {} not found in final_map. Skipping specific file validation.", target_path);
+                }
+
+                tracing::info!("🧪 [FINAL VERIFICATION] Running harness ({} files) on physical files for task {}...", harness_map.len(), task.id);
+
+                let harness_json = serde_json::to_string(&harness_map).unwrap_or_else(|_| "{}".to_string());
+                let dummy_json_path = format!("{}/.harness_target_{}.json", task.project_id, uuid::Uuid::new_v4());
+                let _ = std::fs::write(&dummy_json_path, &harness_json);
 
                 let final_harness = std::process::Command::new("python3")
                     .arg(Self::resolve_tool_path("axon_execution_harness.py"))

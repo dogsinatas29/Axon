@@ -139,6 +139,38 @@ impl Daemon {
         format!("tools/{}", name)
     }
 
+    fn get_current_project_state(&self, project_id: &str) -> String {
+        let mut state = std::collections::HashMap::new();
+        let project_path = std::path::Path::new(project_id);
+        if project_path.exists() {
+            let mut stack = vec![project_path.to_path_buf()];
+            while let Some(dir) = stack.pop() {
+                if let Ok(entries) = std::fs::read_dir(dir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.is_dir() {
+                            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                            if name.starts_with('.') || name == "target" || name == "crates" || name == "tools" || name == "mile_stone" {
+                                continue;
+                            }
+                            stack.push(path);
+                        } else {
+                            let rel_path = path.strip_prefix(project_path).unwrap_or(&path);
+                            let fname = rel_path.to_string_lossy();
+                            if fname.starts_with('.') {
+                                continue;
+                            }
+                            if let Ok(content) = std::fs::read_to_string(&path) {
+                                state.insert(fname.to_string(), content);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        serde_json::to_string(&state).unwrap_or_else(|_| "{}".to_string())
+    }
+
     fn record_failure_trace(&self, task_id: &str, error: &str, file: &str, symbol: &str, stage: &str) {
         let trace_dir = ".axon_trace";
         let _ = std::fs::create_dir_all(trace_dir);
@@ -378,6 +410,7 @@ impl Daemon {
         let mut proposal = None;
         let mut summary = None;
         let mut final_simulated_state = String::new();
+        let current_simulated_state = self.get_current_project_state(&task.project_id);
         let num_juniors = self.junior_models.len();
         let mut junior_failures = Vec::new();
         let mut junior_error_feedback: Option<String> = task.error_feedback.clone();

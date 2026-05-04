@@ -939,11 +939,13 @@ impl Daemon {
                 let mut backups = std::collections::HashMap::new();
                 for (fname, new_content) in &state_map {
                     let fpath = std::path::Path::new(&task.project_id).join(fname);
-                    let is_modified = if fpath.exists() {
-                        if let Ok(old_content) = std::fs::read_to_string(&fpath) {
-                            old_content.trim() != new_content.trim()
-                        } else { true }
-                    } else { !new_content.trim().is_empty() };
+                    let is_modified = if let Some(old_content) = initial_state_map.get(fname) {
+                        let old_norm = old_content.replace("\r\n", "\n").trim().to_string();
+                        let new_norm = new_content.replace("\r\n", "\n").trim().to_string();
+                        old_norm != new_norm
+                    } else {
+                        !new_content.trim().is_empty()
+                    };
 
                     if !is_modified { continue; }
 

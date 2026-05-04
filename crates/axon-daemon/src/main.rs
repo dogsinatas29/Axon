@@ -177,7 +177,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if resume {
                             fast_cfg = Some(parsed);
                         } else {
-                            let msg = if final_locale == "ko_KR" { "📦 기존 설정(axon_config.json)을 발견했습니다. 빠른 재개를 사용하시겠습니까? [Y/n]: " } else { "📦 Existing factory settings (axon_config.json) found. Fast Resume? [Y/n]: " };
+                            let msg = if final_locale == "ko_KR" { 
+                                "📦 기존 설정(axon_config.json)을 발견했습니다. 빠른 재개를 사용하시겠습니까? [Y/n]: " 
+                            } else if final_locale == "ja_JP" {
+                                "📦 既存の設定 (axon_config.json) が見つかりました。高速再開を使用しますか？ [Y/n]: "
+                            } else { 
+                                "📦 Existing factory settings (axon_config.json) found. Fast Resume? [Y/n]: " 
+                            };
                             let choice = prompt(msg);
                             if choice.trim().to_lowercase() != "n" { fast_cfg = Some(parsed); }
                         }
@@ -224,7 +230,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             let (architect_model, arch_name, senior_models, senior_model_names, junior_models, junior_model_names) = if let Some(cfg) = &fast_cfg {
-                let msg = if final_locale == "ko_KR" { "✅ 저장된 설정으로부터 공장 가동을 재개합니다..." } else { "✅ Resuming factory operation from saved configuration..." };
+                let msg = if final_locale == "ko_KR" { 
+                    "✅ 저장된 설정으로부터 공장 가동을 재개합니다..." 
+                } else if final_locale == "ja_JP" {
+                    "✅ 保存された設定から工場稼働を再開します..."
+                } else { 
+                    "✅ Resuming factory operation from saved configuration..." 
+                };
                 println!("{}", msg);
                 let arch_drv = get_drv(&cfg.agents.architect);
                 let mut s_drvs = Vec::new();
@@ -255,24 +267,54 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     cached_endpoint: &mut Option<String>,
                     use_cached: &mut bool
                 ) -> AgentConfig {
-                    let title = if locale == "ko_KR" { format!("{} 모집", role) } else { format!("RECRUITING: {}", role.to_uppercase()) };
+                    let title = if locale == "ko_KR" { 
+                        format!("{} 모집", role) 
+                    } else if locale == "ja_JP" {
+                        format!("{} 募集", role)
+                    } else { 
+                        format!("RECRUITING: {}", role.to_uppercase()) 
+                    };
                     println!("\n--- [{}] ---", title);
-                    if locale == "ko_KR" { println!("🔍 사용 가능한 엔진:"); } else { println!("Q Available Intelligence:"); }
+                    if locale == "ko_KR" { 
+                        println!("🔍 사용 가능한 엔진:"); 
+                    } else if locale == "ja_JP" {
+                        println!("🔍 利用可能なエンジン:");
+                    } else { 
+                        println!("Q Available Intelligence:"); 
+                    }
                     for (i, (name, _)) in available_models.iter().enumerate() { println!("  {}. {}", i + 1, name); }
                     println!("  L. LocalAI (Custom Endpoint)");
                     
-                    let msg = if locale == "ko_KR" { format!("{}를 위한 제공자 선택 (번호 또는 L): ", role) } else { format!("Select Provider for {} (Number or L): ", role) };
+                    let msg = if locale == "ko_KR" { 
+                        format!("{}를 위한 제공자 선택 (번호 또는 L): ", role) 
+                    } else if locale == "ja_JP" {
+                        format!("{} のプロバイダーを選択 (番号または L): ", role)
+                    } else { 
+                        format!("Select Provider for {} (Number or L): ", role) 
+                    };
                     let p_idx_str = prompt(&msg);
                     let (runtime, provider, endpoint) = if p_idx_str.to_lowercase() == "l" {
                         let ep = if *use_cached && cached_endpoint.is_some() {
                             cached_endpoint.clone().unwrap()
                         } else {
                             loop {
-                                let msg_e = if locale == "ko_KR" { "로컬 엔드포인트 입력: " } else { "Enter Local Endpoint: " };
+                                let msg_e = if locale == "ko_KR" { 
+                                    "로컬 엔드포인트 입력: " 
+                                } else if locale == "ja_JP" {
+                                    "ローカルエンドポイントを入力: "
+                                } else { 
+                                    "Enter Local Endpoint: " 
+                                };
                                 let input_ep = prompt(&msg_e).trim_end_matches('/').to_string();
                                 
                                 // v0.0.24: Connectivity Guard
-                                let msg_v = if locale == "ko_KR" { format!("⏳ {} 연결 확인 중...", input_ep) } else { format!("⏳ Validating connection to {}...", input_ep) };
+                                let msg_v = if locale == "ko_KR" { 
+                                    format!("⏳ {} 연결 확인 중...", input_ep) 
+                                } else if locale == "ja_JP" {
+                                    format!("⏳ {} 接続確認中...", input_ep)
+                                } else { 
+                                    format!("⏳ Validating connection to {}...", input_ep) 
+                                };
                                 println!("{}", msg_v);
                                 
                                 match reqwest::Client::builder()
@@ -284,11 +326,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     .await 
                                 {
                                     Ok(_) => {
-                                        println!("✅ [SUCCESS] Endpoint is reachable.\n");
+                                        let msg_ok = if locale == "ko_KR" { "✅ [SUCCESS] 엔드포인트에 접속 가능합니다.\n" } else if locale == "ja_JP" { "✅ [SUCCESS] エンドポイントに接続可能です。\n" } else { "✅ [SUCCESS] Endpoint is reachable.\n" };
+                                        println!("{}", msg_ok);
                                         break input_ep;
                                     }
                                     Err(e) => {
-                                        let msg_f = if locale == "ko_KR" { format!("❌ [CONNECTION FAILED]: {}\n다시 입력하시겠습니까? (서버가 켜져 있는지 확인하세요)", e) } else { format!("❌ [CONNECTION FAILED]: {}\nRetry? (Ensure your local AI server is running)", e) };
+                                        let msg_f = if locale == "ko_KR" { 
+                                            format!("❌ [CONNECTION FAILED]: {}\n다시 입력하시겠습니까? (서버가 켜져 있는지 확인하세요)", e) 
+                                        } else if locale == "ja_JP" {
+                                            format!("❌ [接続失敗]: {}\n再入力しますか？ (サーバーが起動しているか確認してください)", e)
+                                        } else { 
+                                            format!("❌ [CONNECTION FAILED]: {}\nRetry? (Ensure your local AI server is running)", e) 
+                                        };
                                         println!("{}", msg_f);
                                     }
                                 }
@@ -297,7 +346,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                         if cached_endpoint.is_none() {
                             *cached_endpoint = Some(ep.clone());
-                            let msg_q = if locale == "ko_KR" { "이후 모든 요원에게 이 주소를 동일하게 적용할까요? [Y/n]: " } else { "Use this endpoint for all subsequent agents? [Y/n]: " };
+                            let msg_q = if locale == "ko_KR" { 
+                                "이후 모든 요원에게 이 주소를 동일하게 적용할까요? [Y/n]: " 
+                            } else if locale == "ja_JP" {
+                                "以降のすべてのエージェントにこのアドレスを適用しますか？ [Y/n]: "
+                            } else { 
+                                "Use this endpoint for all subsequent agents? [Y/n]: " 
+                            };
                             if prompt(&msg_q).to_lowercase() != "n" {
                                 *use_cached = true;
                             }
@@ -327,31 +382,67 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         Arc::new(axon_model::OllamaDriver::new(endpoint.clone().unwrap_or_default(), "".into()))
                     };
 
-                    let msg_d = if locale == "ko_KR" { format!("🔍 {}를 위한 모델 검색 중...", role) } else { format!("🔍 Discovering models for {}...", role) };
+                    let msg_d = if locale == "ko_KR" { 
+                        format!("🔍 {}를 위한 모델 검색 중...", role) 
+                    } else if locale == "ja_JP" {
+                        format!("🔍 {} のモデルを検索中...", role)
+                    } else { 
+                        format!("🔍 Discovering models for {}...", role) 
+                    };
                     println!("{}", msg_d);
                     let mut model_name = String::new();
                     if let Ok(models) = drv.list_available_models().await {
                         if !models.is_empty() {
-                            if locale == "ko_KR" { println!("사용 가능한 모델:"); } else { println!("Available Models:"); }
+                            if locale == "ko_KR" { 
+                                println!("사용 가능한 모델:"); 
+                            } else if locale == "ja_JP" {
+                                println!("利用可能なモデル:");
+                            } else { 
+                                println!("Available Models:"); 
+                            }
                             for (i, m) in models.iter().enumerate() { println!("  {}. {}", i + 1, m); }
-                            let msg_m = if locale == "ko_KR" { "번호 선택 (또는 이름 입력): " } else { "Select Number (or type name): " };
+                            let msg_m = if locale == "ko_KR" { 
+                                "번호 선택 (또는 이름 입력): " 
+                            } else if locale == "ja_JP" {
+                                "番号を選択 (または名前を入力): "
+                            } else { 
+                                "Select Number (or type name): " 
+                            };
                             let m_idx_str = prompt(&msg_m);
                             if let Ok(m_idx) = m_idx_str.parse::<usize>() { if let Some(m) = models.get(m_idx - 1) { model_name = m.clone(); } }
                             if model_name.is_empty() { model_name = m_idx_str; }
                         }
                     }
                     if model_name.is_empty() { 
-                        let msg_man = if locale == "ko_KR" { "모델명 직접 입력: " } else { "Enter Model Name: " };
+                        let msg_man = if locale == "ko_KR" { 
+                            "모델명 직접 입력: " 
+                        } else if locale == "ja_JP" {
+                            "モデル名を直接入力: "
+                        } else { 
+                            "Enter Model Name: " 
+                        };
                         model_name = prompt(&msg_man); 
                     }
                     AgentConfig { runtime, provider, endpoint, model: model_name }
                 }
 
                 arch_config = recruit_agent_async("Architect", &available_models, &final_locale, &mut global_local_endpoint, &mut use_global_endpoint).await;
-                let msg_s = if final_locale == "ko_KR" { "\n시니어 요원 수 (기본 1): " } else { "\nNumber of Seniors (default 1): " };
+                let msg_s = if final_locale == "ko_KR" { 
+                    "\n시니어 요원 수 (기본 1): " 
+                } else if final_locale == "ja_JP" {
+                    "\nシニアエージェントの数 (デフォルト 1): "
+                } else { 
+                    "\nNumber of Seniors (default 1): " 
+                };
                 let senior_count: usize = prompt(&msg_s).parse().unwrap_or(1);
                 for i in 0..senior_count { senior_configs.push(recruit_agent_async(&format!("Senior #{}", i + 1), &available_models, &final_locale, &mut global_local_endpoint, &mut use_global_endpoint).await); }
-                let msg_j = if final_locale == "ko_KR" { "\n주니어 요원 수 (기본 1): " } else { "\nNumber of Juniors (default 1): " };
+                let msg_j = if final_locale == "ko_KR" { 
+                    "\n주니어 요원 수 (기본 1): " 
+                } else if final_locale == "ja_JP" {
+                    "\nジュニアエージェントの数 (デフォルト 1): "
+                } else { 
+                    "\nNumber of Juniors (default 1): " 
+                };
                 let junior_count: usize = prompt(&msg_j).parse().unwrap_or(1);
                 for i in 0..junior_count { junior_configs.push(recruit_agent_async(&format!("Junior #{}", i + 1), &available_models, &final_locale, &mut global_local_endpoint, &mut use_global_endpoint).await); }
 
@@ -363,7 +454,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 if let Ok(json) = serde_json::to_string_pretty(&cfg) {
                     let _ = std::fs::write("axon_config.json", json);
-                    let msg_save = if final_locale == "ko_KR" { "\n💾 설정 저장 완료." } else { "\n💾 Configuration saved." };
+                    let msg_save = if final_locale == "ko_KR" { 
+                        "\n💾 설정 저장 완료." 
+                    } else if final_locale == "ja_JP" {
+                        "\n💾 設定を保存しました。"
+                    } else { 
+                        "\n💾 Configuration saved." 
+                    };
                     println!("{}", msg_save);
                 }
                 let mut s_drvs = Vec::new();
@@ -382,7 +479,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             // Stage 4: Factory Initialization (Spec)
-            println!("--- [Stage 4: Factory Specification (Bootstrap Menu)] ---");
+            let stage4_title = if final_locale == "ko_KR" { "--- [Stage 4: 공장 사양 설정 (부트스트랩 메뉴)] ---" } else if final_locale == "ja_JP" { "--- [Stage 4: 工場仕様設定 (ブートストラップメニュー)] ---" } else { "--- [Stage 4: Factory Specification (Bootstrap Menu)] ---" };
+            println!("{}", stage4_title);
             let mut skip_bootstrap = false;
 
             if std::path::Path::new("architecture.md").exists() {
@@ -407,6 +505,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 } else {
                     let msg = if final_locale == "ko_KR" {
                         "공장 가동을 위한 요구사항 명세서 경로를 입력하세요 (예: GEMINI.md)\n[이미 진행 중인 작업을 이어서 하려면 아무것도 입력하지 말고 엔터를 누르세요]: "
+                    } else if final_locale == "ja_JP" {
+                        "工場の稼働に必要な要件定義書のパスを入力してください (例: spec.md)\n[既存のプロジェクトを再開する場合は、何も入力せずにエンターキーを押してください]: "
                     } else {
                         "Enter Specification File Path (e.g., GEMINI.md)\n[Press Enter to SKIP if resuming an existing project]: "
                     };
@@ -417,8 +517,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             println!("\n====================================================");
-            println!("🚀 ALL SYSTEMS GO: Activating Factory Line...");
-            println!("   - Target Spec: {}", spec_path);
+            let msg_all_systems = if final_locale == "ko_KR" { "🚀 모든 시스템 가동 준비 완료: 공장 라인 활성화 중..." } else if final_locale == "ja_JP" { "🚀 全システム稼働準備完了: 工場ラインを活性化中..." } else { "🚀 ALL SYSTEMS GO: Activating Factory Line..." };
+            println!("{}", msg_all_systems);
+            let msg_target_spec = if final_locale == "ko_KR" { format!("   - 대상 명세서: {}", spec_path) } else if final_locale == "ja_JP" { format!("   - ターゲット仕様書: {}", spec_path) } else { format!("   - Target Spec: {}", spec_path) };
+            println!("{}", msg_target_spec);
             println!("   - Studio UI  : http://localhost:8080");
             println!("====================================================\n");
 

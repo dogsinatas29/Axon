@@ -166,7 +166,7 @@ const App: React.FC = () => {
 
       <div className="sidebar">
         <section className="panel" style={{ padding: '0' }}>
-          <div className="panel-header" style={{ opacity: 0.7, fontSize: '0.6rem' }}>BOARDS / {t.boards}</div>
+          <div className="panel-header" style={{ opacity: 0.7, fontSize: '0.6rem' }}>{t.boardsHeader} / {t.boards}</div>
           <nav className="nav-menu">
             <button 
               className={`nav-item ${activeChannel === 'dashboard' ? 'active' : ''}`}
@@ -218,20 +218,20 @@ const App: React.FC = () => {
         {activeChannel === 'dashboard' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gridTemplateRows: 'auto 1fr', gap: '1rem', height: '100%' }}>
             <section className="panel">
-                <div className="panel-header">Factory Overview</div>
+                <div className="panel-header">{t.factoryOverview}</div>
                 <div style={{ padding: '1.5rem', display: 'flex', gap: '4rem' }}>
                     <div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '0.5rem' }}>ACTIVE THREADS</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '0.5rem' }}>{t.activeThreads}</div>
                         <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--accent-primary)', fontFamily: 'Orbitron' }}>{threads.length}</div>
                     </div>
                     <div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '0.5rem' }}>TOTAL SIGNALS</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '0.5rem' }}>{t.totalSignals}</div>
                         <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--accent-secondary)', fontFamily: 'Orbitron' }}>{events.length}</div>
                     </div>
                     <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '0.5rem' }}>LATEST STATUS</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '0.5rem' }}>{t.latestStatus}</div>
                         <div style={{ fontSize: '1rem', fontWeight: 'bold', borderLeft: '3px solid var(--accent-primary)', paddingLeft: '1rem' }}>
-                          {events[0]?.content || 'All systems nominal.'}
+                          {events[0]?.content || t.allSystemsNominal}
                         </div>
                     </div>
                 </div>
@@ -239,8 +239,8 @@ const App: React.FC = () => {
             
             <section className="panel" style={{ overflow: 'hidden' }}>
                 <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Recent Strategic Threads</span>
-                  <button className="btn-mini" onClick={() => setActiveChannel('work')}>VIEW ALL</button>
+                  <span>{t.recentStrategicThreads}</span>
+                  <button className="btn-mini" onClick={() => setActiveChannel('work')}>{t.viewAll}</button>
                 </div>
                 <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem', overflowY: 'auto' }}>
                     {threads.slice(0, 6).map(t => (
@@ -254,12 +254,12 @@ const App: React.FC = () => {
 
         {activeChannel === 'work' && (
           <section className="panel" style={{ flex: 1 }}>
-            <div className="panel-header">Work Board / {projectId}</div>
+            <div className="panel-header">{t.workBoardTitle} / {projectId}</div>
             <div className="thread-grid" style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem', overflowY: 'auto' }}>
               {threads.map(thread => (
                 <ThreadCard key={thread.id} thread={thread} onClick={() => setSelectedThreadId(thread.id)} />
               ))}
-              {threads.length === 0 && <div className="empty-state">No active threads in the Work Board...</div>}
+              {threads.length === 0 && <div className="empty-state">{t.noWorkThreads}</div>}
             </div>
           </section>
         )}
@@ -276,7 +276,7 @@ const App: React.FC = () => {
 
         {activeChannel === 'signals' && (
           <section className="panel" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div className="panel-header">Real-time Factory Signals</div>
+            <div className="panel-header">{t.realTimeSignals}</div>
             <div style={{ flex: 1, padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {events.map(e => (
                     <div key={e.id} className="card" style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>

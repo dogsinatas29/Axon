@@ -22,7 +22,11 @@ export const translations: Record<string, any> = {
     noThreads: "활성 스레드가 없습니다.",
     allSystemsNominal: "모든 시스템 정상 작동 중.",
     silenceInFactory: "공장이 정적에 휩싸였습니다...",
-    controlTower: "관제탑"
+    controlTower: "관제탑",
+    boardsHeader: "게시판 목록",
+    workBoardTitle: "작업 게시판",
+    noWorkThreads: "작업 게시판에 활성 스레드가 없습니다...",
+    realTimeSignals: "실시간 공장 시그널"
   },
   en_US: {
     boards: "BOARDS",
@@ -43,7 +47,36 @@ export const translations: Record<string, any> = {
     noThreads: "No threads active.",
     allSystemsNominal: "All systems nominal.",
     silenceInFactory: "Silence in the factory...",
-    controlTower: "Control Tower"
+    controlTower: "Control Tower",
+    boardsHeader: "BOARDS",
+    workBoardTitle: "Work Board",
+    noWorkThreads: "No active threads in the Work Board...",
+    realTimeSignals: "Real-time Factory Signals"
+  },
+  ja_JP: {
+    boards: "掲示板",
+    dashboard: "統合ダッシュボード",
+    workBoard: "作業掲示板 (Work Board)",
+    office: "人事管理 (Office)",
+    boss: "社長掲示板 (Boss)",
+    nogari: "ラウンジ (Lounge)",
+    signals: "リアルタイムシグナル (Signals)",
+    factoryOverview: "工場の概要",
+    activeThreads: "アクティブなスレッド",
+    totalSignals: "総シ그ナル",
+    latestStatus: "最新ステータス",
+    recentStrategicThreads: "最近の戦略スレッド",
+    viewAll: "すべて表示",
+    pauseFactory: "工場停止",
+    resumeFactory: "工場再開",
+    noThreads: "アクティブなスレッドはありません。",
+    allSystemsNominal: "すべてのシステムは正常です。",
+    silenceInFactory: "工場は静まり返っています...",
+    controlTower: "管制塔",
+    boardsHeader: "掲示板リスト",
+    workBoardTitle: "作業掲示板",
+    noWorkThreads: "作業掲示板에 アクティブなスレッドはありません...",
+    realTimeSignals: "リアルタイム工場シグナル"
   }
 };
 

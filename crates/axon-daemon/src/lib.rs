@@ -224,13 +224,13 @@ impl Daemon {
             senior_model_names,
             junior_models,
             junior_model_names,
-            event_bus,
+            event_bus: event_bus.clone(),
             architecture_guide,
             pause_tx: Arc::new(pause_tx),
             pause_rx,
             locale,
             controller: Arc::new(controller::ControlSystem::new()),
-            lounge: Arc::new(axon_agent::lounge::LoungeManager::new(".")),
+            lounge: Arc::new(axon_agent::lounge::LoungeManager::new(".").with_event_bus(event_bus.clone())),
             admin: Arc::new(admin::AdminSystem::new(storage.clone())),
             rr_indices: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
             throttler: Arc::new(tokio::sync::Semaphore::new(2)),
@@ -422,11 +422,13 @@ impl Daemon {
             let mut junior_runtime = axon_agent::AgentRuntime::new(
                 junior_id.clone(),
                 axon_core::AgentRole::Junior,
-                junior_name,
+                junior_name.clone(),
                 junior_model
             );
             junior_runtime.set_locale(&self.locale);
             junior_runtime.throttler = Some(self.throttler.clone());
+
+            let _ = self.lounge.log_custom(&junior_name, axon_core::AgentRole::Junior, &format!("'{}' 작업 들어갑니다. 방해하지 마세요!", task.title));
 
             for retry_attempt in 0..=max_retries {
                 let start_step = std::time::Instant::now();
@@ -807,7 +809,7 @@ impl Daemon {
                             timestamp: chrono::Local::now(),
                         });
 
-                        let _ = self.lounge.log_vibe(&junior_runtime.agent, axon_agent::lounge::Vibe::Focus);
+                        let _ = self.lounge.log_custom(&junior_runtime.agent.name, axon_core::AgentRole::Junior, "휴, 코드 다 짰습니다. 시니어님 검토 부탁드려요!");
                         
                         let summary_post = junior_runtime.generate_system_summary(&p, Some(self.event_bus.clone())).await?;
                         if let Some(m) = &summary_post.metrics {
@@ -1085,8 +1087,10 @@ impl Daemon {
                             if content_upper.contains("[APPROVE]") || content_upper.contains("**APPROVE**") || content_upper.contains("[COMPLIANT]") || content_upper.contains("**COMPLIANT**") {
                                 tracing::info!("✅ [FINAL_GATE_PASSED]: Task {} authorized for Lock-in.", task.id);
                                 task.result = Some(v.content.clone());
+                                let _ = self.lounge.log_vibe(&senior_runtime.agent, axon_agent::lounge::Vibe::Excited);
                             } else {
                                 tracing::warn!("🚨 [FINAL_GATE_REJECTED]: Rolling back.");
+                                let _ = self.lounge.log_vibe(&senior_runtime.agent, axon_agent::lounge::Vibe::Angry);
                                 for (fname, content) in backups { let fpath = std::path::Path::new(&task.project_id).join(fname); let _ = std::fs::write(fpath, content); }
                                 failures.push("Final Gate Rejection.".to_string());
                                 return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;

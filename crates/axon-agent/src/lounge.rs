@@ -2,7 +2,8 @@ use chrono::Local;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
-use axon_core::{Agent, AgentRole};
+use axon_core::{Agent, AgentRole, Event, EventType};
+use std::sync::Arc;
 
 pub enum Vibe {
     Excited,
@@ -29,6 +30,7 @@ impl Vibe {
 
 pub struct LoungeManager {
     file_path: String,
+    event_bus: Option<Arc<axon_core::events::EventBus>>,
 }
 
 impl LoungeManager {
@@ -36,7 +38,13 @@ impl LoungeManager {
         let path = Path::new(project_root).join("Nogari.md");
         Self {
             file_path: path.to_string_lossy().to_string(),
+            event_bus: None,
         }
+    }
+
+    pub fn with_event_bus(mut self, event_bus: Arc<axon_core::events::EventBus>) -> Self {
+        self.event_bus = Some(event_bus);
+        self
     }
 
     pub fn log_vibe(&self, agent: &Agent, vibe: Vibe) -> std::io::Result<()> {
@@ -63,8 +71,23 @@ impl LoungeManager {
             writeln!(file, "# 🗨️ AXON Lounge (실시간 노가리)\n")?;
             writeln!(file, "이곳은 에이전트들이 작업 중간중간 속마음을 털어놓는 비밀 공간입니다.\n")?;
         }
-
         file.write_all(log_entry.as_bytes())?;
+
+        // v0.0.25: Broadcast to Studio UI via EventBus
+        if let Some(bus) = &self.event_bus {
+            bus.publish(Event {
+                id: uuid::Uuid::new_v4().to_string(),
+                project_id: "system".to_string(),
+                thread_id: None,
+                agent_id: Some(agent.id.clone()),
+                event_type: EventType::SystemLog,
+                source: agent.name.clone(),
+                content: format!("💬 {}: {}", agent.name, message),
+                payload: None,
+                timestamp: Local::now(),
+            });
+        }
+
         Ok(())
     }
 
@@ -87,6 +110,22 @@ impl LoungeManager {
             .open(&self.file_path)?;
 
         file.write_all(log_entry.as_bytes())?;
+
+        // v0.0.25: Broadcast to Studio UI via EventBus
+        if let Some(bus) = &self.event_bus {
+            bus.publish(Event {
+                id: uuid::Uuid::new_v4().to_string(),
+                project_id: "system".to_string(),
+                thread_id: None,
+                agent_id: None,
+                event_type: EventType::SystemLog,
+                source: agent_name.to_string(),
+                content: format!("💬 {}: {}", agent_name, message),
+                payload: None,
+                timestamp: Local::now(),
+            });
+        }
+
         Ok(())
     }
 }

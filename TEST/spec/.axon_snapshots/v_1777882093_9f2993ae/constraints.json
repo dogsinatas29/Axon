@@ -1,0 +1,144 @@
+{
+  "components": {
+    "compute": {
+      "name": "compute",
+      "file_path": "calculation.rs",
+      "functions": {
+        "calculate_age": {
+          "name": "calculate_age",
+          "signature": "calculate_age(year, month, day)",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": []
+    },
+    "input_handler": {
+      "name": "input_handler",
+      "file_path": "input.rs",
+      "functions": {
+        "get_name": {
+          "name": "get_name",
+          "signature": "get_name()",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "get_year": {
+          "name": "get_year",
+          "signature": "get_year()",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "get_day": {
+          "name": "get_day",
+          "signature": "get_day()",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "get_month": {
+          "name": "get_month",
+          "signature": "get_month()",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": []
+    },
+    "control_flow": {
+      "name": "control_flow",
+      "file_path": "control.rs",
+      "functions": {
+        "start": {
+          "name": "start",
+          "signature": "start()",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "bypass": {
+          "name": "bypass",
+          "signature": "bypass()",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "end": {
+          "name": "end",
+          "signature": "end()",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": []
+    },
+    "persistence": {
+      "name": "persistence",
+      "file_path": "persistence.rs",
+      "functions": {
+        "save_to_db": {
+          "name": "save_to_db",
+          "signature": "save_to_db(age)",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": []
+    },
+    "external_dependencies": {
+      "name": "external_dependencies",
+      "file_path": "dependencies.rs",
+      "functions": {
+        "use_rusqlite": {
+          "name": "use_rusqlite",
+          "signature": "use_rusqlite()",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "use_chrono": {
+          "name": "use_chrono",
+          "signature": "use_chrono()",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": []
+    },
+    "output_handler": {
+      "name": "output_handler",
+      "file_path": "output.rs",
+      "functions": {
+        "display_age": {
+          "name": "display_age",
+          "signature": "display_age(age)",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": []
+    },
+    "validation": {
+      "name": "validation",
+      "file_path": "validation.rs",
+      "functions": {
+        "validate_year": {
+          "name": "validate_year",
+          "signature": "validate_year(year)",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "validate_day": {
+          "name": "validate_day",
+          "signature": "validate_day(day)",
+          "dependencies": [],
+          "body_hash": null
+        },
+        "validate_month": {
+          "name": "validate_month",
+          "signature": "validate_month(month)",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": []
+    }
+  },
+  "constraints": []
+}

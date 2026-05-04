@@ -1046,7 +1046,8 @@ impl Daemon {
                         }
 
                         if let Some(v) = validation {
-                            if v.content.contains("APPROVE") || v.content.contains("COMPLIANT") {
+                            let content_upper = v.content.to_uppercase();
+                            if content_upper.contains("[APPROVE]") || content_upper.contains("[COMPLIANT]") {
                                 tracing::info!("✅ [FINAL_GATE_PASSED]: Task {} authorized for Lock-in.", task.id);
                                 task.result = Some(v.content.clone());
                             } else {

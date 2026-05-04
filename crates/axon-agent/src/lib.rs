@@ -1090,8 +1090,8 @@ impl AgentRuntime {
              3. 출력 규약 검증: 주니어의 제안이 유효한 JSON 배열 형식 또는 새로운 Raw Code Tag 포맷(# TARGET, ---CODE START---)을 따르고 있는지 확인하십시오. 형식이 파괴되었거나 태그가 누락되었다면 **무조건 REJECT** 하십시오.\n\
              4. 코드 및 의존성 검증: 코드가 완성된 상태인지, 실행 가능한지, 환각 라이브러리가 없는지 확인하십시오.\n\
              5. 생각(<analysis>) 과정은 생략하십시오.\n\
-             6. 마지막에 반드시 'APPROVE' 또는 'REJECT'를 명시하십시오.\n\
-             7. 반려(REJECT) 시에는 짧고 명확한 사유와 수정 힌트(FIX_HINT)를 한국어로 적으십시오.",
+             6. 마지막에 반드시 '[APPROVE]' 또는 '[REJECT]'를 명시하십시오. (반드시 대괄호를 포함할 것)\n\
+             7. 반려([REJECT]) 시에는 짧고 명확한 사유와 수정 힌트(FIX_HINT)를 한국어로 적으십시오.",
             self.agent.persona.name,
             lang_name,
             task.title,
@@ -1137,7 +1137,7 @@ impl AgentRuntime {
              --- 시니어 리뷰 ---\n{}\n\n\
              --- 출력 규격 ---\n\
              1. 분석 과정(<reasoning>)은 생략하십시오.\n\
-             2. 준수되었을 경우에만 'COMPLIANT'라고 답변하십시오.",
+             2. 준수되었을 경우에만 '[COMPLIANT]'라고 답변하십시오. (반드시 대괄호를 포함할 것)",
             self.agent.persona.name,
             lang_name,
             architecture_guide,

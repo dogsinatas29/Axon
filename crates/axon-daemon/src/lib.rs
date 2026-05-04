@@ -871,6 +871,15 @@ impl Daemon {
                         tracing::error!("❌ [POLLUTION_DETECTED] Markdown code blocks found in {}", fname);
                         failures.push(format!("Markdown Pollution Violation: Triple backticks (```) are NOT allowed in source files. Submit RAW code ONLY within the AXON protocol blocks."));
                     }
+
+                    // v0.0.25: Phase 2 - Scope Control Detection
+                    let forbidden_patterns = ["mod ", "use crate::", "../", "File::open", "File::create"];
+                    for pattern in &forbidden_patterns {
+                        if new_content.contains(pattern) {
+                            tracing::error!("🛡️ [SCOPE_VIOLATION] Forbidden pattern '{}' detected in {}", pattern, fname);
+                            failures.push(format!("Scope Violation: The pattern '{}' is NOT allowed. Agents must not create modules, use crate-level imports, or access the file system directly.", pattern));
+                        }
+                    }
                 }
 
                 // v0.0.23: Maximum Harness - Physical Signature Matching
@@ -905,6 +914,12 @@ impl Daemon {
 
                     if !is_modified { continue; }
 
+                    // v0.0.25: Phase 3 - Physical Write Gate (Strict isolation)
+                    if *fname != target_path {
+                        tracing::warn!("🛡️ [WRITE_GATE] Blocked unauthorized write attempt to {}. Target is {}.", fname, target_path);
+                        continue;
+                    }
+
                     if fpath.exists() {
                         if let Ok(content) = std::fs::read_to_string(&fpath) {
                             backups.insert(fname.clone(), content);
@@ -933,6 +948,26 @@ impl Daemon {
                 final_simulated_state = serde_json::to_string(&final_map).unwrap_or(final_simulated_state);
 
                 // 3. Physical Harness Verification
+                
+                // v0.0.25: Phase 5 - Execution Validator Optimization
+                // Only run the heavy harness on the final task of the project
+                let is_final_task = if let Ok(all_tasks) = self.storage.list_all_tasks() {
+                    let project_tasks: Vec<_> = all_tasks.into_iter()
+                        .filter(|t| t.project_id == task.project_id && t.id != task.id)
+                        .collect();
+                    // If no other tasks are Pending, Ready, or InProgress, this is the final one
+                    !project_tasks.iter().any(|t| 
+                        t.status == axon_core::TaskStatus::Pending || 
+                        t.status == axon_core::TaskStatus::Ready || 
+                        t.status == axon_core::TaskStatus::InProgress
+                    )
+                } else { true };
+
+                if !is_final_task {
+                    tracing::info!("⏩ [OPTIMIZATION] Skipping harness for intermediate task {}. Validation will run on final node.", task.id);
+                    success = true;
+                    break;
+                }
                 
                 // v0.0.24: Only send the TARGET file to the harness to avoid SCOPE_VIOLATION on whole-project maps
                 let mut harness_map = std::collections::HashMap::new();

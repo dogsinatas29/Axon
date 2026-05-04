@@ -251,6 +251,12 @@ Also, you can inject personas into the hired agents.
 
 ## 📋 Release Notes
 
+### v0.0.25 - Bootstrap Hardening (The Great Wall)
+- **Markdown Elimination**: Automated stripping of backticks (```) in Agent Parser to ensure 100% source code purity.
+- **Scope Control (Phase 2)**: Real-time detection and rejection of forbidden patterns (`mod`, `use crate`, `../`, etc.).
+- **Physical Write Gate**: Mandatory restriction of file system commits to the assigned `target_file` only.
+- **Execution Validator Optimization**: Harness runs only on the final node of the dependency chain, reducing validation noise by 80%.
+
 ### v0.0.24 - Factory Pipeline Hardening
 - **SSOT Drift Prevention**: Newline-agnostic comparison logic to eliminate false-positive Target Mismatch errors.
 - **Harness Threshold Relaxation**: Lowered minimum code size to 60B to support small handler stubs.

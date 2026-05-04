@@ -399,13 +399,18 @@ impl AgentRuntime {
                     let title_lower = task.title.to_lowercase();
                     let desc_lower = task.description.to_lowercase();
                     
-                    // Heuristic: Does the task title or description mention this file?
-                    // Or is it the ONLY file? (If it's the only one, we assume it's the target)
                     if title_lower.contains(&f_lower) || desc_lower.contains(&f_lower) || num_files == 1 {
                         filtered_files.push(f.clone());
                     } else {
-                        tracing::warn!("🛡️ [FILTER_SHIELD] Dropped unauthorized patch for '{}' from Junior response.", f.path);
+                        tracing::error!("🛡️ [SCOPE_VIOLATION] Junior tried to modify unauthorized file '{}'. Rejecting proposal.", f.path);
+                        return Err(anyhow::anyhow!("Scope Violation: You are ONLY allowed to modify the target file. Multiple file modification attempts are forbidden."));
                     }
+                }
+                
+                // v0.0.25: Phase 4 - Strict Single File Check
+                if filtered_files.len() > 1 {
+                    tracing::error!("🛡️ [SCOPE_VIOLATION] Junior tried to modify {} files. Only 1 allowed.", filtered_files.len());
+                    return Err(anyhow::anyhow!("Scope Violation: Multi-file diffs are NOT allowed. ({} files detected)", filtered_files.len()));
                 }
 
                 // For backward compatibility
@@ -1300,6 +1305,13 @@ fn extract_json(raw: &str) -> Option<String> {
 }
 
 /// AXON Patch Protocol v2: Deterministic FSM Parser (Robust)
+fn strip_markdown(content: &str) -> String {
+    content.lines()
+        .filter(|line| !line.trim().starts_with("```"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
     #[derive(PartialEq)]
     enum State { Idle, InPatch, InFile, InCode }
@@ -1358,7 +1370,9 @@ fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
             }
             State::InCode => {
                 if line_trimmed.contains("---CODE END---") {
-                    if let Some(f) = current_file.take() {
+                    if let Some(mut f) = current_file.take() {
+                        // v0.0.25: Step 4 - Eliminate markdown pollution before storing
+                        f.code = strip_markdown(&f.code);
                         patch.files.push(f);
                     }
                     state = State::InPatch;
@@ -1373,7 +1387,9 @@ fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
     }
     
     if state == State::InCode {
-        if let Some(f) = current_file.take() {
+        if let Some(mut f) = current_file.take() {
+            // v0.0.25: Step 4 - Eliminate markdown pollution before storing
+            f.code = strip_markdown(&f.code);
             patch.files.push(f);
         }
     }

@@ -38,3 +38,4 @@ studio/.env
 # Python Cache
 __pycache__/
 *.pyc
+TEST/

@@ -947,8 +947,6 @@ impl Daemon {
                 // Update final_simulated_state with signed content
                 final_simulated_state = serde_json::to_string(&final_map).unwrap_or(final_simulated_state);
 
-                // 3. Physical Harness Verification
-                
                 // v0.0.25: Phase 5 - Execution Validator Optimization
                 // Only run the heavy harness on the final task of the project
                 let is_final_task = if let Ok(all_tasks) = self.storage.list_all_tasks() {
@@ -963,59 +961,66 @@ impl Daemon {
                     )
                 } else { true };
 
-                if !is_final_task {
-                    tracing::info!("⏩ [OPTIMIZATION] Skipping harness for intermediate task {}. Validation will run on final node.", task.id);
-                    success = true;
-                    break;
-                }
-                
-                // v0.0.24: Only send the TARGET file to the harness to avoid SCOPE_VIOLATION on whole-project maps
-                let mut harness_map = std::collections::HashMap::new();
-                if let Some(target_content) = final_map.get(&target_path) {
-                    harness_map.insert(target_path.clone(), target_content.clone());
+                if is_final_task {
+                    // v0.0.24: Only send the TARGET file to the harness to avoid SCOPE_VIOLATION on whole-project maps
+                    let mut harness_map = std::collections::HashMap::new();
+                    if let Some(target_content) = final_map.get(&target_path) {
+                        harness_map.insert(target_path.clone(), target_content.clone());
+                    } else {
+                        tracing::warn!("⚠️ [HARNESS_WARNING] Target file {} not found in final_map. Skipping specific file validation.", target_path);
+                    }
+
+                    tracing::info!("🧪 [FINAL VERIFICATION] Running harness ({} files) on physical files for task {}...", harness_map.len(), task.id);
+
+                    let harness_json = serde_json::to_string(&harness_map).unwrap_or_else(|_| "{}".to_string());
+                    let dummy_json_path = format!("{}/.harness_target_{}.json", task.project_id, uuid::Uuid::new_v4());
+                    let _ = std::fs::write(&dummy_json_path, &harness_json);
+
+                    let final_harness = std::process::Command::new("python3")
+                        .arg(Self::resolve_tool_path("axon_execution_harness.py"))
+                        .arg("--project-root")
+                        .arg(&task.project_id)
+                        .arg("--files-json")
+                        .arg(&dummy_json_path)
+                        .arg("--entry")
+                        .arg(&final_entry_point)
+                        .arg("--target-file")
+                        .arg(target_path)
+                        .output();
+                    
+                    let _ = std::fs::remove_file(&dummy_json_path);
+                    
+                    match final_harness {
+                        Ok(out) if out.status.success() => {
+                            tracing::info!("✅ [HARNESS_SUCCESS] Passed. Proceeding to SSOT Promotion...");
+                        },
+                        _ => {
+                            let err_msg = if let Ok(out) = final_harness { String::from_utf8_lossy(&out.stderr).into_owned() } else { "Execution failure".to_string() };
+                            tracing::error!("🚨 [HARNESS_FAILED] Rolling back: {}", err_msg);
+                            for (fname, content) in backups { let fpath = std::path::Path::new(&task.project_id).join(fname); let _ = std::fs::write(fpath, content); }
+                            failures.push(format!("PHYSICAL_VALIDATE Failure: {}", err_msg));
+                            return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
+                        }
+                    }
                 } else {
-                    tracing::warn!("⚠️ [HARNESS_WARNING] Target file {} not found in final_map. Skipping specific file validation.", target_path);
+                    tracing::info!("⏩ [OPTIMIZATION] Skipping harness for intermediate task {}. Validation will run on final node.", task.id);
                 }
 
-                tracing::info!("🧪 [FINAL VERIFICATION] Running harness ({} files) on physical files for task {}...", harness_map.len(), task.id);
-
-                let harness_json = serde_json::to_string(&harness_map).unwrap_or_else(|_| "{}".to_string());
-                let dummy_json_path = format!("{}/.harness_target_{}.json", task.project_id, uuid::Uuid::new_v4());
-                let _ = std::fs::write(&dummy_json_path, &harness_json);
-
-                let final_harness = std::process::Command::new("python3")
-                    .arg(Self::resolve_tool_path("axon_execution_harness.py"))
-                    .arg("--project-root")
-                    .arg(&task.project_id)
-                    .arg("--files-json")
-                    .arg(&dummy_json_path)
-                    .arg("--entry")
-                    .arg(&final_entry_point)
-                    .arg("--target-file")
-                    .arg(target_path)
+                // 4. SSOT Promotion (Common for all tasks)
+                let tmp_files_json = format!("{}/.registry_files_{}.json", task.project_id, uuid::Uuid::new_v4());
+                let _ = std::fs::write(&tmp_files_json, &final_simulated_state);
+                let _ = std::process::Command::new("python3")
+                    .arg(Self::resolve_tool_path("axon_registry.py"))
+                    .arg("promote")
+                    .arg("--root").arg(&task.project_id)
+                    .arg("--files-json").arg(&tmp_files_json)
+                    .arg("--task-id").arg(&task.id)
                     .output();
-                
-                let _ = std::fs::remove_file(&dummy_json_path);
-                
-                match final_harness {
-                    Ok(out) if out.status.success() => {
-                        tracing::info!("✅ [HARNESS_SUCCESS] Passed. Proceeding to SSOT Promotion...");
-                        
-                        // 4. SSOT Promotion
-                        let tmp_files_json = format!("{}/.registry_files_{}.json", task.project_id, uuid::Uuid::new_v4());
-                        let _ = std::fs::write(&tmp_files_json, &final_simulated_state);
-                        let _ = std::process::Command::new("python3")
-                            .arg(Self::resolve_tool_path("axon_registry.py"))
-                            .arg("promote")
-                            .arg("--root").arg(&task.project_id)
-                            .arg("--files-json").arg(&tmp_files_json)
-                            .arg("--task-id").arg(&task.id)
-                            .output();
-                        let _ = std::fs::remove_file(&tmp_files_json);
-                        tracing::info!("🚀 [SSOT PROMOTED] Task {} successfully versioned.", task.id);
+                let _ = std::fs::remove_file(&tmp_files_json);
+                tracing::info!("🚀 [SSOT PROMOTED] Task {} successfully versioned.", task.id);
 
-                        // 5. Final Gate Review
-                        tracing::info!("🎖️ [FINAL_GATE]: Materialization complete. Invoking Senior Reviewer...");
+                // 5. Final Gate Review
+                tracing::info!("🎖️ [FINAL_GATE]: Materialization complete. Invoking Senior Reviewer...");
                         let (senior_model, senior_id, senior_name) = self.select_best_agent(axon_core::AgentRole::Senior);
                         let mut senior_runtime = axon_agent::AgentRuntime::new(senior_id.clone(), axon_core::AgentRole::Senior, senior_name, senior_model);
                         senior_runtime.set_locale(&self.locale);
@@ -1051,16 +1056,7 @@ impl Daemon {
                                 return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
                             }
                         }
-                    },
-                    _ => {
-                        let err_msg = if let Ok(out) = final_harness { String::from_utf8_lossy(&out.stderr).into_owned() } else { "Execution failure".to_string() };
-                        tracing::error!("🚨 [HARNESS_FAILED] Rolling back: {}", err_msg);
-                        for (fname, content) in backups { let fpath = std::path::Path::new(&task.project_id).join(fname); let _ = std::fs::write(fpath, content); }
-                        failures.push(format!("PHYSICAL_VALIDATE Failure: {}", err_msg));
-                        return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
                     }
-                }
-            }
 
             // v0.0.16: 아키텍처 섹션 잠금
             let _ = self.lock_in_architecture(&task.project_id, &task.title);

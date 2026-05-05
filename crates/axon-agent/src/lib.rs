@@ -237,7 +237,7 @@ impl AgentRuntime {
         }
     }
 
-    pub async fn process_task(&self, task: &Task, architecture_guide: &str, error_feedback: Option<String>, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
+    pub async fn process_task(&self, task: &Task, architecture_guide: &str, error_feedback: Option<String>, event_bus: Option<Arc<axon_core::events::EventBus>>, existing_code: &str) -> anyhow::Result<Post> {
         let (lang_name, lang_instruction) = match self.locale.as_str() {
             "ko_KR" => ("한국어 (Korean)", "모든 주석과 출력 문자열은 반드시 한국어(Korean)로 작성하십시오. 절대 중국어(Chinese)를 사용하지 마십시오."),
             "ja_JP" => ("日本語 (Japanese)", "すべてのコメントと出力文字列は 반드시 日本語で作成してください。中国語は絶対に使用しないでください。"),
@@ -325,10 +325,14 @@ impl AgentRuntime {
 
         let system_prompt = format!(
             "[AXON FACTORY CORE PRINCIPLE - READ FIRST]\n\
-             1. [Think Before Coding]: DO NOT GUESS. If the spec is ambiguous, ask for clarification (though in this automated mode, assume best-practice defaults).\n\
-             2. [Simplicity First]: Code must be minimal but FULLY FUNCTIONAL. No placeholders, no stubs.\n\
-             3. [No Stub Violation]: YOUR WORK WILL BE REJECTED IF IT CONTAINS ONLY PRINT STATEMENTS OR NO LOGIC. IMPLEMENT THE ACTUAL ALGORITHM.\n\
+             1. [Think Before Coding]: DO NOT GUESS. If the spec is ambiguous, ask for clarification.
+             2. [Simplicity First]: Code must be minimal but FULLY FUNCTIONAL. No placeholders, no stubs.
+             3. [No Stub Violation]: YOUR WORK WILL BE REJECTED IF IT CONTAINS ONLY COMMENTS OR 'IMPLEMENT HERE' STUBS. YOU MUST IMPLEMENT THE ACTUAL FUNCTIONAL LOGIC. NO PLACEHOLDERS.
              4. [No Hallucinated APIs]: Only use libraries confirmed in the context.\n\n\
+             [AXON PROTOCOL V2 - NOGARI]\n\
+             - Inside the ===AXON_PATCH_START=== block, you MUST include a line starting with 'THOUGHT:' before 'FILE:'.\n\
+             - This is your 'Internal Vibe' or reasoning. Be honest and professional.\n\
+             - Example: THOUGHT: I am using the standard filesystem API to ensure atomic writes.\n\n\
              [CRITICAL CONSTRAINTS]\n\
              - YOU ARE ASSIGNED EXACTLY ONE FILE: {}\n\
              - [STRICT ISOLATION]: You are FORBIDDEN from implementing, mentioning, or referencing code meant for other files.\n\
@@ -337,16 +341,11 @@ impl AgentRuntime {
              - YOUR TARGET: '{}'\n\n\
              [STRICT OUTPUT RULE]\n\
              - You MUST use EXACTLY ONE '===AXON_PATCH_START===' block.\n\
-             - Any mention of other files in your patch will result in immediate REJECTION.\n\
-             - Multiple file patches will be DISCARDED and result in failure.\n\n\
-             [INSTANT REJECTION CRITERIA]\n\
-             - Target file mismatch (Expected: {})\n\
-             - Target file mismatch in 'FILE:' field (Expected: {})\n\
              - **NO TODO, FIXME, or placeholders allowed.**\n\
-             - **Minimum Logic Density**: Must contain actual logic (if, match, calculations), not just print calls.\n\
+             - **High Logic Density**: Implement the meat of the logic. If it is a calculator, write the math. If it is a database, write the IO. DO NOT SHIRK YOUR DUTY.\n\
              - **NO Markdown code blocks (```) allowed.** Use AXON Patch Protocol markers instead.\n\n\
              [YOUR FATE]\n\
-             Failure to follow these instructions—especially by trying to be 'helpful' with other files—will result in your immediate replacement and task auto-requeue.\n\n\
+             Failure to follow these instructions will result in your immediate replacement and task auto-requeue.\n\n\
              ### AI JUNIOR AGENT: {} ###\n\
              ROLE: Implement the task for '{}' using AXON Patch Protocol v2.\n\
              LANG: {} ({})\n\n\
@@ -357,21 +356,29 @@ impl AgentRuntime {
              - Your code will be validated against the symbols defined in architecture.md.\n\
              - You MUST implement ALL required functions for the target file.\n\
              - [RUST VISIBILITY]: ALWAYS use `pub` for interface functions.\n\
-             - DO NOT add extra functions or drift from the defined signatures.\n\n\
+             - DO NOT add extra functions or drift from the defined signatures.\n\
+             - [EXISTING CODE (CONTEXT)]:\n\
+              - YOU ARE REWRITING THE ENTIRE FILE.\n\
+              - YOU MUST PRESERVE ALL EXISTING FUNCTIONS.\n\
+              - USE THE EXISTING CODE BELOW AS YOUR SOURCE OF TRUTH:\n\n\
+              ```{}\n\
+              {}\n\
+              ```\n\n\
              ### TASK ###\n\
              TITLE: {}\n\
              DESC: {}\n\n\
              ### OUTPUT RULE: AXON Patch Protocol v2 (STRICT) ###\n\
              1. FORMAT:\n\n\
              ===AXON_PATCH_START===\n\
+             THOUGHT: <Brief reasoning for your implementation choices>\n\
              FILE: {}\n\
              ACTION: rewrite\n\n\
              ---CODE START---\n\
-             <COMPLETE EXECUTABLE CODE>\n\
+             <COMPLETE EXECUTABLE CODE INCLUDING ALL PRESERVED FUNCTIONS>\n\
              ---CODE END---\n\
              ===AXON_PATCH_END===\n\n\
              2. NO TALKING. NO JSON. NO MARKDOWN. ONLY THE PATCH.",
-            target_file, target_file, target_file, target_file, self.agent.persona.name, target_file, lang_name, lang_instruction, feedback_block, target_file, short_guide, task.title, task.description, target_file
+            target_file, target_file, self.agent.persona.name, target_file, lang_name, lang_instruction, feedback_block, target_file, short_guide, target_file, existing_code, task.title, task.description, target_file
         );
 
         let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
@@ -387,10 +394,9 @@ impl AgentRuntime {
         // PHASE 09: AXON Patch Protocol v2 Pipeline
         let repaired_text = auto_repair_v2(&resp.text);
         
-        let full_code = match extract_axon_patch_v2(&repaired_text) {
+        let (full_code, mut thought) = match extract_axon_patch_v2(&repaired_text) {
             Some(patch) => {
                 // v0.0.23: SINGLE-FILE FOCUS ENFORCEMENT
-                // Filter out any files that aren't mentioned in the task title or aren't the primary focus
                 let mut filtered_files = Vec::new();
                 let num_files = patch.files.len();
                 
@@ -407,13 +413,12 @@ impl AgentRuntime {
                     }
                 }
                 
-                // v0.0.25: Phase 4 - Strict Single File Check
                 if filtered_files.len() > 1 {
                     tracing::error!("🛡️ [SCOPE_VIOLATION] Junior tried to modify {} files. Only 1 allowed.", filtered_files.len());
                     return Err(anyhow::anyhow!("Scope Violation: Multi-file diffs are NOT allowed. ({} files detected)", filtered_files.len()));
                 }
 
-                // For backward compatibility
+                // For backward compatibility (keep legacy array format)
                 let json_legacy = serde_json::json!(filtered_files.iter().map(|f| {
                     serde_json::json!({
                         "target": f.path,
@@ -425,22 +430,33 @@ impl AgentRuntime {
                         "code": f.code
                     })
                 }).collect::<Vec<_>>());
-                Some(json_legacy.to_string())
+                (Some(json_legacy.to_string()), patch.thought.clone())
             },
             None => {
                 tracing::warn!("❌ [PARSER FAIL] Failed to parse AXON Patch v2. Attempting legacy JSON extraction...");
                 match extract_json(&repaired_text) {
-                    Some(j) => Some(j),
+                    Some(j) => (Some(j), None),
                     None => return Err(anyhow::anyhow!("Failed to parse AXON Patch v2 or Legacy JSON. Raw: {}", resp.text)),
                 }
             }
         };
+
+        // v0.0.25 Fallback: If no explicit THOUGHT, take the first 120 chars of content outside the patch
+        if thought.is_none() {
+            let outside_text = resp.text.split("===AXON_PATCH_START===").next().unwrap_or("").trim();
+            if !outside_text.is_empty() {
+                let mut snippet = outside_text.replace("\n", " ").chars().take(120).collect::<String>();
+                if outside_text.len() > 120 { snippet.push_str("..."); }
+                thought = Some(snippet);
+            }
+        }
 
         Ok(Post {
             id: uuid::Uuid::new_v4().to_string(),
             thread_id: task.id.clone(),
             author_id: self.agent.id.clone(),
             content: resp.text,
+            thought,
             full_code,
             post_type: PostType::Proposal,
             metrics: Some(axon_core::RuntimeMetrics {
@@ -450,6 +466,10 @@ impl AgentRuntime {
             }),
             created_at: chrono::Local::now(),
         })
+    }
+
+    pub async fn run_implementation_task(&self, task: &axon_core::Task, event_bus: std::sync::Arc<axon_core::events::EventBus>, _lang_name: &str, _lang_instruction: &str, architecture_guide: &str, existing_code: &str) -> anyhow::Result<axon_core::Post> {
+        self.process_task(task, architecture_guide, None, Some(event_bus), existing_code).await
     }
 
     pub async fn generate_ir(&self, spec: &str, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::ir::ProjectIR> {
@@ -486,9 +506,16 @@ impl AgentRuntime {
              5. Deterministic Ordering\n\
                 - Sort components alphabetically.\n\
                 - Sort functions alphabetically.\n\
-             6. NO extra explanations or conversational text.\n\n\
+             6. Semantic Node Mapping (CRITICAL)\n\
+                - You MUST provide a 'node_mapping' dictionary mapping EVERY exact Node Name from the spec to the actual function or component name you created.\n\
+                - Example: If spec has 'INPUT_YEAR' but you made 'get_year()', map 'INPUT_YEAR' to 'get_year'.\n\
+             7. NO extra explanations or conversational text.\n\n\
              ### EXPECTED JSON SCHEMA ###\n\
              {{\n\
+               \"node_mapping\": {{\n\
+                 \"INPUT_YEAR\": \"get_year\",\n\
+                 \"VALID_YEAR\": \"validate_year\"\n\
+               }},\n\
                \"components\": [\n\
                  {{\n\
                    \"name\": \"input_handler\",\n\
@@ -547,7 +574,7 @@ impl AgentRuntime {
              Rules:\n\
              - Fix ONLY fields in error list\n\
              - DO NOT modify valid fields\n\
-             - DO NOT add keys\n\n\
+             - If a node or component is missing, ADD it to the components list\n\n\
              Input IR:\n\
              {}\n\n\
              Errors Found:\n\
@@ -580,7 +607,10 @@ impl AgentRuntime {
         md.push_str("## Overview\nThis architecture is automatically generated from the converged IR.\n\n");
         
         md.push_str("## Components\n");
-        let mut components_json = serde_json::json!({ "components": [] });
+        let mut components_json = serde_json::json!({ 
+            "node_mapping": ir.node_mapping,
+            "components": [] 
+        });
         
         // Sort components alphabetically for determinism
         let mut comp_names: Vec<_> = ir.components.keys().collect();
@@ -924,6 +954,7 @@ impl AgentRuntime {
                             thread_id: task.id.clone(),
                             author_id: self.agent.id.clone(),
                             content: r.text,
+                            thought: None,
                             full_code: None,
                             post_type: PostType::Instruction,
                             metrics: Some(axon_core::RuntimeMetrics {
@@ -983,6 +1014,7 @@ impl AgentRuntime {
             thread_id: "bootstrap-extraction".to_string(),
             author_id: self.agent.id.clone(),
             content: resp.text,
+            thought: None,
             full_code: None,
             post_type: PostType::System,
             metrics: Some(axon_core::RuntimeMetrics {
@@ -1048,6 +1080,7 @@ impl AgentRuntime {
             thread_id: proposal.thread_id.clone(),
             author_id: "SYSTEM_SUMMARY".to_string(),
             content: resp.text,
+            thought: None,
             full_code: None,
             post_type: PostType::System,
             metrics: Some(axon_core::RuntimeMetrics {
@@ -1087,7 +1120,7 @@ impl AgentRuntime {
              --- 검토 규격 (CRITICAL) ---\n\
              1. **Strict Reject Rules**: 논리적 중복(예: x - x), 하드코딩(예: 2023, 2024), 비효율적 조건문 발견 시 **즉시 REJECT**하고 날카로운 독설을 섞은 피드백을 남기십시오.\n\
              2. **KISS 원칙 강제**: '가장 단순한 코드가 최고의 코드'입니다. 불필요하게 복잡하게 꼬아놓은 로직은 지능의 부족을 가리기 위한 기만으로 간주하고 엄격히 평가하십시오.\n\
-             3. 출력 규약 검증: 주니어의 제안이 유효한 JSON 배열 형식 또는 새로운 Raw Code Tag 포맷(# TARGET, ---CODE START---)을 따르고 있는지 확인하십시오. 형식이 파괴되었거나 태그가 누락되었다면 **무조건 REJECT** 하십시오.\n\
+             3. 출력 규약 검증: 주니어의 제안이 유효한 JSON 배열 형식 또는 새로운 Raw Code Tag 포맷(# TARGET, ---CODE START---)을 따르고 있는지 확인하십시오. 형식이 파괴되었거나 태그가 누락되었으면 **무조건 REJECT** 하십시오.\n\
              4. 코드 및 의존성 검증: 코드가 완성된 상태인지, 실행 가능한지, 환각 라이브러리가 없는지 확인하십시오.\n\
              5. 생각(<analysis>) 과정은 생략하십시오.\n\
              6. 마지막에 반드시 '[APPROVE]' 또는 '[REJECT]'를 명시하십시오. (반드시 대괄호를 포함할 것)\n\
@@ -1107,6 +1140,7 @@ impl AgentRuntime {
             thread_id: task.id.clone(),
             author_id: self.agent.id.clone(),
             content: resp.text,
+            thought: None,
             full_code: None,
             post_type: PostType::Review,
             metrics: Some(axon_core::RuntimeMetrics {
@@ -1152,6 +1186,7 @@ impl AgentRuntime {
             thread_id: task.id.clone(),
             author_id: self.agent.id.clone(),
             content: resp.text,
+            thought: None,
             full_code: None,
             post_type: PostType::System,
             metrics: Some(axon_core::RuntimeMetrics {
@@ -1190,6 +1225,8 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
 
     #[derive(serde::Deserialize)]
     struct RawIR {
+        #[serde(default)]
+        node_mapping: std::collections::HashMap<String, String>,
         components: Vec<RawComponent>,
     }
 
@@ -1225,6 +1262,7 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
     }
 
     Ok(axon_core::ir::ProjectIR {
+        node_mapping: raw.node_mapping,
         components,
         constraints: Vec::new(),
         constraint_ids: std::collections::HashSet::new(),
@@ -1289,14 +1327,32 @@ fn extract_json(raw: &str) -> Option<String> {
             // v0.0.22 Self-Healing: Try to balance the JSON if it was truncated
             if count > 0 {
                 tracing::warn!("⚠️ Unbalanced JSON detected (char='{}', count={}). Attempting auto-repair...", open_char as char, count);
-                let mut repaired = raw[start..].to_string();
-                for _ in 0..count {
-                    repaired.push(close_char as char);
-                }
-                // Double check if it parses now
-                if serde_json::from_str::<serde_json::Value>(&repaired).is_ok() {
-                    tracing::info!("✅ Auto-balanced JSON successfully.");
-                    return Some(repaired);
+                
+                // v0.0.25: Iteratively try to find a valid JSON end point by backtracking
+                for j in (start..bytes.len()).rev() {
+                    let c = bytes[j];
+                    // Potential end characters: }, ], ", digit, or last char of true/false/null
+                    if matches!(c, b'}' | b']' | b'"' | b'0'..=b'9' | b'e' | b'l' | b'u') {
+                        let mut candidate = raw[start..=j].to_string();
+                        // We need to re-calculate count for this specific prefix
+                        let mut prefix_count = 0;
+                        let prefix_bytes = candidate.as_bytes();
+                        for &b in prefix_bytes {
+                            if b == open_char { prefix_count += 1; }
+                            else if b == close_char { prefix_count -= 1; }
+                        }
+                        
+                        if prefix_count >= 0 {
+                            for _ in 0..prefix_count {
+                                candidate.push(close_char as char);
+                            }
+                            
+                            if serde_json::from_str::<serde_json::Value>(&candidate).is_ok() {
+                                tracing::info!("✅ Auto-balanced JSON successfully at index {} after trimming.", j);
+                                return Some(candidate);
+                            }
+                        }
+                    }
                 }
             }
             None
@@ -1330,7 +1386,10 @@ fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
                 }
             }
             State::InPatch => {
-                if line_trimmed.contains("===AXON_PATCH_END===") {
+                let clean_line = line_trimmed.trim_start_matches(|c| c == '/' || c == '#' || c == ' ' || c == '*').trim();
+                if clean_line.starts_with("THOUGHT:") {
+                    patch.thought = Some(clean_line[8..].trim().to_string());
+                } else if line_trimmed.contains("===AXON_PATCH_END===") {
                     state = State::Idle;
                 } else {
                     // Stricter FILE: detection (must be at the start of the logical line)
@@ -1509,3 +1568,53 @@ fn extract_raw_code_as_json(raw: &str) -> Option<String> {
 }
 
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_json_unbalanced_with_trailing_text() {
+        let raw_text = r#"
+**JSON Block**
+{
+  "foo": [
+    { "bar": 1 }
+  ]
+
+**Verification Targets**
+1. Fix this
+"#;
+        let result = extract_json(raw_text);
+        assert!(result.is_some(), "Should extract JSON even if unbalanced with trailing text");
+    }
+
+    #[test]
+    fn test_extract_json_user_reported_fail() {
+        let raw_text = r#"
+Based on the provided Axon IR Spec (Rust) v0.4-Heavy, I will generate a deterministic architecture specification for AXON.
+
+**JSON Block**
+
+{
+"components": [
+{
+"name": "input_handler",
+"file": "input.rs",
+"functions": [
+{ "name": "get_name", "signature": "get_name()" },
+{ "name": "get_year", "signature": "get_year()" }
+]
+}
+]
+
+**Verification Targets**
+
+1. Loop detection correctness
+2. Bypass edge integrity
+"#;
+        let result = extract_json(raw_text);
+        assert!(result.is_some(), "Should extract user reported case");
+        let json = result.unwrap();
+        assert!(json.ends_with("]}"), "Should have balanced the JSON at the right spot");
+    }
+}

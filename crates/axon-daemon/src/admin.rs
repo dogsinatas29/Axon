@@ -37,6 +37,7 @@ impl AdminSystem {
             thread_id: thread_id.to_string(),
             author_id,
             content: content.to_string(),
+            thought: None,
             full_code: None,
             post_type: PostType::Instruction,
             metrics: None,

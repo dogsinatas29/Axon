@@ -17,10 +17,11 @@ pub struct FilePatch {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Patch {
     pub files: Vec<FilePatch>,
+    pub thought: Option<String>,
 }
 
 impl Patch {
     pub fn new() -> Self {
-        Self { files: vec![] }
+        Self { files: vec![], thought: None }
     }
 }

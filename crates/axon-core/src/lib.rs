@@ -41,7 +41,16 @@ pub struct Task {
     pub dependencies: Vec<String>, // v0.0.23: List of Task IDs that must be completed first
     pub result: Option<String>,
     pub target_file: Option<String>,   // v0.0.23: Explicit target file for S.T.E. Shield
+    pub lock_files: Vec<String>,       // v0.0.25: Set of files to lock for consistency
     pub error_feedback: Option<String>, // v0.0.23: Feedback loop for failed attempts
+    pub senior_comment: Option<String>, // v0.0.25: Feedback/Praise from Senior on completion
+    pub rework_count: u32,             // v0.0.25: Number of retry/repair attempts
+    pub base_hash: Option<String>,     // v0.0.25: Hash of the file at start (Version Gate)
+    pub parent_task: Option<String>,   // v0.0.25: Original task ID if this is a REWORK
+    pub reason: Option<String>,        // v0.0.25: Failure reason (STALE_WRITE, etc.)
+    pub kind: String,                  // v0.0.25: Task category (rust, python, ir, etc.)
+    pub retries: u32,                  // v0.0.25: Lock collision retry count
+    pub assigned_worker: Option<String>, // v0.0.25: Model ID that handled this task
     pub created_at: DateTime<Local>,
 }
 
@@ -61,6 +70,7 @@ pub struct Post {
     pub thread_id: String,
     pub author_id: String, // Agent ID or "BOSS"
     pub content: String,
+    pub thought: Option<String>, // v0.0.25: Internal reasoning or 'vibe' from the agent
     pub full_code: Option<String>,
     pub post_type: PostType,
     pub metrics: Option<RuntimeMetrics>,
@@ -271,7 +281,15 @@ pub struct ObservabilityReport {
     pub summary: ExecutionSummary,
     pub queue: QueueStatus,
     pub failures: Vec<String>,
+}#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Batch {
+    pub id: String,
+    pub tasks: Vec<Task>,
+    pub dependency_closure: std::collections::HashSet<String>,
+    pub priority: u32,
 }
 
-
-
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchAssignment {
+    pub batch: Batch,
+}

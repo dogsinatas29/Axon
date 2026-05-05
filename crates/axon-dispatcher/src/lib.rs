@@ -3,27 +3,18 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 
-pub struct WorkerPool {
-    // In a real implementation, this would hold handles to agent processes/threads
-}
-
 pub struct Dispatcher {
     task_queue: Arc<Mutex<VecDeque<Task>>>,
-    worker_tx: mpsc::Sender<Assignment>,
+    worker_tx: mpsc::Sender<axon_core::BatchAssignment>,
     queue_limit: usize,
 }
 
-pub struct Assignment {
-    pub task: Task,
-    pub agent_id: String,
-}
-
 impl Dispatcher {
-    pub fn new(worker_tx: mpsc::Sender<Assignment>) -> Self {
+    pub fn new(worker_tx: mpsc::Sender<axon_core::BatchAssignment>) -> Self {
         Self {
             task_queue: Arc::new(Mutex::new(VecDeque::new())),
             worker_tx,
-            queue_limit: 10, // PHASE_06: Default limit
+            queue_limit: 100,
         }
     }
 
@@ -54,8 +45,6 @@ impl Dispatcher {
         queue.pop_front()
     }
 
-    /// v0.0.23: DAG-Aware Popping
-    /// Pops the first task whose dependencies are satisfied based on the provided checker.
     pub fn pop_ready_task<F>(&self, check_ready: F) -> Option<Task>
     where F: Fn(&Task) -> bool {
         let mut queue = self.task_queue.lock().unwrap();
@@ -78,13 +67,18 @@ impl Dispatcher {
     pub async fn schedule(&self, available_agents: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
         let mut queue = self.task_queue.lock().unwrap();
         
-        for agent_id in available_agents {
+        for _agent_id in available_agents {
             if let Some(mut task) = queue.pop_front() {
                 task.status = TaskStatus::InProgress;
-                self.worker_tx.send(Assignment {
-                    task,
-                    agent_id,
-                }).await?;
+                let batch = axon_core::Batch {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    tasks: vec![task],
+                    dependency_closure: std::collections::HashSet::new(),
+                    priority: 0,
+                };
+                self.worker_tx.send(axon_core::BatchAssignment {
+                    batch,
+                }).await.map_err(|e| e.to_string())?;
             } else {
                 break;
             }

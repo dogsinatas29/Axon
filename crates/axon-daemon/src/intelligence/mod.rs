@@ -13,3 +13,4 @@ pub mod pipeline;
 pub mod constraint_meta;
 pub mod orchestrator;
 pub mod planner;
+pub mod coordinator;

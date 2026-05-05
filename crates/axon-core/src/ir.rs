@@ -3,7 +3,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectIR {
+    #[serde(default)]
+    pub node_mapping: HashMap<String, String>, // spec_node -> ir_function/component
     pub components: HashMap<String, Component>, // key = component.name
+    #[serde(default)]
     pub constraints: Vec<crate::rules::Constraint>,
     #[serde(skip)] // Not persisted in MD directly
     pub constraint_ids: std::collections::HashSet<u64>,
@@ -28,6 +31,7 @@ pub struct Function {
 impl ProjectIR {
     pub fn new() -> Self {
         Self {
+            node_mapping: HashMap::new(),
             components: HashMap::new(),
             constraints: Vec::new(),
             constraint_ids: std::collections::HashSet::new(),
@@ -44,7 +48,11 @@ impl ProjectIR {
                 let json_str = md[json_start..json_start + end_idx].trim();
                 
                 #[derive(Deserialize)]
-                struct Components { components: Vec<RawComponent> }
+                struct Components { 
+                    #[serde(default)]
+                    node_mapping: HashMap<String, String>,
+                    components: Vec<RawComponent> 
+                }
                 #[derive(Deserialize)]
                 struct RawComponent { file: String, name: String, symbols: Vec<String>, #[serde(rename = "type")] _type: String }
 
@@ -81,7 +89,12 @@ impl ProjectIR {
                         }
                     }
 
-                    return Some(ProjectIR { components, constraints, constraint_ids: std::collections::HashSet::new() });
+                    return Some(ProjectIR { 
+                        node_mapping: raw.node_mapping,
+                        components, 
+                        constraints, 
+                        constraint_ids: std::collections::HashSet::new() 
+                    });
                 }
             }
         }

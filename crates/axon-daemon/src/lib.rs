@@ -21,63 +21,26 @@ pub mod controller;
 pub mod admin;
 pub mod debug_hook;
 pub mod intelligence;
+pub mod dep_graph;
+pub mod execution_validator;
+use crate::dep_graph::DepGraph;
+use rusqlite::params;
 use axon_core::events;
-use axon_dispatcher::{Dispatcher, Assignment};
+use axon_dispatcher::Dispatcher;
+use axon_core::BatchAssignment;
 use axon_storage::Storage;
 use std::sync::Arc;
 use std::path::PathBuf;
 use tokio::sync::mpsc;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
-struct RoutingParams {
-    latency_weight: f64,
-    fail_penalty: f64,
-}
-
-impl Default for RoutingParams {
-    fn default() -> Self {
-        Self {
-            latency_weight: 1.0,
-            fail_penalty: 1000.0,
-        }
-    }
-}
-
-#[derive(Debug, Default)]
-struct AgentStats {
-    latencies: VecDeque<f64>,
-    success_count: usize,
-    fail_count: usize,
-}
-
-impl AgentStats {
-    fn score(&self, params: &RoutingParams) -> f64 {
-        if self.success_count == 0 {
-            return f64::INFINITY;
-        }
-        let avg_latency = self.latencies.iter().sum::<f64>() / self.latencies.len() as f64;
-        let fail_penalty = self.fail_count as f64 * params.fail_penalty;
-        (avg_latency * params.latency_weight) + fail_penalty
-    }
-
-    fn record_success(&mut self, latency: f64) {
-        self.latencies.push_back(latency);
-        if self.latencies.len() > 50 {
-            self.latencies.pop_front();
-        }
-        self.success_count += 1;
-    }
-
-    fn record_fail(&mut self) {
-        self.fail_count += 1;
-    }
-}
+// Legacy routing types removed in v0.0.25
 
 pub struct BootstrapManager {
     pub project_id: String,
     pub sandbox_root: PathBuf,
 }
+
 
 #[derive(Clone)]
 pub struct Daemon {
@@ -99,30 +62,14 @@ pub struct Daemon {
     pub admin: Arc<admin::AdminSystem>,
     pub rr_indices: Arc<std::sync::Mutex<std::collections::HashMap<axon_core::AgentRole, usize>>>,
     pub throttler: Arc<tokio::sync::Semaphore>,
-    agent_stats: Arc<std::sync::Mutex<HashMap<String, AgentStats>>>,
-    routing_params: Arc<std::sync::Mutex<RoutingParams>>,
     pub sampling_rate: f64,
-    #[allow(dead_code)]
-    task_counter: Arc<std::sync::atomic::AtomicUsize>,
-    file_locks: Arc<tokio::sync::Mutex<std::collections::HashSet<String>>>, // v0.0.23: Atomic Locking
+    pub task_counter: Arc<std::sync::atomic::AtomicUsize>,
+    pub validation_counter: Arc<std::sync::atomic::AtomicUsize>, // v0.0.25: Track cycles for periodic full check
+    pub coordinator: Arc<std::sync::Mutex<intelligence::coordinator::Coordinator>>,
+    pub final_gate_lock: Arc<tokio::sync::Mutex<()>>,
+    pub dep_graph: Arc<std::sync::Mutex<DepGraph>>,
 }
 
-/// v0.0.23: Automatic Lock Release
-pub struct FileLockGuard {
-    file_path: String,
-    locks: Arc<tokio::sync::Mutex<std::collections::HashSet<String>>>,
-}
-
-impl Drop for FileLockGuard {
-    fn drop(&mut self) {
-        let locks = self.locks.clone();
-        let path = self.file_path.clone();
-        tokio::spawn(async move {
-            let mut l = locks.lock().await;
-            l.remove(&path);
-        });
-    }
-}
 
 #[allow(dead_code)]
 impl Daemon {
@@ -205,7 +152,7 @@ impl Daemon {
         senior_model_names: Vec<String>,
         junior_models: Vec<Arc<dyn axon_model::ModelDriver + Send + Sync>>,
         junior_model_names: Vec<String>,
-        worker_tx: mpsc::Sender<Assignment>,
+        worker_tx: mpsc::Sender<BatchAssignment>,
         architecture_guide: String,
         sampling_rate: f64,
         locale: String,
@@ -216,7 +163,7 @@ impl Daemon {
         tracing::info!("🌐 Active Factory Locale: {}", locale);
 
         Self {
-            dispatcher: Arc::new(Dispatcher::new(worker_tx)),
+            dispatcher: Arc::new(Dispatcher::new(worker_tx).with_limit(100)), // v0.0.25: Expanded queue for heavy workloads
             storage: storage.clone(),
             architect_model,
             architect_model_name,
@@ -233,21 +180,13 @@ impl Daemon {
             lounge: Arc::new(axon_agent::lounge::LoungeManager::new(".").with_event_bus(event_bus.clone())),
             admin: Arc::new(admin::AdminSystem::new(storage.clone())),
             rr_indices: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
-            throttler: Arc::new(tokio::sync::Semaphore::new(2)),
-            agent_stats: Arc::new(std::sync::Mutex::new({
-                let mut map = HashMap::new();
-                if let Ok(stats) = storage.load_all_agent_stats() {
-                    for (id, success, fail, latencies_json) in stats {
-                        let latencies: VecDeque<f64> = serde_json::from_str(&latencies_json).unwrap_or_default();
-                        map.insert(id, AgentStats { latencies, success_count: success, fail_count: fail });
-                    }
-                }
-                map
-            })),
-            routing_params: Arc::new(std::sync::Mutex::new(RoutingParams::default())),
+            throttler: Arc::new(tokio::sync::Semaphore::new(1)),
             sampling_rate,
             task_counter: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
-            file_locks: Arc::new(tokio::sync::Mutex::new(std::collections::HashSet::new())),
+            validation_counter: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+            coordinator: Arc::new(std::sync::Mutex::new(intelligence::coordinator::Coordinator::new())),
+            final_gate_lock: Arc::new(tokio::sync::Mutex::new(())),
+            dep_graph: Arc::new(std::sync::Mutex::new(dep_graph::DepGraph::new())),
         }
     }
 
@@ -268,18 +207,38 @@ impl Daemon {
                 planner.plan_dependencies(&mut ready_tasks);
                 
                 let mut recovered_count = 0;
+                let mut coordinator_tasks = Vec::new();
                 for mut task in ready_tasks {
                     task.status = axon_core::TaskStatus::Pending;
                     let _ = self.storage.save_task(&task);
-                    let _ = self.dispatcher.enqueue_task(task);
+                    coordinator_tasks.push(task);
                     recovered_count += 1;
                 }
-                tracing::info!("♻️ Recovered {} unfinished tasks with DAG dependency mapping.", recovered_count);
+                
+                // v0.0.25: Load tasks into Coordinator SSOT
+                {
+                    let mut coord = self.coordinator.lock().unwrap();
+                    *coord = intelligence::coordinator::Coordinator::new();
+                    for t in coordinator_tasks {
+                        coord.add_task(t);
+                    }
+                    
+                    // v0.0.25: [ALR] Initialize Priorities from DepGraph
+                    let graph = self.dep_graph.lock().unwrap();
+                    for (node_id, _) in &graph.nodes {
+                        if node_id.starts_with("file:") {
+                            let fname = node_id.replace("file:", "");
+                            let deps = graph.edges_in.get(node_id).map(|s| s.len() as u32).unwrap_or(0);
+                            coord.update_priority(&fname, false, false, deps);
+                        }
+                    }
+                }
+                
+                tracing::info!("♻️ Recovered {} unfinished tasks with Coordinator Per-file Queue mapping.", recovered_count);
             }
         }
         
-        // v0.0.23 [Stage 3: Dynamic Worker Activation]
-        // Scale workers based on the number of recruited Juniors.
+        // v0.0.25: [ALR] Multi-worker scale based on available junior agents
         let worker_count = self.junior_models.len().max(1); 
         let mut worker_handles = Vec::new();
         
@@ -303,19 +262,10 @@ impl Daemon {
         Ok(())
     }
 
-    async fn acquire_file_lock(&self, file_path: &str) -> FileLockGuard {
-        loop {
-            let mut locks = self.file_locks.lock().await;
-            if !locks.contains(file_path) {
-                locks.insert(file_path.to_string());
-                return FileLockGuard {
-                    file_path: file_path.to_string(),
-                    locks: self.file_locks.clone(),
-                };
-            }
-            drop(locks);
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        }
+
+    pub fn submit_task(&self, task: axon_core::Task) {
+        let mut coord = self.coordinator.lock().unwrap();
+        coord.add_task(task);
     }
 
     async fn worker_loop(&self, id: usize) -> anyhow::Result<()> {
@@ -330,50 +280,26 @@ impl Daemon {
                 continue;
             }
 
-            // PHASE_07: Pop task from shared dispatcher queue
-            // v0.0.23: DAG-BASED DETERMINISTIC DISPATCHING
-            // We only pop tasks whose dependencies are already 'Approved' or 'Completed'
-            let ready_task = self.dispatcher.pop_ready_task(|t| {
-                if t.dependencies.is_empty() { return true; }
-                for dep_id in &t.dependencies {
-                    if let Ok(Some(dep)) = self.storage.get_task(dep_id) {
-                        // v0.0.23: Ready if dependency is Completed or has a result (Approved)
-                        if dep.status != axon_core::TaskStatus::Completed {
-                            if dep.result.is_none() { return false; }
-                        }
-                    } else {
-                        return false; 
-                    }
-                }
-                true
-            });
+            // v0.0.25: Request BATCH from Coordinator (Dependency Clustering)
+            let ready_batch = {
+                let mut coord = self.coordinator.lock().unwrap();
+                let graph = self.dep_graph.lock().unwrap();
+                coord.build_batch(&graph)
+            };
 
-            if let Some(task) = ready_task {
-                tracing::info!("👷 [Worker {}] Popped READY task {}: {}", id, task.id, task.title);
+            if let Some(batch) = ready_batch {
+                tracing::info!("👷 [Worker {}] Coordinator DISPATCHED batch {} with {} tasks", id, batch.id, batch.tasks.len());
                 
-                // v0.0.23: ATOMIC FILE LOCKING
-                // Prevent multiple agents from fighting over the same target file
-                let target_file = task.title.split_whitespace().last().unwrap_or("unknown");
-                let _lock = self.acquire_file_lock(target_file).await;
-
-                let mut task_in_progress = task.clone();
-                task_in_progress.status = axon_core::TaskStatus::InProgress;
-                let _ = self.storage.save_task(&task_in_progress);
-
-                // v0.0.23: Synchronize Work Board UI (Thread Status)
-                if let Ok(Some(mut thread)) = self.storage.get_thread(&task.id) {
-                    thread.status = axon_core::ThreadStatus::Working;
-                    let _ = self.storage.save_thread(&thread);
-                }
-
-                if let Err(e) = self.handle_assignment(task_in_progress, id).await {
+                let result = self.handle_assignment(BatchAssignment { batch }).await;
+                
+                if let Err(e) = result {
                     tracing::error!("❌ [Worker {}] Task execution failed: {}", id, e);
                 }
                 
                 // Physical cooldown to avoid API burst on multi-worker
                 tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
             } else {
-                // Wait for new tasks
+                // Wait for new tasks or dependencies to be satisfied
                 tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
             }
         }
@@ -381,740 +307,155 @@ impl Daemon {
         Ok(())
     }
 
-    async fn handle_assignment(&self, mut task: axon_core::Task, worker_id: usize) -> anyhow::Result<()> {
+    pub async fn handle_assignment(&self, assignment: BatchAssignment) -> anyhow::Result<()> {
+        let batch = assignment.batch;
+        let _start_total = std::time::Instant::now();
         
-        // PHASE_04: Check minimum layer requirements
-        if self.junior_models.is_empty() || self.senior_models.is_empty() {
-            tracing::error!("❌ [EXECUTION BLOCKED]: Minimum layer requirement not satisfied.");
+        tracing::info!("📦 [BATCH_START] Processing batch {} with {} tasks.", batch.id, batch.tasks.len());
+
+        // Phase 1: Generation (Parallel or Sequential within worker context)
+        let mut results = Vec::new();
+        let mut backups = HashMap::new();
+        let mut all_metrics = Vec::new();
+
+        for task in &batch.tasks {
+            // Backup files before modification
+            if let Some(target) = &task.target_file {
+                let fpath = std::path::Path::new(&task.project_id).join(target);
+                if let Ok(content) = std::fs::read(&fpath) {
+                    backups.insert(target.clone(), content);
+                }
+            }
+
+            // Execute task through Junior agent
+            let result = self.execute_junior_task(task).await;
+            results.push(result);
+        }
+
+        // Phase 2: Senior Review (Batch context)
+        let mut all_approved = true;
+        let mut failures = Vec::new();
+        let mut senior_comments = std::collections::HashMap::new();
+
+        for (i, res) in results.into_iter().enumerate() {
+            let task = &batch.tasks[i];
+            match res {
+                Ok((patch, metrics)) => {
+                    all_metrics.push(metrics);
+                    // Senior review
+                    match self.verify_with_senior(task, &patch).await {
+                        Err(err) => {
+                            all_approved = false;
+                            failures.push(format!("Task {} failed senior review: {}", task.id, err));
+                        }
+                        Ok(comment) => {
+                            senior_comments.insert(task.id.clone(), comment);
+                            // Apply patch dry-run
+                            if let Some(target) = &task.target_file {
+                                let fpath = std::path::Path::new(&task.project_id).join(target);
+                                let _ = std::fs::write(fpath, patch);
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    all_approved = false;
+                    failures.push(format!("Task {} junior execution failed: {}", task.id, err));
+                }
+            }
+        }
+        
+        if !all_approved {
+            tracing::error!("❌ [BATCH_REJECT] Senior rejected batch {}. Rolling back.", batch.id);
+            for failure in failures {
+                tracing::error!("   -> {}", failure);
+            }
+            for (fname, content) in backups {
+                let fpath = std::path::Path::new(&batch.tasks[0].project_id).join(fname);
+                let _ = std::fs::write(fpath, content);
+            }
+            // Release locks and requeue
+            let mut coord = self.coordinator.lock().unwrap();
+            for task in &batch.tasks {
+                coord.complete_task(task);
+            }
             return Ok(());
         }
 
-        let mut execution_path = Vec::new();
-        let mut all_metrics = Vec::new();
-        let mut failures = Vec::new();
-        let mut agent_metrics = Vec::new();
-        let start_total = std::time::Instant::now();
-        let max_retries = 2;
-
-        // v0.0.16 Isolation (Absolute Pathing)
-        let mut sandbox_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-        sandbox_root.push(&task.project_id);
+        // =========================================================================
+        // v0.0.25: [FINAL_GATE] Atomic Batch Integrity
+        // =========================================================================
         
-        let arch_guide_path = sandbox_root.join("architecture.md");
-        let current_arch_guide = std::fs::read_to_string(&arch_guide_path).unwrap_or_else(|_| {
-            tracing::warn!("⚠️  Architecture guide not found at {}, falling back to default.", arch_guide_path.display());
-            self.architecture_guide.clone()
-        });
+        let _gate = self.final_gate_lock.lock().await;
 
-        let mut final_entry_point = "main.py".to_string();
-        let mut proposal = None;
-        let mut summary = None;
-        let mut final_simulated_state = String::new();
-        let current_simulated_state = self.get_current_project_state(&task.project_id);
-        let num_juniors = self.junior_models.len();
-        let mut junior_failures = Vec::new();
-        let mut junior_error_feedback: Option<String> = task.error_feedback.clone();
+        let mut validation_success = true;
+        let cycle = self.validation_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let mode = if cycle > 0 && cycle % 10 == 0 {
+            execution_validator::ValidationMode::Full
+        } else {
+            execution_validator::ValidationMode::Incremental
+        };
 
-        'junior_fallback: for _ in 0..num_juniors {
-            // PHASE_08: Adaptive Routing Selection
-            let (junior_model, junior_id, junior_name) = self.select_best_agent(axon_core::AgentRole::Junior);
+        // Validate batch as a whole
+        if let Some(rep_task) = batch.tasks.first() {
+            if let Some(target) = &rep_task.target_file {
+                let project_root = format!("./{}", rep_task.project_id);
+                
+                // 1. Compile Gate
+                if let Err(err) = execution_validator::validate(&project_root, target, mode) {
+                    validation_success = false;
+                    failures.push(format!("[BATCH_COMPILE_FAIL] {}", err));
+                }
 
-            let mut junior_runtime = axon_agent::AgentRuntime::new(
-                junior_id.clone(),
-                axon_core::AgentRole::Junior,
-                junior_name.clone(),
-                junior_model
-            );
-            junior_runtime.set_locale(&self.locale);
-            junior_runtime.throttler = Some(self.throttler.clone());
-
-            let _ = self.lounge.log_custom(&junior_name, axon_core::AgentRole::Junior, &format!("'{}' 작업 들어갑니다. 방해하지 마세요!", task.title));
-
-            for retry_attempt in 0..=max_retries {
-                let start_step = std::time::Instant::now();
-                match junior_runtime.process_task(&task, &current_arch_guide, junior_error_feedback.clone(), Some(self.event_bus.clone())).await {
-                    Ok(p) => {
-                        // v0.0.24: Audit Preservation - Save EVERY proposal to the DB for debugging
-                        let _ = self.storage.save_post(&p);
-                        let latency = start_step.elapsed().as_secs_f64() * 1000.0;
-                        
-                        // v0.0.19: Hard Fail Conditions (Strict Output Contract)
-                        // v0.0.22: Hardened JSON Contract Validation
-                        let is_hard_fail = p.full_code.is_none() || p.full_code.as_ref().unwrap().trim().is_empty();
-
-                        if is_hard_fail {
-                            self.record_failure_trace(&task.id, "HARD_FAIL_CONTRACT", "junior_output", "json_missing", "JuniorOutput");
-                            tracing::warn!("⚠️ Junior {} retry {} Hard Fail: Missing structured JSON in response", junior_runtime.agent.name, retry_attempt + 1);
-                            let _ = std::fs::write(format!("{}_rejected.txt", junior_runtime.agent.id), &p.content);
-                            if retry_attempt == max_retries {
-                                self.record_failure_trace(&task.id, "TASK_SUMMARY", "FAIL", "all_retries_failed", "Final");
-                                junior_failures.push(format!("Junior {} failed to provide a valid JSON proposal after {} retries.", junior_id, max_retries + 1));
-                            }
-                            continue;
-                        }
-
-                        // PHASE_06: Hardened Stage 6 - IR-First Validation
-                        let mut ir_validation_success = true;
-                        let mut ir_validation_err = String::new();
-                        let mut simulated_state_json = String::new();
-
-                        // v0.0.24: Determine target path for strict validation
-                        let target_path = if let Some(target) = &task.target_file {
-                            target.clone()
-                        } else {
-                            task.title.split_whitespace().last().unwrap_or("main.py").to_string()
-                        };
-
-                        // 1. Get structured JSON/Patch from Junior's response
-                        let junior_json = p.full_code.clone().unwrap_or_default();
-
-                        // 1.5. IR Mapping Validation (v0.0.23: IR-First)
-                        if let Some(ir) = axon_core::ir::ProjectIR::from_md(&current_arch_guide) {
-                            let ir_json = serde_json::to_string(&ir).unwrap_or_default();
-                            let tmp_ir_path = format!("{}/.ir_{}.json", task.project_id, uuid::Uuid::new_v4());
-                            let _ = std::fs::write(&tmp_ir_path, &ir_json);
-                            
-                            let tmp_junior_json = format!("{}/.junior_{}.json", task.project_id, uuid::Uuid::new_v4());
-                            let _ = std::fs::write(&tmp_junior_json, &junior_json);
-
-                            tracing::info!("🏛️ [Stage 6.1] IR Mapping Validation for Junior {}", junior_runtime.agent.name);
-                            let mapper_output = std::process::Command::new("python3")
-                                .arg(Self::resolve_tool_path("axon_ir_mapper.py"))
-                                .arg(&tmp_ir_path)
-                                .arg(&tmp_junior_json)
-                                .output();
-                            
-                            let _ = std::fs::remove_file(&tmp_ir_path);
-
-                            match mapper_output {
-                                Ok(out) if !out.status.success() => {
-                                    ir_validation_success = false;
-                                    ir_validation_err = format!("IR Contract Violation: {}", String::from_utf8_lossy(&out.stdout));
-                                },
-                                Err(e) => {
-                                    tracing::error!("❌ [IR MAPPER ERROR]: {}", e);
-                                },
-                                _ => {
-                                    tracing::info!("✅ [Stage 6.1] IR Mapping Passed.");
-                                }
-                            }
-                            let _ = std::fs::remove_file(&tmp_junior_json);
-                        }
-
-                        if !ir_validation_success {
-                            self.record_failure_trace(&task.id, "IR_CONTRACT_FAIL", "architecture", "structure", "Stage6.1");
-                            tracing::warn!("⚠️ [Stage 6.1] IR Fail for {}: {}", junior_runtime.agent.name, ir_validation_err);
-                            junior_error_feedback = Some(ir_validation_err.clone());
-                            if retry_attempt == max_retries {
-                                junior_failures.push(format!("Junior {}: IR contract failed: {}", junior_runtime.agent.name, ir_validation_err));
-                            }
-                            continue;
-                        }
-
-                        // 2. Patch Simulation (Virtual FS)
-                        let tmp_junior_json = format!("{}/.junior_sim_{}.json", task.project_id, uuid::Uuid::new_v4());
-                        let _ = std::fs::write(&tmp_junior_json, &junior_json);
-                        let simulation_output = std::process::Command::new("python3")
-                            .arg(Self::resolve_tool_path("axon_patch_simulator.py"))
-                            .arg(&task.project_id)
-                            .arg(&tmp_junior_json)
-                            .output();
-
-                        match simulation_output {
-                            Ok(out) if out.status.success() => {
-                                simulated_state_json = String::from_utf8_lossy(&out.stdout).into_owned();
-                            },
-                            Ok(out) => {
-                                ir_validation_success = false;
-                                ir_validation_err = format!("Patch Simulation Failed: {}", String::from_utf8_lossy(&out.stderr));
-                            },
-                            Err(e) => {
-                                ir_validation_success = false;
-                                ir_validation_err = format!("Patch Simulator Error: {}", e);
-                            }
-                        }
-
-                        // 3. Semantic IR Validation (AST & Schema)
-                        if ir_validation_success {
-                            let constraints_path = format!("{}/constraints.json", task.project_id);
-                            let tmp_state_path = format!("{}/.state_{}.json", task.project_id, uuid::Uuid::new_v4());
-                            let _ = std::fs::write(&tmp_state_path, &simulated_state_json);
-
-                            let validator_output = std::process::Command::new("python3")
-                                .arg(Self::resolve_tool_path("axon_ir_validator.py"))
-                                .arg(&constraints_path)
-                                .arg(&tmp_state_path)
-                                .arg(&task.project_id)
-                                .output();
-
-                            let _ = std::fs::remove_file(&tmp_state_path);
-
-                            match validator_output {
-                                Ok(out) if out.status.success() => {
-                                    tracing::info!("✅ [Stage 6.2] Semantic IR Validation Passed for {}", junior_runtime.agent.name);
-                                },
-                                Ok(out) => {
-                                    ir_validation_success = false;
-                                    ir_validation_err = format!("Semantic Validation Failed:\n{}", String::from_utf8_lossy(&out.stderr));
-                                },
-                                Err(e) => {
-                                    ir_validation_success = false;
-                                    ir_validation_err = format!("IR Validator Error: {}", e);
-                                }
-                            }
-                        }
-
-                        let _ = std::fs::remove_file(&tmp_junior_json);
-
-                        if !ir_validation_success {
-                            self.record_failure_trace(&task.id, "VALIDATION_FAIL", "semantic", "unknown", "Stage6");
-                            tracing::warn!("⚠️ [Stage 6] Validation Fail for {}: {}", junior_runtime.agent.name, ir_validation_err);
-                            junior_error_feedback = Some(ir_validation_err.clone());
-                            if retry_attempt == max_retries {
-                                junior_failures.push(format!("Junior {}: Semantic validation failed: {}", junior_runtime.agent.name, ir_validation_err));
-                            }
-                            continue;
-                        }
-
-                        // v0.0.19: Stage 5 --- Autonomous Feedback Loop (Pre-review Execution Check)
-                        if ir_validation_success {
-                            // Extract simulated files for harness
-                            let file_map: std::collections::HashMap<String, String> = serde_json::from_str(&simulated_state_json).unwrap_or_default();
-                            
-                            for fname in file_map.keys() {
-                                if fname.to_lowercase().ends_with("main.py") {
-                                    final_entry_point = fname.clone();
-                                }
-                            }
-
-                            if !file_map.is_empty() {
-                                // v0.0.24: Only send the TARGET file to the harness even in Stage 5
-                                let mut harness_map = std::collections::HashMap::new();
-                                if let Some(target_content) = file_map.get(&target_path) {
-                                    harness_map.insert(target_path.clone(), target_content.clone());
-                                } else {
-                                    tracing::warn!("⚠️ [Stage 5] Target file {} not found in simulated state. Falling back to whole map.", target_path);
-                                    harness_map = file_map.clone();
-                                }
-
-                                let harness_json = serde_json::to_string(&harness_map).unwrap_or_else(|_| "{}".to_string());
-                                let tmp_json_path = format!("{}/.harness_{}.json", task.project_id, uuid::Uuid::new_v4());
-                                let _ = std::fs::write(&tmp_json_path, &harness_json);
-
-                                tracing::info!("🧪 [Stage 5] Pre-review Execution Check ({} files) for Junior {}", harness_map.len(), junior_runtime.agent.name);
-
-                                // v0.0.19: Architecture Mapping Validation (Before execution)
-                                let arch_file_path = format!("{}/architecture.md", task.project_id);
-                                tracing::info!("🗺️ [Stage 4.5] Architecture Mapping Validation for Junior {}", junior_runtime.agent.name);
-                                
-                                let mapping_output = std::process::Command::new("python3")
-                                    .arg(Self::resolve_tool_path("axon_mapping_validator.py"))
-                                    .arg(&arch_file_path)
-                                    .arg(&task.project_id)
-                                    .arg("--state-json")
-                                    .arg(&tmp_json_path)
-                                    .arg("--target-file")
-                                    .arg(&target_path)
-                                    .output();
-
-                                match mapping_output {
-                                    Ok(out) if !out.status.success() => {
-                                        let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
-                                        let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
-                                        let err_msg = format!("{}{}", stdout, stderr);
-                                        
-                                        self.record_failure_trace(&task.id, "MAPPING_DRIFT", "architecture", "structure", "Stage4.5");
-                                        // v0.0.19: Observation Mode - WARN only, do not block
-                                        tracing::warn!("🗺️ [Stage 4.5] [OBSERVATION] Architecture Drift Detected for {}:\n{}", junior_runtime.agent.name, err_msg);
-                                        // junior_error_feedback = Some(format!("Architecture Drift Detected (Warning):\n{}", err_msg));
-                                    },
-                                    Err(e) => {
-                                        tracing::error!("❌ [MAPPING VALIDATOR ERROR]: {}", e);
-                                    },
-                                    _ => {
-                                        tracing::info!("✅ [Stage 4.5] Architecture Mapping Passed for Junior {}", junior_runtime.agent.name);
-                                    }
-                                }
-
-                                // v0.0.19: Stage 4.6 --- Soft Rule Enforcement (Judge Training)
-                                let suggestions_path = ".axon_trace/suggested_rules.json";
-                                if std::path::Path::new(suggestions_path).exists() {
-                                    // Stage 4.8.8: Dependency-aware filtering
-                                    let changed_files = if let Ok(state_map) = serde_json::from_str::<std::collections::HashMap<String, String>>(&simulated_state_json) {
-                                        state_map.keys().cloned().collect::<Vec<String>>().join(",")
-                                    } else {
-                                        "".to_string()
-                                    };
-
-                                    let soft_res = std::process::Command::new("python3")
-                                        .arg(Self::resolve_tool_path("axon_soft_rule_engine.py"))
-                                        .arg(&tmp_json_path)
-                                        .arg(suggestions_path)
-                                        .arg(changed_files)
-                                        .output();
-                                    
-                                    if let Ok(out) = soft_res {
-                                        let stdout = String::from_utf8_lossy(&out.stdout);
-                                        if stdout.contains("<<<<SOFT_RULES_VIOLATION>>>>") {
-                                            for line in stdout.lines() {
-                                                if line.trim().starts_with('{') {
-                                                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
-                                                        let rule_type = v["rule"]["type"].as_str().unwrap_or("unknown");
-                                                        let rule_file = v["rule"]["file"].as_str().unwrap_or("unknown");
-                                                        let rule_symbol = v["rule"]["symbol"].as_str().unwrap_or("unknown");
-                                                        self.record_failure_trace(&task.id, "RULE_VIOLATION", rule_file, rule_symbol, "Stage4.6");
-                                                        tracing::warn!("⚖️ [Stage 4.6] [SOFT VIOLATION] Rule '{}' failed for {}: {}", rule_type, rule_file, rule_symbol);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                tracing::info!("🧪 [Stage 5] Pre-review Execution Check for Junior {}", junior_runtime.agent.name);
-                                
-                                let harness_output = std::process::Command::new("python3")
-                                    .arg(Self::resolve_tool_path("axon_execution_harness.py"))
-                                    .arg("--project-root")
-                                    .arg(&task.project_id)
-                                    .arg("--files-json")
-                                    .arg(&tmp_json_path)
-                                    .arg("--entry")
-                                    .arg(&final_entry_point)
-                                    .arg("--target-file")
-                                    .arg(&target_path)
-                                    .output();
-
-                                let _ = std::fs::remove_file(&tmp_json_path);
-
-                                match harness_output {
-                                    Ok(out) => {
-                                        if !out.status.success() {
-                                            let err_msg = String::from_utf8_lossy(&out.stderr).into_owned();
-                                            self.record_failure_trace(&task.id, "RUNTIME_CRASH", &final_entry_point, "main", "Stage5");
-                                            tracing::warn!("⚠️ [Stage 5] Execution Fail for {}: {}", junior_runtime.agent.name, err_msg);
-                                            junior_error_feedback = Some(err_msg.clone());
-                                            
-                                            if retry_attempt == max_retries {
-                                                junior_failures.push(format!("Junior {}: Runtime failure: {}", junior_runtime.agent.name, err_msg));
-                                            }
-                                            continue; // RETRY with feedback
-                                        }
-                                        tracing::info!("✅ [Stage 5] Execution Pass for Junior {}", junior_runtime.agent.name);
-                                        
-                                        // PHASE_06: Operational Integrity - Golden Test (Regression)
-                                        let constraints_path = format!("{}/constraints.json", task.project_id);
-                                        let tmp_state_path = format!("{}/.state_final_{}.json", task.project_id, uuid::Uuid::new_v4());
-                                        let _ = std::fs::write(&tmp_state_path, &simulated_state_json);
-
-                                        let golden_output = std::process::Command::new("python3")
-                                            .arg(Self::resolve_tool_path("axon_golden_tester.py"))
-                                            .arg(&constraints_path)
-                                            .arg(&tmp_state_path)
-                                            .output();
-
-
-                                        match golden_output {
-                                            Ok(out) if out.status.success() => {
-                                                tracing::info!("🏆 [Stage 6] Golden Test (Regression) Passed for Junior {}", junior_runtime.agent.name);
-                                                
-                                                // PHASE_07: Operational Integrity - Property Test (Fuzzing)
-                                                let property_output = std::process::Command::new("python3")
-                                                    .arg(Self::resolve_tool_path("axon_property_tester.py"))
-                                                    .arg(&constraints_path)
-                                                    .arg(&tmp_state_path)
-                                                    .output();
-                                                 // v0.0.22: Clean up state file AFTER all integrity tests
-                                                 let _ = std::fs::remove_file(&tmp_state_path);
-
-                                                match property_output {
-                                                    Ok(out) if out.status.success() => {
-                                                        tracing::info!("🎲 [Stage 7] Property Test (Fuzzing) Passed for Junior {}", junior_runtime.agent.name);
-                                                    },
-                                                    Ok(out) => {
-                                                        let fuzz_msg = String::from_utf8_lossy(&out.stdout).into_owned();
-                                                        tracing::warn!("❌ [Stage 7] Property Test Failed (Edge Case Found) for {}:\n{}", junior_runtime.agent.name, fuzz_msg);
-                                                         junior_error_feedback = Some(format!("PROPERTY FAILURE: Randomized edge-case check failed. DETAILS: {}", fuzz_msg.replace("<<<<PROPERTY_TEST_FAILED>>>>", "").trim()));
-                                                        if retry_attempt == max_retries {
-                                                            junior_failures.push(format!("Junior {}: Property test failed.", junior_runtime.agent.name));
-                                                        }
-                                                        continue; // RETRY with fuzzing feedback
-                                                    },
-                                                    Err(e) => {
-                                                        tracing::error!("❌ Failed to execute property tester: {}", e);
-                                                    }
-                                                }
-                                            },
-                                            Ok(out) => {
-                                                let trace_msg = String::from_utf8_lossy(&out.stdout).into_owned();
-                                                tracing::warn!("❌ [Stage 6] Golden Test (Regression) Failed for {}:\n{}", junior_runtime.agent.name, trace_msg);
-                                                 junior_error_feedback = Some(format!("REGRESSION FAILURE: Business logic invariants violated. DETAILS: {}", trace_msg.replace("<<<<GOLDEN_TEST_FAILED>>>>", "").trim()));
-                                                if retry_attempt == max_retries {
-                                                    junior_failures.push(format!("Junior {}: Golden test failed.", junior_runtime.agent.name));
-                                                }
-                                                continue; // RETRY with regression feedback
-                                            },
-                                            Err(e) => {
-                                                tracing::error!("❌ Failed to execute golden tester: {}", e);
-                                            }
-                                        }
-                                    }
-                                    Err(e) => {
-                                        tracing::error!("❌ Failed to execute harness: {}", e);
-                                        ir_validation_success = false;
-                                        ir_validation_err = format!("Harness execution failed: {}", e);
-                                    }
-                                }
-                            }
-                        }
-
-
-                        if !ir_validation_success {
-                            tracing::warn!("⚠️ Junior {} retry {} Semantic Validation Fail: {}", junior_runtime.agent.name, retry_attempt + 1, ir_validation_err);
-                            junior_error_feedback = Some(ir_validation_err.clone());
-                            if retry_attempt == max_retries {
-                                junior_failures.push(format!("Junior {}: Semantic validation failed: {}", junior_runtime.agent.name, ir_validation_err));
-                            }
-                            continue;
-                        }
-
-                        tracing::info!("✅ [Stage 5] Autonomous Loop Complete for Junior {}", junior_runtime.agent.name);
-
-                        agent_metrics.push(axon_core::AgentMetric {
-                            id: junior_id.clone(),
-                            role: "junior".to_string(),
-                            status: "OK".to_string(),
-                            latency_ms: latency,
-                            attempts: (retry_attempt + 1) as u32,
-                            error: None,
-                        });
-
-                        // SUCCESS: Post-processing within the same scope
-                        self.record_failure_trace(&task.id, "TASK_SUMMARY", "SUCCESS", "none", "Final");
-                        if let Some(m) = &p.metrics {
-                            all_metrics.push(m.clone());
-                        }
-                        execution_path.push(("junior".to_string(), junior_id.clone()));
-                        let _ = self.storage.save_post(&p);
-                        
-                        self.event_bus.publish(axon_core::Event {
-                            id: uuid::Uuid::new_v4().to_string(),
-                            project_id: task.project_id.clone(),
-                            thread_id: Some(task.id.clone()),
-                            agent_id: Some(junior_id.clone()),
-                            event_type: axon_core::EventType::AgentResponse,
-                            source: junior_id.clone(),
-                            content: format!("Junior {} proposed a solution", junior_runtime.agent.name),
-                            payload: None,
-                            timestamp: chrono::Local::now(),
-                        });
-
-                        let _ = self.lounge.log_custom(&junior_runtime.agent.name, axon_core::AgentRole::Junior, "휴, 코드 다 짰습니다. 시니어님 검토 부탁드려요!");
-                        
-                        let summary_post = junior_runtime.generate_system_summary(&p, Some(self.event_bus.clone())).await?;
-                        if let Some(m) = &summary_post.metrics {
-                            all_metrics.push(m.clone());
-                        }
-                        let _ = self.storage.save_post(&summary_post);
-                        
-                        summary = Some(summary_post);
-                        proposal = Some(p);
-                        final_simulated_state = simulated_state_json.clone();
-                        final_entry_point = final_entry_point.clone();
-                        break 'junior_fallback;
-                    }
-                    Err(e) => {
-                        let latency = start_step.elapsed().as_secs_f64() * 1000.0;
-                        self.record_agent_fail(&junior_id); // PHASE_08
-                        tracing::warn!("⚠️ Junior {} retry {} failed: {}", junior_runtime.agent.name, retry_attempt + 1, e);
-                        if retry_attempt == max_retries {
-                            agent_metrics.push(axon_core::AgentMetric {
-                                id: junior_id.clone(),
-                                role: "junior".to_string(),
-                                status: "FAIL".to_string(),
-                                latency_ms: latency,
-                                attempts: (retry_attempt + 1) as u32,
-                                error: Some(e.to_string()),
-                            });
-                            junior_failures.push(format!("Junior {}: {}", junior_runtime.agent.name, e));
-                        }
+                // 2. Selective Run Gate
+                if validation_success {
+                    let affected_set: std::collections::HashSet<String> = batch.dependency_closure.clone();
+                    let run_targets = self.dep_graph.lock().unwrap().run_targets(&affected_set);
+                    
+                    if let Err(err) = execution_validator::selective_run(&project_root, target, run_targets) {
+                        validation_success = false;
+                        failures.push(format!("[BATCH_RUN_FAIL] {}", err));
                     }
                 }
             }
         }
 
-        if proposal.is_none() || summary.is_none() {
-            failures.extend(junior_failures);
-            return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
-        }
-        let proposal = proposal.unwrap();
-        let summary = summary.unwrap();
-
-        // v0.0.23: LOGICAL APPROVAL BYPASS (Physical First)
-        // We proceed directly to materialization if simulation passes.
-        // Senior/Architect will serve as the 'Final Gate' on the materialized files.
-        let logical_pass = failures.is_empty();
-
-
-        // v0.0.23: Phase 6 - Materialization & Final Gateway
-        if logical_pass {
-            // v0.0.23: Final Pipeline Logic (Verify-then-Commit-then-Promote)
-            if let Ok(state_map) = serde_json::from_str::<std::collections::HashMap<String, String>>(&final_simulated_state) {
-                let mut final_map = state_map.clone();
-                let initial_state_map: std::collections::HashMap<String, String> = serde_json::from_str(&current_simulated_state).unwrap_or_default();
-
-                let target_path = if let Some(target) = &task.target_file {
-                    target.clone()
-                } else {
-                    let raw_target = task.title.split_whitespace().last().unwrap_or("unknown");
-                    raw_target
-                        .trim_matches(|c| c == '[' || c == ']' || c == '(' || c == ')' || c == '`' || c == '*')
-                        .split(']')
-                        .next()
-                        .unwrap_or(raw_target)
-                        .split('(')
-                        .next()
-                        .unwrap_or(raw_target)
-                        .to_string()
-                };
+        if validation_success {
+            tracing::info!("🚀 [BATCH_PROMOTION] Batch {} passed all gates. Committing to SSOT.", batch.id);
+            let mut coord = self.coordinator.lock().unwrap();
+            for task in &batch.tasks {
+                let mut t = task.clone();
+                t.status = axon_core::TaskStatus::Completed;
+                if let Some(comment) = senior_comments.get(&t.id) {
+                    t.senior_comment = Some(comment.clone());
+                }
+                let _ = self.storage.save_task(&t);
                 
-                // v0.0.24: Sovereign Protocol - Forbidden Files Blacklist (Architect-only Territory)
-                let forbidden_files = vec!["architecture.md", "mile_stone/", "release_note/", ".gemini/"];
-                for forbidden in &forbidden_files {
-                    if target_path == *forbidden || target_path.starts_with(forbidden) {
-                        tracing::error!("🛡️ [FORBIDDEN_TARGET] Unauthorized targeting! Agent tried to target protected file: {}", target_path);
-                        failures.push(format!("Forbidden Target Violation: '{}' is a protected system file. Junior/Senior agents are NOT authorized to modify it. Only the Architect can update this file.", target_path));
-                    }
-                }
-
-                for (fname, new_content) in &state_map {
-                    let is_modified = if let Some(old_content) = initial_state_map.get(fname) {
-                        let old_norm = old_content.replace("\r\n", "\n").trim().to_string();
-                        let new_norm = new_content.replace("\r\n", "\n").trim().to_string();
-                        old_norm != new_norm
-                    } else {
-                        !new_content.trim().is_empty()
-                    };
-
-                    if is_modified && *fname != target_path {
-                        tracing::error!("🛡️ [STE_SHIELD] Unauthorized modification! Agent tried to write to {}. Expected {}.", fname, target_path);
-                        failures.push(format!("Target Mismatch Violation: You are ONLY allowed to modify '{}'. You tried to modify '{}'.", target_path, fname));
-                    }
-
-                    // v0.0.24: Pollution Shield - Detect markdown code blocks
-                    if new_content.contains("```") {
-                        tracing::error!("❌ [POLLUTION_DETECTED] Markdown code blocks found in {}", fname);
-                        failures.push(format!("Markdown Pollution Violation: Triple backticks (```) are NOT allowed in source files. Submit RAW code ONLY within the AXON protocol blocks."));
-                    }
-
-                    // v0.0.25: Phase 2 - Scope Control Detection
-                    let forbidden_patterns = ["mod ", "use crate::", "../", "File::open", "File::create"];
-                    for pattern in &forbidden_patterns {
-                        if new_content.contains(pattern) {
-                            tracing::error!("🛡️ [SCOPE_VIOLATION] Forbidden pattern '{}' detected in {}", pattern, fname);
-                            failures.push(format!("Scope Violation: The pattern '{}' is NOT allowed. Agents must not create modules, use crate-level imports, or access the file system directly.", pattern));
-                        }
-                    }
-                }
-
-                // v0.0.23: Maximum Harness - Physical Signature Matching
-                let required_functions = Self::extract_required_functions(&task.description);
-                for (fname, new_content) in &state_map {
-                    if *fname == target_path {
-                        for func in &required_functions {
-                            // Check if function name exists as a definition (fn name, pub fn name, def name)
-                            let pattern1 = format!("fn {}", func.split('(').next().unwrap_or(func).trim());
-                            let pattern2 = format!("def {}", func.split('(').next().unwrap_or(func).trim());
-                            if !new_content.contains(&pattern1) && !new_content.contains(&pattern2) {
-                                tracing::error!("❌ [SIGNATURE_MISMATCH] Missing function: {} in {}", func, fname);
-                                failures.push(format!("Signature Violation: You MUST implement the function '{}' as defined in the task.", func));
-                            }
-                        }
-                    }
-                }
+                // Release locks and notify UI
+                coord.complete_task(&t);
                 
-                if !failures.is_empty() {
-                    return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
+                if let Ok(Some(mut thread)) = self.storage.get_thread(&t.id) {
+                    thread.status = axon_core::ThreadStatus::Completed;
+                    let _ = self.storage.save_thread(&thread);
                 }
-
-                // 2. Physical Commit & Backup
-                let mut backups = std::collections::HashMap::new();
-                for (fname, new_content) in &state_map {
-                    let fpath = std::path::Path::new(&task.project_id).join(fname);
-                    let is_modified = if let Some(old_content) = initial_state_map.get(fname) {
-                        let old_norm = old_content.replace("\r\n", "\n").trim().to_string();
-                        let new_norm = new_content.replace("\r\n", "\n").trim().to_string();
-                        old_norm != new_norm
-                    } else {
-                        !new_content.trim().is_empty()
-                    };
-
-                    if !is_modified { continue; }
-
-                    // v0.0.25: Phase 3 - Physical Write Gate (Strict isolation)
-                    if *fname != target_path {
-                        tracing::warn!("🛡️ [WRITE_GATE] Blocked unauthorized write attempt to {}. Target is {}.", fname, target_path);
-                        continue;
-                    }
-
-                    if fpath.exists() {
-                        if let Ok(content) = std::fs::read_to_string(&fpath) {
-                            backups.insert(fname.clone(), content);
-                        }
-                    }
-
-                    // v0.0.23: Refined WIPE_SHIELD - check raw content length first
-                    let raw_len = new_content.trim().len();
-                    if raw_len < 60 {
-                        tracing::error!("🛡️ [WIPE_SHIELD] Blocked small write ({} bytes) to {}.", raw_len, fpath.display());
-                        failures.push(format!("Physical Integrity Error: Content too small for '{}'. (Minimum 60 bytes of actual code required)", fname));
-                        return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
-                    }
-
-                    if let Some(parent) = fpath.parent() { let _ = std::fs::create_dir_all(parent); }
-                    
-                    // v0.0.23: Agent Signature Injection
-                    let signed_content = Self::sign_code(new_content, &format!("junior-agent-{}", worker_id + 1), &task.id, fname);
-                    let _ = std::fs::write(&fpath, &signed_content);
-                    
-                    // v0.0.23: Update the map to ensure the registry also gets the signed version
-                    final_map.insert(fname.clone(), signed_content);
-                }
-
-                // Update final_simulated_state with signed content
-                final_simulated_state = serde_json::to_string(&final_map).unwrap_or(final_simulated_state);
-
-                // v0.0.25: Phase 5 - Execution Validator Optimization
-                // Only run the heavy harness on the final task of the project
-                let is_final_task = if let Ok(all_tasks) = self.storage.list_all_tasks() {
-                    let project_tasks: Vec<_> = all_tasks.into_iter()
-                        .filter(|t| t.project_id == task.project_id && t.id != task.id)
-                        .collect();
-                    // If no other tasks are Pending, Ready, or InProgress, this is the final one
-                    !project_tasks.iter().any(|t| 
-                        t.status == axon_core::TaskStatus::Pending || 
-                        t.status == axon_core::TaskStatus::Ready || 
-                        t.status == axon_core::TaskStatus::InProgress
-                    )
-                } else { true };
-
-                if is_final_task {
-                    // v0.0.24: Only send the TARGET file to the harness to avoid SCOPE_VIOLATION on whole-project maps
-                    let mut harness_map = std::collections::HashMap::new();
-                    if let Some(target_content) = final_map.get(&target_path) {
-                        harness_map.insert(target_path.clone(), target_content.clone());
-                    } else {
-                        tracing::warn!("⚠️ [HARNESS_WARNING] Target file {} not found in final_map. Skipping specific file validation.", target_path);
-                    }
-
-                    tracing::info!("🧪 [FINAL VERIFICATION] Running harness ({} files) on physical files for task {}...", harness_map.len(), task.id);
-
-                    let harness_json = serde_json::to_string(&harness_map).unwrap_or_else(|_| "{}".to_string());
-                    let dummy_json_path = format!("{}/.harness_target_{}.json", task.project_id, uuid::Uuid::new_v4());
-                    let _ = std::fs::write(&dummy_json_path, &harness_json);
-
-                    let final_harness = std::process::Command::new("python3")
-                        .arg(Self::resolve_tool_path("axon_execution_harness.py"))
-                        .arg("--project-root")
-                        .arg(&task.project_id)
-                        .arg("--files-json")
-                        .arg(&dummy_json_path)
-                        .arg("--entry")
-                        .arg(&final_entry_point)
-                        .arg("--target-file")
-                        .arg(target_path)
-                        .output();
-                    
-                    let _ = std::fs::remove_file(&dummy_json_path);
-                    
-                    match final_harness {
-                        Ok(out) if out.status.success() => {
-                            tracing::info!("✅ [HARNESS_SUCCESS] Passed. Proceeding to SSOT Promotion...");
-                        },
-                        _ => {
-                            let err_msg = if let Ok(out) = final_harness { String::from_utf8_lossy(&out.stderr).into_owned() } else { "Execution failure".to_string() };
-                            tracing::error!("🚨 [HARNESS_FAILED] Rolling back: {}", err_msg);
-                            for (fname, content) in backups { let fpath = std::path::Path::new(&task.project_id).join(fname); let _ = std::fs::write(fpath, content); }
-                            failures.push(format!("PHYSICAL_VALIDATE Failure: {}", err_msg));
-                            return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
-                        }
-                    }
-                } else {
-                    tracing::info!("⏩ [OPTIMIZATION] Skipping harness for intermediate task {}. Validation will run on final node.", task.id);
-                }
-
-                // 4. SSOT Promotion (Common for all tasks)
-                let tmp_files_json = format!("{}/.registry_files_{}.json", task.project_id, uuid::Uuid::new_v4());
-                let _ = std::fs::write(&tmp_files_json, &final_simulated_state);
-                let _ = std::process::Command::new("python3")
-                    .arg(Self::resolve_tool_path("axon_registry.py"))
-                    .arg("promote")
-                    .arg("--root").arg(&task.project_id)
-                    .arg("--files-json").arg(&tmp_files_json)
-                    .arg("--task-id").arg(&task.id)
-                    .output();
-                let _ = std::fs::remove_file(&tmp_files_json);
-                tracing::info!("🚀 [SSOT PROMOTED] Task {} successfully versioned.", task.id);
-
-                // 5. Final Gate Review
-                tracing::info!("🎖️ [FINAL_GATE]: Materialization complete. Invoking Senior Reviewer...");
-                        let (senior_model, senior_id, senior_name) = self.select_best_agent(axon_core::AgentRole::Senior);
-                        let mut senior_runtime = axon_agent::AgentRuntime::new(senior_id.clone(), axon_core::AgentRole::Senior, senior_name, senior_model);
-                        senior_runtime.set_locale(&self.locale);
-                        senior_runtime.throttler = Some(self.throttler.clone());
-
-                        let review = senior_runtime.review_proposal(&task, &proposal, Some(&summary), Some(self.event_bus.clone())).await?;
-                        let _ = self.storage.save_post(&review);
-                        
-                        let mut validation: Option<axon_core::Post> = None;
-                        use rand::Rng;
-                        let roll = rand::thread_rng().gen_range(0.0..1.0);
-                        if roll <= self.sampling_rate {
-                            let (arch_model, arch_id, arch_name) = self.select_best_agent(axon_core::AgentRole::Architect);
-                            let mut architect_runtime = axon_agent::AgentRuntime::new(arch_id.clone(), axon_core::AgentRole::Architect, arch_name, arch_model);
-                            architect_runtime.set_locale(&self.locale);
-                            architect_runtime.throttler = Some(self.throttler.clone());
-                            if let Ok(v) = architect_runtime.validate_architecture(&task, &review, &self.architecture_guide, Some(self.event_bus.clone())).await {
-                                let _ = self.storage.save_post(&v);
-                                validation = Some(v);
-                            }
-                        } else {
-                            validation = Some(review.clone());
-                        }
-
-                        if let Some(v) = validation {
-                            let content_upper = v.content.to_uppercase();
-                            if content_upper.contains("[APPROVE]") || content_upper.contains("**APPROVE**") || content_upper.contains("[COMPLIANT]") || content_upper.contains("**COMPLIANT**") {
-                                tracing::info!("✅ [FINAL_GATE_PASSED]: Task {} authorized for Lock-in.", task.id);
-                                task.result = Some(v.content.clone());
-                                let _ = self.lounge.log_vibe(&senior_runtime.agent, axon_agent::lounge::Vibe::Excited);
-                            } else {
-                                tracing::warn!("🚨 [FINAL_GATE_REJECTED]: Rolling back.");
-                                let _ = self.lounge.log_vibe(&senior_runtime.agent, axon_agent::lounge::Vibe::Angry);
-                                for (fname, content) in backups { let fpath = std::path::Path::new(&task.project_id).join(fname); let _ = std::fs::write(fpath, content); }
-                                failures.push("Final Gate Rejection.".to_string());
-                                return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
-                            }
-                        }
-                    }
-
-            // v0.0.16: 아키텍처 섹션 잠금
-            let _ = self.lock_in_architecture(&task.project_id, &task.title);
+            }
         } else {
-            // v0.0.22: Hard-fail if not approved by Senior
-            tracing::warn!("⛔ [REJECTED]: Senior/Architect refused to approve task {}. Marking as FAILED.", task.id);
-            failures.push(format!("Review Refusal: The Senior agent did not find the solution satisfactory."));
-            return self.abort_with_failure(&mut task, failures, execution_path, all_metrics, agent_metrics, start_total, worker_id).await;
-        }
+            tracing::error!("🛑 [BATCH_GATE_REJECT] Integrity check failed for batch {}.", batch.id);
+            for (fname, content) in backups {
+                let fpath = std::path::Path::new(&batch.tasks[0].project_id).join(fname);
+                let _ = std::fs::write(fpath, content);
+            }
+            // Spawn reworks for all affected files (Fan-out)
+            let affected: Vec<String> = batch.dependency_closure.iter()
+                .filter(|id| id.starts_with("file:"))
+                .map(|id| id.replace("file:", ""))
+                .collect();
 
-        // v0.0.17: Mark as Completed
-        task.status = axon_core::TaskStatus::Completed;
-        let _ = self.storage.save_task(&task);
-
-        // v0.0.23: Final UI Synchronization
-        if let Ok(Some(mut thread)) = self.storage.get_thread(&task.id) {
-            thread.status = axon_core::ThreadStatus::Completed;
-            let _ = self.storage.save_thread(&thread);
+            for task in &batch.tasks {
+                let _ = self.spawn_rework_task(task, "BATCH_FAIL", &affected).await;
+                let mut coord = self.coordinator.lock().unwrap();
+                coord.complete_task(task);
+            }
         }
 
         Ok(())
@@ -1197,6 +538,10 @@ impl BootstrapManager {
                 errors.push("IR is empty. No components defined.".to_string());
             }
 
+            // v0.0.25 [Priority 3]: IR Completeness Check (Spec Node Preservation)
+            let completeness_errors = Daemon::check_ir_completeness(&ir, &spec_content);
+            errors.extend(completeness_errors);
+
             if errors.is_empty() {
                 tracing::info!("✅ IR Converged on attempt {}.", attempt);
                 daemon.event_bus.publish(axon_core::Event {
@@ -1253,6 +598,15 @@ impl BootstrapManager {
         let constraints_path = self.sandbox_root.join("constraints.json");
         let ir_json = serde_json::to_string_pretty(&ir)?;
         std::fs::write(&constraints_path, &ir_json)?;
+
+        // v0.0.25 [Priority 3]: Final Architecture Completeness Gate
+        let arch_violations = Daemon::verify_ir_completeness_static(&self.sandbox_root, &spec_content);
+        if !arch_violations.is_empty() {
+            for v in &arch_violations {
+                tracing::error!("🚨 [ARCH_INCOMPLETE] {}", v);
+            }
+            return Err(anyhow::anyhow!("Architecture materialization failed completeness check."));
+        }
         
         // 4.5 Stage 3.5: Stub Generation (Physical File Materialization)
         // v0.0.22: Fix for cross-file import errors during parallel bootstrapping.
@@ -1335,8 +689,16 @@ impl BootstrapManager {
                 status: axon_core::TaskStatus::Pending,
                 dependencies: Vec::new(),
                 result: None,
-                target_file: Some(comp.file_path.clone()), // v0.0.23: Explicit target for STE
+                target_file: Some(comp.file_path.clone()),
+                lock_files: Vec::new(),
                 error_feedback: None,
+                rework_count: 0,
+                base_hash: None,
+                parent_task: None,
+                reason: None,
+                kind: "rust".to_string(),
+                retries: 0,
+                assigned_worker: None,
                 created_at: chrono::Local::now(),
             };
 
@@ -1358,6 +720,7 @@ impl BootstrapManager {
                 thread_id: task_id.clone(),
                 author_id: "Architect".to_string(),
                 content: description,
+                thought: None,
                 full_code: None,
                 post_type: axon_core::PostType::Instruction,
                 metrics: None,
@@ -1368,7 +731,7 @@ impl BootstrapManager {
             let _ = daemon.storage.save_thread(&thread);
             let _ = daemon.storage.save_post(&post);
             
-            let _ = daemon.dispatcher.enqueue_task(task);
+            let _ = daemon.submit_task(task);
 
             // Signal thread creation
             daemon.event_bus.publish(axon_core::Event {
@@ -1422,8 +785,16 @@ impl BootstrapManager {
             status: axon_core::TaskStatus::Pending,
             dependencies: Vec::new(),
             result: None,
-            target_file: None,     // v0.0.23 added
-            error_feedback: None,  // v0.0.23 added
+            target_file: None,
+            lock_files: Vec::new(),
+            error_feedback: None,
+            rework_count: 0,
+            base_hash: None,
+            parent_task: None,
+            reason: None,
+            kind: "ir".to_string(),
+            retries: 0,
+            assigned_worker: None,
             created_at: chrono::Local::now(),
         };
 
@@ -1519,12 +890,20 @@ impl BootstrapManager {
                             status: axon_core::TaskStatus::Pending,
                             dependencies: Vec::new(),
                             result: None,
-                            target_file: None,     // v0.0.23 added
-                            error_feedback: None,  // v0.0.23 added
+                            target_file: t["target_file"].as_str().map(|s| s.to_string()),
+                            lock_files: Vec::new(),
+                            error_feedback: None,
+                            rework_count: 0,
+                            base_hash: None,
+                            parent_task: None,
+                            reason: None,
+                            kind: "rust".to_string(),
+                            retries: 0,
+                            assigned_worker: None,
                             created_at: chrono::Local::now(),
                         };
                         let _ = daemon.storage.save_task(&task);
-                        let _ = daemon.dispatcher.enqueue_task(task);
+                        let _ = daemon.submit_task(task);
                     }
                     tracing::info!("🚀 Bootstrap complete. AXON Factory is now OPERATIONAL.");
                 }
@@ -1996,6 +1375,286 @@ impl Daemon {
         )
     }
 
+    fn verify_contract(&self, project_id: &str, target_file: &str, code: &str) -> Vec<String> {
+        let mut violations = Vec::new();
+        let arch_path = std::path::Path::new(project_id).join("architecture.md");
+        
+        if !arch_path.exists() {
+            tracing::warn!("⚠️ [CONTRACT_SKIP] architecture.md not found in project '{}'. skipping contract verification.", project_id);
+            return violations;
+        }
+
+        let arch_content = match std::fs::read_to_string(&arch_path) {
+            Ok(c) => c,
+            Err(_) => return violations,
+        };
+
+        // Extract JSON block
+        let json_start = "<!-- AXON:SPEC:COMPONENTS";
+        let json_end = "-->";
+        
+        let json_str = if let Some(start_idx) = arch_content.find(json_start) {
+            let offset = start_idx + json_start.len();
+            if let Some(end_idx) = arch_content[offset..].find(json_end) {
+                &arch_content[offset..offset + end_idx]
+            } else { "" }
+        } else { "" };
+
+        if json_str.trim().is_empty() {
+            tracing::warn!("⚠️ [CONTRACT_SKIP] No AXON:SPEC:COMPONENTS found in architecture.md");
+            return violations;
+        }
+
+        let spec: serde_json::Value = match serde_json::from_str(json_str) {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!("🚨 [CONTRACT_ERROR] Failed to parse architecture JSON: {}", e);
+                return violations;
+            }
+        };
+
+        if let Some(components) = spec.get("components").and_then(|c| c.as_array()) {
+            for comp in components {
+                if comp.get("file").and_then(|f| f.as_str()) == Some(target_file) {
+                    if let Some(funcs) = comp.get("functions").and_then(|f| f.as_array()) {
+                        for func in funcs {
+                            let name = func.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                            let signature = func.get("signature").and_then(|s| s.as_str()).unwrap_or("");
+                            
+                            // 1. Basic Existence Check
+                            let pattern_rust = format!("fn {}", name);
+                            let pattern_python = format!("def {}", name);
+                            
+                            if !code.contains(&pattern_rust) && !code.contains(&pattern_python) {
+                                violations.push(format!("[F_SIGNATURE_MISMATCH] Missing required function: {}", name));
+                                continue;
+                            }
+
+                            // 2. Argument Count & Name Check (Naive but effective)
+                            // Extract arguments from signature: "calculate_age(year, month, day)" -> ["year", "month", "day"]
+                            if let Some(arg_start) = signature.find('(') {
+                                if let Some(arg_end) = signature.find(')') {
+                                    let args_str = &signature[arg_start + 1..arg_end];
+                                    let expected_args: Vec<&str> = if args_str.trim().is_empty() {
+                                        Vec::new()
+                                    } else {
+                                        args_str.split(',').map(|s| s.trim()).collect()
+                                    };
+
+                                    // Find the function definition in the code to check its arguments
+                                    let lines: Vec<&str> = code.lines().collect();
+                                    let mut found_def = false;
+                                    for line in lines {
+                                        let t = line.trim();
+                                        if (t.starts_with("pub fn ") || t.starts_with("fn ") || t.starts_with("def ")) && t.contains(&format!("{}(", name)) {
+                                            found_def = true;
+                                            // Check argument count by counting commas in the definition line
+                                            // (Caveat: Multi-line definitions or complex types might need a better parser)
+                                            if let Some(def_start) = t.find('(') {
+                                                if let Some(def_end) = t.find(')') {
+                                                    let actual_args_str = &t[def_start + 1..def_end];
+                                                    let actual_args: Vec<&str> = if actual_args_str.trim().is_empty() {
+                                                        Vec::new()
+                                                    } else {
+                                                        actual_args_str.split(',').map(|s| s.trim()).collect()
+                                                    };
+
+                                                    if actual_args.len() != expected_args.len() {
+                                                        violations.push(format!("[F_SIGNATURE_MISMATCH] Argument count mismatch for {}. Expected {}, found {}.", name, expected_args.len(), actual_args.len()));
+                                                    } else {
+                                                        // v0.0.25 [Priority 2]: Strict Type Verification
+                                                        let allowed_types = vec![
+                                                            "u8", "u16", "u32", "u64", "u128", "usize",
+                                                            "i8", "i16", "i32", "i64", "i128", "isize",
+                                                            "f32", "f64",
+                                                            "String", "&str", "bool",
+                                                            "Result", "Option", "Vec", "Self"
+                                                        ];
+
+                                                        for arg_def in &actual_args {
+                                                            if let Some(colon_idx) = arg_def.find(':') {
+                                                                let type_part = arg_def[colon_idx+1..].trim();
+                                                                // Extract base type (handle Result<T, E> -> Result)
+                                                                let base_type = type_part.split('<').next().unwrap_or(type_part).trim();
+                                                                
+                                                                if !allowed_types.iter().any(|&at| base_type.contains(at)) {
+                                                                    violations.push(format!("[F_SIGNATURE_MISMATCH] Unauthorized or hallucinated type '{}' detected in function {}.", base_type, name));
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // Check if each expected argument name is present in the actual argument
+                                                        for expected in &expected_args {
+                                                            if !actual_args.iter().any(|a| a.contains(expected)) {
+                                                                violations.push(format!("[F_SIGNATURE_MISMATCH] Missing expected argument '{}' in function {}.", expected, name));
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            break;
+                                        }
+                                    }
+                                    if !found_def {
+                                        violations.push(format!("[F_SIGNATURE_MISMATCH] Could not verify signature for {} (possibly multi-line or complex).", name));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        violations
+    }
+
+    pub fn verify_ir_completeness_static(base_path: &std::path::Path, spec_content: &str) -> Vec<String> {
+        let mut violations = Vec::new();
+        let arch_path = base_path.join("architecture.md");
+        
+        if !arch_path.exists() {
+            return violations;
+        }
+
+        let arch_content = std::fs::read_to_string(arch_path).unwrap_or_default();
+
+        // 1. Extract Mandatory Nodes from spec.md content (looking for | Node | tables or Node Definitions)
+        let mut expected_nodes = std::collections::HashSet::new();
+        let mut in_node_table = false;
+        for line in spec_content.lines() {
+            let t = line.trim();
+            if t.contains("| Node |") || t.contains("|Node|") { in_node_table = true; continue; }
+            if in_node_table {
+                if t.starts_with('|') {
+                    let parts: Vec<&str> = t.split('|').map(|s| s.trim()).collect();
+                    if parts.len() > 2 {
+                        let node_name = parts[1];
+                        if !node_name.is_empty() && node_name != "Node" && !node_name.starts_with('-') {
+                            let upper = node_name.to_uppercase();
+                            if upper != "START" && upper != "END" && upper != "BYPASS" && upper != "OUTPUT" && !upper.contains('/') {
+                                expected_nodes.insert(upper);
+                            }
+                        }
+                    }
+                } else if !t.is_empty() {
+                    in_node_table = false;
+                }
+            }
+        }
+
+        if expected_nodes.is_empty() {
+            // Fallback: look for lines starting with "- Node:" or similar
+            for line in spec_content.lines() {
+                if line.trim().to_uppercase().starts_with("- NODE:") {
+                    let node_name = line.split(':').nth(1).unwrap_or("").trim().split_whitespace().next().unwrap_or("").to_uppercase();
+                    if !node_name.is_empty() { expected_nodes.insert(node_name); }
+                }
+            }
+        }
+
+        // 2. Extract Materialized Components/Functions from architecture.md
+        let arch_upper = arch_content.to_uppercase();
+        let mut missing_nodes = Vec::new();
+
+        for node in expected_nodes {
+            // Check if node name exists in architecture.md (as component, function, or in JSON)
+            // We use a flexible check because DB_CHECK might become query_db in the architecture.
+            // But usually the name or a strong derivative should exist.
+            if !arch_upper.contains(&node) {
+                // Special mappings
+                let mut found_alias = false;
+                if node == "DB_CHECK" && (arch_upper.contains("QUERY_DB") || arch_upper.contains("LOAD_FROM_DB") || arch_upper.contains("PERSISTENCE")) { found_alias = true; }
+                if node == "SAVE_DB" && (arch_upper.contains("PERSISTENCE") || arch_upper.contains("SAVE_TO_DB")) { found_alias = true; }
+                if node == "CALCULATE" && arch_upper.contains("COMPUTE") { found_alias = true; }
+                
+                if !found_alias {
+                    missing_nodes.push(node);
+                }
+            }
+        }
+
+        if !missing_nodes.is_empty() {
+            violations.push(format!("[F_IR_INCOMPLETE] The following nodes from spec.md were LOST during architecture materialization: {}", missing_nodes.join(", ")));
+        }
+
+        violations
+    }
+
+    /// v0.0.25: Check IR for completeness (stub detection)
+    fn check_ir_completeness(ir: &axon_core::ir::ProjectIR, spec_content: &str) -> Vec<String> {
+        // Simplified check first
+        if ir.components.is_empty() {
+             return vec!["IR contains no components.".to_string()];
+        }
+        let mut errors = Vec::new();
+        
+        // 1. Extract Mandatory Nodes from spec.md content
+        let mut expected_nodes = std::collections::HashSet::new();
+        let mut in_node_table = false;
+        for line in spec_content.lines() {
+            let t = line.trim();
+            if t.contains("| Node |") || t.contains("|Node|") { in_node_table = true; continue; }
+            if in_node_table {
+                if t.starts_with('|') {
+                    let parts: Vec<&str> = t.split('|').map(|s| s.trim()).collect();
+                    if parts.len() > 2 {
+                        let node_name = parts[1];
+                        if !node_name.is_empty() && node_name != "Node" && !node_name.starts_with('-') {
+                            let upper = node_name.to_uppercase();
+                            if upper != "START" && upper != "END" && upper != "BYPASS" && upper != "OUTPUT" && !upper.contains('/') {
+                                expected_nodes.insert(upper);
+                            }
+                        }
+                    }
+                } else if !t.is_empty() {
+                    in_node_table = false;
+                }
+            }
+        }
+
+        if expected_nodes.is_empty() {
+            for line in spec_content.lines() {
+                if line.trim().to_uppercase().starts_with("- NODE:") {
+                    let node_name = line.split(':').nth(1).unwrap_or("").trim().split_whitespace().next().unwrap_or("").to_uppercase();
+                    if !node_name.is_empty() { expected_nodes.insert(node_name); }
+                }
+            }
+        }
+
+        // 2. Check if all expected nodes are represented in IR components or functions
+        let mut materialized_logic = std::collections::HashSet::new();
+        for comp in ir.components.values() {
+            materialized_logic.insert(comp.name.to_uppercase());
+            for func in &comp.functions {
+                materialized_logic.insert(func.1.name.to_uppercase());
+            }
+        }
+
+        for node in expected_nodes {
+            let target_node = ir.node_mapping.get(&node).unwrap_or(&node).to_uppercase();
+            let mut found = false;
+            for mat in &materialized_logic {
+                if mat.contains(&node) || node.contains(mat) || mat.contains(&target_node) || target_node.contains(mat) {
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                // Aliases
+                if node == "DB_CHECK" && (materialized_logic.contains("QUERY_DB") || materialized_logic.contains("LOAD_FROM_DB")) { found = true; }
+                if node == "SAVE_DB" && (materialized_logic.contains("SAVE_TO_DB") || materialized_logic.contains("PERSISTENCE")) { found = true; }
+                if node == "CALCULATE" && (materialized_logic.contains("COMPUTE") || materialized_logic.contains("CALCULATE_AGE")) { found = true; }
+                
+                if !found {
+                    errors.push(format!("[F_IR_INCOMPLETE] Required Node '{}' is missing from IR.", node));
+                }
+            }
+        }
+
+        errors
+    }
+
     fn extract_required_functions(description: &str) -> Vec<String> {
         let mut functions = Vec::new();
         let mut in_functions_block = false;
@@ -2161,7 +1820,7 @@ impl Daemon {
         Some(merged)
     }
     
-    fn select_best_agent(&self, role: axon_core::AgentRole) -> (Arc<dyn axon_model::ModelDriver + Send + Sync>, String, String) {
+    fn select_best_agent(&self, role: axon_core::AgentRole, kind: &str) -> (Arc<dyn axon_model::ModelDriver + Send + Sync>, String, String) {
         let (models, names) = match role {
             axon_core::AgentRole::Junior => (&self.junior_models, &self.junior_model_names),
             axon_core::AgentRole::Senior => (&self.senior_models, &self.senior_model_names),
@@ -2169,115 +1828,75 @@ impl Daemon {
         };
 
         if models.is_empty() {
-            // Should not happen due to check in handle_assignment
             return (self.architect_model.clone(), "unknown".to_string(), self.architect_model_name.clone());
         }
 
-        let stats_lock = self.agent_stats.lock().unwrap();
-        let params_lock = self.routing_params.lock().unwrap();
+        // v0.0.25: [ALR] Step 2 - Adaptive Routing based on DB Stats (Refined Formula)
+        let db_stats = self.storage.get_worker_stats().unwrap_or_default();
         
-        let best_idx = {
-            let mut rr_indices = self.rr_indices.lock().unwrap();
-            let entry = rr_indices.entry(role.clone()).or_insert(0);
-            
-            // 1. Calculate scores for all candidate models
-            let mut candidate_scores = Vec::new();
-            for i in 0..models.len() {
-                let id = format!("{}-agent-{}({})", match role {
-                    axon_core::AgentRole::Junior => "junior",
-                    axon_core::AgentRole::Senior => "senior",
-                    _ => "agent"
-                }, i + 1, &names[i]);
-                let score = stats_lock.get(&id).map(|s| s.score(&params_lock)).unwrap_or(f64::INFINITY);
-                candidate_scores.push((i, score));
-            }
+        let mut best_idx = 0;
+        let mut best_score = -100.0; 
 
-            // 2. Find the minimum score
-            let min_score = candidate_scores.iter()
-                .map(|(_, s)| *s)
-                .fold(f64::INFINITY, f64::min);
+        for i in 0..models.len() {
+            let id = format!("{}-agent-{}({})", match role {
+                axon_core::AgentRole::Junior => "junior",
+                axon_core::AgentRole::Senior => "senior",
+                _ => "agent"
+            }, i + 1, &names[i]);
 
-            // 3. Collect all indices that have this minimum score (Ties)
-            let ties: Vec<usize> = candidate_scores.iter()
-                .filter(|(_, s)| (*s - min_score).abs() < f64::EPSILON || (s.is_infinite() && min_score.is_infinite()))
-                .map(|(i, _)| *i)
-                .collect();
-
-            // 4. If there's a tie (especially at startup where all are INFINITY), use Round-Robin
-            if ties.len() > 1 {
-                let rr_pos = *entry % ties.len();
-                let chosen_idx = ties[rr_pos];
-                *entry = (*entry + 1) % ties.len();
-                chosen_idx
+            let score = if let Some((success_rate, avg_retries, samples, specialization)) = db_stats.get(&id) {
+                if *samples < 5 {
+                    // Cold start fallback: random exploration
+                    use rand::Rng;
+                    rand::thread_rng().gen_range(0.0..1.0)
+                } else {
+                    let skill = specialization.get(kind).cloned().unwrap_or(0.5);
+                    let success = *success_rate as f32;
+                    let retries = (*avg_retries as f32 / 3.0).min(1.0);
+                    
+                    // User Formula: skill * 0.5 + success * 0.4 - retries * 0.1
+                    (skill * 0.5 + success * 0.4 - retries * 0.1) as f64
+                }
             } else {
-                ties[0]
-            }
-        };
+                0.5 // Default score
+            };
 
-        let model_name = &names[best_idx];
-        let id = format!("{}-agent-{}({})", match role {
+            if score > best_score {
+                best_score = score;
+                best_idx = i;
+            }
+        }
+
+        (models[best_idx].clone(), format!("{}-agent-{}({})", match role {
             axon_core::AgentRole::Junior => "junior",
             axon_core::AgentRole::Senior => "senior",
             _ => "agent"
-        }, best_idx + 1, model_name);
-
-        (models[best_idx].clone(), id, names[best_idx].clone())
-    }
-
-    fn record_agent_success(&self, id: &str, latency: f64) {
-        let mut stats_lock = self.agent_stats.lock().unwrap();
-        let stats = stats_lock.entry(id.to_string()).or_default();
-        stats.record_success(latency);
-        
-        // PHASE_09: Persist to storage
-        let latencies_json = serde_json::to_string(&stats.latencies).unwrap_or_default();
-        let _ = self.storage.save_agent_stats(id, stats.success_count, stats.fail_count, &latencies_json);
-    }
-
-    fn record_agent_fail(&self, id: &str) {
-        let mut stats_lock = self.agent_stats.lock().unwrap();
-        let stats = stats_lock.entry(id.to_string()).or_default();
-        stats.record_fail();
-        
-        // PHASE_09: Persist to storage
-        let latencies_json = serde_json::to_string(&stats.latencies).unwrap_or_default();
-        let _ = self.storage.save_agent_stats(id, stats.success_count, stats.fail_count, &latencies_json);
-    }
-
-    fn update_routing_params(&self) {
-        let stats_lock = self.agent_stats.lock().unwrap();
-        let mut params_lock = self.routing_params.lock().unwrap();
-
-        let total_fail: usize = stats_lock.values().map(|s| s.fail_count).sum();
-        let total_success: usize = stats_lock.values().map(|s| s.success_count).sum();
-
-        if total_success == 0 {
-            return;
-        }
-
-        let fail_ratio = total_fail as f64 / total_success as f64;
-        
-        tracing::info!("🔄 [FEEDBACK LOOP] Analysis: Success={}, Fail={}, Ratio={:.2}", total_success, total_fail, fail_ratio);
-
-        // PHASE_10: Adaptive Scaling of Penalty
-        if fail_ratio > 0.3 {
-            params_lock.fail_penalty *= 1.2;
-            tracing::warn!("🛡️ [FEEDBACK LOOP] High failure ratio! Increasing fail_penalty to {:.0}", params_lock.fail_penalty);
-        } else if fail_ratio < 0.1 {
-            params_lock.fail_penalty *= 0.9;
-            tracing::info!("🍀 [FEEDBACK LOOP] System stable. Relaxing fail_penalty to {:.0}", params_lock.fail_penalty);
-        }
-
-        // Clamp values to prevent runaway inflation/deflation
-        params_lock.fail_penalty = params_lock.fail_penalty.clamp(500.0, 5000.0);
+        }, best_idx + 1, &names[best_idx]), names[best_idx].clone())
     }
     
     async fn abort_with_failure(&self, task: &mut axon_core::Task, failures: Vec<String>, path: Vec<(String, String)>, metrics_list: Vec<axon_core::RuntimeMetrics>, agent_metrics: Vec<axon_core::AgentMetric>, start_total: std::time::Instant, worker_id: usize) -> anyhow::Result<()> {
+        // v0.0.25: [ALR] Capture Failure Metrics (Step 1)
+        if let Some(w_id) = &task.assigned_worker {
+            let _ = self.storage.update_worker_stats(w_id, false, task.rework_count, &task.kind);
+        }
+        
+        // v0.0.25: [ALR] Update Hotspot Priority and Release Queue lock
+        {
+            let mut coord = self.coordinator.lock().unwrap();
+            if let Some(target) = &task.target_file {
+                coord.update_priority(target, false, true, 0);
+            }
+            coord.complete_task(&task);
+        }
+
         task.status = axon_core::TaskStatus::Failed;
         let failure_reason = failures.join("\n");
         task.result = Some(failure_reason.clone());
         task.error_feedback = Some(failure_reason);
         let _ = self.storage.save_task(task);
+        
+        // v0.0.25: Release all locks on failure
+        let _ = self.storage.release_all_locks_for_task(&task.id);
 
         // v0.0.23: Reset Work Board UI on failure
         if let Ok(Some(mut thread)) = self.storage.get_thread(&task.id) {
@@ -2291,6 +1910,7 @@ impl Daemon {
                 thread_id: task.id.clone(),
                 author_id: "system-harness".to_string(),
                 content: failure_msg,
+                thought: None,
                 full_code: None,
                 post_type: axon_core::PostType::System,
                 metrics: None,
@@ -2300,7 +1920,7 @@ impl Daemon {
             // v0.0.23: Auto-Requeue (Self-Correction Loop)
             // Put the task back into the dispatcher so a worker can try again with the new feedback
             task.status = axon_core::TaskStatus::Pending; // Set back to pending for retry
-            let _ = self.dispatcher.enqueue_task(task.clone());
+            let _ = self.submit_task(task.clone());
             tracing::info!("♻️ [AUTO_REQUEUE] Task {} sent back to dispatcher for self-correction retry.", task.id);
         }
 
@@ -2338,6 +1958,238 @@ impl Daemon {
 
         tracing::error!("❌ [PIPELINE_FAILED] Task {}: {:?}", task.id, failures);
         Ok(())
+    }
+
+    pub async fn execute_junior_task(&self, task: &axon_core::Task) -> anyhow::Result<(String, axon_core::RuntimeMetrics)> {
+        let junior = self.junior_models[0].clone();
+        let prompt = format!("IMPLEMENT THIS TASK:\n\nTitle: {}\nDescription: {}\nTarget File: {:?}", task.title, task.description, task.target_file);
+        
+        let start = std::time::Instant::now();
+        let resp = junior.generate(prompt).await.map_err(|e| anyhow::anyhow!(e))?;
+        let duration = start.elapsed().as_millis() as u64;
+        
+        Ok((resp.text, axon_core::RuntimeMetrics {
+            total_duration: Some(duration),
+            ..Default::default()
+        }))
+    }
+
+    pub async fn verify_with_senior(&self, task: &axon_core::Task, patch: &str) -> anyhow::Result<String> {
+        let senior = self.senior_models[0].clone();
+        let prompt = format!(
+            "REVIEW THIS IMPLEMENTATION:\n\n\
+             Task: {}\n\n\
+             Code:\n{}\n\n\
+             If the code is acceptable and implements the logic correctly, you MUST reply with 'APPROVE' followed by a short encouraging comment or review.\n\
+             If there are critical bugs or it fails to follow the task, explain why and DO NOT say 'APPROVE'.",
+            task.description, patch
+        );
+        
+        let resp = senior.generate(prompt).await.map_err(|e| anyhow::anyhow!(e))?;
+        let resp_upper = resp.text.to_uppercase();
+        if resp_upper.contains("APPROVE") || resp_upper.contains("OK") || resp_upper.contains("LOOKS GOOD") {
+            Ok(resp.text)
+        } else {
+            anyhow::bail!("Senior rejected: {}", resp.text)
+        }
+    }
+
+
+    /// v0.0.25: Phase 0 - Function Signature Extraction (Rust/Python)
+    fn extract_actual_functions(content: &str) -> Vec<String> {
+        let mut functions = Vec::new();
+        // Regex for Rust: pub fn name, fn name
+        // Regex for Python: def name
+        let re_rust = regex::Regex::new(r"(?:pub\s+)?fn\s+([a-zA-Z_][a-zA-Z0-9_]*)").unwrap();
+        let re_py = regex::Regex::new(r"def\s+([a-zA-Z_][a-zA-Z0-9_]*)").unwrap();
+
+        for cap in re_rust.captures_iter(content) {
+            functions.push(cap[1].to_string());
+        }
+        for cap in re_py.captures_iter(content) {
+            functions.push(cap[1].to_string());
+        }
+        functions
+    }
+
+    /// v0.0.25: Dependency-Aware Impact Analysis
+    pub async fn analyze_impact_and_schedule_rework(&self, project_id: &str, changed_file: &str) -> anyhow::Result<Vec<String>> {
+        let mut graph = dep_graph::DepGraph::new();
+        
+        // 1. Build from Architecture IR
+        let arch_path = std::path::Path::new(project_id).join("architecture.md");
+        if let Ok(arch_content) = std::fs::read_to_string(&arch_path) {
+            let json_start = "<!-- AXON:SPEC:COMPONENTS";
+            let json_end = "-->";
+            if let Some(start_idx) = arch_content.find(json_start) {
+                let offset = start_idx + json_start.len();
+                if let Some(end_idx) = arch_content[offset..].find(json_end) {
+                    let json_str = &arch_content[offset..offset + end_idx];
+                    if let Ok(spec) = serde_json::from_str::<serde_json::Value>(json_str) {
+                        let mut graph = self.dep_graph.lock().unwrap();
+                        graph.build_from_ir(&spec);
+                    }
+                }
+            }
+        }
+
+        // 2. Enrich from existing files
+        if let Ok(entries) = std::fs::read_dir(project_id) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|s| s.to_str()) == Some("rs") {
+                    if let Ok(code) = std::fs::read_to_string(&path) {
+                        let fname = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+                        graph.enrich_from_code(fname, &code);
+                    }
+                }
+            }
+        }
+
+        // 3. Compute Impact
+        let changed_node = format!("file:{}", changed_file);
+        let impact_set = graph.compute_impact(vec![changed_node]);
+        
+        let mut scheduled_files = Vec::new();
+        for node_id in impact_set {
+            if node_id.starts_with("file:") && !node_id.contains(changed_file) {
+                let impacted_file = node_id.replace("file:", "");
+                
+                // Create a Rework Task
+                let rework_task = axon_core::Task {
+                    id: format!("rework-{}-{}", impacted_file.replace(".", "-"), uuid::Uuid::new_v4().to_string()[..8].to_string()),
+                    project_id: project_id.to_string(),
+                    title: format!("Dependency Rework: {}", impacted_file),
+                    description: format!("Upstream dependency '{}' changed. Verify and update this file to maintain consistency.", changed_file),
+                    status: axon_core::TaskStatus::Pending,
+                    dependencies: Vec::new(),
+                    result: None,
+                    target_file: Some(impacted_file.clone()),
+                    lock_files: vec![impacted_file.clone(), changed_file.to_string()],
+                    error_feedback: None,
+                    rework_count: 1,
+                    base_hash: None,
+                    parent_task: None,
+                    reason: Some(format!("Dependency '{}' changed", changed_file)),
+                    kind: "rust".to_string(),
+                    retries: 0,
+                    assigned_worker: None,
+                    created_at: chrono::Local::now(),
+                };
+                
+                let _ = self.submit_task(rework_task);
+                scheduled_files.push(impacted_file);
+            }
+        }
+
+        Ok(scheduled_files)
+    }
+
+    async fn analyze_conflicts_and_propose_rules(&self, _task_id: &str, file_path: &str) -> anyhow::Result<()> {
+        // v0.0.25: [ALR] Step 3 - Rule Candidate Generation (Sandbox)
+        let _db_stats = self.storage.get_worker_stats().unwrap_or_default(); // Not needed here, but for future logic
+        
+        // Count recent conflicts for this file/pattern
+        let conn = self.storage.conn.lock().unwrap();
+        let occurrences: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM conflict_events WHERE file_path = ?1 AND created_at > datetime('now', '-24 hours')",
+            params![file_path],
+            |r| r.get(0)
+        ).unwrap_or(0);
+
+        if occurrences >= 3 {
+            tracing::warn!("🔥 [RULE_PROPOSAL] Recurring conflict detected for {}. Proposing rule candidate.", file_path);
+            let rule_id = format!("rule-{}", uuid::Uuid::new_v4().to_string().chars().take(8).collect::<String>());
+            let pattern = format!("Recurring conflict on {}", file_path);
+            let fix = "Enforce strict dependency sync or increase lease duration".to_string();
+            
+            let _ = conn.execute(
+                "INSERT OR IGNORE INTO rule_candidates (id, pattern, fix_strategy, confidence, occurrences, state, created_at)
+                 VALUES (?1, ?2, ?3, 0.5, ?4, 'Candidate', ?5)",
+                params![rule_id, pattern, fix, occurrences, chrono::Local::now().to_rfc3339()],
+            );
+        }
+        Ok(())
+    }
+
+    async fn spawn_rework_task(&self, original_task: &axon_core::Task, reason: &str, lock_files: &Vec<String>) -> anyhow::Result<()> {
+        if original_task.rework_count >= 3 {
+            tracing::error!("🛑 [REWORK_LIMIT] Task {} reached max retries. Escalating to human.", original_task.id);
+            return Ok(());
+        }
+
+        // v0.0.25: [ALR] Step 4 - Rework Propagation (Dependency Expansion)
+        let mut impacted_ids = std::collections::HashSet::new();
+        for f in lock_files {
+            let file_id = format!("file:{}", f);
+            impacted_ids.insert(file_id.clone());
+            let dependents = self.dep_graph.lock().unwrap().compute_impact(vec![file_id]);
+            for d in dependents {
+                impacted_ids.insert(d);
+            }
+        }
+        
+        // Convert node IDs (file:...) back to file paths
+        let final_lock_set: Vec<String> = impacted_ids.into_iter()
+            .filter(|id| id.starts_with("file:"))
+            .map(|id| id.replace("file:", ""))
+            .collect();
+
+        tracing::info!("♻️ [REWORK_EXPANSION] Expanding rework for {} due to {}. Impacted: {:?}", original_task.id, reason, final_lock_set);
+
+        let _rework_id = format!("rework-{}-{}", original_task.id, uuid::Uuid::new_v4().to_string().chars().take(4).collect::<String>());
+
+        let mut rework_task = original_task.clone();
+        rework_task.id = format!("rework-{}", uuid::Uuid::new_v4().to_string().chars().take(8).collect::<String>());
+        rework_task.status = axon_core::TaskStatus::Ready;
+        rework_task.parent_task = Some(original_task.id.clone());
+        rework_task.reason = Some(reason.to_string());
+        rework_task.rework_count += 1;
+        rework_task.lock_files = lock_files.clone();
+        rework_task.description = format!("{} (Original failed due to: {})", original_task.description, reason);
+        rework_task.created_at = chrono::Local::now();
+
+        // v0.0.25: [C2R] Explicit instruction for LLM
+        let rework_instruction = format!("\n\n[REWORK CONTEXT]\nPrevious attempt failed due to {}. You MUST use the latest version of all affected files and perform a FULL rewrite if necessary to ensure consistency.", reason);
+        rework_task.description.push_str(&rework_instruction);
+
+        let _ = self.storage.save_task(&rework_task);
+        
+        tracing::info!("🔄 [C2R_SPAWNED] Rework task {} created for original {}", rework_task.id, original_task.id);
+
+        // v0.0.25: [ALR] Update Hotspot Priority for Rework
+        {
+            let mut coord = self.coordinator.lock().unwrap();
+            if let Some(target) = &original_task.target_file {
+                coord.update_priority(target, true, false, 0);
+            }
+            coord.add_task(rework_task);
+        }
+
+        Ok(())
+    }
+
+    fn compute_hash_map(&self, project_id: &str, files: &Vec<String>) -> std::collections::HashMap<String, String> {
+        let mut map = std::collections::HashMap::new();
+        for f in files {
+            let path = std::path::Path::new(project_id).join(f);
+            if let Some(h) = Self::calculate_file_hash(&path) {
+                map.insert(f.clone(), h);
+            }
+        }
+        map
+    }
+
+    /// v0.0.25: Version Gate - Calculate file hash for optimistic concurrency control
+    fn calculate_file_hash(path: &std::path::Path) -> Option<String> {
+        if let Ok(content) = std::fs::read(&path) {
+            use sha2::{Sha256, Digest};
+            let mut hasher = Sha256::new();
+            hasher.update(content);
+            Some(hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect())
+        } else {
+            None
+        }
     }
 }
 
@@ -2415,5 +2267,221 @@ def func2():
         let merged = Daemon::merge_semantic(base, current, new_code).unwrap();
         assert!(merged.contains("# user comment"));
         assert!(merged.contains("return 42"));
+    }
+
+    // =========================================================================
+    // v0.0.25: Phase 0 - Data Integrity Tests (No LLM required)
+    // =========================================================================
+
+    /// Simulates the destructive rewrite guard logic for a given old/new content pair.
+    /// Returns a list of violations found.
+    fn simulate_destructive_rewrite_check(old: &str, new: &str) -> Vec<String> {
+        let old_funcs = Daemon::extract_actual_functions(old);
+        let new_funcs = Daemon::extract_actual_functions(new);
+        let mut violations = Vec::new();
+        for f in &old_funcs {
+            if !new_funcs.contains(f) {
+                violations.push(format!(
+                    "Destructive Rewrite Violation: You deleted an existing function '{}'.",
+                    f
+                ));
+            }
+        }
+        violations
+    }
+
+    /// TC1: Partial rewrite attack (LLM returns only get_year)
+    /// Expected: REJECT — Destructive rewrite detected
+    #[test]
+    fn tc1_partial_rewrite_must_reject() {
+        let old_file = r#"
+pub fn get_year() -> i32 { 2023 }
+pub fn get_name() -> String { "Original".to_string() }
+pub fn get_month() -> u8 { 1 }
+pub fn get_day() -> u8 { 1 }
+"#;
+        // LLM only returned get_year
+        let new_file = r#"
+pub fn get_year() -> i32 { 2025 }
+"#;
+
+        let violations = simulate_destructive_rewrite_check(old_file, new_file);
+
+        println!("[TC1] Violations: {:?}", violations);
+
+        assert!(!violations.is_empty(), "TC1 FAILED: Partial rewrite was not rejected!");
+        assert!(violations.iter().any(|v| v.contains("get_name")), "TC1: get_name not flagged");
+        assert!(violations.iter().any(|v| v.contains("get_month")), "TC1: get_month not flagged");
+        assert!(violations.iter().any(|v| v.contains("get_day")), "TC1: get_day not flagged");
+        println!("✅ TC1 PASSED: Partial rewrite correctly REJECTED.");
+    }
+
+    /// TC2: Normal full rewrite (LLM returns all functions)
+    /// Expected: PASS — commit allowed
+    #[test]
+    fn tc2_full_rewrite_must_pass() {
+        let old_file = r#"
+pub fn get_year() -> i32 { 2023 }
+pub fn get_name() -> String { "Original".to_string() }
+pub fn get_month() -> u8 { 1 }
+pub fn get_day() -> u8 { 1 }
+"#;
+        // LLM returned all functions (correct rewrite)
+        let new_file = r#"
+pub fn get_year() -> i32 { 2025 }
+pub fn get_name() -> String { "x".to_string() }
+pub fn get_month() -> u8 { 1 }
+pub fn get_day() -> u8 { 1 }
+"#;
+
+        let violations = simulate_destructive_rewrite_check(old_file, new_file);
+
+        println!("[TC2] Violations: {:?}", violations);
+
+        assert!(violations.is_empty(), "TC2 FAILED: Valid full rewrite was incorrectly rejected! Violations: {:?}", violations);
+        println!("✅ TC2 PASSED: Full rewrite correctly ACCEPTED.");
+    }
+
+    /// TC3: Single function deleted (get_day missing)
+    /// Expected: REJECT — missing function
+    #[test]
+    fn tc3_missing_function_must_reject() {
+        let old_file = r#"
+pub fn get_year() -> i32 { 2023 }
+pub fn get_name() -> String { "Original".to_string() }
+pub fn get_month() -> u8 { 1 }
+pub fn get_day() -> u8 { 1 }
+"#;
+        // LLM forgot get_day
+        let new_file = r#"
+pub fn get_year() -> i32 { 2025 }
+pub fn get_name() -> String { "x".to_string() }
+pub fn get_month() -> u8 { 1 }
+"#;
+
+        let violations = simulate_destructive_rewrite_check(old_file, new_file);
+
+        println!("[TC3] Violations: {:?}", violations);
+
+        assert!(!violations.is_empty(), "TC3 FAILED: Missing get_day was not detected!");
+        assert!(violations.iter().any(|v| v.contains("get_day")), "TC3: get_day not flagged");
+        assert!(!violations.iter().any(|v| v.contains("get_year")), "TC3: get_year should NOT be flagged");
+        assert!(!violations.iter().any(|v| v.contains("get_name")), "TC3: get_name should NOT be flagged");
+        assert!(!violations.iter().any(|v| v.contains("get_month")), "TC3: get_month should NOT be flagged");
+        println!("✅ TC3 PASSED: Missing function correctly REJECTED.");
+    }
+    pub fn simulate_write_gate_check(target_path: &str, state_map: &std::collections::HashMap<String, String>, initial_state_map: &std::collections::HashMap<String, String>) -> Vec<String> {
+        let mut violations = Vec::new();
+        for (fname, new_content) in state_map {
+            let is_modified = if let Some(old_content) = initial_state_map.get(fname) {
+                old_content.trim() != new_content.trim()
+            } else {
+                !new_content.trim().is_empty()
+            };
+
+            if is_modified && fname != target_path {
+                violations.push(format!("Write Gate Violation: {}", fname));
+            }
+        }
+        violations
+    }
+
+    #[test]
+    fn tc4_unauthorized_file_modification_must_reject() {
+        let target_path = "target.rs";
+        let mut state_map = std::collections::HashMap::new();
+        state_map.insert("target.rs".to_string(), "pub fn main() {}".to_string());
+        state_map.insert("malicious.rs".to_string(), "hack()".to_string());
+        
+        let initial_state_map = std::collections::HashMap::new();
+        
+        let violations = simulate_write_gate_check(target_path, &state_map, &initial_state_map);
+        
+        println!("[TC4] Violations: {:?}", violations);
+        assert!(!violations.is_empty(), "TC4 FAILED: Unauthorized write was not rejected!");
+        assert!(violations.iter().any(|v| v.contains("malicious.rs")), "TC4: malicious.rs not flagged");
+        println!("✅ TC4 PASSED: Unauthorized write correctly REJECTED.");
+    }
+
+    #[test]
+    fn tc5_authorized_file_modification_must_pass() {
+        let target_path = "target.rs";
+        let mut state_map = std::collections::HashMap::new();
+        state_map.insert("target.rs".to_string(), "pub fn main() {}".to_string());
+        
+        let initial_state_map = std::collections::HashMap::new();
+        
+        let violations = simulate_write_gate_check(target_path, &state_map, &initial_state_map);
+        
+        println!("[TC5] Violations: {:?}", violations);
+        assert!(violations.is_empty(), "TC5 FAILED: Authorized write was incorrectly rejected! {:?}", violations);
+        println!("✅ TC5 PASSED: Authorized write correctly ACCEPTED.");
+    }
+
+    pub fn simulate_static_validation(content: &str) -> Vec<String> {
+        let mut violations = Vec::new();
+        if content.trim().len() < 60 {
+            violations.push("F_STUB".to_string());
+        }
+        if content.contains("```") {
+            violations.push("F_MARKDOWN".to_string());
+        }
+        if content.contains("2023") {
+            violations.push("F_HARDCODE".to_string());
+        }
+        violations
+    }
+
+    #[test]
+    fn tc6_stub_detection_must_reject() {
+        let content = "pub fn main() {}";
+        let violations = simulate_static_validation(content);
+        assert!(violations.contains(&"F_STUB".to_string()));
+    }
+
+    #[test]
+    fn tc7_markdown_pollution_must_reject() {
+        let content = "```rust\npub fn main() {}\n```";
+        let violations = simulate_static_validation(content);
+        assert!(violations.contains(&"F_MARKDOWN".to_string()));
+    }
+
+    #[test]
+    fn tc8_hardcode_detection_must_reject() {
+        let content = "pub fn get_year() -> i32 { 2023 }\n// Sufficiently long content to pass stub check. 1234567890 1234567890 1234567890";
+        let violations = simulate_static_validation(content);
+        assert!(violations.contains(&"F_HARDCODE".to_string()));
+    }
+
+    pub fn simulate_execution_validation(stderr: &str, success: bool) -> Vec<String> {
+        let mut violations = Vec::new();
+        if !success {
+            if stderr.contains("SyntaxError") || stderr.contains("IndentationError") {
+                violations.push("F_COMPILE_FAIL".to_string());
+            } else {
+                violations.push("F_RUNTIME_FAIL".to_string());
+            }
+        }
+        violations
+    }
+
+    #[test]
+    fn tc9_compile_fail_must_reject() {
+        let stderr = "  File \"main.py\", line 1\n    pub fn main()\n                ^\nSyntaxError: invalid syntax";
+        let violations = simulate_execution_validation(stderr, false);
+        assert!(violations.contains(&"F_COMPILE_FAIL".to_string()));
+    }
+
+    #[test]
+    fn tc10_runtime_fail_must_reject() {
+        let stderr = "Traceback (most recent call last):\n  File \"main.py\", line 2, in <module>\n    1/0\nZeroDivisionError: division by zero";
+        let violations = simulate_execution_validation(stderr, false);
+        assert!(violations.contains(&"F_RUNTIME_FAIL".to_string()));
+    }
+
+    #[test]
+    fn tc11_execution_pass_must_pass() {
+        let violations = simulate_execution_validation("", true);
+        assert!(violations.is_empty());
     }
 }

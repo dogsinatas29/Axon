@@ -94,7 +94,7 @@ const App: React.FC = () => {
     fetchAgents();
     fetchStatus();
     
-    const socket = initSocket('ws://localhost:8080/ws');
+    const socket = initSocket('ws://localhost:8080');
     
     socket.onEvent((ev: any) => {
       if (ev.event_type) {

@@ -152,7 +152,7 @@ async fn submit_spec_internal(
     
     // Simulate spec parsing into tasks using LLM
     let prompt = format!(
-        "PARSE THIS SPEC INTO TASKS (JSON ARRAY with fields: title, description):\n\n{}",
+        "PARSE THIS SPEC INTO TASKS (JSON ARRAY with fields: title, description, target_file):\n\n{}",
         submission.content
     );
 
@@ -168,10 +168,18 @@ async fn submit_spec_internal(
                         title: t["title"].as_str().unwrap_or("Untitled").into(),
                         description: t["description"].as_str().unwrap_or("").into(),
                         status: TaskStatus::Pending,
-                        dependencies: Vec::new(), // Initialized as empty for now
+                        dependencies: Vec::new(),
                         result: None,
-                        target_file: None,     // v0.0.23 added
-                        error_feedback: None,  // v0.0.23 added
+                        target_file: t["target_file"].as_str().map(|s| s.to_string()),
+                        lock_files: Vec::new(),
+                        error_feedback: None,
+                        rework_count: 0,
+                        base_hash: None,
+                        parent_task: None,
+                        reason: None,
+                        kind: "rust".to_string(),
+                        retries: 0,
+                        assigned_worker: None,
                         created_at: chrono::Local::now(),
                     };
                     let _ = daemon.storage.save_task(&task);
@@ -193,6 +201,7 @@ async fn submit_spec_internal(
                         thread_id: task.id.clone(),
                         author_id: "Architect".to_string(),
                         content: task.description.clone(),
+                        thought: None,
                         full_code: None,
                         post_type: axon_core::PostType::Instruction,
                         metrics: None,
@@ -215,8 +224,16 @@ async fn submit_spec_internal(
                     status: TaskStatus::Pending,
                     dependencies: Vec::new(),
                     result: None,
-                    target_file: None,     // v0.0.23 added
-                    error_feedback: None,  // v0.0.23 added
+                    target_file: Some("pending_recovery.rs".to_string()),
+                    lock_files: Vec::new(),
+                    error_feedback: None,
+                    rework_count: 0,
+                    base_hash: None,
+                    parent_task: None,
+                    reason: None,
+                    kind: "rust".to_string(),
+                    retries: 0,
+                    assigned_worker: None,
                     created_at: chrono::Local::now(),
                 };
                 let _ = daemon.storage.save_task(&task);
@@ -238,6 +255,7 @@ async fn submit_spec_internal(
                     thread_id: task.id.clone(),
                     author_id: "Architect".to_string(),
                     content: task.description.clone(),
+                    thought: None,
                     full_code: None,
                     post_type: axon_core::PostType::Instruction,
                     metrics: None,
@@ -479,6 +497,7 @@ async fn handle_socket(mut socket: WebSocket, daemon: Arc<Daemon>) {
 pub struct TaskRequest {
     pub task: String,
     pub project_id: Option<String>,
+    pub target_file: Option<String>,
 }
 
 #[derive(serde::Serialize)]
@@ -502,8 +521,16 @@ async fn submit_task(
         status: TaskStatus::Pending,
         dependencies: Vec::new(),
         result: None,
-        target_file: None,     // v0.0.23 added
-        error_feedback: None,  // v0.0.23 added
+        target_file: Some(req.target_file.unwrap_or_else(|| "manual_task.rs".to_string())),
+        lock_files: Vec::new(),
+        error_feedback: None,
+        rework_count: 0,
+        base_hash: None,
+        parent_task: None,
+        reason: None,
+        kind: "rust".to_string(),
+        retries: 0,
+        assigned_worker: None,
         created_at: chrono::Local::now(),
     };
 

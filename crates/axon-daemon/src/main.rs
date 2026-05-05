@@ -86,8 +86,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             status: axon_core::TaskStatus::Pending,
                             dependencies: Vec::new(),
                             result: None,
-                            target_file: None,     // v0.0.23 added
-                            error_feedback: None,  // v0.0.23 added
+                            target_file: None,
+                            lock_files: Vec::new(),
+                            error_feedback: None,
+                            rework_count: 0,
+                            base_hash: None,
+                            parent_task: None,
+                            reason: None,
+                            kind: "rust".to_string(),
+                            retries: 0,
+                            assigned_worker: None,
                             created_at: chrono::Local::now(),
                         };
                         daemon.storage.save_task(&task).expect("Failed to save task");
@@ -99,7 +107,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Run { resume, spec } => {
             println!("\n====================================================
-🏭 AXON: Automated Software Factory v0.0.23_HARDENED
+🏭 AXON: Automated Software Factory v0.0.25_BOOTSTRAP
 ====================================================
 ======================\n");
 
@@ -477,6 +485,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 (get_drv(&cfg.agents.architect), cfg.agents.architect.model.clone(), s_drvs, s_names, j_drvs, j_names)
             };
+
+            // --- Configuration Briefing (v0.0.25) ---
+            println!("\n📋 --------------------------------------");
+            let briefing_title = if final_locale == "ko_KR" { "현재 공장 가동 설정 요약" } else if final_locale == "ja_JP" { "現在の工場稼働設定の要約" } else { "Factory Configuration Briefing" };
+            println!("   [{}]", briefing_title);
+            println!("   - Architect : {}", arch_name);
+            println!("   - Seniors   : {}", senior_model_names.join(", "));
+            println!("   - Juniors   : {}", junior_model_names.join(", "));
+            println!("   - Locale    : {}", final_locale);
+            println!("------------------------------------------\n");
 
             // Stage 4: Factory Initialization (Spec)
             let stage4_title = if final_locale == "ko_KR" { "--- [Stage 4: 공장 사양 설정 (부트스트랩 메뉴)] ---" } else if final_locale == "ja_JP" { "--- [Stage 4: 工場仕様設定 (ブートストラップメニュー)] ---" } else { "--- [Stage 4: Factory Specification (Bootstrap Menu)] ---" };

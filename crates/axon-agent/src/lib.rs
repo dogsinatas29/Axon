@@ -155,10 +155,19 @@ impl AgentRuntime {
         self.locale = locale.to_string();
     }
 
-    fn extract_json(&self, raw: &str) -> Option<String> {
+    fn extract_enveloped_json(&self, raw: &str) -> Option<String> {
         let raw = raw.trim();
         if raw.is_empty() { return None; }
 
+        // Phase 1: Hard Envelope Check
+        if let Some(start_idx) = raw.find("<JSON_START>") {
+            if let Some(end_idx) = raw.rfind("<JSON_END>") {
+                let body = &raw[start_idx + "<JSON_START>".len()..end_idx];
+                return Some(body.trim().to_string());
+            }
+        }
+
+        // Phase 2: Fallback to curly braces
         let start = raw.find('{')?;
         let end = raw.rfind('}')?;
         
@@ -167,6 +176,10 @@ impl AgentRuntime {
         } else {
             None
         }
+    }
+
+    fn extract_json(&self, raw: &str) -> Option<String> {
+        self.extract_enveloped_json(raw)
     }
 
     async fn generate_with_retry(&self, prompt: String, event_bus: Option<&Arc<axon_core::events::EventBus>>, thread_id: Option<String>) -> anyhow::Result<ModelResponse> {
@@ -559,21 +572,21 @@ impl AgentRuntime {
         };
 
         let system_prompt = format!(
-            "{}### [LANGUAGE: {lang_name}] ###\n\
+            "{}\
+             ### [LANGUAGE: {lang_name}] ###\n\
              - {lang_instruction}\n\n\
              ### ROLE: CTO & CHIEF ARCHITECT (L-DDP Isolation Mode) ###\n\
              Design the system SKELETON. OUTPUT ONLY VALID JSON.\n\n\
-             ### OUTPUT RULES (STRICT CONTRACT) ###\n\
-             1. **RETURN ONLY VALID JSON**: Do not include markdown code blocks (No ```json).\n\
-             2. **NO EXPLANATIONS**: Start your response with '{{' and end with '}}'.\n\
-             3. **C-MODULARITY (1:1 PAIRING)**: For EVERY logic component (e.g., `engine`), you MUST create TWO entries in the `components` array:\n\
-                - One `.h` file (Interface).\n\
-                - One `.c` file (Implementation) which MUST list the `.h` component in its `dependencies`.\n\
-             4. **NO CONTENT**: Only prototypes ending in `;`.\n\n\
+             ### OUTPUT CONTRACT (STRICT) ###\n\
+             1. **RETURN ONLY VALID JSON**.\n\
+             2. **NO EXPLANATIONS**.\n\
+             3. **ENVELOPE**: Wrap your JSON between <JSON_START> and <JSON_END> tokens.\n\n\
              ### SOURCE SPEC ###\n\
              {}\n\n\
              ### EXPECTED JSON SCHEMA ###\n\
-             {{ \"node_mapping\": {{ \"SPEC_NODE\": \"func\" }}, \"components\": [ {{ \"name\": \"a_h\", \"file\": \"a.h\", \"functions\": [ {{ \"name\": \"f\", \"signature\": \"void f();\" }} ] }}, {{ \"name\": \"a_c\", \"file\": \"a.c\", \"dependencies\": [\"a_h\"], \"functions\": [ {{ \"name\": \"f\", \"signature\": \"void f();\" }} ] }} ] }}\n\n\
+             <JSON_START>\n\
+             {{ \"node_mapping\": {{ \"SPEC_NODE\": \"func\" }}, \"components\": [ {{ \"name\": \"a_h\", \"file\": \"a.h\", \"functions\": [ {{ \"name\": \"f\", \"signature\": \"void f();\" }} ] }}, {{ \"name\": \"a_c\", \"file\": \"a.c\", \"dependencies\": [\"a_h\"], \"functions\": [ {{ \"name\": \"f\", \"signature\": \"void f();\" }} ] }} ] }}\n\
+             <JSON_END>\n\n\
              Generate JSON Specification NOW:",
             feedback_block, processed_spec
         );
@@ -589,54 +602,69 @@ impl AgentRuntime {
                 continue;
             }
 
-            let clean_json = match self.extract_json(raw_text) {
+            // Phase 1: Direct Extraction & Parse
+            let clean_json = match self.extract_enveloped_json(raw_text) {
                 Some(j) => auto_repair_json_fuzzy(&j),
                 None => {
-                    last_err = format!("Failed to find JSON object ({{...}}) in response.");
-                    tracing::warn!("⚠️ [IR_GEN_FAIL] Attempt {}: {}\n--- RAW OUTPUT START ---\n{}\n--- RAW OUTPUT END ---", attempt, last_err, raw_text);
-                    continue;
+                    tracing::warn!("⚠️ [IR_GEN_FAIL] Attempt {}: No envelope found. Trying raw extraction...", attempt);
+                    match self.extract_json(raw_text) {
+                        Some(j) => auto_repair_json_fuzzy(&j),
+                        None => {
+                            last_err = format!("Failed to find JSON envelope or object.");
+                            tracing::warn!("⚠️ [IR_GEN_FAIL] Attempt {}: {}\nRAW: {}", attempt, last_err, raw_text);
+                            continue;
+                        }
+                    }
                 }
             };
 
             match parse_ir_from_llm_json(&clean_json) {
                 Ok(ir) => {
-                    // v0.0.26: STRICT C-LANGUAGE MODULARITY CHECK
-                    let is_c = ir.components.values().any(|c| c.file_path.ends_with(".c") || c.file_path.ends_with(".h"));
-                    if is_c {
-                        let has_headers = ir.components.values().any(|c| c.file_path.ends_with(".h"));
-                        if !has_headers {
-                            last_err = "CRITICAL_MISSING_HEADERS: Every .c module MUST have a matching .h interface. RETRYING WITH HEADER-FIRST FOCUS.".to_string();
-                            tracing::warn!("⚠️ [IR_GEN_FAIL] Attempt {}: {}. Injecting recovery prompt...", attempt, last_err);
-                            
-                            let recovery_prompt = format!("{}\n\n### 🚨 HEADER RECOVERY MODE ###\n\
-                                                           - You previously failed to generate .h headers.\n\
-                                                           - You MUST generate both .h and .c pairs for every logic component now.\n\
-                                                           - Output the FULL JSON spec with both pairs.", system_prompt);
-                            
-                            let resp = self.generate_with_retry(recovery_prompt, event_bus.as_ref(), None).await?;
-                            let raw_text = resp.text.trim();
-                            if let Some(j) = extract_json(raw_text) {
-                                let repaired = auto_repair_json_fuzzy(&j);
-                                if let Ok(new_ir) = parse_ir_from_llm_json(&repaired) {
-                                    return Ok(new_ir);
-                                }
-                            }
-                            continue;
-                        }
+                    if ir.components.is_empty() {
+                        last_err = "Empty components in IR".to_string();
+                        tracing::warn!("⚠️ [IR_GEN_FAIL] Attempt {}: {}", attempt, last_err);
+                        continue;
                     }
-                    return Ok(ir)
+                    return Ok(ir);
                 },
                 Err(e) => {
-                    let preview = if clean_json.len() > 200 { format!("{}...", &clean_json[..200]) } else { clean_json.clone() };
-                    last_err = format!("JSON Parse Error: {} | Repaired Preview: {}", e, preview);
-                    tracing::warn!("⚠️ [IR_GEN_FAIL] Attempt {}: {}. Retrying...", attempt, last_err);
-                    continue;
+                    // Phase 2: Repair Pass
+                    tracing::warn!("🛠️ [REPAIR_PASS] IR parsing failed ({}). Attempting self-repair...", e);
+                    match self.repair_ir_pass(&clean_json, e.to_string(), event_bus.clone()).await {
+                        Ok(fixed_ir) => {
+                            tracing::info!("✅ [REPAIR_SUCCESS] IR recovered via repair pass.");
+                            return Ok(fixed_ir);
+                        },
+                        Err(repair_err) => {
+                            last_err = format!("JSON_PARSE_FAIL: {} | REPAIR_FAIL: {}", e, repair_err);
+                            tracing::error!("❌ [IR_GEN_FAIL] Attempt {}: {}\nRAW: {}", attempt, last_err, raw_text);
+                        }
+                    }
                 }
             }
         }
+        Err(anyhow::anyhow!("IR_GEN_STABILIZATION_FAILED: {}", last_err))
+    }
 
-        tracing::error!("❌ [FATAL_IR_GEN_FAIL] Failed to generate valid IR after 5 attempts.");
-        Err(anyhow::anyhow!("Architect failed to generate valid IR JSON. Last error: {}", last_err))
+    async fn repair_ir_pass(&self, broken_json: &str, error_msg: String, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::ir::ProjectIR> {
+        let prompt = format!(
+            "[ROLE]\nYou are a JSON Repair Expert.\n\n\
+             [TASK]\nFix the following invalid JSON IR according to the schema.\n\n\
+             [ERROR FROM PARSER]\n{}\n\n\
+             [BROKEN JSON]\n{}\n\n\
+             [CONSTRAINTS]\n\
+             - Output ONLY valid JSON between <JSON_START> and <JSON_END>.\n\
+             - Do not add explanations.\n\
+             - Preserve the original architecture intent.\n\n\
+             Fixed JSON:",
+            error_msg, broken_json
+        );
+
+        let resp = self.generate_with_retry(prompt, event_bus.as_ref(), None).await?;
+        let fixed_str = self.extract_enveloped_json(&resp.text).ok_or_else(|| anyhow::anyhow!("Repair failed to produce enveloped JSON"))?;
+        
+        let ir: axon_core::ir::ProjectIR = serde_json::from_str(&fixed_str)?;
+        Ok(ir)
     }
 
     pub async fn repair_ir(&self, ir: &axon_core::ir::ProjectIR, errors: &[String], event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::ir::ProjectIR> {

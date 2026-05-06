@@ -103,7 +103,15 @@ impl ModelDriver for GeminiDriver {
 
     async fn generate(&self, prompt: String) -> Result<ModelResponse, Box<dyn std::error::Error + Send + Sync>> {
         let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", self.model_name, self.api_key);
-        let body = serde_json::json!({"contents": [{"parts": [{"text": prompt}]}]});
+        let body = serde_json::json!({
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.0,
+                "topP": 1.0,
+                "maxOutputTokens": 4096,
+                "stopSequences": ["<JSON_END>", "###", "\n\n["]
+            }
+        });
         
         let mut retries = 5;
         loop {
@@ -175,7 +183,9 @@ impl ModelDriver for ClaudeDriver {
             .json(&serde_json::json!({
                 "model": self.model_name,
                 "max_tokens": 4096,
-                "messages": [{"role": "user", "content": prompt}]
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.0,
+                "stop_sequences": ["<JSON_END>", "###"]
             })).send().await?;
         let res_json: serde_json::Value = response.json().await?;
         let text = res_json["content"][0]["text"].as_str().ok_or("Failed Claude extraction")?;
@@ -211,7 +221,9 @@ impl ModelDriver for OpenAIDriver {
             .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&serde_json::json!({
                 "model": self.model_name,
-                "messages": [{"role": "user", "content": prompt}]
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.0,
+                "stop": ["<JSON_END>", "###"]
             })).send().await?;
         let res_json: serde_json::Value = response.json().await?;
         let text = res_json["choices"][0]["message"]["content"].as_str().ok_or("Failed OpenAI extraction")?;
@@ -265,7 +277,6 @@ impl ModelDriver for OllamaDriver {
         let is_small = model_lower.contains("qwen") || model_lower.contains("gemma") || model_lower.contains("1.8b") || model_lower.contains("2b");
         
         let num_ctx = if is_small { 8192 } else { 32768 };
-        let stop: Vec<String> = vec![]; // Remove problematic stop tokens
 
         let body = serde_json::json!({
             "model": self.model_name,
@@ -273,8 +284,9 @@ impl ModelDriver for OllamaDriver {
             "stream": false,
             "options": {
                 "num_ctx": num_ctx,
-                "stop": stop,
-                "temperature": 0.0
+                "stop": ["<JSON_END>", "###", "\n\n["],
+                "temperature": 0.0,
+                "top_p": 1.0
             }
         });
 

@@ -38,6 +38,8 @@ export interface Post {
   author_id: string; // Agent ID or "BOSS"
   content: string;
   post_type: PostType;
+  thought?: string;
+  full_code?: string;
   created_at: string;
 }
 
@@ -65,7 +67,14 @@ export interface Event {
   id: string;
   thread_id?: string;
   agent_id?: string;
-  event_type: 'ThreadCreated' | 'ThreadStatusChanged' | 'PostAdded' | 'PatchCreated' | 'AgentAction' | 'SystemLog' | 'Signal';
+  source?: string;
+  event_type: 
+    | 'ThreadCreated' | 'ThreadAssigned' | 'ThreadStarted' | 'ThreadCompleted'
+    | 'PostAdded' | 'MessagePosted'
+    | 'PatchCreated' | 'ArtifactCreated'
+    | 'ApprovalRequested' | 'ApprovalGranted' | 'ApprovalRejected'
+    | 'AgentAssigned' | 'SystemLog' | 'SystemWarning' | 'Signal'
+    | 'ThreadStatusChanged' | 'AgentAction' | 'AgentResponse'; // v0.0.25 Extended Types
   content: string;
   timestamp: string;
 }

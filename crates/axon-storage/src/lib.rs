@@ -34,6 +34,8 @@ impl Storage {
 
     fn init_schema(&self) -> Result<()> {
         let conn = self.conn.lock().unwrap();
+        
+        // 1. Core Tables
         conn.execute(
             "CREATE TABLE IF NOT EXISTS tasks (
                 id TEXT PRIMARY KEY,
@@ -46,100 +48,6 @@ impl Storage {
             )",
             [],
         )?;
-
-        // Migration: Add result and dependencies to tasks if they don't exist
-        let _ = conn.execute("ALTER TABLE tasks ADD COLUMN result TEXT", []);
-        let _ = conn.execute("ALTER TABLE tasks ADD COLUMN dependencies TEXT", []);
-        // v0.0.23: Hardened Migration - Ensure columns exist in 'tasks' table
-        let table_info: Vec<String> = conn
-            .prepare("PRAGMA table_info(tasks)")?
-            .query_map([], |row| row.get(1))?
-            .collect::<Result<Vec<String>, _>>()?;
-
-        // v0.0.25: HARDENED - Enforce target_file NOT NULL via table migration
-        let is_nullable = if let Ok(mut stmt) = conn.prepare("PRAGMA table_info(tasks)") {
-            let rows = stmt.query_map([], |row| {
-                Ok((row.get::<_, String>(1)?, row.get::<_, i32>(3)?))
-            })?;
-            let mut nullable = true;
-            for row in rows {
-                if let Ok((name, not_null)) = row {
-                    if name == "target_file" && not_null == 1 {
-                        nullable = false;
-                    }
-                }
-            }
-            nullable
-        } else { true };
-
-        if !table_info.contains(&"target_file".to_string()) || is_nullable {
-            tracing::info!("🛠️ [DB_MIGRATION] Enforcing NOT NULL on tasks.target_file...");
-            
-            let select_target = if table_info.contains(&"target_file".to_string()) {
-                "COALESCE(target_file, 'STUB_RECOVERED')"
-            } else {
-                "'STUB_RECOVERED'"
-            };
-
-            let select_error = if table_info.contains(&"error_feedback".to_string()) {
-                "error_feedback"
-            } else {
-                "NULL"
-            };
-
-            let select_deps = if table_info.contains(&"dependencies".to_string()) {
-                "dependencies"
-            } else {
-                "NULL"
-            };
-
-            let migration_sql = format!("
-                BEGIN TRANSACTION;
-                CREATE TABLE tasks_new (
-                    id TEXT PRIMARY KEY,
-                    project_id TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    target_file TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    result TEXT,
-                    error_feedback TEXT,
-                    rework_count INTEGER NOT NULL DEFAULT 0,
-                    base_hash TEXT,
-                    lock_files TEXT,
-                    parent_task TEXT,
-                    reason TEXT,
-                    kind TEXT NOT NULL DEFAULT 'unknown',
-                    retries INTEGER NOT NULL DEFAULT 0,
-                    assigned_worker TEXT,
-                    created_at TEXT NOT NULL,
-                    dependencies TEXT,
-                    senior_comment TEXT
-                );
-                INSERT OR IGNORE INTO tasks_new (id, project_id, title, description, target_file, lock_files, status, result, error_feedback, rework_count, base_hash, parent_task, reason, kind, retries, assigned_worker, created_at, dependencies, senior_comment)
-                SELECT id, project_id, title, description, {}, '[]', status, result, {}, 0, NULL, NULL, NULL, 'unknown', 0, NULL, created_at, {}, NULL FROM tasks;
-                DROP TABLE tasks;
-                ALTER TABLE tasks_new RENAME TO tasks;
-                COMMIT;
-            ", select_target, select_error, select_deps);
-
-            conn.execute_batch(&migration_sql)?;
-        }
-
-        // Refresh table_info after potential migration
-        let table_info: Vec<String> = conn
-            .prepare("PRAGMA table_info(tasks)")?
-            .query_map([], |row| row.get(1))?
-            .collect::<Result<Vec<String>, _>>()?;
-        if !table_info.contains(&"error_feedback".to_string()) {
-            conn.execute("ALTER TABLE tasks ADD COLUMN error_feedback TEXT", [])?;
-            tracing::info!("🛡️ [STORAGE_MIGRATION] Added 'error_feedback' column to 'tasks' table.");
-        }
-        
-        if !table_info.contains(&"senior_comment".to_string()) {
-            conn.execute("ALTER TABLE tasks ADD COLUMN senior_comment TEXT", [])?;
-            tracing::info!("🛡️ [STORAGE_MIGRATION] Added 'senior_comment' column to 'tasks' table.");
-        }
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS threads (
@@ -161,19 +69,59 @@ impl Storage {
                 thread_id TEXT NOT NULL,
                 author_id TEXT NOT NULL,
                 content TEXT NOT NULL,
-                full_code TEXT,
                 post_type TEXT NOT NULL,
-                metrics TEXT,
                 created_at TEXT NOT NULL
             )",
             [],
         )?;
 
-        // Migration: Add full_code, metrics, and thought if they don't exist
-        let _ = conn.execute("ALTER TABLE posts ADD COLUMN full_code TEXT", []);
-        let _ = conn.execute("ALTER TABLE posts ADD COLUMN metrics TEXT", []);
-        let _ = conn.execute("ALTER TABLE posts ADD COLUMN thought TEXT", []);
+        // 2. [DB_MIGRATION] Incremental Column Addition
+        let table_info_tasks: Vec<String> = conn
+            .prepare("PRAGMA table_info(tasks)")?
+            .query_map([], |row| row.get(1))?
+            .collect::<Result<Vec<String>, _>>()?;
 
+        let tasks_columns = vec![
+            ("target_file", "TEXT NOT NULL DEFAULT 'STUB'"),
+            ("dependencies", "TEXT DEFAULT '[]'"),
+            ("error_feedback", "TEXT"),
+            ("senior_comment", "TEXT"),
+            ("rework_count", "INTEGER DEFAULT 0"),
+            ("base_hash", "TEXT"),
+            ("parent_task", "TEXT"),
+            ("reason", "TEXT"),
+            ("kind", "TEXT DEFAULT 'rust'"),
+            ("retries", "INTEGER DEFAULT 0"),
+            ("assigned_worker", "TEXT"),
+            ("lock_files", "TEXT DEFAULT '[]'"),
+        ];
+
+        for (col_name, col_type) in tasks_columns {
+            if !table_info_tasks.contains(&col_name.to_string()) {
+                tracing::info!("🛠️ [DB_MIGRATION:tasks] Adding missing column: {}", col_name);
+                let _ = conn.execute(&format!("ALTER TABLE tasks ADD COLUMN {} {}", col_name, col_type), []);
+            }
+        }
+
+        let table_info_posts: Vec<String> = conn
+            .prepare("PRAGMA table_info(posts)")?
+            .query_map([], |row| row.get(1))?
+            .collect::<Result<Vec<String>, _>>()?;
+
+        let posts_columns = vec![
+            ("thought", "TEXT"),
+            ("full_code", "TEXT"),
+            ("metrics", "TEXT"),
+        ];
+
+        for (col_name, col_type) in posts_columns {
+            if !table_info_posts.contains(&col_name.to_string()) {
+                tracing::info!("🛠️ [DB_MIGRATION:posts] Adding missing column: {}", col_name);
+                let _ = conn.execute(&format!("ALTER TABLE posts ADD COLUMN {} {}", col_name, col_type), []);
+            }
+        }
+
+        // 3. Auxiliary Tables
         conn.execute(
             "CREATE TABLE IF NOT EXISTS agents (
                 id TEXT PRIMARY KEY,
@@ -213,6 +161,16 @@ impl Storage {
             )",
             [],
         )?;
+
+        let table_info_event: Vec<String> = conn
+            .prepare("PRAGMA table_info(event_log)")?
+            .query_map([], |row| row.get(1))?
+            .collect::<Result<Vec<String>, _>>()?;
+
+        if !table_info_event.contains(&"source".to_string()) {
+            tracing::info!("🛠️ [DB_MIGRATION:event_log] Adding missing column: source");
+            let _ = conn.execute("ALTER TABLE event_log ADD COLUMN source TEXT NOT NULL DEFAULT 'daemon'", []);
+        }
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS agent_stats_store (
@@ -254,7 +212,7 @@ impl Storage {
                 success_rate REAL DEFAULT 0.0,
                 avg_retries REAL DEFAULT 0.0,
                 total_tasks INTEGER DEFAULT 0,
-                specialization_json TEXT, -- HashMap<TaskKind, f32>
+                specialization_json TEXT,
                 last_updated TEXT
             )",
             [],
@@ -267,16 +225,14 @@ impl Storage {
                 fix_strategy TEXT NOT NULL,
                 confidence REAL DEFAULT 0.0,
                 occurrences INTEGER DEFAULT 0,
-                state TEXT NOT NULL, -- Candidate, Validated, Promoted
+                state TEXT NOT NULL,
                 created_at TEXT NOT NULL
             )",
             [],
         )?;
 
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_file_locks_expiry ON file_locks(lease_expiry)",
-            [],
-        )?;
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_file_locks_expiry ON file_locks(lease_expiry)", [])?;
+        
         Ok(())
     }
 
@@ -563,6 +519,40 @@ impl Storage {
         }
     }
 
+    pub fn get_task_by_title(&self, project_id: &str, title: &str) -> Result<Option<axon_core::Task>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, dependencies, result, target_file, lock_files, error_feedback, rework_count, base_hash, created_at, parent_task, reason, assigned_worker, kind, retries, senior_comment FROM tasks WHERE project_id = ?1 AND title = ?2")?;
+        let mut task_iter = stmt.query_map(params![project_id, title], |row| {
+            Ok(axon_core::Task {
+                id: row.get(0)?,
+                project_id: row.get(1)?,
+                title: row.get(2)?,
+                description: row.get(3)?,
+                status: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(4)?)).unwrap_or(axon_core::TaskStatus::Pending),
+                dependencies: serde_json::from_str(&row.get::<_, String>(5).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
+                result: row.get(6)?,
+                target_file: row.get(7)?,
+                lock_files: serde_json::from_str(&row.get::<_, String>(8).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
+                error_feedback: row.get(9)?,
+                rework_count: row.get(10)?,
+                base_hash: row.get(11)?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(12)?).unwrap().with_timezone(&Local),
+                parent_task: row.get(13)?,
+                reason: row.get(14)?,
+                assigned_worker: row.get(15)?,
+                kind: row.get(16)?,
+                retries: row.get(17)?,
+                senior_comment: row.get(18)?,
+            })
+        })?;
+
+        if let Some(task) = task_iter.next() {
+            Ok(Some(task?))
+        } else {
+            Ok(None)
+        }
+    }
+
     pub fn save_agent_stats(&self, agent_id: &str, success: usize, fail: usize, latencies_json: &str) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
@@ -787,5 +777,29 @@ impl Storage {
             }
         }
         Ok(stats)
+    }
+
+    pub fn list_events(&self, limit: usize) -> Result<Vec<axon_core::Event>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT id, project_id, thread_id, agent_id, event_type, source, content, payload, created_at FROM event_log ORDER BY created_at DESC LIMIT ?1")?;
+        let event_iter = stmt.query_map(params![limit as i64], |row| {
+            Ok(axon_core::Event {
+                id: row.get(0)?,
+                project_id: row.get(1)?,
+                thread_id: row.get(2)?,
+                agent_id: row.get(3)?,
+                event_type: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(4)?)).unwrap_or(axon_core::EventType::SystemLog),
+                source: row.get(5)?,
+                content: row.get(6)?,
+                payload: row.get::<_, Option<String>>(7)?.and_then(|s| serde_json::from_str(&s).ok()),
+                timestamp: DateTime::parse_from_rfc3339(&row.get::<_, String>(8)?).unwrap().with_timezone(&Local),
+            })
+        })?;
+
+        let mut events = Vec::new();
+        for event in event_iter {
+            events.push(event?);
+        }
+        Ok(events)
     }
 }

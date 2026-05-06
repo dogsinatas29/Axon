@@ -35,18 +35,21 @@ const Lounge: React.FC<LoungeProps> = ({ events }) => {
         <Terminal size={14} color="var(--text-dim)" />
       </div>
       <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8rem' }}>
-        {events.map((ev) => (
-          <div key={ev.id} style={{ borderLeft: '2px solid rgba(255,255,255,0.05)', paddingLeft: '0.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
-               <span style={{ color: 'var(--accent-primary)', fontSize: '0.7rem', fontWeight: 'bold' }}>{ev.event_type}</span>
-               <span style={{ color: 'var(--text-dim)', fontSize: '0.6rem' }}>{new Date(ev.timestamp).toLocaleTimeString()}</span>
+        {events.filter(ev => ev.event_type === 'MessagePosted').map((ev) => (
+          <div key={ev.id} style={{ borderLeft: '2px solid var(--accent-primary)', paddingLeft: '1rem', marginBottom: '1rem', background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+               <span style={{ color: 'var(--accent-primary)', fontSize: '0.75rem', fontWeight: 'bold' }}>{ev.source || 'AGENT'}</span>
+               <span style={{ color: 'var(--text-dim)', fontSize: '0.65rem' }}>{new Date(ev.timestamp).toLocaleTimeString()}</span>
             </div>
-            <span style={{ color: 'var(--text-main)', lineHeight: '1.4' }}>{ev.content}</span>
+            <div style={{ color: 'var(--text-main)', lineHeight: '1.6', fontSize: '0.9rem', fontStyle: 'italic' }}>
+              {ev.content.replace('💬', '').trim()}
+            </div>
           </div>
         ))}
-        {events.length === 0 && (
-            <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.7rem', marginTop: '1rem' }}>
-                Waiting for agent signals...
+        {events.filter(ev => ev.event_type === 'MessagePosted').length === 0 && (
+            <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.8rem', marginTop: '2rem', opacity: 0.5 }}>
+                <MessageSquare size={32} style={{ marginBottom: '1rem', opacity: 0.2 }} />
+                <p>에이전트들이 작업에 집중하고 있습니다.<br/>잠시 후 노가리가 시작됩니다...</p>
             </div>
         )}
       </div>

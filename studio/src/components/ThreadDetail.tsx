@@ -47,7 +47,37 @@ const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, onApprove 
       .replace(/\\n/g, '\n')
       .replace(/\\t/g, '\t');
 
-    // 2. Detect Diff/Patch or Code block
+    // 2. Detect Code Block (Markdown style)
+    if (processed.includes('```')) {
+      const parts = processed.split('```');
+      return (
+        <div className="thought-content">
+          {parts.map((part, idx) => {
+            if (idx % 2 === 1) {
+              // This is code
+              const lines = part.split('\n');
+              const lang = lines[0].trim();
+              const code = lines.slice(1).join('\n');
+              return (
+                <div key={idx} className="code-block-container">
+                  <div className="code-header">{lang || 'code'}</div>
+                  <pre className="code-content"><code>{code}</code></pre>
+                </div>
+              );
+            } else {
+              // This is text
+              return part.split('\n').map((line, i) => (
+                <p key={`${idx}-${i}`} style={{ marginBottom: line ? '0.5rem' : '1rem' }}>
+                  {line}
+                </p>
+              ));
+            }
+          })}
+        </div>
+      );
+    }
+
+    // 3. Detect Diff/Patch
     const isDiff = processed.includes('@@') || processed.includes('diff --git');
     
     if (isDiff) {
@@ -71,7 +101,7 @@ const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, onApprove 
       );
     }
 
-    // 3. Regular text with line breaks (thought/reasoning)
+    // 4. Regular text with line breaks
     return (
       <div className="thought-content">
         {processed.split('\n').map((line, i) => (

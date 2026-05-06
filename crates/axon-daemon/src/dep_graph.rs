@@ -71,6 +71,7 @@ impl DepGraph {
     /// Build initial graph from architecture.md JSON components
     pub fn build_from_ir(&mut self, ir: &serde_json::Value) {
         if let Some(components) = ir.get("components").and_then(|c| c.as_array()) {
+            // First pass: Add all nodes
             for comp in components {
                 let comp_name = comp.get("name").and_then(|n| n.as_str()).unwrap_or("unknown");
                 let comp_role = match comp.get("role").and_then(|v| v.as_str()) {
@@ -83,20 +84,104 @@ impl DepGraph {
 
                 if let Some(file_path) = comp.get("file").and_then(|f| f.as_str()) {
                     let file_id = format!("file:{}", file_path);
-                    self.add_node(&file_id, NodeType::File, comp_role); // File inherits component role
-                    self.add_edge(&comp_id, &file_id); // Component owns file
+                    self.add_node(&file_id, NodeType::File, comp_role);
+                    self.add_edge(&comp_id, &file_id);
 
                     if let Some(funcs) = comp.get("functions").and_then(|f| f.as_array()) {
                         for func in funcs {
                             let func_name = func.get("name").and_then(|n| n.as_str()).unwrap_or("unknown");
                             let func_id = format!("func:{}::{}", file_path, func_name);
                             self.add_node(&func_id, NodeType::Function, comp_role);
-                            self.add_edge(&file_id, &func_id); // File defines function
+                            self.add_edge(&file_id, &func_id);
+                        }
+                    }
+                }
+            }
+
+            // Second pass: Add edges between components
+            for comp in components {
+                let comp_name = comp.get("name").and_then(|n| n.as_str()).unwrap_or("unknown");
+                let comp_id = format!("comp:{}", comp_name);
+                if let Some(deps) = comp.get("dependencies").and_then(|d| d.as_array()) {
+                    for dep in deps {
+                        if let Some(dep_name) = dep.as_str() {
+                            let dep_id = format!("comp:{}", dep_name);
+                            self.add_edge(&comp_id, &dep_id);
                         }
                     }
                 }
             }
         }
+    }
+
+    pub fn generate_cmake(&self, project_name: &str) -> String {
+        let mut out = String::new();
+        out.push_str("# AXON AUTO-GENERATED CMAKE\n");
+        out.push_str("cmake_minimum_required(VERSION 3.10)\n");
+        out.push_str(&format!("project({})\n\n", project_name));
+        out.push_str("set(CMAKE_C_STANDARD 99)\n");
+        out.push_str("set(CMAKE_CXX_STANDARD 17)\n\n");
+
+        let mut libraries = Vec::new();
+        let mut executables = Vec::new();
+        let mut target_deps: HashMap<String, Vec<String>> = HashMap::new();
+
+        for (node_id, node) in &self.nodes {
+            if let NodeType::Component = node.node_type {
+                let comp_name = node_id.replace("comp:", "");
+                
+                // Target classification: Check if any of its functions is 'main'
+                let is_exe = if let Some(edges) = self.edges_out.get(node_id) {
+                    edges.iter().any(|eid| {
+                        if let Some(file_edges) = self.edges_out.get(eid) {
+                            file_edges.iter().any(|fid| fid.contains("::main"))
+                        } else { false }
+                    })
+                } else { false };
+
+                let src_file = if let Some(edges) = self.edges_out.get(node_id) {
+                    edges.iter()
+                        .find(|eid| eid.starts_with("file:"))
+                        .map(|eid| eid.replace("file:", ""))
+                        .unwrap_or_else(|| format!("{}.c", comp_name))
+                } else {
+                    format!("{}.c", comp_name)
+                };
+
+                if is_exe {
+                    executables.push((comp_name.clone(), src_file));
+                } else {
+                    libraries.push((comp_name.clone(), src_file));
+                }
+
+                // Link dependencies
+                if let Some(edges) = self.edges_out.get(node_id) {
+                    let mut deps = Vec::new();
+                    for eid in edges {
+                        if eid.starts_with("comp:") {
+                            deps.push(eid.replace("comp:", ""));
+                        }
+                    }
+                    if !deps.is_empty() {
+                        target_deps.insert(comp_name.clone(), deps);
+                    }
+                }
+            }
+        }
+
+        // Output order: Libraries first, then Executables, then Linking
+        for (name, src) in libraries {
+            out.push_str(&format!("add_library({} {})\n", name, src));
+        }
+        for (name, src) in executables {
+            out.push_str(&format!("add_executable({} {})\n", name, src));
+        }
+        out.push('\n');
+        for (name, deps) in target_deps {
+            out.push_str(&format!("target_link_libraries({} PRIVATE {})\n", name, deps.join(" ")));
+        }
+
+        out
     }
 
     /// Parse code to find explicit dependencies (e.g., 'use' statements in Rust)

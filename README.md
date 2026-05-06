@@ -76,6 +76,12 @@
 
 AXON is a high-performance, deterministic AI agent factory designed to transform architectural specifications into production-ready code with 100% physical integrity.
 
+### 🌍 Language-Agnostic Factory Engine
+AXON is built to be technologically neutral. It doesn't just generate code; it orchestrates entire software ecosystems regardless of the underlying language.
+- **Multi-Stack Support**: Native, hardened support for **Rust, Python, and C** (v0.0.25+), with structural support for any language through explicit IR extensions.
+- **Polyglot IR**: The Architectural Intermediate Representation (IR) treats language-specific constraints as parameters, allowing for seamless cross-language project management.
+- **Unified Protocol**: A standardized patch and validation protocol that ensures 100% code purity and integrity across diverse technology stacks.
+
 ## 🧠 Core Philosophy: "Code as a Result of Architecture"
 AXON treats coding not as a creative writing task, but as a **Deterministic Materialization** process.
 - **SSOT (Single Source of Truth)**: The Architecture IR is the law.
@@ -166,6 +172,12 @@ AXON uses a **Feedback-Driven Correction** mechanism to handle runtime and logic
 2. **Context Injection**: The failure data is injected back into the Junior's prompt for the next iteration.
 3. **Self-Correction**: The Junior attempts to fix the code based on the actual physical feedback, reducing token waste.
 
+### 📡 Real-time Signal & Log Management
+<p align="center">
+  <img src="./asset/signals_view.png" alt="Signals View" width="800">
+</p>
+*Figure 6. AXON Real-time Signals: A dedicated operational log board that captures every system event, from bootstrap stages to thread creation and agent responses. By isolating technical logs from the Lounge, AXON provides clear, high-density traceability for factory management.*
+
 <a name="senior-review-protocol"></a>
 ### 🏛️ Senior Review Protocol (The 3 Pillars)
 
@@ -251,11 +263,12 @@ Also, you can inject personas into the hired agents.
 
 ## 📋 Release Notes
 
-### v0.0.25 - Bootstrap Hardening (The Great Wall)
-- **Markdown Elimination**: Automated stripping of backticks (```) in Agent Parser to ensure 100% source code purity.
-- **Scope Control (Phase 2)**: Real-time detection and rejection of forbidden patterns (`mod`, `use crate`, `../`, etc.).
-- **Physical Write Gate**: Mandatory restriction of file system commits to the assigned `target_file` only.
-- **Execution Validator Optimization**: Harness runs only on the final node of the dependency chain, reducing validation noise by 80%.
+### v0.0.25 - The Universal Factory (Phase 0-8)
+- **Language-Agnostic Engine**: Full native support for **C, Rust, and Python** projects with automatic entry point detection.
+- **Lounge (Vibe) System**: Real-time broadcasting of agent thoughts to the `#lounge` channel without polluting source files.
+- **Atomic Write Hardening**: Guaranteed code integrity through function-signature preservation and mandatory physical validation gates.
+- **Studio UI Isolation**: Strictly separated work boards and global system channels for a focused development experience.
+- **Scope Control (Phase 2)**: Real-time detection and rejection of forbidden patterns to ensure architectural compliance.
 
 ### v0.0.24 - Factory Pipeline Hardening & i18n
 - **Parallel Race Condition Fix**: Refactored `STE_SHIELD` and `WRITE_GATE` to validate against 'Initial Simulated State' instead of physical disk, enabling stable multi-worker execution.

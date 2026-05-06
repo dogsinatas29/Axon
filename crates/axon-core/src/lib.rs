@@ -128,7 +128,7 @@ impl Agent {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]
 pub enum EventType {
     // Thread Events
     ThreadCreated,

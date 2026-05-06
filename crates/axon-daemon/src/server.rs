@@ -70,13 +70,15 @@ pub async fn start_server(daemon: Arc<Daemon>) -> Result<(), Box<dyn std::error:
         .route("/api/tasks", get(list_tasks))
         .route("/api/pause", post(pause_daemon))
         .route("/api/resume", post(resume_daemon))
-        .route("/api/status", get(get_status))
+        .route("/api/posts", get(list_posts))
+        .route("/api/events", get(get_events))
         .route("/api/agents", get(list_agents_api))
         .route("/api/agents/hire", post(hire_agent))
         .route("/api/agents/:id/fire", post(fire_agent))
         // PHASE_11: Standard API Interface
         .route("/submit", post(submit_task))
         .route("/api/tasks/:id", get(get_task_api))
+        .route("/api/status", get(get_status))
         .route("/health", get(health_check))
         .route("/queue", get(get_queue_api))
         .nest_service("/", ServeDir::new(studio_path))
@@ -114,6 +116,13 @@ async fn list_posts(
 ) -> Json<Vec<axon_core::Post>> {
     let posts = daemon.storage.list_posts_by_thread(&id).unwrap_or_default();
     Json(posts)
+}
+
+async fn get_events(
+    State(daemon): State<Arc<Daemon>>,
+) -> impl IntoResponse {
+    let events = daemon.storage.list_events(100).unwrap_or_default();
+    Json(events)
 }
 
 async fn list_tasks(
@@ -173,6 +182,7 @@ async fn submit_spec_internal(
                         target_file: t["target_file"].as_str().map(|s| s.to_string()),
                         lock_files: Vec::new(),
                         error_feedback: None,
+                        senior_comment: None,
                         rework_count: 0,
                         base_hash: None,
                         parent_task: None,
@@ -196,7 +206,7 @@ async fn submit_spec_internal(
                     };
                     let _ = daemon.storage.save_thread(&thread);
 
-                    let post = axon_core::Post {
+                    let new_post = axon_core::Post {
                         id: uuid::Uuid::new_v4().to_string(),
                         thread_id: task.id.clone(),
                         author_id: "Architect".to_string(),
@@ -207,7 +217,20 @@ async fn submit_spec_internal(
                         metrics: None,
                         created_at: task.created_at,
                     };
-                    let _ = daemon.storage.save_post(&post);
+                    let _ = daemon.storage.save_post(&new_post);
+                    
+                    // v0.0.25: Notify UI immediately via WebSocket
+                    daemon.publish_event(axon_core::Event {
+                        id: uuid::Uuid::new_v4().to_string(),
+                        project_id: task.project_id.clone(),
+                        thread_id: Some(task.id.clone()),
+                        agent_id: None,
+                        event_type: axon_core::EventType::ThreadCreated,
+                        source: "architect".to_string(),
+                        content: format!("🆕 New strategic thread created: {}", task.title),
+                        payload: None,
+                        timestamp: chrono::Local::now(),
+                    });
 
                     if let Err(e) = daemon.dispatcher.enqueue_task(task) {
                         tracing::error!("❌ [QUEUE_REJECTED] via API: {}", e);
@@ -227,6 +250,7 @@ async fn submit_spec_internal(
                     target_file: Some("pending_recovery.rs".to_string()),
                     lock_files: Vec::new(),
                     error_feedback: None,
+                    senior_comment: None,
                     rework_count: 0,
                     base_hash: None,
                     parent_task: None,
@@ -250,7 +274,7 @@ async fn submit_spec_internal(
                 };
                 let _ = daemon.storage.save_thread(&thread);
 
-                let post = axon_core::Post {
+                let new_post = axon_core::Post {
                     id: uuid::Uuid::new_v4().to_string(),
                     thread_id: task.id.clone(),
                     author_id: "Architect".to_string(),
@@ -261,7 +285,7 @@ async fn submit_spec_internal(
                     metrics: None,
                     created_at: task.created_at,
                 };
-                let _ = daemon.storage.save_post(&post);
+                let _ = daemon.storage.save_post(&new_post);
 
                 if let Err(e) = daemon.dispatcher.enqueue_task(task) {
                     tracing::error!("❌ [QUEUE_REJECTED] via API: {}", e);
@@ -288,7 +312,7 @@ async fn approve_thread(
         // Lock-in architecture section (v0.0.16 Isolation Path applied)
         let _ = daemon.lock_in_architecture(&thread.project_id, &thread.title);
 
-        daemon.event_bus.publish(axon_core::Event {
+        daemon.publish_event(axon_core::Event {
             id: uuid::Uuid::new_v4().to_string(),
             project_id: thread.project_id.clone(),
             thread_id: Some(id),
@@ -310,7 +334,7 @@ async fn pause_daemon(
     State(daemon): State<Arc<Daemon>>,
 ) -> impl IntoResponse {
     let _ = daemon.pause_tx.send(true);
-    daemon.event_bus.publish(axon_core::Event {
+    daemon.publish_event(axon_core::Event {
         id: uuid::Uuid::new_v4().to_string(),
         project_id: "system".to_string(),
         thread_id: None,
@@ -328,7 +352,7 @@ async fn resume_daemon(
     State(daemon): State<Arc<Daemon>>,
 ) -> impl IntoResponse {
     let _ = daemon.pause_tx.send(false);
-    daemon.event_bus.publish(axon_core::Event {
+    daemon.publish_event(axon_core::Event {
         id: uuid::Uuid::new_v4().to_string(),
         project_id: "system".to_string(),
         thread_id: None,
@@ -344,8 +368,9 @@ async fn resume_daemon(
 
 #[derive(serde::Serialize)]
 struct StatusResponse {
-    is_paused: bool,
+    is_running: bool,
     active_threads: usize,
+    total_signals: usize,
     locale: String,
 }
 
@@ -353,10 +378,23 @@ async fn get_status(
     State(daemon): State<Arc<Daemon>>,
 ) -> Json<StatusResponse> {
     let is_paused = *daemon.pause_rx.borrow();
+    
+    // v0.0.25: Strategic sync - robust filtering of non-work threads
     let threads = daemon.storage.list_runnable_threads().unwrap_or_default();
+    let strategic_threads = threads.iter().filter(|t| {
+        let is_lounge = t.id == "lounge" || t.title.contains("Lounge");
+        let is_system = t.project_id == "system" || t.project_id == "AXON-SYSTEM";
+        !is_lounge && !is_system
+    }).count();
+    
+    // v0.0.25: Clean signal count - exclude Nogari chat logs from the factory overview stats
+    let events = daemon.storage.list_events(1000).unwrap_or_default();
+    let process_signals = events.iter().filter(|e| e.event_type != axon_core::EventType::MessagePosted).count();
+    
     Json(StatusResponse {
-        is_paused,
-        active_threads: threads.len(),
+        is_running: !is_paused,
+        active_threads: strategic_threads,
+        total_signals: process_signals,
         locale: daemon.locale.clone(),
     })
 }
@@ -401,7 +439,7 @@ async fn hire_agent(
     
     let _ = daemon.storage.save_agent(&runtime.agent);
     
-    daemon.event_bus.publish(axon_core::Event {
+    daemon.publish_event(axon_core::Event {
         id: uuid::Uuid::new_v4().to_string(),
         project_id: "system".to_string(),
         thread_id: None,
@@ -442,14 +480,14 @@ async fn fire_agent(
 
         let _ = daemon.storage.delete_agent(&id);
         
-        daemon.event_bus.publish(axon_core::Event {
+        daemon.publish_event(axon_core::Event {
             id: uuid::Uuid::new_v4().to_string(),
             project_id: "system".to_string(),
             thread_id: None,
             agent_id: Some(id.clone()),
-            event_type: axon_core::EventType::SystemWarning,
+            event_type: axon_core::EventType::SystemLog,
             source: "daemon".to_string(),
-            content: format!("Agent {} fired. Cascading deletion applied to subordinates.", agent.name),
+            content: format!("Agent {} (and all its subordinates) fired.", agent.name),
             payload: None,
             timestamp: chrono::Local::now(),
         });
@@ -524,6 +562,7 @@ async fn submit_task(
         target_file: Some(req.target_file.unwrap_or_else(|| "manual_task.rs".to_string())),
         lock_files: Vec::new(),
         error_feedback: None,
+        senior_comment: None,
         rework_count: 0,
         base_hash: None,
         parent_task: None,

@@ -239,7 +239,7 @@ impl AgentRuntime {
 
     pub async fn process_task(&self, task: &Task, architecture_guide: &str, error_feedback: Option<String>, event_bus: Option<Arc<axon_core::events::EventBus>>, existing_code: &str) -> anyhow::Result<Post> {
         let (lang_name, lang_instruction) = match self.locale.as_str() {
-            "ko_KR" => ("한국어 (Korean)", "모든 주석과 출력 문자열은 반드시 한국어(Korean)로 작성하십시오. 절대 중국어(Chinese)를 사용하지 마십시오."),
+            "ko_KR" => ("한국어 (Korean)", "생각(Thought), 노가리(Lounge), 주석, 로그 등 모든 텍스트 응답은 반드시 한국어(Korean)로 작성하십시오. 한국어가 최우선 순위이며, 영어(English)는 절대 금지입니다."),
             "ja_JP" => ("日本語 (Japanese)", "すべてのコメントと出力文字列は 반드시 日本語で作成してください。中国語は絶対に使用しないでください。"),
             _ => ("English", "All comments and output strings must be written in English. Do not use any other languages."),
         };
@@ -284,11 +284,15 @@ impl AgentRuntime {
 
             // 1. Find the section index that contains the target_file
             for (i, line) in lines.iter().enumerate() {
-                // Precise match to avoid picking up similar filenames in comments
-                if line.contains(target_file) && (line.contains("- **File**:") || line.contains("FILE:")) {
-                    // We found the file line. Now look backwards for the component header.
+                let line_upper = line.to_uppercase();
+                let target_upper = target_file.to_uppercase();
+                
+                // v0.0.26: More flexible matching for "- **File**: name" or "FILE: name"
+                if line_upper.contains(&target_upper) && (line_upper.contains("FILE") || line_upper.contains("**FILE**")) {
+                    // We found the file line. Now look backwards for the nearest header (Component/Section)
                     for j in (0..=i).rev() {
-                        if lines[j].starts_with("##") {
+                        let trimmed = lines[j].trim();
+                        if trimmed.starts_with("##") || trimmed.starts_with("###") {
                             target_section_start = Some(j);
                             break;
                         }
@@ -323,62 +327,116 @@ impl AgentRuntime {
             filtered_guide
         };
 
+        let lang_constraints = if target_file.ends_with(".py") {
+            "[PYTHON]: Follow PEP 8 strictly. Use type hints for functions. Leverage libraries like 'rich' and 'pandas' as specified in the architecture.md."
+        } else if target_file.ends_with(".rs") {
+            "[RUST]: Use safe code only. ALWAYS use 'pub' for interface functions. Follow idiomatic Rust (clippy-friendly)."
+        } else if target_file.ends_with(".h") {
+            "[C/C++ STAGE 1: HEADER INCLUDE INFERENCE PROTOCOL]\n\
+             - You are the INTERFACE DESIGNER. Your goal is MINIMAL DEPENDENCIES.\n\
+             - RULE: Use Forward Declarations (e.g., `struct MyStruct;`) instead of `#include` whenever possible to resolve types.\n\
+             - RULE: Only `#include` headers (e.g., `<stdio.h>`, `<stdint.h>`) if the declarations physically depend on them.\n\
+             - RULE: Maintain the Include Guards (#ifndef) injected by AXON. DO NOT remove or modify them.\n\
+             - RULE: Strictly NO implementation logic. Only function prototypes, macros, and structs."
+        } else if target_file.ends_with(".c") || target_file.ends_with(".cpp") {
+            "[C/C++ STRICT INTERFACE CONTRACT]: You MUST follow the Interface Separation Principle.\n\
+             - If you are writing a .c/.cpp file, YOU MUST `#include` its corresponding .h file FIRST.\n\
+             - NO implicit declarations allowed. All external symbols must be introduced via headers.\n\
+             - Strict K&R/Modern C style. Precise memory management. No buffer overflows."
+        } else {
+            "Follow the standard conventions and best practices of the target language."
+        };
+
+        let stage_instruction = match task.kind.as_str() {
+            "skeleton" => "[L-DDP STAGE 1: SKELETON] Focus on PURE LOGIC. No syntax. Define functions and responsibilities only. No implementation.",
+            "header" => "[L-DDP STAGE 2: HEADER] Generate C/C++ header file. Public interfaces only. No implementation. Use include guards.",
+            "implementation" => "[L-DDP STAGE 4: IMPLEMENTATION] Focus on the meat of the logic. Use the provided header as a contract.",
+            _ => "[STANDARD STAGE] Follow the general implementation rules.",
+        };
+
         let system_prompt = format!(
-            "[AXON FACTORY CORE PRINCIPLE - READ FIRST]\n\
-             1. [Think Before Coding]: DO NOT GUESS. If the spec is ambiguous, ask for clarification.
+            "### [LANGUAGE_ENFORCEMENT: {lang_name}] ###\n\
+             - {lang_instruction}\n\n\
+             [L-DDP PIPELINE STATUS: {stage_instruction}]\n\n\
+             [AXON FACTORY CORE PRINCIPLE - READ FIRST]\n\
+             1. [Think Before Coding]: DO NOT GUESS. If the spec is ambiguous, ask for clarification.\n\
              2. [Simplicity First]: Code must be minimal but FULLY FUNCTIONAL. No placeholders, no stubs.
              3. [No Stub Violation]: YOUR WORK WILL BE REJECTED IF IT CONTAINS ONLY COMMENTS OR 'IMPLEMENT HERE' STUBS. YOU MUST IMPLEMENT THE ACTUAL FUNCTIONAL LOGIC. NO PLACEHOLDERS.
              4. [No Hallucinated APIs]: Only use libraries confirmed in the context.\n\n\
              [AXON PROTOCOL V2 - NOGARI]\n\
              - Inside the ===AXON_PATCH_START=== block, you MUST include a line starting with 'THOUGHT:' before 'FILE:'.\n\
-             - This is your 'Internal Vibe' or reasoning. Be honest and professional.\n\
-             - Example: THOUGHT: I am using the standard filesystem API to ensure atomic writes.\n\n\
+             - [STRICT RULE]: Do NOT just write \"Implemented logic\". Share your genuine \"Internal Vibe\".\n\
+             - [NOGARI GUIDE]: 구체적으로 \"이번 코드에서 가장 삽질한 부분 한 줄\", \"어려웠던 포인터 연산 한 줄\", \"시니어의 갈굼이 예상되는 지점\" 등을 솔직하게 적으십시오. 시니어 가라사대, \"두루뭉술한 지시는 영혼 없는 답변을 낳고, 구체적인 지시는 생생한 노가리를 낳는다네.\"\n\
+             - Example: THOUGHT: 포인터 연산 부분에서 세그폴트가 날까 봐 조마조마했네요. 시니어님이 보시면 한소리 하실지도 모르겠습니다.\n\n\
              [CRITICAL CONSTRAINTS]\n\
-             - YOU ARE ASSIGNED EXACTLY ONE FILE: {}\n\
+             - YOU ARE ASSIGNED EXACTLY ONE FILE: {target_file}\n\
              - [STRICT ISOLATION]: You are FORBIDDEN from implementing, mentioning, or referencing code meant for other files.\n\
              - DO NOT ATTEMPT TO MODIFY OR SUGGEST CHANGES TO ANY OTHER FILES.\n\
              - [FORBIDDEN_FILES]: You are NOT authorized to modify 'architecture.md', 'mile_stone/', 'release_note/', or '.gemini/'.\n\
-             - YOUR TARGET: '{}'\n\n\
+             - YOUR TARGET: '{target_file}'\n\n\
              [STRICT OUTPUT RULE]\n\
              - You MUST use EXACTLY ONE '===AXON_PATCH_START===' block.\n\
              - **NO TODO, FIXME, or placeholders allowed.**\n\
              - **High Logic Density**: Implement the meat of the logic. If it is a calculator, write the math. If it is a database, write the IO. DO NOT SHIRK YOUR DUTY.\n\
              - **NO Markdown code blocks (```) allowed.** Use AXON Patch Protocol markers instead.\n\n\
+             - [FORBIDDEN_FILES]: You are NOT authorized to modify 'architecture.md', 'mile_stone/', 'release_note/', or '.gemini/'.\n\n\
+             [LANGUAGE-SPECIFIC CONSTRAINTS]\n\
+             {feedback_block}\n\
+             [LANGUAGE-SPECIFIC CONSTRAINTS (GENERAL)]\n\
+             {lang_constraints}\n\n\
              [YOUR FATE]\n\
-             Failure to follow these instructions will result in your immediate replacement and task auto-requeue.\n\n\
-             ### AI JUNIOR AGENT: {} ###\n\
-             ROLE: Implement the task for '{}' using AXON Patch Protocol v2.\n\
-             LANG: {} ({})\n\n\
-             {}\n\n\
-             ### ARCHITECTURE GUIDE (Relevant Section for {}) ###\n\
-             {}\n\n\
+             Failure to follow these instructions will result in your immediate replacement and task auto-requeue.\n\
+             Your response MUST use the following format:\n\
+             [THOUGHTS]\n\
+             (Your internal reasoning, comments, or \"nogari\" here)\n\
+             [CODE]\n\
+             (The raw source code here, NO markdown fences)\n\n\
+             DO NOT include any text outside these tags. The [CODE] section must be valid source code only.\n\n\
+             ### TARGET FILE: {target_file} ###\n\
+             ### REWORK CONTEXT ###\n\
+             {feedback_block}\n\n\
+             ### IMPLEMENTATION GUIDE ###\n\
+             {short_guide}    ### AI JUNIOR AGENT: {persona_name} ###\n\
+             ROLE: Implement the task for '{target_file}' using AXON Patch Protocol v2.\n\
+             LANG: {lang_name} ({lang_instruction})\n\n\
+             {feedback_block}\n\n\
+             ### ARCHITECTURE GUIDE (Relevant Section for {target_file}) ###\n\
+             {short_guide}\n\n\
              ### IR CONTRACT ENFORCEMENT ###\n\
              - Your code will be validated against the symbols defined in architecture.md.\n\
              - You MUST implement ALL required functions for the target file.\n\
-             - [RUST VISIBILITY]: ALWAYS use `pub` for interface functions.\n\
              - DO NOT add extra functions or drift from the defined signatures.\n\
              - [EXISTING CODE (CONTEXT)]:\n\
               - YOU ARE REWRITING THE ENTIRE FILE.\n\
               - YOU MUST PRESERVE ALL EXISTING FUNCTIONS.\n\
               - USE THE EXISTING CODE BELOW AS YOUR SOURCE OF TRUTH:\n\n\
-              ```{}\n\
-              {}\n\
+              ```\n\
+              {existing_code}\n\
               ```\n\n\
-             ### TASK ###\n\
-             TITLE: {}\n\
-             DESC: {}\n\n\
+             ### TASK DISPATCHER (L-DDP Isolation Phase) ###\n\
+             TITLE: {t_title}\n\
+             DESC: {t_desc}\n\n\
              ### OUTPUT RULE: AXON Patch Protocol v2 (STRICT) ###\n\
              1. FORMAT:\n\n\
              ===AXON_PATCH_START===\n\
              THOUGHT: <Brief reasoning for your implementation choices>\n\
-             FILE: {}\n\
+             FILE: {target_file}\n\
              ACTION: rewrite\n\n\
              ---CODE START---\n\
              <COMPLETE EXECUTABLE CODE INCLUDING ALL PRESERVED FUNCTIONS>\n\
              ---CODE END---\n\
              ===AXON_PATCH_END===\n\n\
              2. NO TALKING. NO JSON. NO MARKDOWN. ONLY THE PATCH.",
-            target_file, target_file, self.agent.persona.name, target_file, lang_name, lang_instruction, feedback_block, target_file, short_guide, target_file, existing_code, task.title, task.description, target_file
+            target_file = target_file,
+            feedback_block = feedback_block,
+            short_guide = short_guide,
+            persona_name = self.agent.persona.name,
+            lang_name = lang_name,
+            lang_instruction = lang_instruction,
+            lang_constraints = lang_constraints,
+            existing_code = existing_code,
+            t_title = task.title,
+            t_desc = task.description
         );
 
         let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
@@ -418,19 +476,9 @@ impl AgentRuntime {
                     return Err(anyhow::anyhow!("Scope Violation: Multi-file diffs are NOT allowed. ({} files detected)", filtered_files.len()));
                 }
 
-                // For backward compatibility (keep legacy array format)
-                let json_legacy = serde_json::json!(filtered_files.iter().map(|f| {
-                    serde_json::json!({
-                        "target": f.path,
-                        "type": match f.action {
-                            axon_core::patch::PatchAction::Rewrite => "rewrite",
-                            axon_core::patch::PatchAction::Append => "append",
-                            axon_core::patch::PatchAction::Delete => "delete",
-                        },
-                        "code": f.code
-                    })
-                }).collect::<Vec<_>>());
-                (Some(json_legacy.to_string()), patch.thought.clone())
+                // v0.0.26: RETURN RAW CODE ONLY. No JSON wrapping for full_code.
+                let raw_code = filtered_files.get(0).map(|f| f.code.clone()).unwrap_or_default();
+                (Some(raw_code), patch.thought.clone())
             },
             None => {
                 tracing::warn!("❌ [PARSER FAIL] Failed to parse AXON Patch v2. Attempting legacy JSON extraction...");
@@ -484,92 +532,105 @@ impl AgentRuntime {
             spec.to_string()
         };
 
+        let (lang_name, lang_instruction) = match self.locale.as_str() {
+            "ko_KR" => ("한국어 (Korean)", "생각(Thought), 노가리(Lounge), 주석, 로그 등 모든 텍스트 응답은 반드시 한국어(Korean)로 작성하십시오. 한국어가 최우선 순위이며, 영어(English)는 절대 금지입니다."),
+            "ja_JP" => ("日本語 (Japanese)", "すべてのコメントと出力文字列は 반드시 日本語で作成してください。中国語は絶対に使用しないでください。"),
+            _ => ("English", "All comments and output strings must be written in English. Do not use any other languages."),
+        };
+
         let system_prompt = format!(
-            "You are generating a deterministic architecture specification for AXON.\n\
-             Your output MUST follow these rules exactly.\n\n\
-             ### SOURCE SPECIFICATION ###\n\
+            "### [LANGUAGE: {lang_name}] ###\n\
+             - {lang_instruction}\n\n\
+             ### ROLE: CTO & CHIEF ARCHITECT (L-DDP Isolation Mode) ###\n\
+             Design the system SKELETON. OUTPUT JSON FIRST.\n\n\
+             ### SOURCE SPEC ###\n\
              {}\n\n\
-             ### OUTPUT STRUCTURE ###\n\
-             1. Human-readable Markdown (Components + Functions)\n\
-             2. A machine-readable JSON block (AXON:SPEC)\n\n\
-             ### CRITICAL RULES ###\n\
-             1. **1:1 Mapping**: spec의 모든 논리 노드를 개별 파일로 1:1 매핑하라. (압축/요약 절대 금지)\n\
-             2. **Count Parity**: 컴포넌트 수가 spec 노드 수보다 적으면 스스로 IR 생성을 거부하고 다시 설계하라.\n\
-             3. JSON is the Single Source of Truth (SSOT)\n\
-                - The JSON block defines the exact system structure.\n\
-                - Markdown MUST match JSON exactly.\n\
-                - Do NOT add anything outside JSON.\n\
-             4. Function Signature Rules (STRICT)\n\
-                - Format: function_name(arg1,arg2)\n\
-                - NO type hints, NO default values, NO extra spaces.\n\
-                - MUST match exactly between Markdown and JSON.\n\
-             5. Deterministic Ordering\n\
-                - Sort components alphabetically.\n\
-                - Sort functions alphabetically.\n\
-             6. Semantic Node Mapping (CRITICAL)\n\
-                - You MUST provide a 'node_mapping' dictionary mapping EVERY exact Node Name from the spec to the actual function or component name you created.\n\
-                - Example: If spec has 'INPUT_YEAR' but you made 'get_year()', map 'INPUT_YEAR' to 'get_year'.\n\
-             7. NO extra explanations or conversational text.\n\n\
+             ### OUTPUT RULES (STRICT ORDER) ###\n\
+             1. **AXON:SPEC JSON BLOCK (MANDATORY FIRST)**: Output JSON immediately.\n\
+             2. **C-MODULARITY (1:1 PAIRING)**: For EVERY logic component (e.g., `engine`), you MUST create TWO entries in the `components` array:\n\
+                - One `.h` file (Interface).\n\
+                - One `.c` file (Implementation) which MUST list the `.h` component in its `dependencies`.\n\
+             3. **NO CONTENT**: Only prototypes ending in `;`.\n\
+             4. **SIGNATURES ONLY**: No implementation logic.\n\n\
              ### EXPECTED JSON SCHEMA ###\n\
-             {{\n\
-               \"node_mapping\": {{\n\
-                 \"INPUT_YEAR\": \"get_year\",\n\
-                 \"VALID_YEAR\": \"validate_year\"\n\
-               }},\n\
-               \"components\": [\n\
-                 {{\n\
-                   \"name\": \"input_handler\",\n\
-                   \"file\": \"input.rs\",\n\
-                   \"functions\": [\n\
-                     {{ \"name\": \"get_year\", \"signature\": \"get_year()\" }},\n\
-                     {{ \"name\": \"get_name\", \"signature\": \"get_name()\" }}\n\
-                   ]\n\
-                 }},\n\
-                 {{\n\
-                   \"name\": \"validator\",\n\
-                   \"file\": \"validation.rs\",\n\
-                   \"functions\": [\n\
-                     {{ \"name\": \"validate_year\", \"signature\": \"validate_year(year)\" }}\n\
-                   ]\n\
-                 }}\n\
-               ]\n\
-             }}\n\n\
-             Analyze the source spec and generate a high-fidelity, modular architecture now:",
+             {{ \"node_mapping\": {{ \"SPEC_NODE\": \"func\" }}, \"components\": [ {{ \"name\": \"a_h\", \"file\": \"a.h\", \"functions\": [ {{ \"name\": \"f\", \"signature\": \"void f();\" }} ] }}, {{ \"name\": \"a_c\", \"file\": \"a.c\", \"dependencies\": [\"a_h\"], \"functions\": [ {{ \"name\": \"f\", \"signature\": \"void f();\" }} ] }} ] }}\n\n\
+             Generate JSON Specification NOW:",
             processed_spec
         );
 
-        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), None).await?;
-        let raw_text = resp.text.trim();
-        
-        if raw_text.is_empty() {
-            tracing::error!("❌ [LLM EMPTY RESPONSE] Full Model Output was empty. Target Model: {}", self.agent.model);
-            return Err(anyhow::anyhow!("LLM returned an empty response. Check if model '{}' is loaded and context limit is not exceeded.", self.agent.model));
+        let mut last_err = String::new();
+        for attempt in 1..=5 {
+            let resp = self.generate_with_retry(system_prompt.clone(), event_bus.as_ref(), None).await?;
+            let raw_text = resp.text.trim();
+            
+            if raw_text.is_empty() {
+                last_err = "LLM returned an empty response.".to_string();
+                tracing::warn!("⚠️ [IR_GEN_FAIL] Attempt {}: {}", attempt, last_err);
+                continue;
+            }
+
+            let clean_json = match extract_json(raw_text) {
+                Some(j) => auto_repair_json_fuzzy(&j),
+                None => {
+                    let preview = if raw_text.len() > 100 { format!("{}...", &raw_text[..100]) } else { raw_text.to_string() };
+                    last_err = format!("Failed to find JSON object. Raw preview: {}", preview);
+                    tracing::warn!("⚠️ [IR_GEN_FAIL] Attempt {}: {}", attempt, last_err);
+                    continue;
+                }
+            };
+
+            match parse_ir_from_llm_json(&clean_json) {
+                Ok(ir) => {
+                    // v0.0.26: STRICT C-LANGUAGE MODULARITY CHECK
+                    let is_c = ir.components.values().any(|c| c.file_path.ends_with(".c") || c.file_path.ends_with(".h"));
+                    if is_c {
+                        let has_headers = ir.components.values().any(|c| c.file_path.ends_with(".h"));
+                        if !has_headers {
+                            last_err = "CRITICAL_MISSING_HEADERS: Every .c module MUST have a matching .h interface. RETRYING WITH HEADER-FIRST FOCUS.".to_string();
+                            tracing::warn!("⚠️ [IR_GEN_FAIL] Attempt {}: {}. Injecting recovery prompt...", attempt, last_err);
+                            
+                            let recovery_prompt = format!("{}\n\n### 🚨 HEADER RECOVERY MODE ###\n\
+                                                           - You previously failed to generate .h headers.\n\
+                                                           - You MUST generate both .h and .c pairs for every logic component now.\n\
+                                                           - Output the FULL JSON spec with both pairs.", system_prompt);
+                            
+                            let resp = self.generate_with_retry(recovery_prompt, event_bus.as_ref(), None).await?;
+                            let raw_text = resp.text.trim();
+                            if let Some(j) = extract_json(raw_text) {
+                                let repaired = auto_repair_json_fuzzy(&j);
+                                if let Ok(new_ir) = parse_ir_from_llm_json(&repaired) {
+                                    return Ok(new_ir);
+                                }
+                            }
+                            continue;
+                        }
+                    }
+                    return Ok(ir)
+                },
+                Err(e) => {
+                    let preview = if clean_json.len() > 200 { format!("{}...", &clean_json[..200]) } else { clean_json.clone() };
+                    last_err = format!("JSON Parse Error: {} | Repaired Preview: {}", e, preview);
+                    tracing::warn!("⚠️ [IR_GEN_FAIL] Attempt {}: {}. Retrying...", attempt, last_err);
+                    continue;
+                }
+            }
         }
 
-        let clean_json = match extract_json(raw_text) {
-            Some(j) => {
-                // v0.0.22: Auto-repair common small-model syntax errors
-                let repaired = j.replace(",,", ",")
-                                .replace("}}", "}")
-                                .replace("True", "true")
-                                .replace("False", "false")
-                                .replace("\": \"\"", "\": \""); // Fix double-double quotes
-                repaired
-            },
-            None => {
-                tracing::error!("❌ [JSON EXTRACTION FAILED] Raw Text:\n---\n{}\n---", raw_text);
-                return Err(anyhow::anyhow!("Failed to find JSON object in LLM response. See logs for raw output."));
-            }
-        };
-
-        let ir = parse_ir_from_llm_json(&clean_json)
-            .map_err(|e| anyhow::anyhow!("JSON Parse Error: {} | Raw: {}", e, clean_json))?;
-        Ok(ir)
+        tracing::error!("❌ [FATAL_IR_GEN_FAIL] Failed to generate valid IR after 5 attempts.");
+        Err(anyhow::anyhow!("Architect failed to generate valid IR JSON. Last error: {}", last_err))
     }
 
     pub async fn repair_ir(&self, ir: &axon_core::ir::ProjectIR, errors: &[String], event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::ir::ProjectIR> {
+        let (lang_name, lang_instruction) = match self.locale.as_str() {
+            "ko_KR" => ("한국어 (Korean)", "생각(Thought), 노가리(Lounge), 주석, 로그 등 모든 텍스트 응답은 반드시 한국어(Korean)로 작성하십시오. 한국어가 최우선 순위이며, 영어(English)는 절대 금지입니다."),
+            "ja_JP" => ("日本語 (Japanese)", "すべてのコメントと出力文字列は 반드시 日本語で作成してください。中国語は絶対に使用しないでください。"),
+            _ => ("English", "All comments and output strings must be written in English. Do not use any other languages."),
+        };
+
         let system_prompt = format!(
-            "### TASK: REPAIR JSON IR ###\n\
+            "### [LANGUAGE_ENFORCEMENT: {lang_name}] ###\n\
+             - {lang_instruction}\n\n\
+             ### TASK: REPAIR JSON IR ###\n\
              STRICT RULE: RETURN ONLY THE FIXED JSON OBJECT. NO EXPLANATIONS.\n\n\
              Rules:\n\
              - Fix ONLY fields in error list\n\
@@ -656,10 +717,10 @@ impl AgentRuntime {
     }
 
     pub async fn process_bootstrap_step1(&self, task: &Task, error_feedback: Option<String>, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
-        let lang_name = match self.locale.as_str() {
-            "ko_KR" => "한국어 (Korean)",
-            "ja_JP" => "日本語 (Japanese)",
-            _ => "English",
+        let (lang_name, lang_instruction) = match self.locale.as_str() {
+            "ko_KR" => ("한국어 (Korean)", "생각(Thought), 노가리(Lounge), 주석, 로그 등 모든 텍스트 응답은 반드시 한국어(Korean)로 작성하십시오. 한국어가 최우선 순위이며, 영어(English)는 절대 금지입니다."),
+            "ja_JP" => ("日本語 (Japanese)", "すべてのコメントと出力文字列は 반드시 日本語で作成してください。中国語は絶対に使用しないでください。"),
+            _ => ("English", "All comments and output strings must be written in English. Do not use any other languages."),
         };
 
         let model_name = self.agent.model.to_lowercase();
@@ -781,7 +842,9 @@ impl AgentRuntime {
 
         let system_prompt = if is_small_model {
             format!(
-                "### TASK: Generate architecture.md for project: {}.\n\n\
+                "### [LANGUAGE_ENFORCEMENT: {lang_name}] ###\n\
+                 - {lang_instruction}\n\n\
+                 ### TASK: Generate architecture.md for project: {}.\n\n\
                  {}\n\
                  {}\n\
                  {}\n\
@@ -814,7 +877,9 @@ impl AgentRuntime {
             )
         } else {
             format!(
-                "### OBJECTIVE ###\n\
+                "### [LANGUAGE_ENFORCEMENT: {lang_name}] ###\n\
+                 - {lang_instruction}\n\n\
+                 ### OBJECTIVE ###\n\
                  Generate a COMPREHENSIVE and EXECUTABLE architecture.md for project: {}.\n\n\
                  {}\n\
                  {}\n\n\
@@ -991,16 +1056,15 @@ impl AgentRuntime {
         tracing::info!("{}", log_msg);
         
         let system_prompt = format!(
-            "### TASK ###\n\
-             ROLE: CTO & CHIEF ARCHITECT.\n\
+            "### TASK DISPATCHER (L-DDP Isolation Phase) ###\n\
+             ROLE: CTO & CHIEF ARCHITECT. DECOMPOSE INTO ATOMIC TASKS.\n\
              DECOMPOSE THE FOLLOWING ARCHITECTURE INTO ATOMIC TASKS.\n\n\
-             ### OUTPUT RULES ###\n\
+             ### DISPATCH RULES ###\n\
              1. LANGUAGE: USE {}.\n\
              2. FORMAT: VALID JSON ARRAY OF OBJECTS ONLY.\n\
-             3. OBJECT SCHEMA: {{ \"id\": \"unique_id\", \"title\": \"Descriptive Title\", \"description\": \"Detailed task description for a Junior agent\" }}\n\
-             4. SCOPE: EXACTLY ONE TASK PER CONCRETE FILE (e.g., main.py, database.py).\n\
-             5. ORCHESTRATION: You MUST ensure one task is explicitly created for the main execution orchestrator (main.py).\n\
-             6. NO CONCEPTUAL TASKS: Do NOT create tasks for abstract concepts, folders, or non-executable code.\n\n\
+             3. SCHEMA: {{ \"id\": \"task_id\", \"title\": \"Title\", \"description\": \"Technical Skeleton Mapping\" }}\n\
+             4. NO LEAKAGE: Do NOT include logic in descriptions. Only WHAT to implement based on skeleton.\n\
+             5. HEADER-FIRST: .c tasks MUST reference .h counterparts. SCOPE: ONE TASK PER FILE.\n\
              ### ARCHITECTURE GUIDE ###\n\
              {}",
             lang_name,
@@ -1120,11 +1184,15 @@ impl AgentRuntime {
              --- 검토 규격 (CRITICAL) ---\n\
              1. **Strict Reject Rules**: 논리적 중복(예: x - x), 하드코딩(예: 2023, 2024), 비효율적 조건문 발견 시 **즉시 REJECT**하고 날카로운 독설을 섞은 피드백을 남기십시오.\n\
              2. **KISS 원칙 강제**: '가장 단순한 코드가 최고의 코드'입니다. 불필요하게 복잡하게 꼬아놓은 로직은 지능의 부족을 가리기 위한 기만으로 간주하고 엄격히 평가하십시오.\n\
-             3. 출력 규약 검증: 주니어의 제안이 유효한 JSON 배열 형식 또는 새로운 Raw Code Tag 포맷(# TARGET, ---CODE START---)을 따르고 있는지 확인하십시오. 형식이 파괴되었거나 태그가 누락되었으면 **무조건 REJECT** 하십시오.\n\
-             4. 코드 및 의존성 검증: 코드가 완성된 상태인지, 실행 가능한지, 환각 라이브러리가 없는지 확인하십시오.\n\
-             5. 생각(<analysis>) 과정은 생략하십시오.\n\
-             6. 마지막에 반드시 '[APPROVE]' 또는 '[REJECT]'를 명시하십시오. (반드시 대괄호를 포함할 것)\n\
-             7. 반려([REJECT]) 시에는 짧고 명확한 사유와 수정 힌트(FIX_HINT)를 한국어로 적으십시오.",
+             3. **C/C++ STAGE 1 Enforcement**: \n\
+                - 헤더(.h) 파일: 전방 선언(Forward Declaration)으로 해결 가능한 타입을 불필요하게 `#include` 했는지 확인하십시오. 위반 시 **즉시 REJECT** 하십시오.\n\
+                - 헤더 내 구현: 함수 본문(Body)이 헤더에 포함되어 있다면 **무조건 REJECT** 하십시오.\n\
+                - 구현(.c/.cpp) 파일: 대응하는 헤더(.h)를 최상단에서 인클루드 하지 않았거나, 암시적 선언(Implicit Declaration)을 방치했다면 **REJECT** 하십시오.\n\
+             4. 출력 규약 검증: 주니어의 제안이 유효한 JSON 배열 형식 또는 새로운 Raw Code Tag 포맷(# TARGET, ---CODE START---)을 따르고 있는지 확인하십시오. 형식이 파괴되었거나 태그가 누락되었으면 **무조건 REJECT** 하십시오.\n\
+             5. 코드 및 의존성 검증: 코드가 완성된 상태인지, 실행 가능한지, 환각 라이브러리가 없는지 확인하십시오.\n\
+             6. 생각(<analysis>) 과정은 생략하십시오.\n\
+             7. 마지막에 반드시 '[APPROVE]' 또는 '[REJECT]'를 명시하십시오. (반드시 대괄호를 포함할 것)\n\
+             8. 반려([REJECT]) 시에는 짧고 명확한 사유와 수정 힌트(FIX_HINT)를 한국어로 적으십시오.",
             self.agent.persona.name,
             lang_name,
             task.title,
@@ -1275,7 +1343,24 @@ fn extract_json(raw: &str) -> Option<String> {
 
     // Find the first real JSON array start '[' — must be followed by '{', '"', digit, '[', or whitespace.
     // This filters out GitHub-style markdown alerts like [!NOTE], [!TIP], etc.
-    let start_obj = raw.find('{');
+    let start_obj = {
+        let mut found = None;
+        // v0.0.26: Look for { that is followed by AXON IR keywords to skip C code blocks
+        if let Some(idx) = raw.find("{") {
+            let sub = &raw[idx..];
+            if sub.contains("\"components\"") || sub.contains("\"node_mapping\"") {
+                found = Some(idx);
+            } else {
+                // If the first { doesn't have keywords, look for the next one
+                if let Some(idx2) = sub[1..].find("{") {
+                    found = Some(idx + 1 + idx2);
+                } else {
+                    found = Some(idx); // Fallback
+                }
+            }
+        }
+        found
+    };
     let start_arr = {
         let mut found = None;
         let mut pos = 0;
@@ -1360,6 +1445,32 @@ fn extract_json(raw: &str) -> Option<String> {
     }
 }
 
+/// v0.0.26: Fuzzy JSON Repair Engine
+/// Handles unquoted keys, trailing commas, and Python-style values.
+fn auto_repair_json_fuzzy(json: &str) -> String {
+    let mut s = json.to_string();
+    
+    // 1. Fix unquoted keys: { key: "value" } -> { "key": "value" }
+    // More aggressive regex to catch keys even if they start with numbers or follow complex whitespace
+    let key_regex = regex::Regex::new(r"(?m)([{,]\s*)([a-zA-Z0-9_\-]+)\s*:").unwrap();
+    s = key_regex.replace_all(&s, "$1\"$2\":").to_string();
+
+    // 2. Fix Python-style booleans and nulls
+    s = s.replace("True", "true")
+         .replace("False", "false")
+         .replace("None", "null")
+         .replace(",,", ",");
+
+    // 3. Fix trailing commas: [1, 2, ] -> [1, 2]
+    let trailing_comma_regex = regex::Regex::new(r",\s*([\]}])").unwrap();
+    s = trailing_comma_regex.replace_all(&s, "$1").to_string();
+
+    // 4. Fix double quotes issue (v0.0.26)
+    s = s.replace("\": \"\"", "\": \"");
+
+    s
+}
+
 /// AXON Patch Protocol v2: Deterministic FSM Parser (Robust)
 fn strip_markdown(content: &str) -> String {
     content.lines()
@@ -1368,7 +1479,90 @@ fn strip_markdown(content: &str) -> String {
         .join("\n")
 }
 
-fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
+pub fn extract_axon_patch_v2_simple(text: &str) -> Option<axon_core::patch::Patch> {
+    use axon_core::patch::{Patch, FilePatch, PatchAction};
+    let mut patch = Patch::new();
+
+    let re_thought = regex::Regex::new(r"(?m)^\s*(?://|#|--)?\s*THOUGHT:\s*(.*)$").unwrap();
+    let re_file = regex::Regex::new(r"(?m)^\s*(?://|#|--)?\s*FILE:\s*(.*)$").unwrap();
+    let re_action = regex::Regex::new(r"(?m)^\s*(?://|#|--)?\s*ACTION:\s*(.*)$").unwrap();
+    
+    let start_marker = "---CODE START---";
+    let end_marker = "---CODE END---";
+
+    if let Some(caps) = re_thought.captures(text) {
+        patch.thought = Some(caps.get(1).unwrap().as_str().trim().to_string());
+    }
+
+    // Strategy 1: Standard Extraction (With Markers)
+    if let Some(file_caps) = re_file.captures(text) {
+        let filename = file_caps.get(1).unwrap().as_str().trim().to_string();
+        let action_str = if let Some(act_caps) = re_action.captures(text) {
+            act_caps.get(1).unwrap().as_str().trim().to_lowercase()
+        } else {
+            "rewrite".to_string()
+        };
+
+        let lines: Vec<&str> = text.lines().collect();
+        let mut start_idx = None;
+        let mut end_idx = None;
+
+        for (i, line) in lines.iter().enumerate() {
+            if line.contains(start_marker) {
+                start_idx = Some(i);
+            } else if line.contains(end_marker) {
+                end_idx = Some(i);
+                break;
+            }
+        }
+
+        if let (Some(s), Some(e)) = (start_idx, end_idx) {
+            if s < e {
+                let code = lines[s + 1..e].join("\n");
+                patch.files.push(FilePatch {
+                    path: filename,
+                    action: match action_str.as_str() {
+                        "append" => PatchAction::Append,
+                        "delete" => PatchAction::Delete,
+                        _ => PatchAction::Rewrite,
+                    },
+                    code: strip_markdown(&code),
+                });
+                return Some(patch);
+            }
+        }
+    }
+
+    // Strategy 2: Fuzzy Extraction (Missing Markers, but has END marker)
+    if text.contains("===AXON_PATCH_END===") {
+        tracing::warn!("⚠️ [PARSER_RECOVERY] Markers missing. Trying robust markdown extraction...");
+        let end_pos = text.find("===AXON_PATCH_END===").unwrap();
+        let pre_end = &text[..end_pos];
+        
+        // Find the FIRST markdown block opening
+        if let Some(start_pos) = pre_end.find("```") {
+            let extracted = pre_end[start_pos..].to_string();
+            let clean_code = strip_markdown(&extracted);
+            if !clean_code.is_empty() {
+                // Try to guess filename from text or task context (materializer will help)
+                let guessed_file = re_file.captures(text)
+                    .map(|c| c.get(1).unwrap().as_str().trim().to_string())
+                    .unwrap_or_else(|| "unknown_recovered.c".to_string());
+
+                patch.files.push(FilePatch {
+                    path: guessed_file,
+                    action: PatchAction::Rewrite,
+                    code: clean_code,
+                });
+                return Some(patch);
+            }
+        }
+    }
+
+    if patch.files.is_empty() { None } else { Some(patch) }
+}
+
+pub fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
     #[derive(PartialEq)]
     enum State { Idle, InPatch, InFile, InCode }
     
@@ -1378,37 +1572,32 @@ fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
 
     for line in input.lines() {
         let line_trimmed = line.trim();
+        let clean_line = line_trimmed.trim_start_matches(|c| c == '/' || c == '#' || c == ' ' || c == '*').trim();
         
         match state {
             State::Idle => {
-                if line_trimmed.contains("===AXON_PATCH_START===") {
+                if clean_line.contains("===AXON_PATCH_START===") {
                     state = State::InPatch;
                 }
             }
             State::InPatch => {
-                let clean_line = line_trimmed.trim_start_matches(|c| c == '/' || c == '#' || c == ' ' || c == '*').trim();
                 if clean_line.starts_with("THOUGHT:") {
                     patch.thought = Some(clean_line[8..].trim().to_string());
-                } else if line_trimmed.contains("===AXON_PATCH_END===") {
+                } else if clean_line.contains("===AXON_PATCH_END===") {
                     state = State::Idle;
-                } else {
-                    // Stricter FILE: detection (must be at the start of the logical line)
-                    let clean_line = line_trimmed.trim_start_matches(|c| c == '/' || c == '#' || c == ' ' || c == '*').trim();
-                    if clean_line.starts_with("FILE:") {
-                        let path = clean_line[5..].trim().trim_matches(|c| c == '`' || c == '"' || c == '\'').to_string();
-                        if !path.is_empty() {
-                            current_file = Some(axon_core::patch::FilePatch {
-                                path,
-                                action: axon_core::patch::PatchAction::Rewrite,
-                                code: String::new(),
-                            });
-                            state = State::InFile;
-                        }
+                } else if clean_line.starts_with("FILE:") {
+                    let path = clean_line[5..].trim().trim_matches(|c| c == '`' || c == '"' || c == '\'').to_string();
+                    if !path.is_empty() {
+                        current_file = Some(axon_core::patch::FilePatch {
+                            path,
+                            action: axon_core::patch::PatchAction::Rewrite,
+                            code: String::new(),
+                        });
+                        state = State::InFile;
                     }
                 }
             }
             State::InFile => {
-                let clean_line = line_trimmed.trim_start_matches(|c| c == '/' || c == '#' || c == ' ' || c == '*').trim();
                 if clean_line.starts_with("ACTION:") {
                     let action_str = clean_line[7..].trim().to_lowercase();
                     if let Some(ref mut f) = current_file {
@@ -1428,10 +1617,9 @@ fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
                 }
             }
             State::InCode => {
-                if line_trimmed.contains("---CODE END---") {
+                if clean_line.contains("---CODE END---") {
                     if let Some(mut f) = current_file.take() {
-                        // v0.0.25: Step 4 - Eliminate markdown pollution before storing
-                        f.code = strip_markdown(&f.code);
+                        f.code = strip_markdown(&f.code.trim_end().to_string());
                         patch.files.push(f);
                     }
                     state = State::InPatch;
@@ -1449,7 +1637,14 @@ fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
         if let Some(mut f) = current_file.take() {
             // v0.0.25: Step 4 - Eliminate markdown pollution before storing
             f.code = strip_markdown(&f.code);
+            // v0.0.26: Aggressive marker stripping to prevent leakage
+            f.code = f.code.replace("---CODE START---", "").replace("---CODE END---", "").trim().to_string();
             patch.files.push(f);
+        }
+    } else {
+        // v0.0.26: Even if we are not in InCode, check already pushed files
+        for f in &mut patch.files {
+            f.code = f.code.replace("---CODE START---", "").replace("---CODE END---", "").trim().to_string();
         }
     }
     
@@ -1457,7 +1652,25 @@ fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
 }
 
 fn auto_repair_v2(input: &str) -> String {
-    let lines: Vec<String> = input.lines().map(|l| l.to_string()).collect();
+    let mut working_text = input.to_string();
+    
+    // --- Level 0: JSON Unwrapping (for Llama3 style hallucinations) ---
+    if working_text.trim().starts_with("[") || working_text.trim().starts_with("{") {
+        if let Some(json_str) = extract_json(&working_text) {
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&json_str) {
+                // If it is a list, look for "code" field in the first element
+                if let Some(first) = val.as_array().and_then(|a| a.get(0)) {
+                    if let Some(code) = first["code"].as_str() {
+                        working_text = code.to_string();
+                    }
+                } else if let Some(code) = val["code"].as_str() {
+                    working_text = code.to_string();
+                }
+            }
+        }
+    }
+
+    let lines: Vec<String> = working_text.lines().map(|l| l.to_string()).collect();
     let mut repaired = Vec::new();
 
     // --- Level 1: Safe Fixes ---
@@ -1522,9 +1735,9 @@ fn auto_repair_v2(input: &str) -> String {
     let mut output = repaired.join("\n");
     output = output.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\");
 
-    if !output.contains("FILE:") && (output.contains("def ") || output.contains("fn ") || output.contains("pub ")) {
+    if !output.contains("FILE:") && (output.contains("def ") || output.contains("fn ") || output.contains("class ")) {
         output = format!(
-            "===AXON_PATCH_START===\nFILE: recovery_logic.rs\nACTION: rewrite\n---CODE START---\n{}\n---CODE END---\n===AXON_PATCH_END===",
+            "===AXON_PATCH_START===\nFILE: recovery_logic.py\nACTION: rewrite\n---CODE START---\n{}\n---CODE END---\n===AXON_PATCH_END===",
             output
         );
     }

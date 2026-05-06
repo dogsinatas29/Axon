@@ -30,12 +30,14 @@ import { getTranslation } from './i18n';
 
 const App: React.FC = () => {
   const [threads, setThreads] = useState<Thread[]>([]);
-  const projectId = threads.length > 0 ? threads[0].project_id : 'AXON-FACTORY-01';
+  const activeThreads = threads.filter(t => t.id !== 'lounge' && t.project_id !== 'system');
+  const projectId = activeThreads.length > 0 ? activeThreads[0].project_id : (threads.find(t => t.id !== 'lounge')?.project_id || 'AXON-FACTORY-01');
+  const [totalSignals, setTotalSignals] = useState(0);
   const [isRunning, setIsRunning] = useState(true);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [locale, setLocale] = useState<string>('ko_KR');
+  const [locale] = useState<string>('ko_KR');
   const [activeChannel, setActiveChannel] = useState<'dashboard' | 'work' | 'office' | 'boss' | 'nogari' | 'signals'>('dashboard');
   
   const t = getTranslation(locale);
@@ -80,12 +82,21 @@ const App: React.FC = () => {
     try {
       const res = await fetch('http://localhost:8080/api/status');
       const data = await res.json();
-      setIsRunning(!data.is_paused);
-      if (data.locale) {
-        setLocale(data.locale);
-      }
+      setIsRunning(data.is_running);
+      setTotalSignals(data.total_signals);
     } catch (err) {
       console.error('Failed to fetch status', err);
+    }
+  };
+
+  const fetchEvents = async () => {
+    try {
+      const res = await fetch('http://localhost:8080/api/events');
+      const data = await res.json();
+      // Reverse the data if backend returns DESC order (we want newest at top in UI)
+      setEvents(data);
+    } catch (err) {
+      console.error('Failed to fetch events', err);
     }
   };
 
@@ -93,6 +104,7 @@ const App: React.FC = () => {
     fetchThreads();
     fetchAgents();
     fetchStatus();
+    fetchEvents();
     
     const socket = initSocket('ws://localhost:8080');
     
@@ -226,7 +238,7 @@ const App: React.FC = () => {
                     </div>
                     <div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '0.5rem' }}>{t.totalSignals}</div>
-                        <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--accent-secondary)', fontFamily: 'Orbitron' }}>{events.length}</div>
+                        <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--accent-secondary)', fontFamily: 'Orbitron' }}>{totalSignals}</div>
                     </div>
                     <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '0.5rem' }}>{t.latestStatus}</div>
@@ -243,7 +255,7 @@ const App: React.FC = () => {
                   <button className="btn-mini" onClick={() => setActiveChannel('work')}>{t.viewAll}</button>
                 </div>
                 <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem', overflowY: 'auto' }}>
-                    {threads.slice(0, 6).map(t => (
+                    {threads.filter(t => t.id !== 'lounge').slice(0, 6).map(t => (
                         <ThreadCard key={t.id} thread={t} onClick={() => setSelectedThreadId(t.id)} />
                     ))}
                     {threads.length === 0 && <div className="empty-state">{t.noThreads}</div>}
@@ -256,10 +268,20 @@ const App: React.FC = () => {
           <section className="panel" style={{ flex: 1 }}>
             <div className="panel-header">{t.workBoardTitle} / {projectId}</div>
             <div className="thread-grid" style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem', overflowY: 'auto' }}>
-              {threads.map(thread => (
-                <ThreadCard key={thread.id} thread={thread} onClick={() => setSelectedThreadId(thread.id)} />
+              {/* v0.0.25: Strategic sync - use pre-filtered activeThreads for consistent display */}
+              {activeThreads.map(thread => (
+                <div 
+                  key={thread.id} 
+                  onClick={() => {
+                    setSelectedThreadId(thread.id);
+                    setActiveChannel('work');
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <ThreadCard thread={thread} />
+                </div>
               ))}
-              {threads.length === 0 && <div className="empty-state">{t.noWorkThreads}</div>}
+              {activeThreads.length === 0 && <div className="empty-state">{t.noWorkThreads}</div>}
             </div>
           </section>
         )}
@@ -278,7 +300,7 @@ const App: React.FC = () => {
           <section className="panel" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div className="panel-header">{t.realTimeSignals}</div>
             <div style={{ flex: 1, padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {events.map(e => (
+                {events.filter(e => e.event_type !== 'MessagePosted').map(e => (
                     <div key={e.id} className="card" style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
                         <div style={{ color: 'var(--accent-primary)', fontWeight: 'bold', minWidth: '120px', fontSize: '0.7rem' }}>
                           [{e.event_type.toUpperCase()}]

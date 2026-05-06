@@ -89,6 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             target_file: None,
                             lock_files: Vec::new(),
                             error_feedback: None,
+                            senior_comment: None,
                             rework_count: 0,
                             base_hash: None,
                             parent_task: None,

@@ -155,6 +155,20 @@ impl AgentRuntime {
         self.locale = locale.to_string();
     }
 
+    fn extract_json(&self, raw: &str) -> Option<String> {
+        let raw = raw.trim();
+        if raw.is_empty() { return None; }
+
+        let start = raw.find('{')?;
+        let end = raw.rfind('}')?;
+        
+        if end > start {
+            Some(raw[start..=end].to_string())
+        } else {
+            None
+        }
+    }
+
     async fn generate_with_retry(&self, prompt: String, event_bus: Option<&Arc<axon_core::events::EventBus>>, thread_id: Option<String>) -> anyhow::Result<ModelResponse> {
         if let Some(bus) = event_bus {
             bus.publish(axon_core::Event {
@@ -520,7 +534,7 @@ impl AgentRuntime {
         self.process_task(task, architecture_guide, None, Some(event_bus), existing_code).await
     }
 
-    pub async fn generate_ir(&self, spec: &str, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::ir::ProjectIR> {
+    pub async fn generate_ir(&self, spec: &str, hint: Option<String>, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::ir::ProjectIR> {
         // v0.0.22: Token Overflow Protection (Simple Truncate for 1.8B models)
         let model_name = self.agent.model.to_lowercase();
         let is_small = model_name.contains("qwen") || model_name.contains("1.8b") || model_name.contains("2b");
@@ -538,24 +552,30 @@ impl AgentRuntime {
             _ => ("English", "All comments and output strings must be written in English. Do not use any other languages."),
         };
 
+        let feedback_block = if let Some(h) = hint {
+            format!("\n### [CRITICAL FEEDBACK FROM PREVIOUS ATTEMPT] ###\n{}\n\n", h)
+        } else {
+            "".to_string()
+        };
+
         let system_prompt = format!(
-            "### [LANGUAGE: {lang_name}] ###\n\
+            "{}### [LANGUAGE: {lang_name}] ###\n\
              - {lang_instruction}\n\n\
              ### ROLE: CTO & CHIEF ARCHITECT (L-DDP Isolation Mode) ###\n\
-             Design the system SKELETON. OUTPUT JSON FIRST.\n\n\
-             ### SOURCE SPEC ###\n\
-             {}\n\n\
-             ### OUTPUT RULES (STRICT ORDER) ###\n\
-             1. **AXON:SPEC JSON BLOCK (MANDATORY FIRST)**: Output JSON immediately.\n\
-             2. **C-MODULARITY (1:1 PAIRING)**: For EVERY logic component (e.g., `engine`), you MUST create TWO entries in the `components` array:\n\
+             Design the system SKELETON. OUTPUT ONLY VALID JSON.\n\n\
+             ### OUTPUT RULES (STRICT CONTRACT) ###\n\
+             1. **RETURN ONLY VALID JSON**: Do not include markdown code blocks (No ```json).\n\
+             2. **NO EXPLANATIONS**: Start your response with '{{' and end with '}}'.\n\
+             3. **C-MODULARITY (1:1 PAIRING)**: For EVERY logic component (e.g., `engine`), you MUST create TWO entries in the `components` array:\n\
                 - One `.h` file (Interface).\n\
                 - One `.c` file (Implementation) which MUST list the `.h` component in its `dependencies`.\n\
-             3. **NO CONTENT**: Only prototypes ending in `;`.\n\
-             4. **SIGNATURES ONLY**: No implementation logic.\n\n\
+             4. **NO CONTENT**: Only prototypes ending in `;`.\n\n\
+             ### SOURCE SPEC ###\n\
+             {}\n\n\
              ### EXPECTED JSON SCHEMA ###\n\
              {{ \"node_mapping\": {{ \"SPEC_NODE\": \"func\" }}, \"components\": [ {{ \"name\": \"a_h\", \"file\": \"a.h\", \"functions\": [ {{ \"name\": \"f\", \"signature\": \"void f();\" }} ] }}, {{ \"name\": \"a_c\", \"file\": \"a.c\", \"dependencies\": [\"a_h\"], \"functions\": [ {{ \"name\": \"f\", \"signature\": \"void f();\" }} ] }} ] }}\n\n\
              Generate JSON Specification NOW:",
-            processed_spec
+            feedback_block, processed_spec
         );
 
         let mut last_err = String::new();
@@ -569,12 +589,11 @@ impl AgentRuntime {
                 continue;
             }
 
-            let clean_json = match extract_json(raw_text) {
+            let clean_json = match self.extract_json(raw_text) {
                 Some(j) => auto_repair_json_fuzzy(&j),
                 None => {
-                    let preview = if raw_text.len() > 100 { format!("{}...", &raw_text[..100]) } else { raw_text.to_string() };
-                    last_err = format!("Failed to find JSON object. Raw preview: {}", preview);
-                    tracing::warn!("⚠️ [IR_GEN_FAIL] Attempt {}: {}", attempt, last_err);
+                    last_err = format!("Failed to find JSON object ({{...}}) in response.");
+                    tracing::warn!("⚠️ [IR_GEN_FAIL] Attempt {}: {}\n--- RAW OUTPUT START ---\n{}\n--- RAW OUTPUT END ---", attempt, last_err, raw_text);
                     continue;
                 }
             };

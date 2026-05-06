@@ -617,6 +617,7 @@ impl BootstrapManager {
         let mut ir_opt: Option<axon_core::ir::ProjectIR> = None;
         let mut attempts = 0;
         let max_retries = 5;
+        let mut current_hint: Option<String> = None;
 
         loop {
             tracing::info!("🏭 [FACTORY_STAGE] Currently running: {:?}", stage);
@@ -624,7 +625,7 @@ impl BootstrapManager {
             match stage {
                 Stage::Skeleton => {
                     tracing::info!("📐 [STAGE:Skeleton] Designing Architecture IR...");
-                    let res = architect_runtime.generate_ir(&spec_content, Some(daemon.event_bus.clone())).await;
+                    let res = architect_runtime.generate_ir(&spec_content, current_hint.clone(), Some(daemon.event_bus.clone())).await;
                     match res {
                         Ok(ir) => {
                             // Validation Gate
@@ -640,6 +641,7 @@ impl BootstrapManager {
                                 ir_opt = Some(ir);
                                 stage = StageRouter::next_stage(&stage);
                                 attempts = 0;
+                                current_hint = None;
                             } else {
                                 let diag = Diagnostic { code: "SKELETON_ERR".into(), message: errors.join(", ") };
                                 let cause = infer_cause(&diag);
@@ -663,9 +665,9 @@ impl BootstrapManager {
                                 return Err(e); 
                             }
                             
+                            current_hint = Some(hint.to_string());
                             stage = StageRouter::route_retry(&scope, &stage);
                             attempts += 1;
-                            // Future: Inject hint into the next architect_runtime call
                         }
                     }
                 },

@@ -766,6 +766,35 @@ impl BootstrapManager {
 
                             if errors.is_empty() {
                                 ir_opt = Some(ir.clone());
+                                
+                                // v0.0.28: Post Architect's thought to the Lounge
+                                if let Some(thought) = res.as_ref().ok().and_then(|p| p.thought.clone()) {
+                                    tracing::info!("🏛️ [ARC_THOUGHT] Saving Architect reasoning to lounge...");
+                                    let _ = self.storage.save_post(axon_core::Post {
+                                        id: uuid::Uuid::new_v4().to_string(),
+                                        thread_id: "lounge".to_string(),
+                                        author_id: "Architect".to_string(),
+                                        content: format!("**[Design Stage: Skeleton]**\n{}", thought),
+                                        post_type: axon_core::PostType::Nogari,
+                                        thought: None,
+                                        full_code: None,
+                                        metrics: None,
+                                        created_at: chrono::Local::now(),
+                                    }).await;
+
+                                    self.publish_event(axon_core::Event {
+                                        id: uuid::Uuid::new_v4().to_string(),
+                                        project_id: self.project_id.clone(),
+                                        thread_id: Some("lounge".to_string()),
+                                        agent_id: Some("Architect".to_string()),
+                                        event_type: axon_core::EventType::MessagePosted,
+                                        source: "ARCHITECT".to_string(),
+                                        content: format!("🏛️ Architect: {}", thought),
+                                        payload: None,
+                                        timestamp: chrono::Local::now(),
+                                    });
+                                }
+
                                 // v0.0.32: Forced Debug Dump & Dir Creation
                                 let debug_dir = self.sandbox_root.join("debug");
                                 let _ = std::fs::create_dir_all(&debug_dir);
@@ -2736,6 +2765,19 @@ impl Daemon {
                             metrics: None,
                             created_at: chrono::Local::now(),
                         }).await;
+
+                        // v0.0.28: Real-time Senior Nogari broadcasting
+                        self.publish_event(axon_core::Event {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            project_id: task.project_id.clone(),
+                            thread_id: Some("lounge".to_string()),
+                            agent_id: Some("Senior".to_string()),
+                            event_type: axon_core::EventType::MessagePosted,
+                            source: "SENIOR-AUDITOR".to_string(),
+                            content: format!("👴 Senior: {}", thought),
+                            payload: None,
+                            timestamp: chrono::Local::now(),
+                        });
                     }
 
                     let status_upper = review.status.to_uppercase();

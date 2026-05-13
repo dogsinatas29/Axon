@@ -1650,6 +1650,12 @@ pub fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
                         });
                         state = State::InFile;
                     }
+                } else if !clean_line.is_empty() {
+                    // v0.0.28: Support multi-line thoughts
+                    if let Some(ref mut t) = patch.thought {
+                        t.push('\n');
+                        t.push_str(line_trimmed);
+                    }
                 }
             }
             State::InFile => {

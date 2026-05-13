@@ -19,6 +19,8 @@ pub struct ProjectIR {
     pub constraints: Vec<Constraint>,
     #[serde(skip)]
     pub constraint_ids: std::collections::HashSet<u64>,
+    #[serde(default)]
+    pub thought: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +52,7 @@ impl ProjectIR {
             components: BTreeMap::new(),
             constraints: Vec::new(),
             constraint_ids: std::collections::HashSet::new(),
+            thought: None,
         }
     }
 
@@ -118,7 +121,8 @@ impl ProjectIR {
                         node_mapping: raw.node_mapping,
                         components,
                         constraints,
-                        constraint_ids: std::collections::HashSet::new()
+                        constraint_ids: std::collections::HashSet::new(),
+                        thought: None,
                     });
                 }
             }

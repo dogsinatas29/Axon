@@ -768,9 +768,9 @@ impl BootstrapManager {
                                 ir_opt = Some(ir.clone());
                                 
                                 // v0.0.28: Post Architect's thought to the Lounge
-                                if let Some(thought) = res.as_ref().ok().and_then(|p| p.thought.clone()) {
+                                if let Some(thought) = ir.thought.clone() {
                                     tracing::info!("🏛️ [ARC_THOUGHT] Saving Architect reasoning to lounge...");
-                                    let _ = self.storage.save_post(axon_core::Post {
+                                    let _ = daemon.storage.save_post(axon_core::Post {
                                         id: uuid::Uuid::new_v4().to_string(),
                                         thread_id: "lounge".to_string(),
                                         author_id: "Architect".to_string(),
@@ -782,7 +782,7 @@ impl BootstrapManager {
                                         created_at: chrono::Local::now(),
                                     }).await;
 
-                                    self.publish_event(axon_core::Event {
+                                    daemon.publish_event(axon_core::Event {
                                         id: uuid::Uuid::new_v4().to_string(),
                                         project_id: self.project_id.clone(),
                                         thread_id: Some("lounge".to_string()),
@@ -929,6 +929,7 @@ impl BootstrapManager {
                                                 if let Ok(json) = serde_json::to_string_pretty(&header_tasks) {
                                                     let _ = std::fs::write(self.sandbox_root.join("debug/header_tasks.json"), json);
                                                 }
+                                                let expected_h_count = header_tasks.len();
                                                 for mut task in header_tasks {
                                                     // v0.0.33: Prefix IDs to prevent collision
                                                     task.id = format!("hdr_{}", task.id);
@@ -967,7 +968,6 @@ impl BootstrapManager {
                                                 }
 
                                                 // v0.0.32: Wait for Headers to materialize before ImplGen
-                                                let expected_h_count = header_tasks.len();
                                                 tracing::info!("⏳ [STAGE:HeaderGen] Waiting for {} header tasks to materialize (Project: {})...", expected_h_count, self.project_id);
                                                 
                                                 // v0.0.28: Robust Synchronization.

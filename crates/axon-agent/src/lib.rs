@@ -179,6 +179,21 @@ impl AgentRuntime {
         }
     }
 
+    fn extract_thought(&self, raw: &str) -> Option<String> {
+        let patterns = ["THOUGHT:", "Reasoning:", "### Thought", "### Reasoning"];
+        for pattern in patterns {
+            if let Some(idx) = raw.find(pattern) {
+                let start = idx + pattern.len();
+                let rest = &raw[start..];
+                // Take until the next section or end of text
+                let end = rest.find("\n###").or_else(|| rest.find("<JSON_START>")).unwrap_or(rest.len());
+                let thought = rest[..end].trim().to_string();
+                if !thought.is_empty() { return Some(thought); }
+            }
+        }
+        None
+    }
+
     fn extract_json(&self, raw: &str) -> Option<String> {
         self.extract_enveloped_json(raw)
     }
@@ -208,7 +223,11 @@ impl AgentRuntime {
 
             let gen_future = self.model.generate_with_context(prompt.clone(), context_size);
             match tokio::time::timeout(self.timeout, gen_future).await {
-                Ok(Ok(resp)) => {
+                Ok(Ok(mut resp)) => {
+                    // v0.0.28: Extract internal reasoning (thoughts) from raw text
+                    if let Some(thought) = self.extract_thought(&resp.text) {
+                        resp.thought = Some(thought);
+                    }
                     if let Some(bus) = event_bus {
                         bus.publish(axon_core::Event {
                             id: uuid::Uuid::new_v4().to_string(),
@@ -598,7 +617,10 @@ impl AgentRuntime {
                         tracing::warn!("⚠️ [IR_GEN_FAIL] Attempt {}: {}", attempt, last_err);
                         continue;
                     }
-                    return Ok(ir);
+                    // v0.0.28: Preserve thought in IR metadata
+                    let mut ir_with_thought = ir;
+                    ir_with_thought.thought = resp.thought.clone();
+                    return Ok(ir_with_thought);
                 },
                 Err(e) => {
                     // Phase 2: Repair Pass
@@ -1378,6 +1400,7 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
         components,
         constraints: Vec::new(),
         constraint_ids: std::collections::HashSet::new(),
+        thought: None,
     })
 }
 

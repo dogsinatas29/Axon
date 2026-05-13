@@ -21,6 +21,7 @@ use async_trait::async_trait;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ModelResponse {
     pub text: String,
+    pub thought: Option<String>,
     pub total_duration: Option<u64>,
     pub eval_count: Option<u64>,
     pub eval_duration: Option<u64>,
@@ -54,6 +55,7 @@ impl ModelDriver for MockDriver {
     async fn generate(&self, _prompt: String) -> Result<ModelResponse, Box<dyn std::error::Error + Send + Sync>> {
         Ok(ModelResponse {
             text: "Mock response from AXON Model Driver".to_string(),
+            thought: None,
             total_duration: None,
             eval_count: None,
             eval_duration: None,
@@ -160,6 +162,7 @@ impl ModelDriver for GeminiDriver {
             match text {
                 Some(t) => return Ok(ModelResponse {
                     text: t.to_string(),
+                    thought: None,
                     total_duration: None,
                     eval_count: None,
                     eval_duration: None,
@@ -206,6 +209,7 @@ impl ModelDriver for ClaudeDriver {
         let text = res_json["content"][0]["text"].as_str().ok_or("Failed Claude extraction")?;
         Ok(ModelResponse {
             text: text.to_string(),
+            thought: None,
             total_duration: None,
             eval_count: None,
             eval_duration: None,
@@ -245,6 +249,7 @@ impl ModelDriver for OpenAIDriver {
         let text = res_json["choices"][0]["message"]["content"].as_str().ok_or("Failed OpenAI extraction")?;
         Ok(ModelResponse {
             text: text.to_string(),
+            thought: None,
             total_duration: None,
             eval_count: None,
             eval_duration: None,
@@ -374,6 +379,7 @@ impl OllamaDriver {
                         } else {
                             return Ok(ModelResponse {
                                 text: response_text,
+                                thought: None,
                                 total_duration: res_json["total_duration"].as_u64(),
                                 eval_count: res_json["eval_count"].as_u64(),
                                 eval_duration: res_json["eval_duration"].as_u64(),

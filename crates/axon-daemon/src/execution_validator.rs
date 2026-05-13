@@ -22,18 +22,24 @@ fn validate_c(project_root: &str, file_path: &str) -> anyhow::Result<()> {
     let path = Path::new(project_root).join(file_path);
     let file_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
     
-    // STRICT CONTRACT: Require .h file for every .c module (except main.c)
-    if file_stem != "main" {
-        let h_path = path.with_extension("h");
-        if !h_path.exists() {
+    // STRICT CONTRACT: Require .h file for every .c module (except main.c and main_*.c)
+    let is_main_file = file_stem == "main" || file_stem.starts_with("main_");
+    if !is_main_file {
+        // v0.0.28: Architecture-Aware Header Resolution
+        // 1. Check same directory as .c file
+        let h_path_same = path.with_extension("h");
+        // 2. Check root 'include/' directory
+        let h_path_include = Path::new(project_root).join("include").join(format!("{}.h", file_stem));
+        
+        if !h_path_same.exists() && !h_path_include.exists() {
             return Err(anyhow::anyhow!(
-                "STRICT CONTRACT VIOLATION: Corresponding header file for '{}' is missing. Interface Separation Principle requires all .c files to have a .h file.",
-                file_path
+                "STRICT CONTRACT VIOLATION: Corresponding header file for '{}' is missing. Interface Separation Principle requires all .c files to have a .h file. (Checked: '{}.h' and 'include/{}.h')",
+                file_path, file_stem, file_stem
             ));
         }
     }
 
-    // v0.0.26: Stage 4 - Full Build Loop via CMake
+    // v0.0.28: Stage 4 - Full Build Loop via CMake
     if Path::new(project_root).join("CMakeLists.txt").exists() {
         validate_c_project(project_root)?;
     } else {
@@ -83,7 +89,7 @@ fn validate_c_project(project_root: &str) -> anyhow::Result<()> {
 }
 
 fn validate_rust(project_root: &str, mode: ValidationMode) -> anyhow::Result<()> {
-    // v0.0.25 Safety: ONLY run cargo check if a local Cargo.toml exists.
+    // v0.0.28 Safety: ONLY run cargo check if a local Cargo.toml exists.
     if !Path::new(project_root).join("Cargo.toml").exists() {
         tracing::warn!("🍃 [SKIP_CHECK] No local Cargo.toml found in {}. Skipping 'cargo check'.", project_root);
         return Ok(());
@@ -159,7 +165,7 @@ pub fn selective_run(project_root: &str, file_path: &str, targets: Vec<String>) 
     
     if file_path.ends_with(".rs") {
         // Rust: Typically cargo test or run
-        // v0.0.25 Safety: ONLY run cargo test if a local Cargo.toml exists to prevent sandbox escape.
+        // v0.0.28 Safety: ONLY run cargo test if a local Cargo.toml exists to prevent sandbox escape.
         if Path::new(project_root).join("Cargo.toml").exists() {
             let status = Command::new("cargo")
                 .arg("test")

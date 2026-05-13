@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/axon-core",
+    "crates/axon-ir",
     "crates/axon-daemon",
     "crates/axon-dispatcher",
     "crates/axon-agent",

@@ -6,7 +6,7 @@ pub mod integration;
 
 use rustpython_parser::Parse;
 use rustpython_ast::Suite;
-use crate::ir::*;
+use axon_ir::*;
 use crate::spec::*;
 use crate::rules::Constraint;
 pub use error::ValidationError;

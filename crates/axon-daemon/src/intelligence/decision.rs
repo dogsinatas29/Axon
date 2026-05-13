@@ -7,6 +7,7 @@ pub enum Stage {
     HeaderGen,
     ImplGen,
     Build,
+    BuildRepair,
     Runtime,
     Sync,
     Complete,
@@ -15,8 +16,10 @@ pub enum Stage {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum RetryScope {
     Skeleton,
+    Stage,
     HeaderOnly,
     ImplementationOnly,
+    BuildRepair,
     Full,
     None,
 }
@@ -92,6 +95,7 @@ impl StageRouter {
             Stage::HeaderGen => Stage::ImplGen,
             Stage::ImplGen => Stage::Build,
             Stage::Build => Stage::Runtime,
+            Stage::BuildRepair => Stage::Build,
             Stage::Runtime => Stage::Sync,
             Stage::Sync => Stage::Complete,
             Stage::Complete => Stage::Complete,
@@ -99,12 +103,43 @@ impl StageRouter {
     }
 
     pub fn route_retry(scope: &RetryScope, current: &Stage) -> Stage {
-        match scope {
+        let target = match scope {
             RetryScope::Skeleton => Stage::Skeleton,
+            RetryScope::Stage => current.clone(),
             RetryScope::HeaderOnly => Stage::HeaderGen,
             RetryScope::ImplementationOnly => Stage::ImplGen,
+            RetryScope::BuildRepair => Stage::BuildRepair,
             RetryScope::Full => Stage::Skeleton,
             RetryScope::None => current.clone(),
+        };
+
+        // v0.0.28: Prevent forward jumps on retry. 
+        // If the suggested retry stage is ahead of current stage, stay in current stage.
+        let target_rank = match target {
+            Stage::Skeleton => 0,
+            Stage::HeaderGen => 1,
+            Stage::ImplGen => 2,
+            Stage::Build => 3,
+            Stage::BuildRepair => 3,
+            Stage::Runtime => 4,
+            Stage::Sync => 5,
+            Stage::Complete => 6,
+        };
+        let current_rank = match current {
+            Stage::Skeleton => 0,
+            Stage::HeaderGen => 1,
+            Stage::ImplGen => 2,
+            Stage::Build => 3,
+            Stage::BuildRepair => 3,
+            Stage::Runtime => 4,
+            Stage::Sync => 5,
+            Stage::Complete => 6,
+        };
+
+        if target_rank > current_rank {
+            current.clone()
+        } else {
+            target
         }
     }
 }
@@ -120,7 +155,7 @@ pub fn normalize_log(log: &str) -> String {
 pub fn infer_cause(diag: &Diagnostic) -> FailureCause {
     let log = normalize_log(&diag.message);
 
-    if (log.contains("no such file") || log.contains("not found")) && log.contains(".h") {
+    if (log.contains("no such file") || log.contains("not found") || log.contains("missing .h headers")) && log.contains(".h") {
         FailureCause::MissingHeader
     } else if log.contains("undefined reference") {
         FailureCause::UndefinedReference
@@ -139,8 +174,11 @@ pub fn infer_cause(diag: &Diagnostic) -> FailureCause {
     } else if log.contains("assertion") && log.contains("failed") {
         FailureCause::AssertionFailed
     } else if log.contains("json") || log.contains("parse error") || log.contains("expected value") || 
-              log.contains("eof while parsing") || log.contains("trailing characters") || log.contains("control character") {
+              log.contains("eof while parsing") || log.contains("trailing characters") || log.contains("control character") ||
+              log.contains("envelope") || log.contains("stabilization") || log.contains("failed to find") {
         FailureCause::JsonError
+    } else if log.contains("cmake error") || log.contains("build error") || log.contains("no rule to make target") {
+        FailureCause::Unknown // For now map to Unknown but we can add CMAKE_FAIL
     } else {
         FailureCause::Unknown
     }
@@ -148,7 +186,8 @@ pub fn infer_cause(diag: &Diagnostic) -> FailureCause {
 
 pub fn determine_scope(cause: &FailureCause) -> RetryScope {
     match cause {
-        FailureCause::MissingHeader => RetryScope::HeaderOnly,
+        // v0.0.28: Structural omissions are Skeleton-level failures
+        FailureCause::MissingHeader => RetryScope::Skeleton, 
         FailureCause::MissingInclude => RetryScope::HeaderOnly,
         FailureCause::MissingSymbol => RetryScope::HeaderOnly,
         FailureCause::SignatureMismatch => RetryScope::HeaderOnly,
@@ -162,15 +201,23 @@ pub fn determine_scope(cause: &FailureCause) -> RetryScope {
         FailureCause::SegFault => RetryScope::ImplementationOnly,
         FailureCause::AssertionFailed => RetryScope::ImplementationOnly,
 
-        FailureCause::JsonError => RetryScope::Skeleton,
-        FailureCause::Unknown => RetryScope::Full,
+        FailureCause::JsonError => RetryScope::Stage,
+        FailureCause::Unknown => {
+            // v0.0.28: If we fail in Build, try BuildRepair first instead of Full reset
+            RetryScope::BuildRepair
+        }
     }
 }
 
 pub fn generate_hint(cause: &FailureCause) -> &'static str {
     match cause {
         FailureCause::MissingHeader => 
-            "HINT: Create or include the required header (.h) file. Ensure all modules have matching interfaces.",
+            "Previous architecture rejected: Missing header component (*.h).\n\
+             C/C++ projects REQUIRE a modular structure:\n\
+             - At least one .h (header) component for interfaces.\n\
+             - Matching .c/.cpp (logic) components.\n\
+             - A clear entrypoint (main.c).\n\
+             Please redesign the Skeleton with these components.",
         FailureCause::MissingSymbol => 
             "HINT: Declare the missing symbol (function/type) in the appropriate header file.",
         FailureCause::SignatureMismatch => 
@@ -186,9 +233,9 @@ pub fn generate_hint(cause: &FailureCause) -> &'static str {
         FailureCause::AssertionFailed => 
             "HINT: A logical condition failed. Review your algorithm and edge cases.",
         FailureCause::JsonError => 
-            "HINT: Return ONLY valid JSON format. Do not include markdown code blocks or explanations.",
+            "HINT: Output ONLY the requested JSON data. Ensure it is wrapped between <JSON_START> and <JSON_END>. Do not include any conversational text.",
         _ => 
-            "HINT: Re-evaluate the module structure and dependencies. Check the logs for specific errors.",
+            "HINT: The model produced an unrecognizable response. Ensure your environment can handle the prompt size and check the RAW output in the logs.",
     }
 }
 

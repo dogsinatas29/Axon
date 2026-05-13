@@ -44,7 +44,7 @@ impl AdminSystem {
             created_at: Local::now(),
         };
 
-        self.storage.save_post(&post)?;
+        self.storage.save_post(post).await?;
         
         match intervention {
             InterventionType::Formal => info!("👑 BOSS has formally intervened in thread: {}", thread_id),

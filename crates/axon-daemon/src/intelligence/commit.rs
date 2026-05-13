@@ -1,7 +1,6 @@
 use crate::intelligence::staging::ConstraintProposal;
 use axon_core::ir::ProjectIR;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
+use axon_ir::schema::Constraint;
 
 pub struct IRCommitLayer;
 
@@ -31,9 +30,7 @@ impl IRCommitLayer {
         }
     }
 
-    fn calculate_id(c: &axon_core::rules::Constraint) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        c.hash(&mut hasher);
-        hasher.finish()
+    fn calculate_id(c: &Constraint) -> u64 {
+        c.id as u64
     }
 }

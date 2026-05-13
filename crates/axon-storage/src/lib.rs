@@ -16,20 +16,247 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::sync::{Arc, Mutex};
 use rusqlite::{params, Connection, Result, OptionalExtension};
+pub use axon_core::{Task, Agent, Post};
+use std::sync::{Arc, Mutex};
+use tokio::sync::mpsc;
+use std::fs::OpenOptions;
+use std::io::Write;
 use chrono::{DateTime, Local};
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct WriteOpEnvelope {
+    pub id: String,
+    pub op: WriteOp,
+    pub retries: u32,
+    pub timestamp: i64,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub enum WriteOp {
+    SaveTask(Task),
+    SaveThread(axon_core::Thread),
+    SavePost(Post),
+    SaveEvent(axon_core::Event),
+    UpdateProjectState { project_id: String, stage: String, status: String },
+    LogExecution { project_id: String, stage: String, status: String, raw: String, result: String },
+    SaveAgent(Agent),
+    DeleteAgent(String),
+    SaveAgentStats { agent_id: String, success: usize, fail: usize, latencies_json: String },
+    Ack(String), 
+}
 
 pub struct Storage {
     pub conn: Arc<Mutex<Connection>>,
+    pub tx: mpsc::Sender<WriteOpEnvelope>,
+    pub log_path: String,
+    pub dlq_path: String,
 }
 
 impl Storage {
     pub fn new(path: &str) -> Result<Self> {
         let conn = Connection::open(path)?;
-        let storage = Self { conn: Arc::new(Mutex::new(conn)) };
+        let log_path = format!("{}.log", path);
+        let dlq_path = format!("{}.dead_letter.log", path);
+        
+        conn.pragma_update(None, "journal_mode", "WAL")?;
+        conn.pragma_update(None, "synchronous", "NORMAL")?;
+
+        let conn = Arc::new(Mutex::new(conn));
+        let (tx, mut rx) = mpsc::channel::<WriteOpEnvelope>(4096);
+        
+        // 1. Safe Recovery (Handling Partial Writes/Corruption)
+        let mut recovered_ops = Vec::new();
+        if std::path::Path::new(&log_path).exists() {
+            if let Ok(content) = std::fs::read_to_string(&log_path) {
+                let mut pending = std::collections::HashMap::new();
+                let mut acks = std::collections::HashSet::new();
+                
+                for line in content.lines() {
+                    // Robust parsing: ignore corrupt lines
+                    if let Ok(env) = serde_json::from_str::<WriteOpEnvelope>(line) {
+                        match env.op {
+                            WriteOp::Ack(ref id) => { acks.insert(id.clone()); }
+                            _ => { pending.insert(env.id.clone(), env); }
+                        }
+                    }
+                }
+                for (id, env) in pending {
+                    if !acks.contains(&id) { recovered_ops.push(env); }
+                }
+            }
+        }
+
+        let db_writer = conn.clone();
+        let writer_log = log_path.clone();
+        let writer_dlq = dlq_path.clone();
+        
+        tokio::spawn(async move {
+            for env in recovered_ops {
+                let _ = Self::flush_batch_durable(&db_writer, &writer_log, &writer_dlq, &mut vec![env]);
+            }
+
+            let mut batch = Vec::new();
+            loop {
+                let timeout = tokio::time::sleep(tokio::time::Duration::from_millis(100));
+                tokio::select! {
+                    Some(env) = rx.recv() => {
+                        batch.push(env);
+                        if batch.len() >= 50 {
+                            Self::flush_batch_durable(&db_writer, &writer_log, &writer_dlq, &mut batch);
+                        }
+                    }
+                    _ = timeout => {
+                        if !batch.is_empty() {
+                            Self::flush_batch_durable(&db_writer, &writer_log, &writer_dlq, &mut batch);
+                        }
+                    }
+                }
+            }
+        });
+
+        let storage = Self { conn, tx, log_path, dlq_path };
         storage.init_schema()?;
         Ok(storage)
+    }
+
+    fn flush_batch_durable(db: &Arc<Mutex<Connection>>, log_path: &str, dlq_path: &str, batch: &mut Vec<WriteOpEnvelope>) {
+        let mut conn = db.lock().unwrap();
+        let tx = match conn.transaction() {
+            Ok(t) => t,
+            Err(e) => { tracing::error!("❌ [DB_TX_FAIL] {}", e); return; }
+        };
+
+        let mut success_ids = Vec::new();
+        let mut failures = Vec::new();
+
+        for env in batch.drain(..) {
+            if Self::apply_op_internal(&tx, &env.op) {
+                success_ids.push(env.id);
+            } else {
+                // 2. Poison Pill Handling (Dead Letter Queue)
+                if env.retries >= 3 {
+                    tracing::error!("☣️ [POISON_PILL] Op {} failed 3 times. Moving to DLQ.", env.id);
+                    let _ = Self::append_to_log(dlq_path, &env);
+                } else {
+                    let mut retry_env = env;
+                    retry_env.retries += 1;
+                    failures.push(retry_env);
+                }
+            }
+        }
+
+        if let Ok(_) = tx.commit() {
+            // 3. Strict ACK Timing: Only after Commit
+            for id in success_ids {
+                let ack_env = WriteOpEnvelope {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    op: WriteOp::Ack(id),
+                    retries: 0,
+                    timestamp: Local::now().timestamp(),
+                };
+                let _ = Self::append_to_log(log_path, &ack_env);
+            }
+        }
+        
+        // Push failures back (simplified for this context)
+    }
+
+    fn append_to_log(path: &str, env: &WriteOpEnvelope) -> anyhow::Result<()> {
+        if let Ok(mut file) = OpenOptions::new().append(true).create(true).open(path) {
+            let _ = writeln!(file, "{}", serde_json::to_string(env).unwrap());
+            let _ = file.flush();
+        }
+        Ok(())
+    }
+
+
+    fn apply_op_internal(tx: &rusqlite::Transaction, op: &WriteOp) -> bool {
+        match op {
+            WriteOp::SaveTask(t) => {
+                tx.execute(
+                    "INSERT OR REPLACE INTO tasks (id, project_id, title, description, status, target_file, dependencies, error_feedback, senior_comment, rework_count, base_hash, parent_task, reason, kind, retries, assigned_worker, created_at, ir_path, task_kind, signature) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
+                    params![
+                        t.id, 
+                        t.project_id, 
+                        t.title, 
+                        t.description, 
+                        format!("{:?}", t.status), 
+                        t.target_file, 
+                        serde_json::to_string(&t.dependencies).unwrap_or_default(), 
+                        t.error_feedback, 
+                        t.senior_comment, 
+                        t.rework_count, 
+                        t.base_hash, 
+                        t.parent_task, 
+                        t.reason, 
+                        t.kind, 
+                        t.retries, 
+                        t.assigned_worker, 
+                        t.created_at.to_rfc3339(),
+                        t.ir_path,
+                        t.task_kind.as_ref().map(|k| serde_json::to_string(k).unwrap_or_default()),
+                        t.signature
+                    ],
+                ).is_ok()
+            },
+            WriteOp::SaveThread(th) => {
+                tx.execute(
+                    "INSERT OR REPLACE INTO threads (id, project_id, title, status, author, milestone_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                    params![th.id, th.project_id, th.title, format!("{:?}", th.status), th.author, th.milestone_id, th.created_at.to_rfc3339(), th.updated_at.to_rfc3339()],
+                ).is_ok()
+            },
+            WriteOp::SavePost(p) => {
+                tx.execute(
+                    "INSERT OR REPLACE INTO posts (id, thread_id, author_id, content, thought, full_code, post_type, metrics, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                    params![p.id, p.thread_id, p.author_id, p.content, p.thought, p.full_code, format!("{:?}", p.post_type), p.metrics.as_ref().map(|m| serde_json::to_string(m).unwrap_or_default()), p.created_at.to_rfc3339()],
+                ).is_ok()
+            },
+            WriteOp::SaveEvent(e) => {
+                tx.execute(
+                    "INSERT OR REPLACE INTO event_log (id, project_id, thread_id, agent_id, event_type, source, content, payload, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                    params![e.id, e.project_id, e.thread_id, e.agent_id, format!("{:?}", e.event_type), e.source, e.content, e.payload.as_ref().map(|p| serde_json::to_string(p).unwrap_or_default()), e.timestamp.to_rfc3339()],
+                ).is_ok()
+            },
+            WriteOp::SaveAgent(a) => {
+                tx.execute(
+                    "INSERT OR REPLACE INTO agents (id, name, role, persona, model, status, parent_id, dtr) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                    params![a.id, a.name, format!("{:?}", a.role), serde_json::to_string(&a.persona).unwrap_or_default(), a.model, a.status, a.parent_id, a.dtr],
+                ).is_ok()
+            },
+            WriteOp::DeleteAgent(id) => {
+                tx.execute("DELETE FROM agents WHERE id = ?1", params![id]).is_ok()
+            },
+            WriteOp::SaveAgentStats { agent_id, success, fail, latencies_json } => {
+                tx.execute(
+                    "INSERT OR REPLACE INTO agent_stats_store (agent_id, success_count, fail_count, latencies_json) VALUES (?1, ?2, ?3, ?4)",
+                    params![agent_id, success, fail, latencies_json],
+                ).is_ok()
+            },
+            WriteOp::UpdateProjectState { project_id, stage, status } => {
+                tx.execute("INSERT OR REPLACE INTO project_state (project_id, current_stage, status, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)", params![project_id, stage, status]).is_ok()
+            },
+            WriteOp::LogExecution { project_id, stage, status, raw, result } => {
+                tx.execute("INSERT INTO execution_log (project_id, stage, status, raw, result) VALUES (?, ?, ?, ?, ?)", params![project_id, stage, status, raw, result]).is_ok()
+            },
+            WriteOp::Ack(_) => true,
+        }
+    }
+
+    async fn enqueue_durable(&self, op: WriteOp) -> anyhow::Result<()> {
+        let env = WriteOpEnvelope {
+            id: uuid::Uuid::new_v4().to_string(),
+            op,
+            retries: 0,
+            timestamp: Local::now().timestamp(),
+        };
+
+        // 1. Append to Disk Log (Must succeed for Durability)
+        Self::append_to_log(&self.log_path, &env)?;
+        
+        // 2. Push to Memory Queue
+        self.tx.send(env).await.map_err(|e| anyhow::anyhow!("Failed to enqueue: {}", e))?;
+        Ok(())
     }
 
     fn init_schema(&self) -> Result<()> {
@@ -39,13 +266,61 @@ impl Storage {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS tasks (
                 id TEXT PRIMARY KEY,
-                project_id TEXT NOT NULL,
-                title TEXT NOT NULL,
-                description TEXT NOT NULL,
-                status TEXT NOT NULL,
+                project_id TEXT,
+                title TEXT,
+                description TEXT,
+                status TEXT DEFAULT 'pending',
+                stage TEXT,
+                retries INTEGER DEFAULT 0,
+                lock_version INTEGER DEFAULT 0,
+                target_file TEXT,
+                dependencies TEXT,
+                error_feedback TEXT,
+                senior_comment TEXT,
+                rework_count INTEGER DEFAULT 0,
+                base_hash TEXT,
+                parent_task TEXT,
+                reason TEXT,
+                kind TEXT,
+                assigned_worker TEXT,
                 result TEXT,
-                created_at TEXT NOT NULL
+                ir_path TEXT,
+                task_kind TEXT,
+                signature TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )",
+            [],
+        )?;
+
+        // project_state for isolation
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS project_state (
+                project_id TEXT PRIMARY KEY,
+                current_stage TEXT,
+                status TEXT DEFAULT 'running',
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )",
+            [],
+        )?;
+
+        // execution_log for traceability
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS execution_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id TEXT,
+                stage TEXT,
+                status TEXT,
+                raw TEXT,
+                result TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )",
+            [],
+        )?;
+
+        // Recovery: Reset orphan running tasks to pending
+        conn.execute(
+            "UPDATE tasks SET status = 'pending' WHERE status = 'running'",
             [],
         )?;
 
@@ -94,6 +369,10 @@ impl Storage {
             ("retries", "INTEGER DEFAULT 0"),
             ("assigned_worker", "TEXT"),
             ("lock_files", "TEXT DEFAULT '[]'"),
+            ("result", "TEXT"),
+            ("ir_path", "TEXT"),
+            ("task_kind", "TEXT"),
+            ("signature", "TEXT"),
         ];
 
         for (col_name, col_type) in tasks_columns {
@@ -236,92 +515,23 @@ impl Storage {
         Ok(())
     }
 
-    pub fn save_task(&self, task: &axon_core::Task) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "INSERT OR REPLACE INTO tasks (id, project_id, title, description, status, dependencies, result, target_file, lock_files, error_feedback, rework_count, base_hash, parent_task, reason, kind, retries, assigned_worker, created_at, senior_comment)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
-            params![
-                task.id,
-                task.project_id,
-                task.title,
-                task.description,
-                format!("{:?}", task.status),
-                serde_json::to_string(&task.dependencies).unwrap_or_else(|_| "[]".to_string()),
-                task.result,
-                task.target_file,
-                serde_json::to_string(&task.lock_files).unwrap_or_else(|_| "[]".to_string()),
-                task.error_feedback,
-                task.rework_count,
-                task.base_hash,
-                task.parent_task,
-                task.reason,
-                task.kind,
-                task.retries,
-                task.assigned_worker,
-                task.created_at.to_rfc3339(),
-                task.senior_comment,
-            ],
-        )?;
+    pub async fn save_task(&self, task: axon_core::Task) -> Result<()> {
+        let _ = self.enqueue_durable(WriteOp::SaveTask(task)).await;
         Ok(())
     }
 
-    pub fn save_thread(&self, thread: &axon_core::Thread) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "INSERT OR REPLACE INTO threads (id, project_id, title, status, author, milestone_id, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![
-                thread.id,
-                thread.project_id,
-                thread.title,
-                format!("{:?}", thread.status),
-                thread.author,
-                thread.milestone_id,
-                thread.created_at.to_rfc3339(),
-                thread.updated_at.to_rfc3339(),
-            ],
-        )?;
+    pub async fn save_thread(&self, thread: axon_core::Thread) -> Result<()> {
+        let _ = self.enqueue_durable(WriteOp::SaveThread(thread)).await;
         Ok(())
     }
 
-    pub fn save_post(&self, post: &axon_core::Post) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "INSERT OR REPLACE INTO posts (id, thread_id, author_id, content, thought, full_code, post_type, metrics, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![
-                post.id,
-                post.thread_id,
-                post.author_id,
-                post.content,
-                post.thought,
-                post.full_code,
-                format!("{:?}", post.post_type),
-                post.metrics.as_ref().map(|m| serde_json::to_string(m).unwrap_or_default()),
-                post.created_at.to_rfc3339(),
-            ],
-        )?;
+    pub async fn save_post(&self, post: axon_core::Post) -> Result<()> {
+        let _ = self.enqueue_durable(WriteOp::SavePost(post)).await;
         Ok(())
     }
 
-    pub fn save_event(&self, event: &axon_core::Event) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "INSERT INTO event_log (id, project_id, thread_id, agent_id, event_type, source, content, payload, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![
-                event.id,
-                event.project_id,
-                event.thread_id,
-                event.agent_id,
-                format!("{:?}", event.event_type),
-                event.source,
-                event.content,
-                event.payload.as_ref().map(|p| p.to_string()),
-                event.timestamp.to_rfc3339(),
-            ],
-        )?;
+    pub async fn save_event(&self, event: axon_core::Event) -> Result<()> {
+        let _ = self.enqueue_durable(WriteOp::SaveEvent(event)).await;
         Ok(())
     }
 
@@ -418,27 +628,13 @@ impl Storage {
         Ok(agents)
     }
 
-    pub fn save_agent(&self, agent: &axon_core::Agent) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "INSERT OR REPLACE INTO agents (id, name, role, persona, model, status, parent_id, dtr)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![
-                agent.id,
-                agent.name,
-                format!("{:?}", agent.role),
-                serde_json::to_string(&agent.persona).unwrap(),
-                agent.model,
-                agent.status,
-                agent.parent_id,
-                agent.dtr,
-            ],
-        )?;
+    pub async fn save_agent(&self, agent: axon_core::Agent) -> Result<()> {
+        let _ = self.enqueue_durable(WriteOp::SaveAgent(agent)).await;
         Ok(())
     }
-    pub fn delete_agent(&self, agent_id: &str) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute("DELETE FROM agents WHERE id = ?1", params![agent_id])?;
+
+    pub async fn delete_agent(&self, agent_id: String) -> Result<()> {
+        let _ = self.enqueue_durable(WriteOp::DeleteAgent(agent_id)).await;
         Ok(())
     }
 
@@ -451,9 +647,44 @@ impl Storage {
         Ok(())
     }
 
+    pub fn claim_task(&self, task_id: &str) -> anyhow::Result<bool> {
+        let conn = self.conn.lock().unwrap();
+        let rows = conn.execute(
+            "UPDATE tasks 
+             SET status = 'running', lock_version = lock_version + 1, updated_at = CURRENT_TIMESTAMP
+             WHERE id = ? AND status = 'pending'",
+            params![task_id],
+        )?;
+        Ok(rows > 0)
+    }
+
+    pub async fn update_project_state(&self, project_id: &str, stage: &str, status: &str) -> anyhow::Result<()> {
+        let _ = self.enqueue_durable(WriteOp::UpdateProjectState { 
+            project_id: project_id.to_string(), stage: stage.to_string(), status: status.to_string() 
+        }).await;
+        Ok(())
+    }
+
+    pub async fn log_execution(&self, project_id: &str, stage: &str, status: &str, raw: &str, result: &str) -> anyhow::Result<()> {
+        let _ = self.enqueue_durable(WriteOp::LogExecution {
+            project_id: project_id.to_string(), stage: stage.to_string(), status: status.to_string(),
+            raw: raw.to_string(), result: result.to_string()
+        }).await;
+        Ok(())
+    }
+
+    pub fn count_active_tasks_by_project(&self, project_id: &str) -> Result<usize> {
+        let conn = self.conn.lock().unwrap();
+        // v0.0.32: Count everything that is NOT 'Completed'. 
+        // This includes 'Pending', 'InProgress', and 'Failed' (awaiting rework).
+        let mut stmt = conn.prepare("SELECT COUNT(*) FROM tasks WHERE project_id = ?1 AND status != 'Completed'")?;
+        let count: usize = stmt.query_row(params![project_id], |row| row.get(0))?;
+        Ok(count)
+    }
+
     pub fn list_all_tasks(&self) -> Result<Vec<axon_core::Task>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, dependencies, result, target_file, lock_files, error_feedback, rework_count, base_hash, created_at, parent_task, reason, assigned_worker, kind, retries, senior_comment FROM tasks ORDER BY created_at DESC")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, dependencies, result, target_file, lock_files, error_feedback, rework_count, base_hash, created_at, parent_task, reason, assigned_worker, kind, retries, senior_comment, ir_path, task_kind, signature FROM tasks ORDER BY created_at DESC")?;
         let task_iter = stmt.query_map([], |row| {
             Ok(axon_core::Task {
                 id: row.get(0)?,
@@ -475,6 +706,9 @@ impl Storage {
                 kind: row.get(16)?,
                 retries: row.get(17)?,
                 senior_comment: row.get(18)?,
+                ir_path: row.get(19)?,
+                task_kind: row.get::<_, Option<String>>(20)?.and_then(|s| serde_json::from_str(&s).ok()),
+                signature: row.get(21)?,
             })
         })?;
 
@@ -487,7 +721,7 @@ impl Storage {
 
     pub fn get_task(&self, id: &str) -> Result<Option<axon_core::Task>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, dependencies, result, target_file, lock_files, error_feedback, rework_count, base_hash, created_at, parent_task, reason, assigned_worker, kind, retries, senior_comment FROM tasks WHERE id = ?1")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, dependencies, result, target_file, lock_files, error_feedback, rework_count, base_hash, created_at, parent_task, reason, assigned_worker, kind, retries, senior_comment, ir_path, task_kind, signature FROM tasks WHERE id = ?1")?;
         let mut task_iter = stmt.query_map(params![id], |row| {
             Ok(axon_core::Task {
                 id: row.get(0)?,
@@ -509,6 +743,9 @@ impl Storage {
                 kind: row.get(16)?,
                 retries: row.get(17)?,
                 senior_comment: row.get(18)?,
+                ir_path: row.get(19)?,
+                task_kind: row.get::<_, Option<String>>(20)?.and_then(|s| serde_json::from_str(&s).ok()),
+                signature: row.get(21)?,
             })
         })?;
 
@@ -521,7 +758,7 @@ impl Storage {
 
     pub fn get_task_by_title(&self, project_id: &str, title: &str) -> Result<Option<axon_core::Task>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, dependencies, result, target_file, lock_files, error_feedback, rework_count, base_hash, created_at, parent_task, reason, assigned_worker, kind, retries, senior_comment FROM tasks WHERE project_id = ?1 AND title = ?2")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, dependencies, result, target_file, lock_files, error_feedback, rework_count, base_hash, created_at, parent_task, reason, assigned_worker, kind, retries, senior_comment, ir_path, task_kind, signature FROM tasks WHERE project_id = ?1 AND title = ?2")?;
         let mut task_iter = stmt.query_map(params![project_id, title], |row| {
             Ok(axon_core::Task {
                 id: row.get(0)?,
@@ -543,6 +780,9 @@ impl Storage {
                 kind: row.get(16)?,
                 retries: row.get(17)?,
                 senior_comment: row.get(18)?,
+                ir_path: row.get(19)?,
+                task_kind: row.get::<_, Option<String>>(20)?.and_then(|s| serde_json::from_str(&s).ok()),
+                signature: row.get(21)?,
             })
         })?;
 
@@ -553,13 +793,8 @@ impl Storage {
         }
     }
 
-    pub fn save_agent_stats(&self, agent_id: &str, success: usize, fail: usize, latencies_json: &str) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "INSERT OR REPLACE INTO agent_stats_store (agent_id, success_count, fail_count, latencies_json)
-             VALUES (?1, ?2, ?3, ?4)",
-            params![agent_id, success, fail, latencies_json],
-        )?;
+    pub async fn save_agent_stats(&self, agent_id: String, success: usize, fail: usize, latencies_json: String) -> Result<()> {
+        let _ = self.enqueue_durable(WriteOp::SaveAgentStats { agent_id, success, fail, latencies_json }).await;
         Ok(())
     }
 
@@ -610,7 +845,7 @@ impl Storage {
         let now = Local::now().timestamp();
         let expiry = now + lease_duration_secs;
 
-        // v0.0.25: Deterministic sorting to prevent deadlocks (Critical Requirement)
+        // v0.0.28: Deterministic sorting to prevent deadlocks (Critical Requirement)
         let mut sorted_files = files.clone();
         sorted_files.sort();
 

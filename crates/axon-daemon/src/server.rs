@@ -20,6 +20,7 @@ use axum::{
     extract::{ws::{Message, WebSocket, WebSocketUpgrade}, Path, State},
     response::{IntoResponse, Json},
     routing::{get, post},
+    http::StatusCode,
     Router,
 };
 use futures_util::StreamExt;
@@ -191,8 +192,11 @@ async fn submit_spec_internal(
                         retries: 0,
                         assigned_worker: None,
                         created_at: chrono::Local::now(),
+                        ir_path: None,
+                        task_kind: None,
+                        signature: None,
                     };
-                    let _ = daemon.storage.save_task(&task);
+                    let _ = daemon.storage.save_task(task.clone()).await;
                     
                     let thread = axon_core::Thread {
                         id: task.id.clone(),
@@ -204,7 +208,7 @@ async fn submit_spec_internal(
                         created_at: task.created_at,
                         updated_at: task.created_at,
                     };
-                    let _ = daemon.storage.save_thread(&thread);
+                    let _ = daemon.storage.save_thread(thread).await;
 
                     let new_post = axon_core::Post {
                         id: uuid::Uuid::new_v4().to_string(),
@@ -217,9 +221,9 @@ async fn submit_spec_internal(
                         metrics: None,
                         created_at: task.created_at,
                     };
-                    let _ = daemon.storage.save_post(&new_post);
+                    let _ = daemon.storage.save_post(new_post).await;
                     
-                    // v0.0.25: Notify UI immediately via WebSocket
+                    // v0.0.28: Notify UI immediately via WebSocket
                     daemon.publish_event(axon_core::Event {
                         id: uuid::Uuid::new_v4().to_string(),
                         project_id: task.project_id.clone(),
@@ -259,8 +263,11 @@ async fn submit_spec_internal(
                     retries: 0,
                     assigned_worker: None,
                     created_at: chrono::Local::now(),
+                    ir_path: None,
+                    task_kind: None,
+                    signature: None,
                 };
-                let _ = daemon.storage.save_task(&task);
+                let _ = daemon.storage.save_task(task.clone()).await;
 
                 let thread = axon_core::Thread {
                     id: task.id.clone(),
@@ -272,7 +279,7 @@ async fn submit_spec_internal(
                     created_at: task.created_at,
                     updated_at: task.created_at,
                 };
-                let _ = daemon.storage.save_thread(&thread);
+                let _ = daemon.storage.save_thread(thread).await;
 
                 let new_post = axon_core::Post {
                     id: uuid::Uuid::new_v4().to_string(),
@@ -285,7 +292,7 @@ async fn submit_spec_internal(
                     metrics: None,
                     created_at: task.created_at,
                 };
-                let _ = daemon.storage.save_post(&new_post);
+                let _ = daemon.storage.save_post(new_post).await;
 
                 if let Err(e) = daemon.dispatcher.enqueue_task(task) {
                     tracing::error!("❌ [QUEUE_REJECTED] via API: {}", e);
@@ -307,9 +314,12 @@ async fn approve_thread(
     let runnable = daemon.storage.list_all_threads().unwrap_or_default();
     if let Some(mut thread) = runnable.into_iter().find(|t| t.id == id) {
         thread.status = axon_core::ThreadStatus::Completed;
-        let _ = daemon.storage.save_thread(&thread);
+        if let Err(e) = daemon.storage.save_thread(thread.clone()).await {
+             tracing::error!("❌ Failed to save thread: {}", e);
+             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
         
-        // Lock-in architecture section (v0.0.16 Isolation Path applied)
+        // Lock-in architecture section (v0.0.28 Isolation Path applied)
         let _ = daemon.lock_in_architecture(&thread.project_id, &thread.title);
 
         daemon.publish_event(axon_core::Event {
@@ -379,7 +389,7 @@ async fn get_status(
 ) -> Json<StatusResponse> {
     let is_paused = *daemon.pause_rx.borrow();
     
-    // v0.0.25: Strategic sync - robust filtering of non-work threads
+    // v0.0.28: Strategic sync - robust filtering of non-work threads
     let threads = daemon.storage.list_runnable_threads().unwrap_or_default();
     let strategic_threads = threads.iter().filter(|t| {
         let is_lounge = t.id == "lounge" || t.title.contains("Lounge");
@@ -387,7 +397,7 @@ async fn get_status(
         !is_lounge && !is_system
     }).count();
     
-    // v0.0.25: Clean signal count - exclude Nogari chat logs from the factory overview stats
+    // v0.0.28: Clean signal count - exclude Nogari chat logs from the factory overview stats
     let events = daemon.storage.list_events(1000).unwrap_or_default();
     let process_signals = events.iter().filter(|e| e.event_type != axon_core::EventType::MessagePosted).count();
     
@@ -437,7 +447,7 @@ async fn hire_agent(
     );
     runtime.agent.parent_id = req.parent_id;
     
-    let _ = daemon.storage.save_agent(&runtime.agent);
+    let _ = daemon.storage.save_agent(runtime.agent.clone()).await;
     
     daemon.publish_event(axon_core::Event {
         id: uuid::Uuid::new_v4().to_string(),
@@ -468,17 +478,17 @@ async fn fire_agent(
             return (axum::http::StatusCode::BAD_REQUEST, "Cannot fire the last agent of this role. Minimum requirement: 1 Senior, 1 Junior.").into_response();
         }
 
-        // CASCADING FIRE (v0.0.17): If a Senior is fired, fire all sub-juniors simultaneously
+        // CASCADING FIRE (v0.0.28): If a Senior is fired, fire all sub-juniors simultaneously
         let children_to_fire: Vec<String> = agents.iter()
             .filter(|a| a.parent_id.as_deref() == Some(&id))
             .map(|a| a.id.clone())
             .collect();
 
         for child_id in children_to_fire {
-            let _ = daemon.storage.delete_agent(&child_id);
+            let _ = daemon.storage.delete_agent(child_id).await;
         }
 
-        let _ = daemon.storage.delete_agent(&id);
+        let _ = daemon.storage.delete_agent(id.clone()).await;
         
         daemon.publish_event(axon_core::Event {
             id: uuid::Uuid::new_v4().to_string(),
@@ -571,9 +581,12 @@ async fn submit_task(
         retries: 0,
         assigned_worker: None,
         created_at: chrono::Local::now(),
+        ir_path: None,
+        task_kind: None,
+        signature: None,
     };
 
-    let _ = daemon.storage.save_task(&task);
+    let _ = daemon.storage.save_task(task.clone()).await;
     let queue_size = daemon.dispatcher.len();
     
     if let Err(e) = daemon.dispatcher.enqueue_task(task) {

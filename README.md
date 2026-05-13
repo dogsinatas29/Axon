@@ -263,6 +263,14 @@ Also, you can inject personas into the hired agents.
 
 ## 📋 Release Notes
 
+### v0.0.28 - Architectural Auditor & Contract Consistency
+- **Architectural Auditor**: Refactored the Senior Agent into a strict binary compliance auditor (Contract Verifier), eliminating subjective style rejections and focusing purely on SSOT integrity.
+- **Self-Healing Reviewer**: Implemented a 3-attempt retry loop for JSON protocol compliance, preventing pipeline deadlocks caused by small model formatting errors.
+- **Deterministic Materializer**: Hardened Junior Agent prompts to enforce absolute IR contract faithfulness (Consistency > Quality), suppressing function renaming and hallucinated headers.
+- **Header Resolver (v2)**: Fixed C-header mapping bug to support decoupled source/include structures (`src/*.c` <-> `include/*.h`) in the integrity gate.
+- **Task ID Namespace**: Implemented `hdr_` and `impl_` prefixing for deterministic task/thread isolation in the Work Board.
+- **Traceable Reworks**: Added `(Rework #N)` tagging to task titles for clear generation tracking and UI observability.
+
 ### v0.0.25 - The Universal Factory (Phase 0-8)
 - **Language-Agnostic Engine**: Full native support for **C, Rust, and Python** projects with automatic entry point detection.
 - **Lounge (Vibe) System**: Real-time broadcasting of agent thoughts to the `#lounge` channel without polluting source files.

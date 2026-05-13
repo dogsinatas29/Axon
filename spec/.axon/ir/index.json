@@ -1,0 +1,24 @@
+{
+  "node_mapping": {},
+  "components": {
+    "src/main.c": {
+      "name": "Main",
+      "file_path": "src/main.c",
+      "functions": {
+        "main": {
+          "name": "main",
+          "signature": "int main()",
+          "dependencies": [],
+          "body_hash": null
+        }
+      },
+      "imports": [],
+      "associated_files": [
+        "src/main.h"
+      ],
+      "is_entrypoint": true,
+      "data_models": []
+    }
+  },
+  "constraints": []
+}

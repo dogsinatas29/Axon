@@ -1,4 +1,4 @@
-use axon_core::rules::Constraint;
+use axon_ir::schema::Constraint;
 
 #[derive(Debug, Clone)]
 pub struct ConstraintProposal {

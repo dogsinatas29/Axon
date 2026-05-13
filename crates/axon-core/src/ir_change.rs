@@ -1,4 +1,4 @@
-use crate::ir::*;
+use axon_ir::*;
 
 #[derive(Debug, Clone)]
 pub enum IRChange {

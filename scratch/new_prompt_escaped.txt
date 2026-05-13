@@ -1,0 +1,17 @@
+             ### EXPECTED JSON SCHEMA (MANDATORY: EXTRACT ALL MODULES FROM SPEC) ###\\n\\
+             <JSON_START>\\n\\
+             {{\\n\\
+               \"node_mapping\": {{ \"SPEC_NODE\": \"func\" }},\\n\\
+               \"components\": [\\n\\
+                 {{\\n\\
+                   \"name\": \"module_name\",\\n\\
+                   \"file\": \"path/to/module.c\",\\n\\
+                   \"functions\": [\\n\\
+                     {{ \"name\": \"func_name\", \"signature\": \"int func_name(int arg)\" }}\\n\\
+                   ],\\n\\
+                   \"is_entrypoint\": false\\n\\
+                 }}\\n\\
+               ]\\n\\
+             }}\\n\\
+             <JSON_END>\\n\\n\\
+             CRITICAL: You MUST analyze the SOURCE SPEC and extract EVERY module, EVERY function, and EVERY header defined there. DO NOT truncate. DO NOT simplify.\\n\\

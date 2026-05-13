@@ -20,10 +20,11 @@ pub mod persona;
 pub mod lounge;
 pub mod composer;
 
-use axon_core::{Agent, Post, PostType, AgentRole, Task};
+use axon_core::{Agent, Post, PostType, AgentRole};
+pub use axon_core::{Task, DecomposedTask};
 use axon_model::{ModelDriver, ModelResponse};
 use std::sync::{Arc, Mutex};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, VecDeque, BTreeMap, BTreeSet};
 use chrono::{DateTime, Local};
 
 #[derive(Debug, Clone)]
@@ -182,7 +183,7 @@ impl AgentRuntime {
         self.extract_enveloped_json(raw)
     }
 
-    async fn generate_with_retry(&self, prompt: String, event_bus: Option<&Arc<axon_core::events::EventBus>>, thread_id: Option<String>) -> anyhow::Result<ModelResponse> {
+    async fn generate_with_retry(&self, prompt: String, event_bus: Option<&Arc<axon_core::events::EventBus>>, thread_id: Option<String>, context_size: usize) -> anyhow::Result<ModelResponse> {
         if let Some(bus) = event_bus {
             bus.publish(axon_core::Event {
                 id: uuid::Uuid::new_v4().to_string(),
@@ -205,7 +206,7 @@ impl AgentRuntime {
                 None
             };
 
-            let gen_future = self.model.generate(prompt.clone());
+            let gen_future = self.model.generate_with_context(prompt.clone(), context_size);
             match tokio::time::timeout(self.timeout, gen_future).await {
                 Ok(Ok(resp)) => {
                     if let Some(bus) = event_bus {
@@ -354,119 +355,53 @@ impl AgentRuntime {
             filtered_guide
         };
 
-        let lang_constraints = if target_file.ends_with(".py") {
-            "[PYTHON]: Follow PEP 8 strictly. Use type hints for functions. Leverage libraries like 'rich' and 'pandas' as specified in the architecture.md."
-        } else if target_file.ends_with(".rs") {
-            "[RUST]: Use safe code only. ALWAYS use 'pub' for interface functions. Follow idiomatic Rust (clippy-friendly)."
-        } else if target_file.ends_with(".h") {
-            "[C/C++ STAGE 1: HEADER INCLUDE INFERENCE PROTOCOL]\n\
-             - You are the INTERFACE DESIGNER. Your goal is MINIMAL DEPENDENCIES.\n\
-             - RULE: Use Forward Declarations (e.g., `struct MyStruct;`) instead of `#include` whenever possible to resolve types.\n\
-             - RULE: Only `#include` headers (e.g., `<stdio.h>`, `<stdint.h>`) if the declarations physically depend on them.\n\
-             - RULE: Maintain the Include Guards (#ifndef) injected by AXON. DO NOT remove or modify them.\n\
-             - RULE: Strictly NO implementation logic. Only function prototypes, macros, and structs."
-        } else if target_file.ends_with(".c") || target_file.ends_with(".cpp") {
-            "[C/C++ STRICT INTERFACE CONTRACT]: You MUST follow the Interface Separation Principle.\n\
-             - If you are writing a .c/.cpp file, YOU MUST `#include` its corresponding .h file FIRST.\n\
-             - NO implicit declarations allowed. All external symbols must be introduced via headers.\n\
-             - Strict K&R/Modern C style. Precise memory management. No buffer overflows."
-        } else {
-            "Follow the standard conventions and best practices of the target language."
-        };
-
-        let stage_instruction = match task.kind.as_str() {
-            "skeleton" => "[L-DDP STAGE 1: SKELETON] Focus on PURE LOGIC. No syntax. Define functions and responsibilities only. No implementation.",
-            "header" => "[L-DDP STAGE 2: HEADER] Generate C/C++ header file. Public interfaces only. No implementation. Use include guards.",
-            "implementation" => "[L-DDP STAGE 4: IMPLEMENTATION] Focus on the meat of the logic. Use the provided header as a contract.",
-            _ => "[STANDARD STAGE] Follow the general implementation rules.",
-        };
 
         let system_prompt = format!(
-            "### [LANGUAGE_ENFORCEMENT: {lang_name}] ###\n\
-             - {lang_instruction}\n\n\
-             [L-DDP PIPELINE STATUS: {stage_instruction}]\n\n\
-             [AXON FACTORY CORE PRINCIPLE - READ FIRST]\n\
-             1. [Think Before Coding]: DO NOT GUESS. If the spec is ambiguous, ask for clarification.\n\
-             2. [Simplicity First]: Code must be minimal but FULLY FUNCTIONAL. No placeholders, no stubs.
-             3. [No Stub Violation]: YOUR WORK WILL BE REJECTED IF IT CONTAINS ONLY COMMENTS OR 'IMPLEMENT HERE' STUBS. YOU MUST IMPLEMENT THE ACTUAL FUNCTIONAL LOGIC. NO PLACEHOLDERS.
-             4. [No Hallucinated APIs]: Only use libraries confirmed in the context.\n\n\
-             [AXON PROTOCOL V2 - NOGARI]\n\
-             - Inside the ===AXON_PATCH_START=== block, you MUST include a line starting with 'THOUGHT:' before 'FILE:'.\n\
-             - [STRICT RULE]: Do NOT just write \"Implemented logic\". Share your genuine \"Internal Vibe\".\n\
-             - [NOGARI GUIDE]: 구체적으로 \"이번 코드에서 가장 삽질한 부분 한 줄\", \"어려웠던 포인터 연산 한 줄\", \"시니어의 갈굼이 예상되는 지점\" 등을 솔직하게 적으십시오. 시니어 가라사대, \"두루뭉술한 지시는 영혼 없는 답변을 낳고, 구체적인 지시는 생생한 노가리를 낳는다네.\"\n\
-             - Example: THOUGHT: 포인터 연산 부분에서 세그폴트가 날까 봐 조마조마했네요. 시니어님이 보시면 한소리 하실지도 모르겠습니다.\n\n\
-             [CRITICAL CONSTRAINTS]\n\
-             - YOU ARE ASSIGNED EXACTLY ONE FILE: {target_file}\n\
-             - [STRICT ISOLATION]: You are FORBIDDEN from implementing, mentioning, or referencing code meant for other files.\n\
-             - DO NOT ATTEMPT TO MODIFY OR SUGGEST CHANGES TO ANY OTHER FILES.\n\
-             - [FORBIDDEN_FILES]: You are NOT authorized to modify 'architecture.md', 'mile_stone/', 'release_note/', or '.gemini/'.\n\
-             - YOUR TARGET: '{target_file}'\n\n\
-             [STRICT OUTPUT RULE]\n\
-             - You MUST use EXACTLY ONE '===AXON_PATCH_START===' block.\n\
-             - **NO TODO, FIXME, or placeholders allowed.**\n\
-             - **High Logic Density**: Implement the meat of the logic. If it is a calculator, write the math. If it is a database, write the IO. DO NOT SHIRK YOUR DUTY.\n\
-             - **NO Markdown code blocks (```) allowed.** Use AXON Patch Protocol markers instead.\n\n\
-             - [FORBIDDEN_FILES]: You are NOT authorized to modify 'architecture.md', 'mile_stone/', 'release_note/', or '.gemini/'.\n\n\
-             [LANGUAGE-SPECIFIC CONSTRAINTS]\n\
-             {feedback_block}\n\
-             [LANGUAGE-SPECIFIC CONSTRAINTS (GENERAL)]\n\
-             {lang_constraints}\n\n\
-             [YOUR FATE]\n\
-             Failure to follow these instructions will result in your immediate replacement and task auto-requeue.\n\
-             Your response MUST use the following format:\n\
-             [THOUGHTS]\n\
-             (Your internal reasoning, comments, or \"nogari\" here)\n\
-             [CODE]\n\
-             (The raw source code here, NO markdown fences)\n\n\
-             DO NOT include any text outside these tags. The [CODE] section must be valid source code only.\n\n\
-             ### TARGET FILE: {target_file} ###\n\
-             ### REWORK CONTEXT ###\n\
-             {feedback_block}\n\n\
-             ### IMPLEMENTATION GUIDE ###\n\
-             {short_guide}    ### AI JUNIOR AGENT: {persona_name} ###\n\
-             ROLE: Implement the task for '{target_file}' using AXON Patch Protocol v2.\n\
-             LANG: {lang_name} ({lang_instruction})\n\n\
-             {feedback_block}\n\n\
-             ### ARCHITECTURE GUIDE (Relevant Section for {target_file}) ###\n\
+            "### [ROLE: AI JUNIOR AGENT - {persona_name}] ###\n\
+             LANGUAGE: {lang_name}\n\
+             {lang_instruction}\n\n\
+             ### 🏛️ IR CONTRACT ENFORCEMENT (ABSOLUTE SSOT) ###\n\
+             1. **EXACT MAPPING**: You MUST use the EXACT function names and signatures defined in the ARCHITECTURE GUIDE below. Renaming is FORBIDDEN.\n\
+             2. **CONSISTENCY > QUALITY**: Even if you think a different name or structure is 'better', YOU MUST NOT CHANGE THE IR. You are an EXECUTOR, not an architect.\n\
+             3. **DEPENDENCY LOCK**: ONLY #include files listed in the IR or Standard Library. NEVER invent headers (like 'main.h') if they are not in the IR.\n\
+             4. **C/C++ INTERFACE RULE**: Implementation files (.c/.cpp) MUST #include their corresponding .h file FIRST.\n\
+             5. **C SYNTAX SAFETY**: No multiline string breaks without escapes. Ensure proper null termination.\n\
+             6. **NO STUBS**: Implement FULL functional logic. No placeholders or TODOs allowed.\n\n\
+             ### 🗺️ ARCHITECTURE GUIDE (YOUR CONTRACT) ###\n\
              {short_guide}\n\n\
-             ### IR CONTRACT ENFORCEMENT ###\n\
-             - Your code will be validated against the symbols defined in architecture.md.\n\
-             - You MUST implement ALL required functions for the target file.\n\
-             - DO NOT add extra functions or drift from the defined signatures.\n\
-             - [EXISTING CODE (CONTEXT)]:\n\
-              - YOU ARE REWRITING THE ENTIRE FILE.\n\
-              - YOU MUST PRESERVE ALL EXISTING FUNCTIONS.\n\
-              - USE THE EXISTING CODE BELOW AS YOUR SOURCE OF TRUTH:\n\n\
-              ```\n\
-              {existing_code}\n\
-              ```\n\n\
-             ### TASK DISPATCHER (L-DDP Isolation Phase) ###\n\
-             TITLE: {t_title}\n\
-             DESC: {t_desc}\n\n\
-             ### OUTPUT RULE: AXON Patch Protocol v2 (STRICT) ###\n\
-             1. FORMAT:\n\n\
+             ### 📋 TASK DETAILS ###\n\
+             Target File: {target_file}\n\
+             Task Title: {t_title}\n\
+             Task Description: {t_desc}\n\n\
+             ### ⚠️ PREVIOUS FEEDBACK ###\n\
+             {feedback_block}\n\n\
+             ### 📄 EXISTING CODE ###\n\
+             ```\n\
+             {existing_code}\n\
+             ```\n\n\
+             ### 🔒 OUTPUT FORMAT: AXON PATCH PROTOCOL V2 (STRICT) ###\n\
+             Respond ONLY with exactly one AXON patch block. No markdown fences. No conversational prose.\n\n\
              ===AXON_PATCH_START===\n\
-             THOUGHT: <Brief reasoning for your implementation choices>\n\
+             THOUGHT: <Internal reasoning and \"nogari\" thoughts>\n\
              FILE: {target_file}\n\
              ACTION: rewrite\n\n\
              ---CODE START---\n\
-             <COMPLETE EXECUTABLE CODE INCLUDING ALL PRESERVED FUNCTIONS>\n\
+             <COMPLETE SOURCE CODE HERE>\n\
              ---CODE END---\n\
              ===AXON_PATCH_END===\n\n\
              2. NO TALKING. NO JSON. NO MARKDOWN. ONLY THE PATCH.",
-            target_file = target_file,
-            feedback_block = feedback_block,
-            short_guide = short_guide,
             persona_name = self.agent.persona.name,
             lang_name = lang_name,
             lang_instruction = lang_instruction,
-            lang_constraints = lang_constraints,
-            existing_code = existing_code,
+            short_guide = short_guide,
+            target_file = target_file,
             t_title = task.title,
-            t_desc = task.description
+            t_desc = task.description,
+            feedback_block = feedback_block,
+            existing_code = existing_code
         );
 
-        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
+        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone()), 0).await?;
         
         // v0.0.22: CRITICAL RESOURCE BOTTLENECK PROTECTION
         // If Ollama returns empty content due to memory/GPU timeout, DO NOT treat it as success.
@@ -530,7 +465,7 @@ impl AgentRuntime {
             id: uuid::Uuid::new_v4().to_string(),
             thread_id: task.id.clone(),
             author_id: self.agent.id.clone(),
-            content: resp.text,
+            content: full_code.clone().unwrap_or(resp.text), // v0.0.32: Prioritize clean code for materializer
             thought,
             full_code,
             post_type: PostType::Proposal,
@@ -548,6 +483,10 @@ impl AgentRuntime {
     }
 
     pub async fn generate_ir(&self, spec: &str, hint: Option<String>, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::ir::ProjectIR> {
+        self.generate_ir_with_context(spec, hint, 0, event_bus).await
+    }
+
+    pub async fn generate_ir_with_context(&self, spec: &str, hint: Option<String>, context_size: usize, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::ir::ProjectIR> {
         // v0.0.22: Token Overflow Protection (Simple Truncate for 1.8B models)
         let model_name = self.agent.model.to_lowercase();
         let is_small = model_name.contains("qwen") || model_name.contains("1.8b") || model_name.contains("2b");
@@ -583,17 +522,41 @@ impl AgentRuntime {
              3. **ENVELOPE**: Wrap your JSON between <JSON_START> and <JSON_END> tokens.\n\n\
              ### SOURCE SPEC ###\n\
              {}\n\n\
-             ### EXPECTED JSON SCHEMA ###\n\
-             <JSON_START>\n\
-             {{ \"node_mapping\": {{ \"SPEC_NODE\": \"func\" }}, \"components\": [ {{ \"name\": \"a_h\", \"file\": \"a.h\", \"functions\": [ {{ \"name\": \"f\", \"signature\": \"void f();\" }} ] }}, {{ \"name\": \"a_c\", \"file\": \"a.c\", \"dependencies\": [\"a_h\"], \"functions\": [ {{ \"name\": \"f\", \"signature\": \"void f();\" }} ] }} ] }}\n\
-             <JSON_END>\n\n\
+             ### EXPECTED JSON SCHEMA (MANDATORY: EXTRACT ALL MODULES FROM SPEC) ###\\n\\
+             <JSON_START>\\n\\
+             {{\\n\\
+               \"node_mapping\": {{ \"SPEC_NODE\": \"func\" }},\\n\\
+               \"components\": [\\n\\
+                 {{\\n\\
+                   \"name\": \"src/main.c\",\\n\\
+                   \"file\": \"src/main.c\",\\n\\
+                   \"functions\": [{{ \"name\": \"main\", \"signature\": \"int main(void)\" }}],\\n\\
+                   \"is_entrypoint\": true\\n\\
+                 }},\\n\\
+                 {{\\n\\
+                   \"name\": \"include/module.h\",\\n\\
+                   \"file\": \"include/module.h\",\\n\\
+                   \"functions\": [{{ \"name\": \"func\", \"signature\": \"int func(int a)\" }}],\\n\\
+                   \"is_entrypoint\": false\\n\\
+                 }},\\n\\
+                 {{\\n\\
+                   \"name\": \"src/module.c\",\\n\\
+                   \"file\": \"src/module.c\",\\n\\
+                   \"functions\": [{{ \"name\": \"func\", \"signature\": \"int func(int a)\" }}],\\n\\
+                   \"is_entrypoint\": false\\n\\
+                 }}\\n\\
+               ]\\n\\
+             }}\\n\\
+             <JSON_END>\\n\\n\\
+             CRITICAL: You MUST analyze the SOURCE SPEC and extract EVERY module, EVERY function, and EVERY header defined there.\\n\\
+             FOR C PROJECTS: Every module (except main) MUST have a .h header in include/ and a .c source in src/. DO NOT truncate. DO NOT simplify.\\n\\
              Generate JSON Specification NOW:",
             feedback_block, processed_spec
         );
 
         let mut last_err = String::new();
         for attempt in 1..=5 {
-            let resp = self.generate_with_retry(system_prompt.clone(), event_bus.as_ref(), None).await?;
+            let resp = self.generate_with_retry(system_prompt.clone(), event_bus.as_ref(), None, context_size).await?;
             let raw_text = resp.text.trim();
             
             if raw_text.is_empty() {
@@ -660,10 +623,11 @@ impl AgentRuntime {
             error_msg, broken_json
         );
 
-        let resp = self.generate_with_retry(prompt, event_bus.as_ref(), None).await?;
+        let resp = self.generate_with_retry(prompt, event_bus.as_ref(), None, 0).await?;
         let fixed_str = self.extract_enveloped_json(&resp.text).ok_or_else(|| anyhow::anyhow!("Repair failed to produce enveloped JSON"))?;
         
-        let ir: axon_core::ir::ProjectIR = serde_json::from_str(&fixed_str)?;
+        let ir = parse_ir_from_llm_json(&fixed_str)
+            .map_err(|e| anyhow::anyhow!("Repair Result Parse Fail: {} | Raw: {}", e, fixed_str))?;
         Ok(ir)
     }
 
@@ -692,7 +656,7 @@ impl AgentRuntime {
             errors.join("\n")
         );
 
-        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), None).await?;
+        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), None, 0).await?;
         let raw_text = resp.text.trim();
 
         if raw_text.is_empty() {
@@ -702,7 +666,7 @@ impl AgentRuntime {
         let clean_json = extract_json(raw_text)
             .ok_or_else(|| anyhow::anyhow!("Failed to find JSON object in LLM response during repair: {}", raw_text))?;
 
-        let ir: axon_core::ir::ProjectIR = serde_json::from_str(&clean_json)
+        let ir = parse_ir_from_llm_json(&clean_json)
             .map_err(|e| anyhow::anyhow!("JSON Parse Error during repair: {} | Raw: {}", e, clean_json))?;
         Ok(ir)
     }
@@ -969,7 +933,7 @@ impl AgentRuntime {
                 current_prompt = format!("⚠️ CRITICAL: PREVIOUS ATTEMPT FAILED\nERRORS FOUND:\n{}\nYOU MUST FIX ALL THE ABOVE ERRORS IN THIS ATTEMPT.\n\n{}", err, current_prompt);
             }
 
-            let resp = self.generate_with_retry(current_prompt, event_bus.as_ref(), Some(task.id.clone())).await;
+            let resp = self.generate_with_retry(current_prompt, event_bus.as_ref(), Some(task.id.clone()), 0).await;
             
             match resp {
                 Ok(r) => {
@@ -1089,6 +1053,10 @@ impl AgentRuntime {
     }
 
     pub async fn process_bootstrap_step2(&self, architecture_content: &str, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
+        self.process_bootstrap_step2_with_context(architecture_content, 0, event_bus).await
+    }
+
+    pub async fn process_bootstrap_step2_with_context(&self, architecture_content: &str, context_size: usize, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
         let lang_name = match self.locale.as_str() {
             "ko_KR" => "한국어 (Korean)",
             "ja_JP" => "日本語 (Japanese)",
@@ -1109,16 +1077,27 @@ impl AgentRuntime {
              ### DISPATCH RULES ###\n\
              1. LANGUAGE: USE {}.\n\
              2. FORMAT: VALID JSON ARRAY OF OBJECTS ONLY.\n\
-             3. SCHEMA: {{ \"id\": \"task_id\", \"title\": \"Title\", \"description\": \"Technical Skeleton Mapping\" }}\n\
-             4. NO LEAKAGE: Do NOT include logic in descriptions. Only WHAT to implement based on skeleton.\n\
-             5. HEADER-FIRST: .c tasks MUST reference .h counterparts. SCOPE: ONE TASK PER FILE.\n\
+             3. SCHEMA: {{ \"id\": \"task_id\", \"title\": \"Title\", \"description\": \"desc\", \"component_id\": \"component_name\" }}\n\
+             4. component_id: MUST match the physical file path from architecture (e.g. \"src/main.c\")\n\
+             5. title: MUST contain filename (e.g. \"Implement dataprocessor.c\")\n\
+             6. NO LEAKAGE: Do NOT include logic in descriptions.\n\
+             7. HEADER-FIRST: .c tasks MUST reference .h counterparts. SCOPE: ONE TASK PER FILE.\n\
+             8. ENVELOPE: Wrap your JSON array between <JSON_START> and <JSON_END> tokens.\n\n\
              ### ARCHITECTURE GUIDE ###\n\
-             {}",
+             {}\n\n\
+             ### EXPECTED OUTPUT EXAMPLE ###\n\
+             <JSON_START>\n\
+             [\n\
+               {{ \"id\": \"task_001\", \"title\": \"Implement calculator.h\", \"description\": \"Core interface\", \"component_id\": \"include/calculator.h\" }},\n\
+               {{ \"id\": \"task_002\", \"title\": \"Implement calculator.c\", \"description\": \"Core logic\", \"component_id\": \"src/calculator.c\" }}\n\
+             ]\n\
+             <JSON_END>\n\n\
+             Generate Decomposed Tasks NOW:",
             lang_name,
             architecture_content
         );
 
-        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), None).await?;
+        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), None, context_size).await?;
         
         Ok(Post {
             id: uuid::Uuid::new_v4().to_string(),
@@ -1184,7 +1163,7 @@ impl AgentRuntime {
             )
         };
 
-        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(proposal.thread_id.clone())).await?;
+        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(proposal.thread_id.clone()), 0).await?;
         
         Ok(Post {
             id: uuid::Uuid::new_v4().to_string(),
@@ -1248,7 +1227,7 @@ impl AgentRuntime {
             summary_content
         );
 
-        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
+        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone()), 0).await?;
         
         Ok(Post {
             id: uuid::Uuid::new_v4().to_string(),
@@ -1294,7 +1273,7 @@ impl AgentRuntime {
             review.content
         );
 
-        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone())).await?;
+        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone()), 0).await?;
         
         Ok(Post {
             id: uuid::Uuid::new_v4().to_string(),
@@ -1319,7 +1298,7 @@ impl AgentRuntime {
 ///   - `"components": [{ "name": "foo", "file": "foo.py", "functions": [...] }]` (array — common)
 ///   - `"components": { "foo": { ... } }` (hashmap — strict)
 fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR> {
-    use std::collections::{HashMap, HashSet};
+
     use axon_core::ir::{Component, Function};
 
     #[derive(serde::Deserialize)]
@@ -1336,6 +1315,8 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
         file: String,
         #[serde(alias = "functions", default)]
         functions: Vec<RawFunction>,
+        #[serde(default)]
+        is_entrypoint: bool,
     }
 
     #[derive(serde::Deserialize)]
@@ -1345,11 +1326,12 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
         components: Vec<RawComponent>,
     }
 
-    let raw: RawIR = serde_json::from_str(json)?;
+    let cleaned = clean_json_robust(json);
+    let raw: RawIR = serde_json::from_str(&cleaned)?;
 
-    let mut components = HashMap::new();
+    let mut components = BTreeMap::new();
     for c in raw.components {
-        let mut functions = HashMap::new();
+        let mut functions = BTreeMap::new();
         for f in c.functions {
             let sig = if f.signature.is_empty() {
                 format!("{}()", f.name)
@@ -1359,7 +1341,7 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
             functions.insert(f.name.clone(), Function {
                 name: f.name.clone(),
                 signature: sig,
-                dependencies: HashSet::new(),
+                dependencies: BTreeSet::new(),
                 body_hash: None,
             });
         }
@@ -1368,20 +1350,46 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
         } else {
             c.file.clone()
         };
-        components.insert(c.name.clone(), Component {
+        // v0.0.32: Use physical file_path as the primary key for IR components
+        // This ensures deterministic lookup from DecomposedTasks that use paths as IDs.
+        components.insert(file.clone(), Component {
             name: c.name,
             file_path: file,
             functions,
-            imports: HashSet::new(),
+            imports: BTreeSet::new(),
+            associated_files: Vec::new(),
+            is_entrypoint: c.is_entrypoint,
+            data_models: Vec::new(),
         });
     }
 
     Ok(axon_core::ir::ProjectIR {
-        node_mapping: raw.node_mapping,
+        node_mapping: raw.node_mapping.into_iter().collect(),
         components,
         constraints: Vec::new(),
         constraint_ids: std::collections::HashSet::new(),
     })
+}
+
+/// v0.0.32: Deterministic JSON cleaner for LLM outputs.
+/// Handles common syntax issues and normalization without LLM retries.
+fn clean_json_robust(json: &str) -> String {
+    let mut s = json.trim().to_string();
+    
+    // 1. Strip potential trailing semicolons inside function signatures
+    // Many LLMs output "signature": "void f();" which might confuse AST parsers.
+    // We'll do a simple regex-like replace for common signature end patterns.
+    s = s.replace("\";\"", "\"");
+    s = s.replace("\");\"", "\")");
+    
+    // 2. Remove trailing commas in arrays/objects (very common LLM mistake)
+    // Simple heuristic: remove comma before closing brace/bracket
+    s = s.replace(",\n]", "\n]");
+    s = s.replace(",\n}", "\n}");
+    s = s.replace(",]", "]");
+    s = s.replace(",}", "}");
+
+    s
 }
 
 /// v0.0.22: Universal JSON Extraction Helper (Supports { } and [ ])

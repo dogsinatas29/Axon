@@ -1,7 +1,11 @@
 use std::collections::{HashMap, VecDeque, HashSet};
 use axon_core::{Task, Batch};
 
+const MAX_TASK_RETRIES: u32 = 3;
+
 pub struct Coordinator {
+    /// v0.0.28: Quarantined tasks (permanently failed)
+    pub quarantined_tasks: HashSet<String>,
     /// file_path -> tasks (Per-file Queuing)
     pub per_file_queues: HashMap<String, VecDeque<Task>>,
     /// Current active files being modified by workers
@@ -28,20 +32,28 @@ impl Coordinator {
         Self {
             per_file_queues: HashMap::new(),
             active_files: HashSet::new(),
+            quarantined_tasks: HashSet::new(),
             file_priorities: HashMap::new(),
         }
     }
 
     pub fn add_task(&mut self, task: Task) {
         let file = task.target_file.clone().unwrap_or_else(|| "logic".to_string());
-        
-        // v0.0.25: [ALR] Task Coalescing for Reworks
+
+        // v0.0.28: [ALR] Task Coalescing for Reworks
         if task.id.starts_with("rework") {
             let q = self.per_file_queues.entry(file.clone()).or_default();
             q.retain(|t| !t.id.starts_with("rework")); // Drop stale reworks
         }
 
-        self.per_file_queues.entry(file).or_default().push_back(task);
+        // v0.0.28: Visibility logging
+        tracing::debug!("[COORD_ADD_TASK] Adding task {} to file queue '{}'", task.id, file);
+
+        self.per_file_queues.entry(file.clone()).or_default().push_back(task);
+
+        // v0.0.28: Log queue state after add
+        let queue_len = self.per_file_queues.get(&file).map(|q| q.len()).unwrap_or(0);
+        tracing::debug!("[COORD_QUEUE] File '{}' now has {} tasks", file, queue_len);
     }
 
     pub fn update_priority(&mut self, file: &str, rework: bool, failure: bool, fan_in: u32) {
@@ -66,6 +78,20 @@ impl Coordinator {
         for file in available_files {
             if let Some(q) = self.per_file_queues.get_mut(&file) {
                 if let Some(task) = q.pop_front() {
+                    // v0.0.28: Retry Fuse - Check if task is quarantined
+                    if self.quarantined_tasks.contains(&task.id) {
+                        tracing::warn!("⚠️ [QUARANTINE_SKIP] Skipping quarantined task: {}", task.id);
+                        continue;
+                    }
+                    // Check retry limit
+                    if task.rework_count >= MAX_TASK_RETRIES {
+                        tracing::error!(
+                            "🛑 [TASK_QUARANTINED] task={} rework_count={} target_file={:?}",
+                            task.id, task.rework_count, task.target_file
+                        );
+                        self.quarantined_tasks.insert(task.id.clone());
+                        continue;
+                    }
                     self.active_files.insert(file);
                     return Some(task);
                 }

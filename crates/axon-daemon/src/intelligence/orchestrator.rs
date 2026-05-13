@@ -1,6 +1,5 @@
 use axon_core::ir::ProjectIR;
 use axon_core::validator::types::FunctionSig;
-use axon_core::rules::Constraint;
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -80,24 +79,13 @@ pub fn on_validation_cycle(
 fn update_all_meta(
     state: &mut SystemState,
     ir: &ProjectIR,
-    diffs: &[IRDiff],
+    _diffs: &[IRDiff],
     now: u64,
 ) {
-    // Build a set of constraint keys that were violated this cycle
-    let violated_keys: std::collections::HashSet<String> = diffs.iter().map(|d| match d {
-        IRDiff::MissingFunction { name } =>
-            constraint_key(&Constraint::ExactFunctionExists { name: name.clone() }),
-        IRDiff::SignatureMismatch { name, expected, .. } =>
-            constraint_key(&Constraint::ExactSignatureMatch { name: name.clone(), args: expected.clone() }),
-        IRDiff::ExtraFunction { .. } =>
-            constraint_key(&Constraint::NoExtraFunctions),
-    }).collect();
-
     for c in &ir.constraints {
-        let key = constraint_key(c);
+        let key = format!("{}-{}", c.kind, c.target);
         let meta = state.constraint_meta.entry(key.clone()).or_default();
-        let violated = violated_keys.contains(&key);
-        meta.update(true, violated, now);
+        meta.update(true, false, now);
     }
 }
 
@@ -109,14 +97,14 @@ fn prune(state: &mut SystemState, ir: &mut ProjectIR, now: u64) {
     let before = ir.constraints.len();
 
     ir.constraints.retain(|c| {
-        let key = constraint_key(c);
+        let key = format!("{}-{}", c.kind, c.target);
         let should_drop = state.constraint_meta
             .get(&key)
             .map(|m| m.should_prune(now, PRUNE_TTL_SECS))
             .unwrap_or(false);
         if should_drop {
             state.constraint_meta.remove(&key);
-            ir.constraint_ids.remove(&ir_hash(c));
+            ir.constraint_ids.remove(&(c.id as u64));
         }
         !should_drop
     });
@@ -130,18 +118,6 @@ fn prune(state: &mut SystemState, ir: &mut ProjectIR, now: u64) {
 // ─────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────
-
-fn constraint_key(c: &Constraint) -> String {
-    format!("{:?}", c)
-}
-
-fn ir_hash(c: &Constraint) -> u64 {
-    use std::hash::{Hash, Hasher};
-    use std::collections::hash_map::DefaultHasher;
-    let mut h = DefaultHasher::new();
-    c.hash(&mut h);
-    h.finish()
-}
 
 fn epoch_secs() -> u64 {
     SystemTime::now()

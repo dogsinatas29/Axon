@@ -1,4 +1,4 @@
-use axon_core::rules::Constraint;
+use axon_ir::schema::Constraint;
 use axon_core::validator::types::FunctionSig;
 use axon_core::ir::ProjectIR;
 use super::staging::ConstraintProposal;
@@ -83,7 +83,13 @@ pub fn propose_from_diff(
             IRDiff::MissingFunction { name } => {
                 let key = format!("missing:{}", name);
                 let proposal = ConstraintProposal {
-                    constraint: Constraint::ExactFunctionExists { name: name.clone() },
+                    constraint: Constraint {
+                        id: 0,
+                        kind: "ExactFunctionExists".to_string(),
+                        target: name.clone(),
+                        condition: "".to_string(),
+                        message: format!("MissingFunction({}) repeated", name),
+                    },
                     source_rule: format!("MissingFunction({}) repeated", name),
                 };
                 (key, Some(proposal))
@@ -91,9 +97,12 @@ pub fn propose_from_diff(
             IRDiff::SignatureMismatch { name, expected, .. } => {
                 let key = format!("sig:{}", name);
                 let proposal = ConstraintProposal {
-                    constraint: Constraint::ExactSignatureMatch {
-                        name: name.clone(),
-                        args: expected.clone(),
+                    constraint: Constraint {
+                        id: 0,
+                        kind: "ExactSignatureMatch".to_string(),
+                        target: name.clone(),
+                        condition: format!("{:?}", expected),
+                        message: format!("SignatureMismatch({}) repeated", name),
                     },
                     source_rule: format!("SignatureMismatch({}) repeated", name),
                 };

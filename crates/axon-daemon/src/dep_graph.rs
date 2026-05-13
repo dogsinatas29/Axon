@@ -130,14 +130,19 @@ impl DepGraph {
             if let NodeType::Component = node.node_type {
                 let comp_name = node_id.replace("comp:", "");
                 
-                // Target classification: Check if any of its functions is 'main'
-                let is_exe = if let Some(edges) = self.edges_out.get(node_id) {
+                // Target classification: Check if any of its functions is 'main' OR if it's an Entry role
+                let mut is_exe = if let Some(edges) = self.edges_out.get(node_id) {
                     edges.iter().any(|eid| {
                         if let Some(file_edges) = self.edges_out.get(eid) {
                             file_edges.iter().any(|fid| fid.contains("::main"))
                         } else { false }
                     })
                 } else { false };
+
+                // v0.0.32: Fallback to Entry role if no main found
+                if !is_exe && node.role == NodeRole::Entry {
+                    is_exe = true;
+                }
 
                 let src_file = if let Some(edges) = self.edges_out.get(node_id) {
                     edges.iter()
@@ -167,6 +172,12 @@ impl DepGraph {
                     }
                 }
             }
+        }
+
+        // v0.0.32: Extreme Fallback - If no executables found at all, force the first library to be an executable
+        if executables.is_empty() && !libraries.is_empty() {
+            let (name, src) = libraries.remove(0);
+            executables.push((name, src));
         }
 
         // Output order: Libraries first, then Executables, then Linking

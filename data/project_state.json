@@ -1,5 +1,5 @@
 {
-  "aiCount": 162,
+  "aiCount": 189,
   "cluster_flows": [],
   "clusters": [
     {
@@ -97,6 +97,19 @@
       "data": {
         "layer": "user"
       },
+      "id": "cluster_crates_axon_daemon_src_intelligence_language_contract",
+      "label": "📂 language_contract",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
       "id": "cluster_crates_axon_dispatcher",
       "label": "📂 axon-dispatcher",
       "type": "folder"
@@ -108,6 +121,136 @@
       },
       "id": "cluster_crates_axon_dispatcher_src",
       "label": "📂 src",
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_crates_axon_ir",
+      "label": "📂 axon-ir",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_crates_axon_ir_src",
+      "label": "📂 src",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_crates_axon_ir_src_canonicalizer",
+      "label": "📂 canonicalizer",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_crates_axon_ir_src_emitter",
+      "label": "📂 emitter",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_crates_axon_ir_src_linker",
+      "label": "📂 linker",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_crates_axon_ir_src_parser",
+      "label": "📂 parser",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_crates_axon_ir_src_schema",
+      "label": "📂 schema",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_crates_axon_ir_src_spec_extractor",
+      "label": "📂 spec_extractor",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_crates_axon_ir_src_validator",
+      "label": "📂 validator",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_crates_axon_ir_src_validator_langs",
+      "label": "📂 langs",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
       "type": "folder"
     },
     {
@@ -162,6 +305,32 @@
       },
       "id": "cluster_scratch",
       "label": "📂 scratch",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_spec",
+      "label": "📂 spec",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "collapsed": false,
+      "data": {
+        "layer": "user"
+      },
+      "id": "cluster_spec_src",
+      "label": "📂 src",
       "position": {
         "x": 0,
         "y": 0
@@ -2475,8 +2644,8 @@
       "label": "architecture",
       "layer": "ai",
       "position": {
-        "x": -600,
-        "y": 520
+        "x": -640,
+        "y": 560
       },
       "status": "ghost",
       "type": "external",
@@ -2654,8 +2823,8 @@
       "label": "AsyncRead",
       "layer": "ai",
       "position": {
-        "x": 1040,
-        "y": -1440
+        "x": 1160,
+        "y": -1400
       },
       "status": "ghost",
       "type": "external",
@@ -2689,8 +2858,8 @@
       "label": "AsyncReadExt",
       "layer": "ai",
       "position": {
-        "x": 800,
-        "y": -1200
+        "x": 920,
+        "y": -1160
       },
       "status": "ghost",
       "type": "external",
@@ -2725,7 +2894,7 @@
       "layer": "ai",
       "position": {
         "x": 160,
-        "y": -840
+        "y": -880
       },
       "status": "ghost",
       "type": "external",
@@ -2760,7 +2929,7 @@
       "layer": "ai",
       "position": {
         "x": 560,
-        "y": -1120
+        "y": -1280
       },
       "status": "ghost",
       "type": "external",
@@ -2794,8 +2963,8 @@
       "label": "axon-agent",
       "layer": "ai",
       "position": {
-        "x": 480,
-        "y": 840
+        "x": 560,
+        "y": 920
       },
       "status": "ghost",
       "type": "external",
@@ -2829,8 +2998,8 @@
       "label": "axon-daemon",
       "layer": "ai",
       "position": {
-        "x": 280,
-        "y": 1120
+        "x": 320,
+        "y": 1200
       },
       "status": "ghost",
       "type": "external",
@@ -3039,7 +3208,7 @@
       "label": "context_builder",
       "layer": "ai",
       "position": {
-        "x": -440,
+        "x": -480,
         "y": 1360
       },
       "status": "ghost",
@@ -3255,8 +3424,8 @@
       "label": "protocol",
       "layer": "user",
       "position": {
-        "x": -840,
-        "y": -1920
+        "x": -1040,
+        "y": -2560
       },
       "status": "active",
       "type": "file",
@@ -3291,8 +3460,8 @@
       "label": "admin",
       "layer": "user",
       "position": {
-        "x": -2080,
-        "y": -2080
+        "x": -3800,
+        "y": -2640
       },
       "status": "active",
       "type": "file",
@@ -3327,8 +3496,8 @@
       "label": "cli",
       "layer": "user",
       "position": {
-        "x": -3720,
-        "y": -2080
+        "x": -5440,
+        "y": -2640
       },
       "status": "active",
       "type": "file",
@@ -3363,8 +3532,8 @@
       "label": "controller",
       "layer": "user",
       "position": {
-        "x": -2920,
-        "y": -2080
+        "x": -4640,
+        "y": -2640
       },
       "status": "active",
       "type": "file",
@@ -3399,8 +3568,8 @@
       "label": "main",
       "layer": "user",
       "position": {
-        "x": -4360,
-        "y": -2160
+        "x": -6080,
+        "y": -2720
       },
       "status": "active",
       "type": "file",
@@ -3435,8 +3604,8 @@
       "label": "server",
       "layer": "user",
       "position": {
-        "x": -2520,
-        "y": -2040
+        "x": -4240,
+        "y": -2600
       },
       "status": "active",
       "type": "file",
@@ -3505,8 +3674,8 @@
       "label": "daemon",
       "layer": "ai",
       "position": {
-        "x": 200,
-        "y": 120
+        "x": 520,
+        "y": 320
       },
       "status": "ghost",
       "type": "external",
@@ -3575,8 +3744,8 @@
       "label": "dashboard",
       "layer": "ai",
       "position": {
-        "x": -1680,
-        "y": 640
+        "x": -1720,
+        "y": 680
       },
       "status": "ghost",
       "type": "external",
@@ -3645,8 +3814,8 @@
       "label": "details",
       "layer": "ai",
       "position": {
-        "x": -280,
-        "y": 600
+        "x": -440,
+        "y": 720
       },
       "status": "ghost",
       "type": "external",
@@ -3750,8 +3919,8 @@
       "label": "Error",
       "layer": "ai",
       "position": {
-        "x": 800,
-        "y": -1360
+        "x": 840,
+        "y": -1320
       },
       "status": "ghost",
       "type": "external",
@@ -3785,7 +3954,7 @@
       "label": "ErrorKind",
       "layer": "ai",
       "position": {
-        "x": 520,
+        "x": 440,
         "y": -1000
       },
       "status": "ghost",
@@ -3998,7 +4167,7 @@
       "layer": "ai",
       "position": {
         "x": -2840,
-        "y": 1160
+        "y": 1200
       },
       "status": "ghost",
       "type": "external",
@@ -4032,7 +4201,7 @@
       "label": "HashMap",
       "layer": "ai",
       "position": {
-        "x": -1000,
+        "x": -1040,
         "y": 480
       },
       "status": "ghost",
@@ -4137,8 +4306,8 @@
       "label": "INSTALL",
       "layer": "ai",
       "position": {
-        "x": -160,
-        "y": 720
+        "x": -280,
+        "y": 960
       },
       "status": "ghost",
       "type": "external",
@@ -4210,7 +4379,7 @@
       "layer": "ai",
       "position": {
         "x": -3560,
-        "y": 1400
+        "y": 1440
       },
       "status": "ghost",
       "type": "external",
@@ -8488,8 +8657,8 @@
       "label": "observability",
       "layer": "ai",
       "position": {
-        "x": -1560,
-        "y": 1160
+        "x": -1600,
+        "y": 1200
       },
       "status": "ghost",
       "type": "external",
@@ -8593,8 +8762,8 @@
       "label": "params",
       "layer": "ai",
       "position": {
-        "x": -1040,
-        "y": 320
+        "x": -1120,
+        "y": 280
       },
       "status": "ghost",
       "type": "external",
@@ -8698,7 +8867,7 @@
       "label": "plugin-react",
       "layer": "ai",
       "position": {
-        "x": -3760,
+        "x": -3800,
         "y": 1320
       },
       "status": "ghost",
@@ -8768,8 +8937,8 @@
       "label": "PostType",
       "layer": "ai",
       "position": {
-        "x": -880,
-        "y": 360
+        "x": -960,
+        "y": 280
       },
       "status": "ghost",
       "type": "external",
@@ -8803,8 +8972,8 @@
       "label": "README",
       "layer": "ai",
       "position": {
-        "x": -120,
-        "y": 200
+        "x": -160,
+        "y": 360
       },
       "status": "ghost",
       "type": "external",
@@ -9237,8 +9406,8 @@
       "label": "setup",
       "layer": "ai",
       "position": {
-        "x": -40,
-        "y": 400
+        "x": 40,
+        "y": 720
       },
       "status": "ghost",
       "type": "external",
@@ -9414,7 +9583,7 @@
       "layer": "user",
       "position": {
         "x": -3200,
-        "y": 1720
+        "y": 1680
       },
       "status": "active",
       "type": "file",
@@ -9449,7 +9618,7 @@
       "label": "socket",
       "layer": "user",
       "position": {
-        "x": 1520,
+        "x": 1560,
         "y": 1040
       },
       "status": "active",
@@ -9485,7 +9654,7 @@
       "label": "App",
       "layer": "user",
       "position": {
-        "x": 1720,
+        "x": 2040,
         "y": 680
       },
       "status": "active",
@@ -9701,7 +9870,7 @@
       "label": "main",
       "layer": "user",
       "position": {
-        "x": 1440,
+        "x": 1760,
         "y": 560
       },
       "status": "active",
@@ -9774,7 +9943,7 @@
       "layer": "user",
       "position": {
         "x": -3680,
-        "y": 1880
+        "y": 1920
       },
       "status": "active",
       "type": "file",
@@ -10372,8 +10541,8 @@
       "label": "mock_ollama",
       "layer": "ai",
       "position": {
-        "x": 1560,
-        "y": 2160
+        "x": 760,
+        "y": 4760
       },
       "status": "active",
       "type": "file",
@@ -10777,7 +10946,7 @@
       "label": "argparse",
       "layer": "ai",
       "position": {
-        "x": -360,
+        "x": -640,
         "y": 0
       },
       "status": "ghost",
@@ -10812,8 +10981,8 @@
       "label": "ast",
       "layer": "ai",
       "position": {
-        "x": -400,
-        "y": 360
+        "x": -480,
+        "y": 440
       },
       "status": "ghost",
       "type": "external",
@@ -11144,8 +11313,8 @@
       "label": "axon_semantic_merge",
       "layer": "user",
       "position": {
-        "x": -5080,
-        "y": 480
+        "x": -5040,
+        "y": 560
       },
       "status": "active",
       "type": "file",
@@ -11179,8 +11348,8 @@
       "label": "importlib",
       "layer": "ai",
       "position": {
-        "x": 80,
-        "y": 520
+        "x": 280,
+        "y": 560
       },
       "status": "ghost",
       "type": "external",
@@ -11214,8 +11383,8 @@
       "label": "io",
       "layer": "ai",
       "position": {
-        "x": -440,
-        "y": 920
+        "x": -560,
+        "y": 1000
       },
       "status": "ghost",
       "type": "external",
@@ -11249,8 +11418,8 @@
       "label": "shutil",
       "layer": "ai",
       "position": {
-        "x": 200,
-        "y": -160
+        "x": 400,
+        "y": -360
       },
       "status": "ghost",
       "type": "external",
@@ -11284,7 +11453,7 @@
       "label": "subprocess",
       "layer": "ai",
       "position": {
-        "x": -160,
+        "x": -480,
         "y": -120
       },
       "status": "ghost",
@@ -11319,8 +11488,8 @@
       "label": "tempfile",
       "layer": "ai",
       "position": {
-        "x": -480,
-        "y": 200
+        "x": -840,
+        "y": 80
       },
       "status": "ghost",
       "type": "external",
@@ -11354,8 +11523,8 @@
       "label": "tokenize",
       "layer": "ai",
       "position": {
-        "x": -280,
-        "y": 1040
+        "x": -360,
+        "y": 1120
       },
       "status": "ghost",
       "type": "external",
@@ -11390,8 +11559,8 @@
       "label": "axon_execution_harness",
       "layer": "user",
       "position": {
-        "x": -5560,
-        "y": 480
+        "x": -5520,
+        "y": 560
       },
       "status": "active",
       "type": "file",
@@ -11426,8 +11595,8 @@
       "label": "merge_imports_stage3",
       "layer": "user",
       "position": {
-        "x": -5120,
-        "y": 840
+        "x": -5080,
+        "y": 920
       },
       "status": "active",
       "type": "file",
@@ -11462,8 +11631,8 @@
       "label": "axon_ir_compiler",
       "layer": "user",
       "position": {
-        "x": -5600,
-        "y": 640
+        "x": -5560,
+        "y": 720
       },
       "status": "active",
       "type": "file",
@@ -11533,8 +11702,8 @@
       "label": "axon_patch_simulator",
       "layer": "user",
       "position": {
-        "x": -5240,
-        "y": 200
+        "x": -5200,
+        "y": 280
       },
       "status": "active",
       "type": "file",
@@ -11569,8 +11738,8 @@
       "label": "axon_ir_validator",
       "layer": "user",
       "position": {
-        "x": -4920,
-        "y": 800
+        "x": -4880,
+        "y": 880
       },
       "status": "active",
       "type": "file",
@@ -11605,7 +11774,7 @@
       "layer": "ai",
       "position": {
         "x": 0,
-        "y": 640
+        "y": 880
       },
       "status": "ghost",
       "type": "external",
@@ -11639,8 +11808,8 @@
       "label": "BufReader",
       "layer": "ai",
       "position": {
-        "x": 40,
-        "y": 1000
+        "x": 0,
+        "y": 1200
       },
       "status": "ghost",
       "type": "external",
@@ -11674,8 +11843,8 @@
       "label": "collections",
       "layer": "ai",
       "position": {
-        "x": -440,
-        "y": -120
+        "x": -640,
+        "y": -160
       },
       "status": "ghost",
       "type": "external",
@@ -11709,8 +11878,8 @@
       "label": "hashlib",
       "layer": "ai",
       "position": {
-        "x": -880,
-        "y": 760
+        "x": -840,
+        "y": 720
       },
       "status": "ghost",
       "type": "external",
@@ -11744,7 +11913,7 @@
       "label": "itertools",
       "layer": "ai",
       "position": {
-        "x": -200,
+        "x": -480,
         "y": 40
       },
       "status": "ghost",
@@ -11849,8 +12018,8 @@
       "label": "random",
       "layer": "ai",
       "position": {
-        "x": 440,
-        "y": 680
+        "x": 560,
+        "y": 760
       },
       "status": "ghost",
       "type": "external",
@@ -11884,8 +12053,8 @@
       "label": "time",
       "layer": "ai",
       "position": {
-        "x": 120,
-        "y": 1120
+        "x": 160,
+        "y": 1200
       },
       "status": "ghost",
       "type": "external",
@@ -11920,8 +12089,8 @@
       "label": "axon_golden_tester",
       "layer": "user",
       "position": {
-        "x": -5120,
-        "y": 640
+        "x": -5080,
+        "y": 720
       },
       "status": "active",
       "type": "file",
@@ -11956,8 +12125,8 @@
       "label": "axon_mapping_validator",
       "layer": "user",
       "position": {
-        "x": -4960,
-        "y": 560
+        "x": -4920,
+        "y": 680
       },
       "status": "active",
       "type": "file",
@@ -11992,8 +12161,8 @@
       "label": "axon_monitor",
       "layer": "user",
       "position": {
-        "x": -5880,
-        "y": 240
+        "x": -5840,
+        "y": 320
       },
       "status": "active",
       "type": "file",
@@ -12028,8 +12197,8 @@
       "label": "axon_org_registry",
       "layer": "user",
       "position": {
-        "x": -4800,
-        "y": 280
+        "x": -4760,
+        "y": 360
       },
       "status": "active",
       "type": "file",
@@ -12064,8 +12233,8 @@
       "label": "axon_pattern_aggregator",
       "layer": "user",
       "position": {
-        "x": -5760,
-        "y": 1000
+        "x": -5720,
+        "y": 1080
       },
       "status": "active",
       "type": "file",
@@ -12100,8 +12269,8 @@
       "label": "axon_policy_engine",
       "layer": "user",
       "position": {
-        "x": -5480,
-        "y": 1280
+        "x": -5440,
+        "y": 1360
       },
       "status": "active",
       "type": "file",
@@ -12136,8 +12305,8 @@
       "label": "axon_profile_manager",
       "layer": "user",
       "position": {
-        "x": -5600,
-        "y": 240
+        "x": -5560,
+        "y": 320
       },
       "status": "active",
       "type": "file",
@@ -12172,8 +12341,8 @@
       "label": "axon_profile_resolver",
       "layer": "user",
       "position": {
-        "x": -5240,
-        "y": 480
+        "x": -5200,
+        "y": 560
       },
       "status": "active",
       "type": "file",
@@ -12208,8 +12377,8 @@
       "label": "axon_promotion_engine",
       "layer": "user",
       "position": {
-        "x": -5000,
-        "y": 960
+        "x": -4960,
+        "y": 1040
       },
       "status": "active",
       "type": "file",
@@ -12244,8 +12413,8 @@
       "label": "axon_propagator",
       "layer": "user",
       "position": {
-        "x": -4840,
-        "y": 960
+        "x": -4800,
+        "y": 1040
       },
       "status": "active",
       "type": "file",
@@ -12280,8 +12449,8 @@
       "label": "axon_property_tester",
       "layer": "user",
       "position": {
-        "x": -5400,
-        "y": 520
+        "x": -5360,
+        "y": 600
       },
       "status": "active",
       "type": "file",
@@ -12316,8 +12485,8 @@
       "label": "axon_registry_manager",
       "layer": "user",
       "position": {
-        "x": -5360,
-        "y": 1000
+        "x": -5320,
+        "y": 1080
       },
       "status": "active",
       "type": "file",
@@ -12352,8 +12521,8 @@
       "label": "axon_registry",
       "layer": "user",
       "position": {
-        "x": -5720,
-        "y": 360
+        "x": -5680,
+        "y": 440
       },
       "status": "active",
       "type": "file",
@@ -12388,8 +12557,8 @@
       "label": "axon_rule_clusterer",
       "layer": "user",
       "position": {
-        "x": -5280,
-        "y": 640
+        "x": -5240,
+        "y": 720
       },
       "status": "active",
       "type": "file",
@@ -12424,8 +12593,8 @@
       "label": "axon_soft_rule_engine",
       "layer": "user",
       "position": {
-        "x": -5440,
-        "y": 680
+        "x": -5400,
+        "y": 760
       },
       "status": "active",
       "type": "file",
@@ -12788,8 +12957,8 @@
       "label": "ir",
       "layer": "user",
       "position": {
-        "x": -280,
-        "y": -1920
+        "x": -480,
+        "y": -2560
       },
       "status": "active",
       "type": "file",
@@ -13119,8 +13288,8 @@
       "label": "PathBuf",
       "layer": "ai",
       "position": {
-        "x": -240,
-        "y": 280
+        "x": -320,
+        "y": 440
       },
       "status": "ghost",
       "type": "external",
@@ -13335,8 +13504,8 @@
       "label": "AnalysisResult",
       "layer": "ai",
       "position": {
-        "x": -440,
-        "y": -440
+        "x": -520,
+        "y": -560
       },
       "status": "ghost",
       "type": "external",
@@ -13405,8 +13574,8 @@
       "label": "ArchitectureWriter",
       "layer": "ai",
       "position": {
-        "x": -440,
-        "y": -280
+        "x": -680,
+        "y": -320
       },
       "status": "ghost",
       "type": "external",
@@ -13440,8 +13609,8 @@
       "label": "Arguments",
       "layer": "ai",
       "position": {
-        "x": -960,
-        "y": 920
+        "x": -1000,
+        "y": 1000
       },
       "status": "ghost",
       "type": "external",
@@ -13475,8 +13644,8 @@
       "label": "axon_patch_to_ir_mapping",
       "layer": "ai",
       "position": {
-        "x": 240,
-        "y": -320
+        "x": 440,
+        "y": -520
       },
       "status": "ghost",
       "type": "external",
@@ -13545,8 +13714,8 @@
       "label": "ClusterInfo",
       "layer": "ai",
       "position": {
-        "x": 360,
-        "y": 120
+        "x": 680,
+        "y": 280
       },
       "status": "ghost",
       "type": "external",
@@ -13580,8 +13749,8 @@
       "label": "Component",
       "layer": "ai",
       "position": {
-        "x": -560,
-        "y": 360
+        "x": -640,
+        "y": 400
       },
       "status": "ghost",
       "type": "external",
@@ -13616,7 +13785,7 @@
       "layer": "ai",
       "position": {
         "x": -680,
-        "y": 680
+        "y": 720
       },
       "status": "ghost",
       "type": "external",
@@ -13685,8 +13854,8 @@
       "label": "ConstraintProposal",
       "layer": "ai",
       "position": {
-        "x": -280,
-        "y": -400
+        "x": -360,
+        "y": -600
       },
       "status": "ghost",
       "type": "external",
@@ -13757,8 +13926,8 @@
       "label": "ir_change",
       "layer": "user",
       "position": {
-        "x": 200,
-        "y": -1960
+        "x": 0,
+        "y": -2600
       },
       "status": "active",
       "type": "file",
@@ -13793,8 +13962,8 @@
       "label": "patch",
       "layer": "user",
       "position": {
-        "x": 0,
-        "y": -1960
+        "x": -200,
+        "y": -2600
       },
       "status": "active",
       "type": "file",
@@ -13829,8 +13998,8 @@
       "label": "rules",
       "layer": "user",
       "position": {
-        "x": 760,
-        "y": -1920
+        "x": 560,
+        "y": -2560
       },
       "status": "active",
       "type": "file",
@@ -13865,8 +14034,8 @@
       "label": "spec",
       "layer": "user",
       "position": {
-        "x": 440,
-        "y": -1920
+        "x": 240,
+        "y": -2560
       },
       "status": "active",
       "type": "file",
@@ -13901,8 +14070,8 @@
       "label": "transformer",
       "layer": "user",
       "position": {
-        "x": -480,
-        "y": -2040
+        "x": -680,
+        "y": -2680
       },
       "status": "active",
       "type": "file",
@@ -14401,7 +14570,7 @@
       },
       "degree": 0,
       "filePath": "crates/axon-core/src/validator/mod.rs",
-      "id": "crates/axon-core/src/validator/mod.rs",
+      "id": "crates/axon-ir/src/validator/mod.rs",
       "label": "mod",
       "layer": "user",
       "position": {
@@ -14513,8 +14682,8 @@
       "label": "debug_hook",
       "layer": "user",
       "position": {
-        "x": -3520,
-        "y": -2360
+        "x": -5240,
+        "y": -2920
       },
       "status": "active",
       "type": "file",
@@ -14549,8 +14718,8 @@
       "label": "commit",
       "layer": "user",
       "position": {
-        "x": -680,
-        "y": 1840
+        "x": 120,
+        "y": 2480
       },
       "status": "active",
       "type": "file",
@@ -14585,8 +14754,8 @@
       "label": "constraint_meta",
       "layer": "user",
       "position": {
-        "x": -200,
-        "y": 1880
+        "x": 720,
+        "y": 2520
       },
       "status": "active",
       "type": "file",
@@ -14621,8 +14790,8 @@
       "label": "decision",
       "layer": "user",
       "position": {
-        "x": -1400,
-        "y": 1880
+        "x": -640,
+        "y": 2360
       },
       "status": "active",
       "type": "file",
@@ -14657,8 +14826,8 @@
       "label": "global_registry",
       "layer": "user",
       "position": {
-        "x": -1040,
-        "y": 1920
+        "x": -400,
+        "y": 2640
       },
       "status": "active",
       "type": "file",
@@ -14693,8 +14862,8 @@
       "label": "ir_diff",
       "layer": "user",
       "position": {
-        "x": -360,
-        "y": 1880
+        "x": 560,
+        "y": 2560
       },
       "status": "active",
       "type": "file",
@@ -14729,8 +14898,8 @@
       "label": "mod",
       "layer": "user",
       "position": {
-        "x": -880,
-        "y": 1880
+        "x": -40,
+        "y": 2520
       },
       "status": "active",
       "type": "file",
@@ -14765,8 +14934,8 @@
       "label": "orchestrator",
       "layer": "user",
       "position": {
-        "x": -1280,
-        "y": 1760
+        "x": -360,
+        "y": 2240
       },
       "status": "active",
       "type": "file",
@@ -14801,8 +14970,8 @@
       "label": "pipeline",
       "layer": "user",
       "position": {
-        "x": -1120,
-        "y": 1760
+        "x": -240,
+        "y": 2320
       },
       "status": "active",
       "type": "file",
@@ -14837,8 +15006,8 @@
       "label": "priority",
       "layer": "user",
       "position": {
-        "x": -1520,
-        "y": 2080
+        "x": -680,
+        "y": 2720
       },
       "status": "active",
       "type": "file",
@@ -14873,8 +15042,8 @@
       "label": "promotion",
       "layer": "user",
       "position": {
-        "x": -520,
-        "y": 1800
+        "x": 280,
+        "y": 2440
       },
       "status": "active",
       "type": "file",
@@ -14909,8 +15078,8 @@
       "label": "rule_engine",
       "layer": "user",
       "position": {
-        "x": -1200,
-        "y": 1920
+        "x": -280,
+        "y": 2480
       },
       "status": "active",
       "type": "file",
@@ -14945,8 +15114,8 @@
       "label": "rule_registry",
       "layer": "user",
       "position": {
-        "x": -760,
-        "y": 2000
+        "x": 80,
+        "y": 2680
       },
       "status": "active",
       "type": "file",
@@ -14981,8 +15150,8 @@
       "label": "selection",
       "layer": "user",
       "position": {
-        "x": 160,
-        "y": 1960
+        "x": 1040,
+        "y": 2640
       },
       "status": "active",
       "type": "file",
@@ -15017,8 +15186,8 @@
       "label": "staging",
       "layer": "user",
       "position": {
-        "x": -560,
-        "y": 2000
+        "x": 240,
+        "y": 2600
       },
       "status": "active",
       "type": "file",
@@ -15053,8 +15222,8 @@
       "label": "writer",
       "layer": "user",
       "position": {
-        "x": 320,
-        "y": 1960
+        "x": 1200,
+        "y": 2600
       },
       "status": "active",
       "type": "file",
@@ -15088,8 +15257,8 @@
       "label": "debug",
       "layer": "ai",
       "position": {
-        "x": 520,
-        "y": -160
+        "x": 800,
+        "y": -240
       },
       "status": "ghost",
       "type": "external",
@@ -15124,7 +15293,7 @@
       "layer": "ai",
       "position": {
         "x": -120,
-        "y": 1120
+        "y": 1320
       },
       "status": "ghost",
       "type": "external",
@@ -15159,7 +15328,7 @@
       "layer": "ai",
       "position": {
         "x": -120,
-        "y": -280
+        "y": -480
       },
       "status": "ghost",
       "type": "external",
@@ -15193,8 +15362,8 @@
       "label": "ExecutionArtifact",
       "layer": "ai",
       "position": {
-        "x": 440,
-        "y": -40
+        "x": 640,
+        "y": -160
       },
       "status": "ghost",
       "type": "external",
@@ -15228,8 +15397,8 @@
       "label": "extract_functions",
       "layer": "ai",
       "position": {
-        "x": 360,
-        "y": 880
+        "x": 400,
+        "y": 1000
       },
       "status": "ghost",
       "type": "external",
@@ -15263,8 +15432,8 @@
       "label": "FailureEvent",
       "layer": "ai",
       "position": {
-        "x": -440,
-        "y": 520
+        "x": -480,
+        "y": 600
       },
       "status": "ghost",
       "type": "external",
@@ -15299,7 +15468,7 @@
       "layer": "ai",
       "position": {
         "x": 120,
-        "y": 800
+        "y": 960
       },
       "status": "ghost",
       "type": "external",
@@ -15333,7 +15502,7 @@
       "label": "FunctionSig",
       "layer": "ai",
       "position": {
-        "x": 640,
+        "x": 720,
         "y": 800
       },
       "status": "ghost",
@@ -15368,7 +15537,7 @@
       "label": "Hash",
       "layer": "ai",
       "position": {
-        "x": -1080,
+        "x": -1040,
         "y": 640
       },
       "status": "ghost",
@@ -15403,8 +15572,8 @@
       "label": "Hasher",
       "layer": "ai",
       "position": {
-        "x": 440,
-        "y": 520
+        "x": 600,
+        "y": 560
       },
       "status": "ghost",
       "type": "external",
@@ -15438,8 +15607,8 @@
       "label": "HashSet",
       "layer": "ai",
       "position": {
-        "x": -120,
-        "y": 920
+        "x": -160,
+        "y": 1120
       },
       "status": "ghost",
       "type": "external",
@@ -15473,8 +15642,8 @@
       "label": "intelligence",
       "layer": "ai",
       "position": {
-        "x": 280,
-        "y": 560
+        "x": 360,
+        "y": 760
       },
       "status": "ghost",
       "type": "external",
@@ -15508,7 +15677,7 @@
       "label": "IRCommitLayer",
       "layer": "ai",
       "position": {
-        "x": -1520,
+        "x": -1480,
         "y": 560
       },
       "status": "ghost",
@@ -15543,8 +15712,8 @@
       "label": "IRDiff",
       "layer": "ai",
       "position": {
-        "x": 560,
-        "y": 960
+        "x": 640,
+        "y": 1040
       },
       "status": "ghost",
       "type": "external",
@@ -15579,7 +15748,7 @@
       "layer": "ai",
       "position": {
         "x": 480,
-        "y": 1160
+        "y": 1200
       },
       "status": "ghost",
       "type": "external",
@@ -15613,8 +15782,8 @@
       "label": "match_all",
       "layer": "ai",
       "position": {
-        "x": 280,
-        "y": -40
+        "x": 400,
+        "y": -160
       },
       "status": "ghost",
       "type": "external",
@@ -15796,8 +15965,8 @@
       "label": "NaiveDate",
       "layer": "ai",
       "position": {
-        "x": -120,
-        "y": -440
+        "x": -200,
+        "y": -640
       },
       "status": "ghost",
       "type": "external",
@@ -15831,8 +16000,8 @@
       "label": "Parse",
       "layer": "ai",
       "position": {
-        "x": 200,
-        "y": 960
+        "x": 240,
+        "y": 1040
       },
       "status": "ghost",
       "type": "external",
@@ -15866,8 +16035,8 @@
       "label": "ProjectIR",
       "layer": "ai",
       "position": {
-        "x": 120,
-        "y": -40
+        "x": -240,
+        "y": -400
       },
       "status": "ghost",
       "type": "external",
@@ -15901,8 +16070,8 @@
       "label": "propose_from_diff",
       "layer": "ai",
       "position": {
-        "x": -360,
-        "y": 160
+        "x": -720,
+        "y": 200
       },
       "status": "ghost",
       "type": "external",
@@ -15973,7 +16142,7 @@
       "label": "result",
       "layer": "ai",
       "position": {
-        "x": 520,
+        "x": 760,
         "y": 120
       },
       "status": "ghost",
@@ -16009,7 +16178,7 @@
       "layer": "ai",
       "position": {
         "x": -440,
-        "y": -680
+        "y": -760
       },
       "status": "ghost",
       "type": "external",
@@ -16043,8 +16212,8 @@
       "label": "RuleCandidate",
       "layer": "ai",
       "position": {
-        "x": 0,
-        "y": 280
+        "x": 120,
+        "y": 560
       },
       "status": "ghost",
       "type": "external",
@@ -16078,8 +16247,8 @@
       "label": "RuleEngine",
       "layer": "ai",
       "position": {
-        "x": -360,
-        "y": 760
+        "x": -600,
+        "y": 840
       },
       "status": "ghost",
       "type": "external",
@@ -16113,8 +16282,8 @@
       "label": "RuleRegistry",
       "layer": "ai",
       "position": {
-        "x": 160,
-        "y": 280
+        "x": 240,
+        "y": 400
       },
       "status": "ghost",
       "type": "external",
@@ -16148,8 +16317,8 @@
       "label": "RuleState",
       "layer": "ai",
       "position": {
-        "x": -160,
-        "y": 560
+        "x": -280,
+        "y": 760
       },
       "status": "ghost",
       "type": "external",
@@ -16220,8 +16389,8 @@
       "label": "Stmt",
       "layer": "ai",
       "position": {
-        "x": 40,
-        "y": -160
+        "x": -40,
+        "y": -640
       },
       "status": "ghost",
       "type": "external",
@@ -16255,8 +16424,8 @@
       "label": "StmtFunctionDef",
       "layer": "ai",
       "position": {
-        "x": 560,
-        "y": -320
+        "x": 680,
+        "y": -360
       },
       "status": "ghost",
       "type": "external",
@@ -16291,7 +16460,7 @@
       "layer": "ai",
       "position": {
         "x": 80,
-        "y": -320
+        "y": -480
       },
       "status": "ghost",
       "type": "external",
@@ -16325,8 +16494,8 @@
       "label": "SystemTime",
       "layer": "ai",
       "position": {
-        "x": -760,
-        "y": 480
+        "x": -880,
+        "y": 560
       },
       "status": "ghost",
       "type": "external",
@@ -16360,8 +16529,8 @@
       "label": "TestCase",
       "layer": "ai",
       "position": {
-        "x": -40,
-        "y": -40
+        "x": 240,
+        "y": -200
       },
       "status": "ghost",
       "type": "external",
@@ -16396,8 +16565,8 @@
       "label": "axon_ir_mapper",
       "layer": "user",
       "position": {
-        "x": -5320,
-        "y": 1160
+        "x": -5280,
+        "y": 1240
       },
       "status": "active",
       "type": "file",
@@ -16431,7 +16600,7 @@
       "label": "UNIX_EPOCH",
       "layer": "ai",
       "position": {
-        "x": 600,
+        "x": 720,
         "y": -40
       },
       "status": "ghost",
@@ -16537,7 +16706,7 @@
       "layer": "ai",
       "position": {
         "x": 280,
-        "y": 760
+        "y": 880
       },
       "status": "ghost",
       "type": "external",
@@ -16572,8 +16741,8 @@
       "label": "*",
       "layer": "ai",
       "position": {
-        "x": 360,
-        "y": -160
+        "x": 520,
+        "y": -280
       },
       "status": "ghost",
       "type": "external",
@@ -16606,8 +16775,8 @@
       "label": "extract::",
       "layer": "ai",
       "position": {
-        "x": 480,
-        "y": -440
+        "x": 600,
+        "y": -600
       },
       "status": "ghost",
       "type": "external",
@@ -16675,8 +16844,8 @@
       "label": "planner",
       "layer": "user",
       "position": {
-        "x": -1840,
-        "y": 1720
+        "x": -1000,
+        "y": 2360
       },
       "status": "active",
       "type": "source",
@@ -16781,8 +16950,8 @@
       "label": "let rr_pos = *entry % ties.len()",
       "layer": "ai",
       "position": {
-        "x": 400,
-        "y": -320
+        "x": 560,
+        "y": -440
       },
       "status": "ghost",
       "type": "source",
@@ -16851,7 +17020,7 @@
       "label": "i18n",
       "layer": "user",
       "position": {
-        "x": 1920,
+        "x": 2240,
         "y": 560
       },
       "status": "active",
@@ -17173,8 +17342,8 @@
       "label": "atomic_test_suite",
       "layer": "ai",
       "position": {
-        "x": 1240,
-        "y": 1440
+        "x": 1200,
+        "y": 1600
       },
       "status": "confirmed",
       "type": "source",
@@ -17207,8 +17376,8 @@
       "label": "EventType",
       "layer": "ai",
       "position": {
-        "x": 480,
-        "y": 360
+        "x": 680,
+        "y": 440
       },
       "status": "ghost",
       "type": "external",
@@ -17782,8 +17951,8 @@
       "label": "repro_destructive_rewrite",
       "layer": "ai",
       "position": {
-        "x": 1360,
-        "y": 1200
+        "x": 1320,
+        "y": 1160
       },
       "status": "confirmed",
       "type": "source",
@@ -17816,8 +17985,8 @@
       "label": "requests",
       "layer": "ai",
       "position": {
-        "x": 40,
-        "y": 120
+        "x": -200,
+        "y": 520
       },
       "status": "ghost",
       "type": "external",
@@ -18025,7 +18194,7 @@
       "label": "// Special mappings\n                let mut found_alias = false",
       "layer": "ai",
       "position": {
-        "x": 680,
+        "x": 760,
         "y": 600
       },
       "status": "ghost",
@@ -18059,7 +18228,7 @@
       "label": "Batch",
       "layer": "ai",
       "position": {
-        "x": 760,
+        "x": 840,
         "y": 400
       },
       "status": "ghost",
@@ -18093,8 +18262,8 @@
       "label": "BatchAssignment",
       "layer": "ai",
       "position": {
-        "x": -40,
-        "y": 800
+        "x": 0,
+        "y": 1040
       },
       "status": "ghost",
       "type": "external",
@@ -18128,8 +18297,8 @@
       "label": "dep_graph",
       "layer": "user",
       "position": {
-        "x": -1240,
-        "y": -1840
+        "x": -2960,
+        "y": -2400
       },
       "status": "active",
       "type": "source",
@@ -18163,8 +18332,8 @@
       "label": "execution_validator",
       "layer": "user",
       "position": {
-        "x": -1680,
-        "y": -2160
+        "x": -3400,
+        "y": -2720
       },
       "status": "active",
       "type": "source",
@@ -18198,8 +18367,8 @@
       "label": "coordinator",
       "layer": "user",
       "position": {
-        "x": 40,
-        "y": 1800
+        "x": 840,
+        "y": 2280
       },
       "status": "active",
       "type": "source",
@@ -18232,8 +18401,8 @@
       "label": "DepGraph",
       "layer": "ai",
       "position": {
-        "x": -280,
-        "y": 440
+        "x": -320,
+        "y": 600
       },
       "status": "ghost",
       "type": "external",
@@ -18266,7 +18435,7 @@
       "label": "Digest",
       "layer": "ai",
       "position": {
-        "x": -720,
+        "x": -800,
         "y": 320
       },
       "status": "ghost",
@@ -18300,8 +18469,8 @@
       "label": "item",
       "layer": "ai",
       "position": {
-        "x": -280,
-        "y": -240
+        "x": -360,
+        "y": -440
       },
       "status": "ghost",
       "type": "external",
@@ -18334,8 +18503,8 @@
       "label": "OptionalExtension",
       "layer": "ai",
       "position": {
-        "x": 120,
-        "y": 640
+        "x": 200,
+        "y": 720
       },
       "status": "ghost",
       "type": "external",
@@ -18368,8 +18537,8 @@
       "label": "Regex",
       "layer": "ai",
       "position": {
-        "x": 240,
-        "y": 440
+        "x": 440,
+        "y": 600
       },
       "status": "ghost",
       "type": "external",
@@ -18402,7 +18571,7 @@
       "label": "Sha256",
       "layer": "ai",
       "position": {
-        "x": -280,
+        "x": -440,
         "y": 880
       },
       "status": "ghost",
@@ -18541,8 +18710,8 @@
       "label": "FilePatch",
       "layer": "ai",
       "position": {
-        "x": 120,
-        "y": -480
+        "x": 80,
+        "y": -720
       },
       "status": "ghost",
       "type": "external",
@@ -18791,8 +18960,8 @@
       "label": "PatchAction",
       "layer": "ai",
       "position": {
-        "x": 240,
-        "y": -520
+        "x": 280,
+        "y": -760
       },
       "status": "ghost",
       "type": "external",
@@ -18871,12 +19040,2132 @@
       "visual": {
         "opacity": 1
       }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "👻",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "c.name.clone()\n             else",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "ghost://c.name.clone()\n             else",
+      "id": "c.name.clone()\n             else",
+      "intelligence": {},
+      "label": "c.name.clone()\n             else",
+      "layer": "ai",
+      "position": {
+        "x": 360,
+        "y": 280
+      },
+      "status": "ghost",
+      "type": "source",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.27.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.27",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.27.md",
+      "id": "mile_stone/v0.0.27.md",
+      "intelligence": {},
+      "label": "v0.0.27",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "+ Fatal Error Detection\n            const MAX_TASK_RETRIES: u32 = 3",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://+ Fatal Error Detection\n            const MAX_TASK_RETRIES: u32 = 3",
+      "id": "+ Fatal Error Detection\n            const MAX_TASK_RETRIES: u32 = 3",
+      "intelligence": {},
+      "label": "+ Fatal Error Detection\n            const MAX_TASK_RETRIES: u32 = 3",
+      "layer": "ai",
+      "position": {
+        "x": -480,
+        "y": 200
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "canonicalizer",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://canonicalizer",
+      "id": "canonicalizer",
+      "intelligence": {},
+      "label": "canonicalizer",
+      "layer": "ai",
+      "position": {
+        "x": -320,
+        "y": 120
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "Constraint as RuleConstraint",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://Constraint as RuleConstraint",
+      "id": "Constraint as RuleConstraint",
+      "intelligence": {},
+      "label": "Constraint as RuleConstraint",
+      "layer": "ai",
+      "position": {
+        "x": -520,
+        "y": -400
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_ir_src_canonicalizer",
+      "data": {
+        "cluster_id": "cluster_crates_axon_ir_src_canonicalizer",
+        "degree": 0,
+        "file": "crates/axon-ir/src/canonicalizer/mod.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "mod",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-ir/src/canonicalizer/mod.rs",
+      "id": "crates/axon-ir/src/canonicalizer/mod.rs",
+      "intelligence": {},
+      "label": "mod",
+      "layer": "user",
+      "position": {
+        "x": -3680,
+        "y": 2840
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_ir_src_emitter",
+      "data": {
+        "cluster_id": "cluster_crates_axon_ir_src_emitter",
+        "degree": 0,
+        "file": "crates/axon-ir/src/emitter/mod.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "mod",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-ir/src/emitter/mod.rs",
+      "id": "crates/axon-ir/src/emitter/mod.rs",
+      "intelligence": {},
+      "label": "mod",
+      "layer": "user",
+      "position": {
+        "x": -2320,
+        "y": 2880
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_ir_src_linker",
+      "data": {
+        "cluster_id": "cluster_crates_axon_ir_src_linker",
+        "degree": 0,
+        "file": "crates/axon-ir/src/linker/mod.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "mod",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-ir/src/linker/mod.rs",
+      "id": "crates/axon-ir/src/linker/mod.rs",
+      "intelligence": {},
+      "label": "mod",
+      "layer": "user",
+      "position": {
+        "x": -2160,
+        "y": 2800
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_ir_src_parser",
+      "data": {
+        "cluster_id": "cluster_crates_axon_ir_src_parser",
+        "degree": 0,
+        "file": "crates/axon-ir/src/parser/json.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "json",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-ir/src/parser/json.rs",
+      "id": "crates/axon-ir/src/parser/json.rs",
+      "intelligence": {},
+      "label": "json",
+      "layer": "user",
+      "position": {
+        "x": 1960,
+        "y": 1600
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_ir_src_parser",
+      "data": {
+        "cluster_id": "cluster_crates_axon_ir_src_parser",
+        "degree": 0,
+        "file": "crates/axon-ir/src/parser/markdown.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "markdown",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-ir/src/parser/markdown.rs",
+      "id": "crates/axon-ir/src/parser/markdown.rs",
+      "intelligence": {},
+      "label": "markdown",
+      "layer": "user",
+      "position": {
+        "x": 1840,
+        "y": 2440
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_ir_src_parser",
+      "data": {
+        "cluster_id": "cluster_crates_axon_ir_src_parser",
+        "degree": 0,
+        "file": "crates/axon-ir/src/parser/mod.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "mod",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-ir/src/parser/mod.rs",
+      "id": "crates/axon-ir/src/parser/mod.rs",
+      "intelligence": {},
+      "label": "mod",
+      "layer": "user",
+      "position": {
+        "x": 2280,
+        "y": 1760
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_ir_src_parser",
+      "data": {
+        "cluster_id": "cluster_crates_axon_ir_src_parser",
+        "degree": 0,
+        "file": "crates/axon-ir/src/parser/toml.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "toml",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-ir/src/parser/toml.rs",
+      "id": "crates/axon-ir/src/parser/toml.rs",
+      "intelligence": {},
+      "label": "toml",
+      "layer": "user",
+      "position": {
+        "x": 2440,
+        "y": 1800
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_ir_src_parser",
+      "data": {
+        "cluster_id": "cluster_crates_axon_ir_src_parser",
+        "degree": 0,
+        "file": "crates/axon-ir/src/parser/yaml.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "yaml",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-ir/src/parser/yaml.rs",
+      "id": "crates/axon-ir/src/parser/yaml.rs",
+      "intelligence": {},
+      "label": "yaml",
+      "layer": "user",
+      "position": {
+        "x": 1640,
+        "y": 1760
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_ir_src_schema",
+      "data": {
+        "cluster_id": "cluster_crates_axon_ir_src_schema",
+        "degree": 0,
+        "file": "crates/axon-ir/src/schema/mod.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "mod",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-ir/src/schema/mod.rs",
+      "id": "crates/axon-ir/src/schema/mod.rs",
+      "intelligence": {},
+      "label": "mod",
+      "layer": "user",
+      "position": {
+        "x": -2320,
+        "y": 2440
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_ir_src_schema",
+      "data": {
+        "cluster_id": "cluster_crates_axon_ir_src_schema",
+        "degree": 0,
+        "file": "crates/axon-ir/src/schema/types.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "types",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-ir/src/schema/types.rs",
+      "id": "crates/axon-ir/src/schema/types.rs",
+      "intelligence": {},
+      "label": "types",
+      "layer": "user",
+      "position": {
+        "x": -2240,
+        "y": 1720
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_ir_src_spec_extractor",
+      "data": {
+        "cluster_id": "cluster_crates_axon_ir_src_spec_extractor",
+        "degree": 0,
+        "file": "crates/axon-ir/src/spec_extractor/mod.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "mod",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-ir/src/spec_extractor/mod.rs",
+      "id": "crates/axon-ir/src/spec_extractor/mod.rs",
+      "intelligence": {},
+      "label": "mod",
+      "layer": "user",
+      "position": {
+        "x": -1520,
+        "y": 2680
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "emitter",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://emitter",
+      "id": "emitter",
+      "intelligence": {},
+      "label": "emitter",
+      "layer": "ai",
+      "position": {
+        "x": 1320,
+        "y": -2240
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "error!(\n                \"🛑 [TASK_QUARANTINED] task=",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://error!(\n                \"🛑 [TASK_QUARANTINED] task=",
+      "id": "error!(\n                \"🛑 [TASK_QUARANTINED] task=",
+      "intelligence": {},
+      "label": "error!(\n                \"🛑 [TASK_QUARANTINED] task=",
+      "layer": "ai",
+      "position": {
+        "x": 440,
+        "y": 160
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "👻",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "for cap in re4.captures_iter(markdown)",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "ghost://for cap in re4.captures_iter(markdown)",
+      "id": "for cap in re4.captures_iter(markdown)",
+      "intelligence": {},
+      "label": "for cap in re4.captures_iter(markdown)",
+      "layer": "ai",
+      "position": {
+        "x": -320,
+        "y": 280
+      },
+      "status": "ghost",
+      "type": "source",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "👻",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "let role_prefix = match task.kind.as_str()",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "ghost://let role_prefix = match task.kind.as_str()",
+      "id": "let role_prefix = match task.kind.as_str()",
+      "intelligence": {},
+      "label": "let role_prefix = match task.kind.as_str()",
+      "layer": "ai",
+      "position": {
+        "x": 280,
+        "y": 120
+      },
+      "status": "ghost",
+      "type": "source",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "linker",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://linker",
+      "id": "linker",
+      "intelligence": {},
+      "label": "linker",
+      "layer": "ai",
+      "position": {
+        "x": -440,
+        "y": -280
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "schema",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://schema",
+      "id": "schema",
+      "intelligence": {},
+      "label": "schema",
+      "layer": "ai",
+      "position": {
+        "x": 600,
+        "y": 120
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "spec_extractor",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://spec_extractor",
+      "id": "spec_extractor",
+      "intelligence": {},
+      "label": "spec_extractor",
+      "layer": "ai",
+      "position": {
+        "x": -40,
+        "y": -360
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "warn!(\"⚠️ [QUARANTINE_SKIP] Skipping quarantined task:",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://warn!(\"⚠️ [QUARANTINE_SKIP] Skipping quarantined task:",
+      "id": "warn!(\"⚠️ [QUARANTINE_SKIP] Skipping quarantined task:",
+      "intelligence": {},
+      "label": "warn!(\"⚠️ [QUARANTINE_SKIP] Skipping quarantined task:",
+      "layer": "ai",
+      "position": {
+        "x": 560,
+        "y": -40
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.28_bootstrap.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.28_bootstrap",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.28_bootstrap.md",
+      "id": "mile_stone/v0.0.28_bootstrap.md",
+      "intelligence": {},
+      "label": "v0.0.28_bootstrap",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.28_goal.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.28_goal",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.28_goal.md",
+      "id": "mile_stone/v0.0.28_goal.md",
+      "intelligence": {},
+      "label": "v0.0.28_goal",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.28_problem.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.28_problem",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.28_problem.md",
+      "id": "mile_stone/v0.0.28_problem.md",
+      "intelligence": {},
+      "label": "v0.0.28_problem",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.28_skeleton_hardstop_semantic_validator.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.28_skeleton_hardstop_semantic_validator",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.28_skeleton_hardstop_semantic_validator.md",
+      "id": "mile_stone/v0.0.28_skeleton_hardstop_semantic_validator.md",
+      "intelligence": {},
+      "label": "v0.0.28_skeleton_hardstop_semantic_validator",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.28_validation_strategy.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.28_validation_strategy",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.28_validation_strategy.md",
+      "id": "mile_stone/v0.0.28_validation_strategy.md",
+      "intelligence": {},
+      "label": "v0.0.28_validation_strategy",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.28.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.28",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.28.md",
+      "id": "mile_stone/v0.0.28.md",
+      "intelligence": {},
+      "label": "v0.0.28",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "BTreeMap",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://BTreeMap",
+      "id": "BTreeMap",
+      "intelligence": {},
+      "label": "BTreeMap",
+      "layer": "ai",
+      "position": {
+        "x": -320,
+        "y": -200
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "BTreeSet",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://BTreeSet",
+      "id": "BTreeSet",
+      "intelligence": {},
+      "label": "BTreeSet",
+      "layer": "ai",
+      "position": {
+        "x": -200,
+        "y": -40
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_ir_src_validator_langs",
+      "data": {
+        "cluster_id": "cluster_crates_axon_ir_src_validator_langs",
+        "degree": 0,
+        "file": "crates/axon-ir/src/validator/langs/c.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "c",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-ir/src/validator/langs/c.rs",
+      "id": "crates/axon-ir/src/validator/langs/c.rs",
+      "intelligence": {},
+      "label": "c",
+      "layer": "user",
+      "position": {
+        "x": -4280,
+        "y": 2160
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_ir_src_validator_langs",
+      "data": {
+        "cluster_id": "cluster_crates_axon_ir_src_validator_langs",
+        "degree": 0,
+        "file": "crates/axon-ir/src/validator/langs/mod.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "mod",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-ir/src/validator/langs/mod.rs",
+      "id": "crates/axon-ir/src/validator/langs/mod.rs",
+      "intelligence": {},
+      "label": "mod",
+      "layer": "user",
+      "position": {
+        "x": -5000,
+        "y": 1760
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_ir_src_validator_langs",
+      "data": {
+        "cluster_id": "cluster_crates_axon_ir_src_validator_langs",
+        "degree": 0,
+        "file": "crates/axon-ir/src/validator/langs/python.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "python",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-ir/src/validator/langs/python.rs",
+      "id": "crates/axon-ir/src/validator/langs/python.rs",
+      "intelligence": {},
+      "label": "python",
+      "layer": "user",
+      "position": {
+        "x": -4560,
+        "y": 1960
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_ir_src_validator_langs",
+      "data": {
+        "cluster_id": "cluster_crates_axon_ir_src_validator_langs",
+        "degree": 0,
+        "file": "crates/axon-ir/src/validator/langs/rust.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "rust",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-ir/src/validator/langs/rust.rs",
+      "id": "crates/axon-ir/src/validator/langs/rust.rs",
+      "intelligence": {},
+      "label": "rust",
+      "layer": "user",
+      "position": {
+        "x": -4720,
+        "y": 1920
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "langs",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://langs",
+      "id": "langs",
+      "intelligence": {},
+      "label": "langs",
+      "layer": "ai",
+      "position": {
+        "x": 80,
+        "y": 400
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "LanguageValidator",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://LanguageValidator",
+      "id": "LanguageValidator",
+      "intelligence": {},
+      "label": "LanguageValidator",
+      "layer": "ai",
+      "position": {
+        "x": -360,
+        "y": -40
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "ValidationKind",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://ValidationKind",
+      "id": "ValidationKind",
+      "intelligence": {},
+      "label": "ValidationKind",
+      "layer": "ai",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/axon_최적화_목표.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "axon_최적화_목표",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/axon_최적화_목표.md",
+      "id": "mile_stone/axon_최적화_목표.md",
+      "intelligence": {},
+      "label": "axon_최적화_목표",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "release_note/v0.0.28_release_notes.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.28_release_notes",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "release_note/v0.0.28_release_notes.md",
+      "id": "release_note/v0.0.28_release_notes.md",
+      "intelligence": {},
+      "label": "v0.0.28_release_notes",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/include_path_normalizer.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "include_path_normalizer",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/include_path_normalizer.rs",
+      "id": "crates/axon-daemon/src/intelligence/include_path_normalizer.rs",
+      "intelligence": {},
+      "label": "include_path_normalizer",
+      "layer": "user",
+      "position": {
+        "x": 720,
+        "y": 2120
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence_language_contract",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence_language_contract",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/language_contract/c.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "c",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/language_contract/c.rs",
+      "id": "crates/axon-daemon/src/intelligence/language_contract/c.rs",
+      "intelligence": {},
+      "label": "c",
+      "layer": "user",
+      "position": {
+        "x": 1200,
+        "y": -2920
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence_language_contract",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence_language_contract",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/language_contract/common.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "common",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/language_contract/common.rs",
+      "id": "crates/axon-daemon/src/intelligence/language_contract/common.rs",
+      "intelligence": {},
+      "label": "common",
+      "layer": "user",
+      "position": {
+        "x": 1120,
+        "y": -2400
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence_language_contract",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence_language_contract",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/language_contract/cpp.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "cpp",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/language_contract/cpp.rs",
+      "id": "crates/axon-daemon/src/intelligence/language_contract/cpp.rs",
+      "intelligence": {},
+      "label": "cpp",
+      "layer": "user",
+      "position": {
+        "x": 1080,
+        "y": -2600
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence_language_contract",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence_language_contract",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/language_contract/mod.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "mod",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/language_contract/mod.rs",
+      "id": "crates/axon-daemon/src/intelligence/language_contract/mod.rs",
+      "intelligence": {},
+      "label": "mod",
+      "layer": "user",
+      "position": {
+        "x": 960,
+        "y": -2360
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence_language_contract",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence_language_contract",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/language_contract/rust.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "rust",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/language_contract/rust.rs",
+      "id": "crates/axon-daemon/src/intelligence/language_contract/rust.rs",
+      "intelligence": {},
+      "label": "rust",
+      "layer": "user",
+      "position": {
+        "x": 1280,
+        "y": -2720
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "language_contract",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://language_contract",
+      "id": "language_contract",
+      "intelligence": {},
+      "label": "language_contract",
+      "layer": "ai",
+      "position": {
+        "x": 80,
+        "y": -40
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_spec_src",
+      "data": {
+        "cluster_id": "cluster_spec_src",
+        "degree": 0,
+        "file": "spec/src/main.h",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "main",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "spec/src/main.h",
+      "id": "spec/src/main.h",
+      "intelligence": {},
+      "label": "main",
+      "layer": "user",
+      "position": {
+        "x": 360,
+        "y": -2440
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "debug/headergen_raw.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "headergen_raw",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "debug/headergen_raw.md",
+      "id": "debug/headergen_raw.md",
+      "intelligence": {},
+      "label": "headergen_raw",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": ")",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://)",
+      "id": ")",
+      "intelligence": {},
+      "label": ")",
+      "layer": "ai",
+      "position": {
+        "x": -160,
+        "y": -240
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "👻",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "AST parsers.\n    // We'll do a simple regex-like replace for common signature end patterns.\n    s = s.replace(\"\\\"",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "ghost://AST parsers.\n    // We'll do a simple regex-like replace for common signature end patterns.\n    s = s.replace(\"\\\"",
+      "id": "AST parsers.\n    // We'll do a simple regex-like replace for common signature end patterns.\n    s = s.replace(\"\\\"",
+      "intelligence": {},
+      "label": "AST parsers.\n    // We'll do a simple regex-like replace for common signature end patterns.\n    s = s.replace(\"\\\"",
+      "layer": "ai",
+      "position": {
+        "x": 120,
+        "y": 80
+      },
+      "status": "ghost",
+      "type": "source",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "file_path: file",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://file_path: file",
+      "id": "file_path: file",
+      "intelligence": {},
+      "label": "file_path: file",
+      "layer": "ai",
+      "position": {
+        "x": 80,
+        "y": -200
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "functions",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://functions",
+      "id": "functions",
+      "intelligence": {},
+      "label": "functions",
+      "layer": "ai",
+      "position": {
+        "x": -160,
+        "y": 160
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "info!(\"🍻 [LOUNGE_POST] Saving Nogari from",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://info!(\"🍻 [LOUNGE_POST] Saving Nogari from",
+      "id": "info!(\"🍻 [LOUNGE_POST] Saving Nogari from",
+      "intelligence": {},
+      "label": "info!(\"🍻 [LOUNGE_POST] Saving Nogari from",
+      "layer": "ai",
+      "position": {
+        "x": -40,
+        "y": -120
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "👻",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "is_entrypoint: c.is_entrypoint",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "ghost://is_entrypoint: c.is_entrypoint",
+      "id": "is_entrypoint: c.is_entrypoint",
+      "intelligence": {},
+      "label": "is_entrypoint: c.is_entrypoint",
+      "layer": "ai",
+      "position": {
+        "x": -40,
+        "y": 40
+      },
+      "status": "ghost",
+      "type": "source",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "👻",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "name: c.name",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "ghost://name: c.name",
+      "id": "name: c.name",
+      "intelligence": {},
+      "label": "name: c.name",
+      "layer": "ai",
+      "position": {
+        "x": 160,
+        "y": 240
+      },
+      "status": "ghost",
+      "type": "source",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "new()",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://new()",
+      "id": "new()",
+      "intelligence": {},
+      "label": "new()",
+      "layer": "ai",
+      "position": {
+        "x": 240,
+        "y": -40
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "PermissionsExt",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://PermissionsExt",
+      "id": "PermissionsExt",
+      "intelligence": {},
+      "label": "PermissionsExt",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 240
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.32.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.32",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.32.md",
+      "id": "mile_stone/v0.0.32.md",
+      "intelligence": {},
+      "label": "v0.0.32",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "release_note/v0.0.32_release_notes.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.32_release_notes",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "release_note/v0.0.32_release_notes.md",
+      "id": "release_note/v0.0.32_release_notes.md",
+      "intelligence": {},
+      "label": "v0.0.32_release_notes",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
     }
   ],
-  "userCount": 300,
+  "userCount": 334,
   "_iron_guard": {
     "version": "0.2.18.1",
-    "byte_size": 311907,
+    "byte_size": 351176,
     "encoding": "UTF-8",
     "alignment": 8
   }

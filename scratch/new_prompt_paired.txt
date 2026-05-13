@@ -1,0 +1,28 @@
+             ### EXPECTED JSON SCHEMA (MANDATORY: EXTRACT ALL MODULES FROM SPEC) ###\\n\\
+             <JSON_START>\\n\\
+             {{\\n\\
+               \"node_mapping\": {{ \"SPEC_NODE\": \"func\" }},\\n\\
+               \"components\": [\\n\\
+                 {{\\n\\
+                   \"name\": \"src/main.c\",\\n\\
+                   \"file\": \"src/main.c\",\\n\\
+                   \"functions\": [{{ \"name\": \"main\", \"signature\": \"int main(void)\" }}],\\n\\
+                   \"is_entrypoint\": true\\n\\
+                 }},\\n\\
+                 {{\\n\\
+                   \"name\": \"include/module.h\",\\n\\
+                   \"file\": \"include/module.h\",\\n\\
+                   \"functions\": [{{ \"name\": \"func\", \"signature\": \"int func(int a)\" }}],\\n\\
+                   \"is_entrypoint\": false\\n\\
+                 }},\\n\\
+                 {{\\n\\
+                   \"name\": \"src/module.c\",\\n\\
+                   \"file\": \"src/module.c\",\\n\\
+                   \"functions\": [{{ \"name\": \"func\", \"signature\": \"int func(int a)\" }}],\\n\\
+                   \"is_entrypoint\": false\\n\\
+                 }}\\n\\
+               ]\\n\\
+             }}\\n\\
+             <JSON_END>\\n\\n\\
+             CRITICAL: You MUST analyze the SOURCE SPEC and extract EVERY module, EVERY function, and EVERY header defined there.\\n\\
+             FOR C PROJECTS: Every module (except main) MUST have a .h header in include/ and a .c source in src/. DO NOT truncate. DO NOT simplify.\\n\\

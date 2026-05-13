@@ -38,20 +38,66 @@ pub struct Task {
     pub title: String,
     pub description: String,
     pub status: TaskStatus,
-    pub dependencies: Vec<String>, // v0.0.23: List of Task IDs that must be completed first
+    pub dependencies: Vec<String>,
     pub result: Option<String>,
-    pub target_file: Option<String>,   // v0.0.23: Explicit target file for S.T.E. Shield
-    pub lock_files: Vec<String>,       // v0.0.25: Set of files to lock for consistency
-    pub error_feedback: Option<String>, // v0.0.23: Feedback loop for failed attempts
-    pub senior_comment: Option<String>, // v0.0.25: Feedback/Praise from Senior on completion
-    pub rework_count: u32,             // v0.0.25: Number of retry/repair attempts
-    pub base_hash: Option<String>,     // v0.0.25: Hash of the file at start (Version Gate)
-    pub parent_task: Option<String>,   // v0.0.25: Original task ID if this is a REWORK
-    pub reason: Option<String>,        // v0.0.25: Failure reason (STALE_WRITE, etc.)
-    pub kind: String,                  // v0.0.25: Task category (rust, python, ir, etc.)
-    pub retries: u32,                  // v0.0.25: Lock collision retry count
-    pub assigned_worker: Option<String>, // v0.0.25: Model ID that handled this task
+    pub target_file: Option<String>,
+    pub lock_files: Vec<String>,
+    pub error_feedback: Option<String>,
+    pub senior_comment: Option<String>,
+    pub rework_count: u32,
+    pub base_hash: Option<String>,
+    pub parent_task: Option<String>,
+    pub reason: Option<String>,
+    pub kind: String,
+    pub retries: u32,
+    pub assigned_worker: Option<String>,
     pub created_at: DateTime<Local>,
+    pub ir_path: Option<String>,
+    pub task_kind: Option<TaskKind>,
+    pub signature: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DecomposedTask {
+    pub id: String,
+    pub title: String,
+    pub description: String,
+    pub component_id: Option<String>,
+}
+
+impl Task {
+    pub fn from_decomposed(dt: DecomposedTask, project_id: String) -> Self {
+        Self {
+            id: dt.id,
+            project_id,
+            title: dt.title,
+            description: dt.description,
+            status: TaskStatus::Pending,
+            dependencies: Vec::new(),
+            result: None,
+            target_file: dt.component_id,
+            lock_files: Vec::new(),
+            error_feedback: None,
+            senior_comment: None,
+            rework_count: 0,
+            base_hash: None,
+            parent_task: None,
+            reason: None,
+            kind: "rust".to_string(), // Default, will be updated by daemon
+            retries: 0,
+            assigned_worker: None,
+            created_at: Local::now(),
+            ir_path: None,
+            task_kind: None,
+            signature: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum TaskKind {
+    HeaderDecl,
+    SourceImpl,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]

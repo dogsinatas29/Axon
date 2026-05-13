@@ -1,0 +1,1 @@
+{"components":[{"data_models":[],"dependencies":[],"functions":[{"description":"Init","name":"init","signature":"void init()"}],"headers":[],"id":"core","name":"Core","path":"src/core.c","physical_includes":[]}],"entrypoint_required":false,"language":"c","project":"TaskMaster","project_type":"library"}

@@ -54,7 +54,7 @@ pub struct Daemon {
     pub junior_models: Vec<Arc<dyn axon_model::ModelDriver + Send + Sync>>,
     pub junior_model_names: Vec<String>,
     pub event_bus: Arc<events::EventBus>,
-    pub architecture_guide: String,
+    pub architecture_guide: Arc<std::sync::RwLock<String>>,
     pub pause_tx: Arc<tokio::sync::watch::Sender<bool>>,
     pub pause_rx: tokio::sync::watch::Receiver<bool>,
     pub locale: String,
@@ -75,9 +75,13 @@ pub struct Daemon {
 #[allow(dead_code)]
 impl Daemon {
     pub fn publish_event(&self, event: axon_core::Event) {
-        if let Err(e) = self.storage.save_event(&event) {
-            tracing::error!("❌ [DB_EVENT_FAIL] Failed to save event to database: {}", e);
-        }
+        let storage = self.storage.clone();
+        let event_clone = event.clone();
+        tokio::spawn(async move {
+            if let Err(e) = storage.save_event(event_clone).await {
+                tracing::error!("❌ [DB_EVENT_FAIL] Failed to save event to database: {}", e);
+            }
+        });
         self.event_bus.publish(event);
     }
 
@@ -180,7 +184,7 @@ impl Daemon {
             junior_models,
             junior_model_names,
             event_bus: event_bus.clone(),
-            architecture_guide,
+            architecture_guide: Arc::new(std::sync::RwLock::new(architecture_guide)),
             pause_tx: Arc::new(pause_tx),
             pause_rx,
             locale,
@@ -202,7 +206,7 @@ impl Daemon {
         tracing::info!("AXON Daemon starting (Multi-Worker Mode - Phase 07)...");
         
         // v0.0.25: Ensure Lounge thread exists for UI visibility on resume
-        let _ = self.setup_lounge();
+        let _ = self.setup_lounge().await;
         
         // RECOVERY (v0.0.15): DB에서 처리되지 않은 태스크들을 불러와 스케줄러 큐에 재진입시킵니다.
         // v0.0.23: Use ExecutionPlanner to build the DAG before enqueuing
@@ -221,7 +225,7 @@ impl Daemon {
                 let mut coordinator_tasks = Vec::new();
                 for mut task in ready_tasks {
                     task.status = axon_core::TaskStatus::Pending;
-                    let _ = self.storage.save_task(&task);
+                    let _ = self.storage.save_task(task.clone()).await;
                     coordinator_tasks.push(task);
                     recovered_count += 1;
                 }
@@ -353,6 +357,31 @@ impl Daemon {
         let mut all_metrics = Vec::new();
 
         for task in &batch.tasks {
+            // v0.0.32: Register thread in Work Board immediately
+            self.publish_event(axon_core::Event {
+                id: uuid::Uuid::new_v4().to_string(),
+                project_id: task.project_id.clone(),
+                thread_id: Some(task.id.clone()),
+                agent_id: None,
+                event_type: axon_core::EventType::ThreadCreated,
+                source: "daemon".to_string(),
+                content: format!("🧵 [WORK_BOARD] Starting implementation for: {}", task.title),
+                payload: None,
+                timestamp: chrono::Local::now(),
+            });
+
+            self.publish_event(axon_core::Event {
+                id: uuid::Uuid::new_v4().to_string(),
+                project_id: task.project_id.clone(),
+                thread_id: Some(task.id.clone()),
+                agent_id: Some("system".to_string()),
+                event_type: axon_core::EventType::SystemLog,
+                source: "daemon".to_string(),
+                content: format!("👷 [Worker {}] Commencing task: {}", batch_id, task.title),
+                payload: None,
+                timestamp: chrono::Local::now(),
+            });
+
             // Backup files before modification
             if let Some(target) = &task.target_file {
                 let fpath = std::path::Path::new(&task.project_id).join(target);
@@ -375,20 +404,105 @@ impl Daemon {
             let task = &batch.tasks[i];
             match res {
                 Ok((patch, metrics)) => {
-                    all_metrics.push(metrics);
-                    // Senior review
-                    match self.verify_with_senior(task, &patch).await {
-                        Err(err) => {
+                    all_metrics.push(metrics.clone());
+
+                    // v0.0.33: Senior review with timeout (120s)
+                    match tokio::time::timeout(std::time::Duration::from_secs(120), self.verify_with_senior(task, &patch)).await {
+                        Ok(Err(err)) => {
                             all_approved = false;
-                            failures.push(format!("Task {} failed senior review: {}", task.id, err));
+                            let cleaned_text = err.to_string();
+                            let err_msg = format!("Task {} failed senior review: {}", task.id, cleaned_text);
+                            failures.push(err_msg.clone());
+                            
+                            // v0.0.32: IMMEDIATE EVENT BROADCAST for UI responsiveness
+                            let _ = self.publish_event(axon_core::Event {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                project_id: task.project_id.clone(),
+                                thread_id: Some(task.id.clone()),
+                                agent_id: Some("Senior".to_string()),
+                                event_type: axon_core::EventType::ApprovalRejected,
+                                source: "Senior".to_string(),
+                                content: format!("### ❌ [REJECTED]\n\nSenior identified issues: {}", cleaned_text),
+                                payload: None,
+                                timestamp: chrono::Local::now(),
+                            });
+
+                            let _ = self.storage.save_post(axon_core::Post {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                thread_id: task.id.clone(),
+                                author_id: "Senior".to_string(),
+                                content: format!("### ❌ [REJECTED]\n\n{}", cleaned_text),
+                                thought: None,
+                                full_code: None,
+                                post_type: axon_core::PostType::Review,
+                                metrics: None,
+                                created_at: chrono::Local::now(),
+                            }).await;
+                            
+                            tracing::info!("📢 [SENIOR_REJECT] Posted rejection to thread {}", task.id);
                         }
-                        Ok(comment) => {
-                            senior_comments.insert(task.id.clone(), comment);
-                            // Apply patch dry-run
-                                // v0.0.25: Final materialization of the code to disk
-                                if let Some(target) = &task.target_file {
-                                    let fpath = std::path::Path::new(&task.project_id).join(target);
-                                    let _ = std::fs::write(&fpath, &patch);
+                        Err(_timeout) => {
+                            all_approved = false;
+                            let err_msg = format!("Task {} senior review timed out after 120s", task.id);
+                            failures.push(err_msg.clone());
+                            
+                            let _ = self.publish_event(axon_core::Event {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                project_id: task.project_id.clone(),
+                                thread_id: Some(task.id.clone()),
+                                agent_id: Some("Senior".to_string()),
+                                event_type: axon_core::EventType::MessagePosted,
+                                source: "Senior".to_string(),
+                                content: "### ⚠️ [TIMEOUT]\n\nSenior review timed out. Re-queueing...".to_string(),
+                                payload: None,
+                                timestamp: chrono::Local::now(),
+                            });
+                        }
+
+                        Ok(Ok(comment)) => {
+                            senior_comments.insert(task.id.clone(), comment.clone());
+
+                            // v0.0.32: Save Approval Post to UI
+                            let _ = self.storage.save_post(axon_core::Post {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                thread_id: task.id.clone(),
+                                author_id: "Senior".to_string(),
+                                content: format!("### ✅ [APPROVED]\n\n{}", comment),
+                                thought: None,
+                                full_code: None,
+                                post_type: axon_core::PostType::Review,
+                                metrics: None,
+                                created_at: chrono::Local::now(),
+                            }).await;
+
+                            let _ = self.publish_event(axon_core::Event {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                project_id: task.project_id.clone(),
+                                thread_id: Some(task.id.clone()),
+                                agent_id: Some("Senior".to_string()),
+                                event_type: axon_core::EventType::ApprovalGranted,
+                                source: "Senior".to_string(),
+                                content: format!("### ✅ [APPROVED]\n\nSenior approved: {}", comment),
+                                payload: None,
+                                timestamp: chrono::Local::now(),
+                            });
+
+                            tracing::info!("📢 [SENIOR_APPROVE] Posted approval to thread {}", task.id);
+                            
+                            // v0.0.32: Final materialization of the code to disk
+                            if let Some(target) = &task.target_file {
+                                let fpath = std::path::Path::new(&task.project_id).join(target);
+                                
+                                // v0.0.32: [MATERIALIZER] Ensure directory exists
+                                if let Some(parent) = fpath.parent() {
+                                    let _ = std::fs::create_dir_all(parent);
+                                }
+                                
+                                tracing::info!("💾 [FILE_WRITE] Materializing {} -> {}", task.title, fpath.display());
+                                if let Err(e) = std::fs::write(&fpath, &patch) {
+                                    tracing::error!("❌ [FILE_WRITE_FAIL] Failed to write {}: {}", fpath.display(), e);
+                                } else {
+                                    tracing::info!("✅ [FILE_WRITE_OK] Written {} bytes to {}", patch.len(), fpath.display());
                                     
                                     self.publish_event(axon_core::Event {
                                         id: uuid::Uuid::new_v4().to_string(),
@@ -397,11 +511,12 @@ impl Daemon {
                                         agent_id: None,
                                         event_type: axon_core::EventType::ArtifactCreated,
                                         source: "daemon".to_string(),
-                                        content: format!("💾 Code materialized: {} -> {:?}", task.title, fpath),
+                                        content: format!("💾 [MATERIALIZER] Code materialized: {} -> {:?}", task.title, fpath),
                                         payload: None,
                                         timestamp: chrono::Local::now(),
                                     });
                                 }
+                            }
                         }
                     }
                 }
@@ -448,20 +563,27 @@ impl Daemon {
                 let _ = std::fs::write(fpath, content);
             }
             // v0.0.26: Stage 4 - Self-Healing Loop (Re-queue with Feedback)
-            let mut coord = self.coordinator.lock().unwrap();
             for task in &batch.tasks {
                 let mut rework_task = task.clone();
-                rework_task.status = axon_core::TaskStatus::Failed;
+                // v0.0.32: RESET TO PENDING (Crucial for re-dispatch!)
+                rework_task.status = axon_core::TaskStatus::Pending;
                 rework_task.rework_count += 1;
+                
+                // v0.0.33: Clear visual tracking in logs/UI
+                rework_task.title = format!("{} (Rework #{})", task.title.split(" (Rework #").next().unwrap_or(&task.title), rework_task.rework_count);
                 
                 // Combine all batch failures into the task feedback
                 let combined_failure = failures.join("\n---\n");
                 rework_task.error_feedback = Some(combined_failure);
                 
-                // Persistence & Re-queue
-                let _ = self.storage.save_task(&rework_task);
-                coord.complete_task(task); // Release current lock
-                coord.add_task(rework_task); // Re-queue for next attempt
+                // v0.0.32: SAVE FIRST, THEN UPDATE COORDINATOR (Avoid Mutex cross-await)
+                let _ = self.storage.save_task(rework_task.clone()).await;
+
+                {
+                    let mut coord = self.coordinator.lock().unwrap();
+                    coord.complete_task(task); 
+                    coord.add_task(rework_task); // Re-queue for next attempt
+                }
             }
             return Ok(());
         }
@@ -485,20 +607,28 @@ impl Daemon {
             if let Some(target) = &rep_task.target_file {
                 let project_root = format!("./{}", rep_task.project_id);
                 
-                // 1. Compile Gate
-                if let Err(err) = execution_validator::validate(&project_root, target, mode) {
-                    validation_success = false;
-                    failures.push(format!("[BATCH_COMPILE_FAIL] {}", err));
-                }
-
-                // 2. Selective Run Gate
-                if validation_success {
-                    let affected_set: std::collections::HashSet<String> = batch.dependency_closure.clone();
-                    let run_targets = self.dep_graph.lock().unwrap().run_targets(&affected_set);
-                    
-                    if let Err(err) = execution_validator::selective_run(&project_root, target, run_targets) {
+                // v0.0.33: Structural Readiness Check
+                // Skip Compile/Run gates if we are dealing with Headers or if we're in early bootstrap.
+                let is_header_batch = batch.tasks.iter().any(|t| t.task_kind == Some(axon_core::TaskKind::HeaderDecl));
+                
+                if is_header_batch {
+                    tracing::info!("📎 [BATCH_BYPASS] Skipping Compile/Run gates for Header batch.");
+                } else {
+                    // 1. Compile Gate
+                    if let Err(err) = execution_validator::validate(&project_root, target, mode) {
                         validation_success = false;
-                        failures.push(format!("[BATCH_RUN_FAIL] {}", err));
+                        failures.push(format!("[BATCH_COMPILE_FAIL] {}", err));
+                    }
+
+                    // 2. Selective Run Gate
+                    if validation_success {
+                        let affected_set: std::collections::HashSet<String> = batch.dependency_closure.clone();
+                        let run_targets = self.dep_graph.lock().unwrap().run_targets(&affected_set);
+                        
+                        if let Err(err) = execution_validator::selective_run(&project_root, target, run_targets) {
+                            validation_success = false;
+                            failures.push(format!("[BATCH_RUN_FAIL] {}", err));
+                        }
                     }
                 }
             }
@@ -519,38 +649,28 @@ impl Daemon {
                     timestamp: chrono::Local::now(),
                 });
             }
-            let mut coord = self.coordinator.lock().unwrap();
             for task in &batch.tasks {
                 let mut t = task.clone();
                 t.status = axon_core::TaskStatus::Completed;
                 if let Some(comment) = senior_comments.get(&t.id) {
                     t.senior_comment = Some(comment.clone());
-                    
-                    // v0.0.25: Post Senior review to the Thread for UI visibility
-                    let _ = self.storage.save_post(&axon_core::Post {
-                        id: uuid::Uuid::new_v4().to_string(),
-                        thread_id: t.id.clone(),
-                        author_id: "SENIOR".to_string(),
-                        content: comment.clone(),
-                        post_type: axon_core::PostType::Review,
-                        thought: None,
-                        full_code: None,
-                        metrics: None,
-                        created_at: chrono::Local::now(),
-                    });
                 }
-                let _ = self.storage.save_task(&t);
+                let _ = self.storage.save_task(t.clone()).await;
                 
                 // Release locks and notify UI
-                coord.complete_task(&t);
+                {
+                    let mut coord = self.coordinator.lock().unwrap();
+                    coord.complete_task(&t);
+                }
                 
                 if let Ok(Some(mut thread)) = self.storage.get_thread(&t.id) {
                     thread.status = axon_core::ThreadStatus::Completed;
-                    let _ = self.storage.save_thread(&thread);
+                    let _ = self.storage.save_thread(thread).await;
                 }
             }
         } else {
-            tracing::error!("🛑 [BATCH_GATE_REJECT] Integrity check failed for batch {}.", batch.id);
+            let combined_err = failures.join(" | ");
+            tracing::error!("🛑 [BATCH_GATE_REJECT] Integrity check failed for batch {}: {}", batch.id, combined_err);
             for (fname, content) in backups {
                 let fpath = std::path::Path::new(&batch.tasks[0].project_id).join(fname);
                 let _ = std::fs::write(fpath, content);
@@ -580,7 +700,8 @@ impl Daemon {
             .to_string();
 
         // v0.0.25: Ensure Lounge thread exists
-        let _ = self.setup_lounge();
+        // v0.0.25: Ensure Lounge thread exists for UI visibility on resume
+        let _ = self.setup_lounge().await;
 
         let mut sandbox_path = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
         sandbox_path.push(&project_id);
@@ -618,14 +739,16 @@ impl BootstrapManager {
         let mut attempts = 0;
         let max_retries = 5;
         let mut current_hint: Option<String> = None;
+        let mut context_size: usize = 8192; // Default context size
+        let mut runtime_retry_count = 0; // v0.0.28: Track Build <-> Runtime loops
 
         loop {
             tracing::info!("🏭 [FACTORY_STAGE] Currently running: {:?}", stage);
             
             match stage {
                 Stage::Skeleton => {
-                    tracing::info!("📐 [STAGE:Skeleton] Designing Architecture IR...");
-                    let res = architect_runtime.generate_ir(&spec_content, current_hint.clone(), Some(daemon.event_bus.clone())).await;
+                    tracing::info!("📐 [STAGE:Skeleton] Designing Architecture IR... (Context: {})", context_size);
+                    let res = architect_runtime.generate_ir_with_context(&spec_content, current_hint.clone(), context_size, Some(daemon.event_bus.clone())).await;
                     match res {
                         Ok(ir) => {
                             // Validation Gate
@@ -635,10 +758,39 @@ impl BootstrapManager {
                                 if !ir.components.values().any(|c| c.file_path.ends_with(".h")) {
                                     errors.push("Missing .h headers for C project.".to_string());
                                 }
+                                // v0.0.32: Enforce Entry Point for C projects
+                                if !ir.components.values().any(|c| c.file_path.contains("main.c") || c.is_entrypoint) {
+                                    errors.push("C project MUST have a 'main.c' or an 'is_entrypoint' component.".to_string());
+                                }
                             }
 
                             if errors.is_empty() {
-                                ir_opt = Some(ir);
+                                ir_opt = Some(ir.clone());
+                                // v0.0.32: Forced Debug Dump & Dir Creation
+                                let debug_dir = self.sandbox_root.join("debug");
+                                let _ = std::fs::create_dir_all(&debug_dir);
+                                if let Ok(json) = serde_json::to_string_pretty(&ir) {
+                                    let _ = std::fs::write(debug_dir.join("ir.json"), json);
+                                }
+
+                                // v0.0.28: Materialize architecture and CMakeLists.txt EARLY
+                                let arch_md = architect_runtime.generate_architecture_from_ir(&ir, Some(daemon.event_bus.clone())).await?;
+                                
+                                // v0.0.32: Update global architecture guide for Junior agents
+                                {
+                                    let mut guide = daemon.architecture_guide.write().unwrap();
+                                    *guide = arch_md.clone();
+                                    tracing::info!("📑 [GUIDE_UPDATE] Global architecture guide updated ({} bytes)", arch_md.len());
+                                }
+
+                                let _ = std::fs::create_dir_all(&self.sandbox_root);
+                                let _ = std::fs::write(self.sandbox_root.join("architecture.md"), arch_md);
+                                
+                                let mut graph = crate::dep_graph::DepGraph::new();
+                                graph.build_from_ir(&serde_json::to_value(&ir).unwrap_or_default());
+                                let cmake_content = graph.generate_cmake(&self.project_id);
+                                let _ = std::fs::write(self.sandbox_root.join("CMakeLists.txt"), cmake_content);
+                                
                                 stage = StageRouter::next_stage(&stage);
                                 attempts = 0;
                                 current_hint = None;
@@ -646,10 +798,15 @@ impl BootstrapManager {
                                 let diag = Diagnostic { code: "SKELETON_ERR".into(), message: errors.join(", ") };
                                 let cause = infer_cause(&diag);
                                 let scope = determine_scope(&cause);
-                                tracing::warn!("❌ [SKELETON_FAIL] cause={:?}, scope={:?}", cause, scope);
+                                tracing::warn!("❌ [SKELETON_FAIL] cause={:?}, scope={:?}, error=\"{}\"", cause, scope, errors.join(", "));
+                                
                                 if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in Skeleton stage.")); }
-                                stage = StageRouter::route_retry(&scope, &stage);
+                                
+                                // v0.0.28: [Invariant] Skeleton invalid -> retry only. Never jump to HeaderGen.
+                                stage = Stage::Skeleton;
+                                current_hint = Some(generate_hint(&cause).to_string());
                                 attempts += 1;
+                                context_size = (context_size as f32 * 1.5) as usize; // v0.0.28: Fix regression
                             }
                         },
                         Err(e) => {
@@ -666,35 +823,134 @@ impl BootstrapManager {
                             }
                             
                             current_hint = Some(hint.to_string());
-                            stage = StageRouter::route_retry(&scope, &stage);
+                            stage = Stage::Skeleton; // v0.0.28: Consistency
                             attempts += 1;
+                            context_size = (context_size as f32 * 1.5) as usize; // Adaptive context expansion
                         }
                     }
                 },
                 Stage::HeaderGen => {
-                    tracing::info!("📜 [STAGE:HeaderGen] Decomposing & Materializing Headers...");
+                    tracing::info!("📜 [STAGE:HeaderGen] Decomposing & Materializing Headers... (Context: {})", context_size);
+                    // v0.0.32: Ensure standard directory structure
+                    let _ = std::fs::create_dir_all(self.sandbox_root.join("src"));
+                    let _ = std::fs::create_dir_all(self.sandbox_root.join("include"));
+
                     if let Some(ref ir) = ir_opt {
-                        // v0.0.26: Extract Header-only tasks
-                        let res = architect_runtime.process_bootstrap_step2(&serde_json::to_string(ir).unwrap(), Some(daemon.event_bus.clone())).await;
+                        // v0.0.28: Extract Header-only tasks
+                        let res = architect_runtime.process_bootstrap_step2_with_context(&serde_json::to_string(ir).unwrap(), context_size, Some(daemon.event_bus.clone())).await;
                         
                         match res {
                             Ok(post) => {
-                                match serde_json::from_str::<Vec<axon_core::Task>>(&post.content) {
-                                    Ok(tasks) => {
-                                        // Filter for headers (L-DDP Isolation)
-                                        let header_tasks: Vec<axon_core::Task> = tasks.into_iter().filter(|t| t.title.contains(".h") || t.description.contains(".h")).collect();
+                                let content = extract_json_block(post.content.trim());
+                                
+                                match serde_json::from_str::<Vec<axon_core::DecomposedTask>>(&content) {
+                                    Ok(d_tasks) => {
+                                        // v0.0.31: Validate tasks have required fields and non-placeholder titles
+                                        let valid_tasks: Vec<axon_core::Task> = d_tasks.into_iter()
+                                            .filter(|t| !t.title.is_empty() && t.title != "Untitled")
+                                            .map(|dt| {
+                                                let mut t = axon_core::Task::from_decomposed(dt, self.project_id.clone());
+                                                // v0.0.32: Map component_id to physical IR file_path
+                                                if let Some(ref cid) = t.target_file {
+                                                    if let Some(comp) = ir.components.get(cid) {
+                                                        tracing::info!("🔗 [IR_MAP] Mapping component '{}' -> physical path '{}'", cid, comp.file_path);
+                                                        t.target_file = Some(comp.file_path.clone());
+                                                    } else {
+                                                        tracing::warn!("⚠️ [IR_MAP_FAIL] Component '{}' not found in IR. Falling back to title heuristic.", cid);
+                                                        let title_lower = t.title.to_lowercase();
+                                                        if title_lower.contains(".h") || title_lower.contains(".c") {
+                                                            t.target_file = Some(t.title.clone());
+                                                        }
+                                                    }
+                                                }
+                                                t
+                                            })
+                                            .collect();
                                         
-                                        if header_tasks.is_empty() {
-                                            tracing::warn!("⚠️ No header tasks extracted, skipping to ImplGen.");
+                                        if valid_tasks.is_empty() {
+                                            tracing::warn!("⚠️ No valid tasks after filtering empty/placeholder titles.");
                                             stage = Stage::ImplGen;
                                         } else {
-                                            for mut task in header_tasks {
-                                                task.project_id = self.project_id.clone();
-                                                let _ = daemon.storage.save_task(&task);
+                                            // Filter for headers (L-DDP Isolation)
+                                            let header_tasks: Vec<axon_core::Task> = valid_tasks.iter()
+                                                .filter(|t| {
+                                                    let has_h_ext = t.target_file.as_ref().map(|f| f.to_lowercase().contains(".h")).unwrap_or(false);
+                                                    let title_has_h = t.title.to_lowercase().contains(".h");
+                                                    has_h_ext || title_has_h
+                                                })
+                                                .cloned()
+                                                .collect();
+                                            
+                                            if header_tasks.is_empty() {
+                                                // v0.0.32: Strict validation - if IR has components with .h files, HeaderGen MUST NOT be empty
+                                                let ir_has_headers = ir.components.keys().any(|k| k.to_lowercase().contains(".h"));
+                                                if ir_has_headers && !ir.components.is_empty() {
+                                                    tracing::error!("❌ [HEADER_INVALID] HeaderGen produced 0 tasks despite IR having {} components (including headers). Total tasks produced: {}", ir.components.len(), valid_tasks.len());
+                                                    if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in HeaderGen validation.")); }
+                                                    stage = Stage::HeaderGen;
+                                                    attempts += 1;
+                                                    context_size = (context_size as f32 * 1.5) as usize;
+                                                    continue;
+                                                }
+                                                tracing::warn!("⚠️ No header tasks extracted, skipping to ImplGen.");
+                                                stage = Stage::ImplGen;
+                                            } else {
+                                                tracing::info!("📥 [STAGE:HeaderGen] Enqueuing {} header declaration tasks...", header_tasks.len());
+                                                // v0.0.32: Forced Debug Dump
+                                                if let Ok(json) = serde_json::to_string_pretty(&header_tasks) {
+                                                    let _ = std::fs::write(self.sandbox_root.join("debug/header_tasks.json"), json);
+                                                }
+                                                for mut task in header_tasks {
+                                                    // v0.0.33: Prefix IDs to prevent collision
+                                                    task.id = format!("hdr_{}", task.id);
+                                                    task.task_kind = Some(axon_core::TaskKind::HeaderDecl);
+                                                    
+                                                    // v0.0.32: Deduplicate thread creation
+                                                    if daemon.storage.get_thread(&task.id).ok().flatten().is_none() {
+                                                        let _ = daemon.storage.save_thread(axon_core::Thread {
+                                                            id: task.id.clone(),
+                                                            project_id: task.project_id.clone(),
+                                                            title: task.title.clone(),
+                                                            status: axon_core::ThreadStatus::Working,
+                                                            author: "Architect".to_string(),
+                                                            milestone_id: None,
+                                                            created_at: chrono::Local::now(),
+                                                            updated_at: chrono::Local::now(),
+                                                        }).await;
+
+                                                        // v0.0.32: Save initial Instruction Post for UI visibility
+                                                        let _ = daemon.storage.save_post(axon_core::Post {
+                                                            id: uuid::Uuid::new_v4().to_string(),
+                                                            thread_id: task.id.clone(),
+                                                            author_id: "Architect".to_string(),
+                                                            content: format!("### 🛠️ Task Instruction\n\n**Goal**: {}\n\n**Specification**: Extract and define header declarations for the component defined in IR.", task.title),
+                                                            thought: None,
+                                                            full_code: None,
+                                                            post_type: axon_core::PostType::Instruction,
+                                                            metrics: None,
+                                                            created_at: chrono::Local::now(),
+                                                        }).await;
+                                                    }
+
+                                                    let _ = daemon.storage.save_task(task.clone()).await;
+                                                    // v0.0.32: SUBMIT TO COORDINATOR
+                                                    daemon.submit_task(task.clone());
+                                                }
+
+                                                // v0.0.32: Wait for Headers to materialize before ImplGen
+                                                tracing::info!("⏳ [STAGE:HeaderGen] Waiting for header materialization...");
+                                                let mut h_wait = 0;
+                                                while daemon.storage.count_active_tasks_by_project(&self.project_id).unwrap_or(0) > 0 {
+                                                    if h_wait > 30 { break; } // 2.5 mins
+                                                    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                                                    h_wait += 1;
+                                                }
+
+                                                stage = StageRouter::next_stage(&stage);
                                             }
-                                            stage = StageRouter::next_stage(&stage);
                                         }
                                         attempts = 0;
+                                        context_size = 8192; // Reset on success
                                     },
                                     Err(e) => {
                                         let diag = Diagnostic { code: "HEADER_PARSE_ERR".into(), message: e.to_string() };
@@ -704,6 +960,7 @@ impl BootstrapManager {
                                         if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in HeaderGen stage.")); }
                                         stage = StageRouter::route_retry(&scope, &stage);
                                         attempts += 1;
+                                        context_size = (context_size as f32 * 1.5) as usize;
                                     }
                                 }
                             },
@@ -715,6 +972,7 @@ impl BootstrapManager {
                                 if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in HeaderGen stage.")); }
                                 stage = StageRouter::route_retry(&scope, &stage);
                                 attempts += 1;
+                                context_size = (context_size as f32 * 1.5) as usize;
                             }
                         }
                     } else {
@@ -722,32 +980,117 @@ impl BootstrapManager {
                     }
                 },
                 Stage::ImplGen => {
-                    tracing::info!("🔨 [STAGE:ImplGen] Materializing Implementation Tasks...");
+                    tracing::info!("🔨 [STAGE:ImplGen] Materializing Implementation Tasks... (Context: {})", context_size);
                     if let Some(ref ir) = ir_opt {
-                        let res = architect_runtime.process_bootstrap_step2(&serde_json::to_string(ir).unwrap(), Some(daemon.event_bus.clone())).await;
+                        let res = architect_runtime.process_bootstrap_step2_with_context(&serde_json::to_string(ir).unwrap(), context_size, Some(daemon.event_bus.clone())).await;
                         match res {
                             Ok(post) => {
-                                match serde_json::from_str::<Vec<axon_core::Task>>(&post.content) {
-                                    Ok(tasks) => {
-                                        // Filter for .c/.cpp
-                                        for mut task in tasks.into_iter().filter(|t| t.title.contains(".c") || t.title.contains(".cpp")) {
-                                            task.project_id = self.project_id.clone();
-                                            let _ = daemon.storage.save_task(&task);
+                                let content = extract_json_block(post.content.trim());
+                                
+                                match serde_json::from_str::<Vec<axon_core::DecomposedTask>>(&content) {
+                                    Ok(d_tasks) => {
+                                        // v0.0.31: Validate tasks have required fields and non-placeholder titles
+                                        let valid_tasks: Vec<axon_core::Task> = d_tasks.into_iter()
+                                            .filter(|t| !t.title.is_empty() && t.title != "Untitled")
+                                            .map(|dt| {
+                                                let mut t = axon_core::Task::from_decomposed(dt, self.project_id.clone());
+                                                // v0.0.32: Map component_id to physical IR file_path
+                                                if let Some(ref cid) = t.target_file {
+                                                    if let Some(comp) = ir.components.get(cid) {
+                                                        tracing::info!("🔗 [IR_MAP] Mapping component '{}' -> physical path '{}'", cid, comp.file_path);
+                                                        t.target_file = Some(comp.file_path.clone());
+                                                    } else {
+                                                        tracing::warn!("⚠️ [IR_MAP_FAIL] Component '{}' not found in IR. Falling back to title heuristic.", cid);
+                                                        let title_lower = t.title.to_lowercase();
+                                                        if title_lower.contains(".h") || title_lower.contains(".c") {
+                                                            t.target_file = Some(t.title.clone());
+                                                        }
+                                                    }
+                                                }
+                                                t
+                                            })
+                                            .collect();
+                                        
+                                        if valid_tasks.is_empty() {
+                                            // v0.0.32: Strict validation
+                                            if !ir.components.is_empty() {
+                                                tracing::error!("❌ [IMPL_INVALID] ImplGen produced 0 tasks despite IR having components.");
+                                                if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in ImplGen validation.")); }
+                                                stage = Stage::ImplGen;
+                                                attempts += 1;
+                                                context_size = (context_size as f32 * 1.5) as usize;
+                                                continue;
+                                            }
+                                            tracing::warn!("⚠️ No valid tasks after filtering empty/placeholder titles.");
+                                            stage = StageRouter::next_stage(&stage);
+                                        } else {
+                                            tracing::info!("📥 [STAGE:ImplGen] Enqueuing {} source implementation tasks...", valid_tasks.len());
+                                            // v0.0.32: Forced Debug Dump
+                                            if let Ok(json) = serde_json::to_string_pretty(&valid_tasks) {
+                                                let _ = std::fs::write(self.sandbox_root.join("debug/impl_tasks.json"), json);
+                                            }
+                                            for mut task in valid_tasks {
+                                                // v0.0.33: Prefix IDs to prevent collision
+                                                task.id = format!("impl_{}", task.id);
+                                                task.task_kind = Some(axon_core::TaskKind::SourceImpl);
+
+                                                // v0.0.32: Deduplicate thread creation
+                                                if daemon.storage.get_thread(&task.id).ok().flatten().is_none() {
+                                                    let _ = daemon.storage.save_thread(axon_core::Thread {
+                                                        id: task.id.clone(),
+                                                        project_id: task.project_id.clone(),
+                                                        title: task.title.clone(),
+                                                        status: axon_core::ThreadStatus::Working,
+                                                        author: "Architect".to_string(),
+                                                        milestone_id: None,
+                                                        created_at: chrono::Local::now(),
+                                                        updated_at: chrono::Local::now(),
+                                                    }).await;
+
+                                                    // v0.0.32: Save initial Instruction Post for UI visibility
+                                                    let _ = daemon.storage.save_post(axon_core::Post {
+                                                        id: uuid::Uuid::new_v4().to_string(),
+                                                        thread_id: task.id.clone(),
+                                                        author_id: "Architect".to_string(),
+                                                        content: format!("### 🛠️ Task Instruction\n\n**Goal**: {}\n\n**Specification**: Implement the logic as defined in the architectural contract.", task.title),
+                                                        thought: None,
+                                                        full_code: None,
+                                                        post_type: axon_core::PostType::Instruction,
+                                                        metrics: None,
+                                                        created_at: chrono::Local::now(),
+                                                    }).await;
+                                                }
+                                                let _ = daemon.storage.save_task(task.clone()).await;
+                                                daemon.submit_task(task.clone());
+                                            }
+
+                                            // v0.0.32: Wait for Implementations to materialize before moving to Build
+                                                tracing::info!("⏳ [STAGE:ImplGen] Waiting for source implementation tasks to complete...");
+                                                let mut i_wait = 0;
+                                                while daemon.storage.count_active_tasks_by_project(&self.project_id).unwrap_or(0) > 0 {
+                                                    if i_wait > 60 { break; } // 5 mins
+                                                    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                                                    i_wait += 1;
+                                                }
+
+                                                stage = StageRouter::next_stage(&stage);
+                                                attempts = 0;
+                                                context_size = 8192; // Reset on success
+                                            }
+                                        },
+                                        Err(e) => {
+                                            let diag = Diagnostic { code: "IMPL_PARSE_ERR".into(), message: e.to_string() };
+                                            let cause = infer_cause(&diag);
+                                            let scope = determine_scope(&cause);
+                                            tracing::warn!("❌ [IMPL_PARSE_FAIL] cause={:?}, scope={:?}, error=\"{}\"", cause, scope, e);
+                                            if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in ImplGen stage.")); }
+                                            stage = StageRouter::route_retry(&scope, &stage);
+                                            attempts += 1;
+                                            context_size = (context_size as f32 * 1.5) as usize;
                                         }
-                                        stage = StageRouter::next_stage(&stage);
-                                        attempts = 0;
-                                    },
-                                    Err(e) => {
-                                        let diag = Diagnostic { code: "IMPL_PARSE_ERR".into(), message: e.to_string() };
-                                        let cause = infer_cause(&diag);
-                                        let scope = determine_scope(&cause);
-                                        tracing::warn!("❌ [IMPL_PARSE_FAIL] cause={:?}, scope={:?}, error=\"{}\"", cause, scope, e);
-                                        if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in ImplGen stage.")); }
-                                        stage = StageRouter::route_retry(&scope, &stage);
-                                        attempts += 1;
                                     }
-                                }
-                            },
+                                },
+
                             Err(e) => {
                                 let diag = Diagnostic { code: "IMPL_LLM_ERR".into(), message: e.to_string() };
                                 let cause = infer_cause(&diag);
@@ -756,6 +1099,7 @@ impl BootstrapManager {
                                 if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in ImplGen stage.")); }
                                 stage = StageRouter::route_retry(&scope, &stage);
                                 attempts += 1;
+                                context_size = (context_size as f32 * 1.5) as usize;
                             }
                         }
                     } else {
@@ -763,9 +1107,43 @@ impl BootstrapManager {
                     }
                 },
                 Stage::Build => {
+                    // v0.0.32: Wait for Materialization
+                    tracing::info!("⏳ [STAGE:Build] Waiting for agents to complete materialization tasks...");
+                    let mut wait_attempts = 0;
+                    while daemon.storage.count_active_tasks_by_project(&self.project_id).unwrap_or(0) > 0 {
+                        if wait_attempts > 60 { // 5 mins
+                             tracing::error!("❌ [MATERIALIZATION_TIMEOUT] Agents failed to complete tasks in time.");
+                             return Err(anyhow::anyhow!("Materialization timeout. Check worker logs."));
+                        }
+                        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                        wait_attempts += 1;
+                    }
+
+                    // v0.0.32: Post-Materialization Filesystem Validation
+                    if let Err(e) = validate_stage_outputs(&self.sandbox_root, ir_opt.as_ref()) {
+                        tracing::warn!("❌ [ARTIFACT_MISSING] {}", e);
+                        // v0.0.32: Don't just fallback. Log it and retry waiting.
+                        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                        continue;
+                    } else {
+                        tracing::info!("✅ [BUILD_READY] All artifacts materialized. Finalizing project...");
+                    }
+
                     tracing::info!("📦 [STAGE:Build] Executing CMake Build...");
                     let build_dir = self.sandbox_root.join("build");
+                    let debug_dir = self.sandbox_root.join("debug");
                     let _ = std::fs::create_dir_all(&build_dir);
+                    let _ = std::fs::create_dir_all(&debug_dir);
+
+                    // v0.0.28: Save debug artifacts
+                    let cmake_path = self.sandbox_root.join("CMakeLists.txt");
+                    if cmake_path.exists() {
+                        let _ = std::fs::copy(&cmake_path, debug_dir.join("CMakeLists.generated.txt"));
+                    }
+                    
+                    // v0.0.28: Dump project tree
+                    let tree = dump_project_tree(&self.sandbox_root);
+                    let _ = std::fs::write(debug_dir.join("project_tree.txt"), tree);
 
                     // 1. CMake Configure
                     let configure = std::process::Command::new("cmake")
@@ -775,7 +1153,11 @@ impl BootstrapManager {
 
                     match configure {
                         Ok(output) if !output.status.success() => {
+                            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
                             let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                            tracing::error!("[BUILD_STDOUT:Configure]\n{}", stdout);
+                            tracing::error!("[BUILD_STDERR:Configure]\n{}", stderr);
+
                             let diag = Diagnostic { code: "CMAKE_ERROR".into(), message: stderr };
                             let cause = infer_cause(&diag);
                             let scope = determine_scope(&cause);
@@ -783,6 +1165,7 @@ impl BootstrapManager {
                             if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in Build stage.")); }
                             stage = StageRouter::route_retry(&scope, &stage);
                             attempts += 1;
+                            context_size = (context_size as f32 * 1.5) as usize;
                             continue;
                         },
                         Err(e) => return Err(anyhow::anyhow!("Failed to run cmake: {}", e)),
@@ -797,7 +1180,11 @@ impl BootstrapManager {
 
                     match build {
                         Ok(output) if !output.status.success() => {
+                            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
                             let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                            tracing::error!("[BUILD_STDOUT:Make]\n{}", stdout);
+                            tracing::error!("[BUILD_STDERR:Make]\n{}", stderr);
+
                             let diag = Diagnostic { code: "BUILD_ERROR".into(), message: stderr };
                             let cause = infer_cause(&diag);
                             let scope = determine_scope(&cause);
@@ -805,27 +1192,85 @@ impl BootstrapManager {
                             if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in Build stage.")); }
                             stage = StageRouter::route_retry(&scope, &stage);
                             attempts += 1;
+                            context_size = (context_size as f32 * 1.5) as usize;
                             continue;
                         },
                         Err(e) => return Err(anyhow::anyhow!("Failed to run build: {}", e)),
                         _ => {
-                            tracing::info!("✅ Build successful.");
-                            stage = StageRouter::next_stage(&stage);
-                            attempts = 0;
+                            // v0.0.28: Build Validation - Ensure executable artifact exists
+                            if let Some(bin) = discover_binary(&build_dir) {
+                                tracing::info!("✅ Build successful. Artifact found: {:?}", bin);
+                                stage = StageRouter::next_stage(&stage);
+                                attempts = 0;
+                            } else {
+                                tracing::warn!("⚠️ [BUILD_INVALID] Build reported success but no executable artifact found in {:?}", build_dir);
+                                if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in Build validation.")); }
+                                stage = Stage::BuildRepair;
+                                attempts += 1;
+                            }
                         }
                     }
                 },
+                Stage::BuildRepair => {
+                    tracing::info!("🔧 [STAGE:BuildRepair] Analyzing and Repairing Artifacts...");
+                    // v0.0.28: For now, simple BuildRepair logic:
+                    // 1. Re-generate CMakeLists.txt with current IR
+                    // 2. Clear build directory
+                    if let Some(ref ir) = ir_opt {
+                        let mut graph = crate::dep_graph::DepGraph::new();
+                        graph.build_from_ir(&serde_json::to_value(&ir).unwrap_or_default());
+                        let mut cmake_content = graph.generate_cmake(&self.project_id);
+                        
+                        // v0.0.32: Target Verification - Ensure add_executable exists
+                        if !cmake_content.contains("add_executable(") {
+                            tracing::warn!("⚠️ BuildRepair detected missing executable target. Searching for best candidate...");
+                            
+                            // Scan for main.c or any .c file containing 'main'
+                            let mut entry_file = "src/main.c".to_string();
+                            if let Ok(entries) = std::fs::read_dir(self.sandbox_root.join("src")) {
+                                for entry in entries.flatten() {
+                                    if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                                        if content.contains("main(") {
+                                            entry_file = format!("src/{}", entry.file_name().to_string_lossy());
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            cmake_content.push_str(&format!("\n# Forced default target\nadd_executable(app {})\n", entry_file));
+                        }
+
+                        let _ = std::fs::write(self.sandbox_root.join("CMakeLists.txt"), cmake_content);
+                        
+                        let build_dir = self.sandbox_root.join("build");
+                        if build_dir.exists() {
+                            let _ = std::fs::remove_dir_all(&build_dir);
+                        }
+                        
+                        tracing::info!("🛠️ CMakeLists.txt re-generated and build dir cleared.");
+                        stage = Stage::Build;
+                        attempts += 1;
+                    } else {
+                        stage = Stage::Skeleton;
+                    }
+                },
                 Stage::Runtime => {
-                    tracing::info!("🏃 [STAGE:Runtime] Executing Binary...");
+                    tracing::info!("🏃 [STAGE:Runtime] Executing Binary... (Retry: {})", runtime_retry_count);
                     let build_dir = self.sandbox_root.join("build");
-                    // Detect binary name (default 'app' from CMakeLists.txt)
-                    let bin_path = build_dir.join("app");
                     
-                    if !bin_path.exists() {
-                        tracing::error!("❌ Binary not found at {:?}", bin_path);
+                    // v0.0.28: Dynamic Binary Discovery
+                    let bin_path = discover_binary(&build_dir);
+                    
+                    if bin_path.is_none() {
+                        tracing::error!("❌ Binary discovery failed in {:?}", build_dir);
+                        if runtime_retry_count >= 3 {
+                            return Err(anyhow::anyhow!("[RUNTIME_ABORT] Binary discovery failed repeatedly. Check CMake generation."));
+                        }
+                        runtime_retry_count += 1;
                         stage = Stage::Build;
                         continue;
                     }
+                    let bin_path = bin_path.unwrap();
 
                     let run = std::process::Command::new(&bin_path)
                         .current_dir(&build_dir)
@@ -840,6 +1285,7 @@ impl BootstrapManager {
                                 tracing::info!("✅ [RUNTIME_SUCCESS]\nStdout: {}", stdout);
                                 stage = StageRouter::next_stage(&stage);
                                 attempts = 0;
+                                runtime_retry_count = 0; // Reset on success
                             } else {
                                 let diag = Diagnostic { code: "RUNTIME_ERROR".into(), message: format!("Stdout: {}\nStderr: {}", stdout, stderr) };
                                 let cause = infer_cause(&diag);
@@ -911,6 +1357,9 @@ impl BootstrapManager {
             retries: 0,
             assigned_worker: None,
             created_at: chrono::Local::now(),
+            ir_path: None,
+            task_kind: None,
+            signature: None,
         };
 
         let mut architect_runtime = axon_agent::AgentRuntime::new(
@@ -966,7 +1415,7 @@ impl BootstrapManager {
                             tracing::info!("✅ [Attempt {}] Convergence reached. IR Constraints compiled.", attempt);
                             clean_arch = current_clean_arch;
                             architecture_ready = true;
-                            let _ = daemon.storage.save_post(&arch_proposal);
+                            let _ = daemon.storage.save_post(arch_proposal).await;
                             break;
                         },
                         Ok(output) => {
@@ -1017,8 +1466,11 @@ impl BootstrapManager {
                             retries: 0,
                             assigned_worker: None,
                             created_at: chrono::Local::now(),
+                            ir_path: None,
+                            task_kind: None,
+                            signature: None,
                         };
-                        let _ = daemon.storage.save_task(&task);
+                        let _ = daemon.storage.save_task(task.clone());
                         let _ = daemon.submit_task(task);
                     }
                     tracing::info!("🚀 Bootstrap complete. AXON Factory is now OPERATIONAL.");
@@ -2009,7 +2461,7 @@ impl Daemon {
         let failure_reason = failures.join("\n");
         task.result = Some(failure_reason.clone());
         task.error_feedback = Some(failure_reason);
-        let _ = self.storage.save_task(task);
+        let _ = self.storage.save_task(task.clone()).await;
         
         // v0.0.25: Release all locks on failure
         let _ = self.storage.release_all_locks_for_task(&task.id);
@@ -2017,11 +2469,11 @@ impl Daemon {
         // v0.0.23: Reset Work Board UI on failure
         if let Ok(Some(mut thread)) = self.storage.get_thread(&task.id) {
             thread.status = axon_core::ThreadStatus::Draft;
-            let _ = self.storage.save_thread(&thread);
+            let _ = self.storage.save_thread(thread).await;
             
             // v0.0.23: Record failure reason as a Post for UI visibility
             let failure_msg = format!("### ❌ [PIPELINE_FAILED]\n\n{}", failures.join("\n"));
-            let _ = self.storage.save_post(&axon_core::Post {
+            let _ = self.storage.save_post(axon_core::Post {
                 id: uuid::Uuid::new_v4().to_string(),
                 thread_id: task.id.clone(),
                 author_id: "system-harness".to_string(),
@@ -2031,7 +2483,7 @@ impl Daemon {
                 post_type: axon_core::PostType::System,
                 metrics: None,
                 created_at: chrono::Local::now(),
-            });
+            }).await;
 
             // v0.0.23: Auto-Requeue (Self-Correction Loop)
             // Put the task back into the dispatcher so a worker can try again with the new feedback
@@ -2077,6 +2529,11 @@ impl Daemon {
     }
 
     pub async fn execute_junior_task(&self, task: &axon_core::Task) -> anyhow::Result<(String, axon_core::RuntimeMetrics)> {
+        // v0.0.32: Mark task as InProgress in DB for UI visibility
+        let mut t_update = task.clone();
+        t_update.status = axon_core::TaskStatus::InProgress;
+        let _ = self.storage.save_task(t_update).await;
+
         // v0.0.26: Stage 2 - Context Intelligence (Header-first)
         let mut existing_code = String::new();
         
@@ -2106,12 +2563,13 @@ impl Daemon {
         junior_runtime.set_locale(&self.locale);
 
         // 3. Execute implementation through axon-agent (Enforcing Stage 1 Policy)
+        let guide = self.architecture_guide.read().unwrap().clone();
         let post = junior_runtime.run_implementation_task(
             task,
             self.event_bus.clone(),
             &task.kind, // lang_name
             "",         // lang_instruction (legacy, handled by system prompt)
-            &self.architecture_guide,
+            &guide,
             &existing_code
         ).await?;
 
@@ -2123,17 +2581,18 @@ impl Daemon {
         // v0.0.25: Post the Junior's thought to the Lounge BEFORE parser checks
         // Even if they failed to write valid code, their attempt/excuse should be logged!
         if let Some(ref thought) = thought_opt {
-            let _ = self.storage.save_post(&axon_core::Post {
+            tracing::info!("🍻 [LOUNGE_POST] Saving Nogari from {} to lounge...", junior_name);
+            let _ = self.storage.save_post(axon_core::Post {
                 id: uuid::Uuid::new_v4().to_string(),
                 thread_id: "lounge".to_string(),
-                author_id: format!("JUNIOR-{}", task.assigned_worker.as_deref().unwrap_or("unknown")),
+                author_id: junior_name.to_string(),
                 content: format!("**[Task: {}]**\n{}", task.title, thought),
                 post_type: axon_core::PostType::Nogari,
                 thought: None,
                 full_code: None,
                 metrics: None,
                 created_at: chrono::Local::now(),
-            });
+            }).await;
 
             // Broadcast to Lounge UI
             let event = axon_core::Event {
@@ -2155,41 +2614,160 @@ impl Daemon {
             anyhow::bail!("Code Extraction Failed: Junior response did not follow AXON Patch Protocol V2.");
         }
 
-        // v0.0.25: ALWAYS post to the specific task thread for context, even if no thought
-        let thought_text = thought_opt.as_deref().unwrap_or("Implementation ready.");
-        let content_with_code = format!("{}\n\n```{}\n{}\n```", thought_text, task.kind, full_code);
-        let _ = self.storage.save_post(&axon_core::Post {
+        // v0.0.32: Post clean code block to the Task Thread (No thought text here to avoid duplication with Lounge)
+        let content_with_code = format!("### 🧪 [JUNIOR_PROPOSAL]\n\n```{}\n{}\n```", task.kind, full_code);
+        let _ = self.storage.save_post(axon_core::Post {
             id: uuid::Uuid::new_v4().to_string(),
             thread_id: task.id.clone(),
-            author_id: format!("JUNIOR-{}", task.assigned_worker.as_deref().unwrap_or("unknown")),
+            author_id: junior_name.to_string(),
             content: content_with_code,
             post_type: axon_core::PostType::Proposal,
             thought: thought_opt,
             full_code: Some(full_code.clone()),
             metrics: Some(metrics.clone()),
             created_at: chrono::Local::now(),
-        });
+        }).await;
         
         Ok((full_code, metrics))
     }
 
     pub async fn verify_with_senior(&self, task: &axon_core::Task, patch: &str) -> anyhow::Result<String> {
         let senior = self.senior_models[0].clone();
-        let prompt = format!(
-            "REVIEW THIS IMPLEMENTATION:\n\n\
-             Task: {}\n\n\
-             Code:\n{}\n\n\
-             If the code is acceptable and implements the logic correctly, you MUST reply with 'APPROVE' followed by a short encouraging comment or review.\n\
-             If there are critical bugs or it fails to follow the task, explain why and DO NOT say 'APPROVE'.",
-            task.description, patch
-        );
-        
-        let resp = senior.generate(prompt).await.map_err(|e| anyhow::anyhow!(e))?;
-        let resp_upper = resp.text.to_uppercase();
-        if resp_upper.contains("APPROVE") || resp_upper.contains("OK") || resp_upper.contains("LOOKS GOOD") {
-            Ok(resp.text)
+        let (lang_name, lang_instruction) = if self.locale == "ko_KR" {
+            ("한국어 (Korean)", "당신은 시니어 개발자입니다. 반드시 '한국어(Korean)'로 리뷰를 작성하십시오.")
         } else {
-            anyhow::bail!("Senior rejected: {}", resp.text)
+            ("English", "You are a Senior Developer. You MUST write your review in English.")
+        };
+
+        let guide = self.architecture_guide.read().unwrap().clone();
+        let target_file = task.target_file.as_deref().unwrap_or("Unknown");
+
+        // v0.0.33: Extreme Grounding - Extract specific component symbols from IR
+        let ir = axon_ir::schema::ProjectIR::from_md(&guide);
+        let mut required_interface = "No specific interface found in IR for this file.".to_string();
+        if let Some(ref project_ir) = ir {
+            if let Some(comp) = project_ir.get_component(target_file) {
+                let syms: Vec<String> = comp.functions.values().map(|f| f.signature.clone()).collect();
+                if !syms.is_empty() {
+                    required_interface = format!("The following functions MUST exist exactly as defined:\n- {}", syms.join("\n- "));
+                }
+            }
+        }
+
+        let is_header = target_file.to_lowercase().ends_with(".h");
+        let header_warning = if is_header {
+            "\n**NOTICE**: This is a HEADER (.h) file. Focus ONLY on signatures, macros, and definitions. Ignore implementation-level quality like strcpy/malloc unless they appear in macros.\n"
+        } else { "" };
+
+        let mut current_prompt = format!(
+            "### [ROLE: ARCHITECTURAL COMPLIANCE AUDITOR]\n\
+             LANGUAGE: {}\n\
+             {}\n\
+             {}\n\n\
+             ### 🔒 MANDATORY AUDIT RULES:\n\
+             - **YOU ARE NOT A HUMAN CODE REVIEWER.**\n\
+             - **YOU ARE A CONTRACT VERIFIER.**\n\
+             - **IF CODE SATISFIES THE IR CONTRACT, YOU MUST APPROVE.**\n\
+             - **DO NOT** suggest improvements or refactors.\n\
+             - **DO NOT** reject for style, naming preferences, or optimization.\n\n\
+             ### ARCHITECTURAL CONTRACT (SSOT)\n\
+             File: {}\n\
+             {}\n\n\
+             ### CODE TO REVIEW\n\
+             ```{}\n\
+             {}\n\
+             ```\n\n\
+             ### 🔒 AUDIT PROTOCOL (STRICT):\n\
+             1. **CONTRACT ONLY**: REJECT ONLY if function names, signatures, or required logic deviates from the contract.\n\
+             2. **NEGATIVE GROUNDING**: REJECT if the model invented functions NOT in the contract.\n\
+             3. **C SECURITY**: REJECT if 'strcpy' is used in implementation. REQUIRE 'strncpy'.\n\n\
+             ### OUTPUT FORMAT (JSON ONLY)\n\
+             {{\n\
+               \"status\": \"APPROVED\" | \"REJECTED\" | \"WARNING\",\n\
+               \"thought\": \"<Brief verification reasoning>\",\n\
+               \"reason\": \"<Summary of contract audit>\",\n\
+               \"issues\": [\"List ONLY contract violations here\"]\n\
+             }}\n\n\
+             YOUR JSON AUDIT:",
+            lang_name, lang_instruction, header_warning, target_file, required_interface, task.kind, patch
+        );
+
+        let mut attempts = 0;
+        let max_attempts = 3;
+
+        loop {
+            attempts += 1;
+            tracing::info!("🔍 [SENIOR_REVIEW] Attempt {}/{} for task {} (Model: {})...", attempts, max_attempts, task.id, senior.id());
+            
+            let resp = tokio::time::timeout(
+                tokio::time::Duration::from_secs(120),
+                senior.generate(current_prompt.clone())
+            ).await.map_err(|_| anyhow::anyhow!("Senior review timed out after 120s"))?
+            .map_err(|e| anyhow::anyhow!(e))?;
+
+            let json_block = extract_json_block(resp.text.trim());
+            
+            #[derive(serde::Deserialize)]
+            struct SeniorReview {
+                status: String,
+                reason: String,
+                thought: Option<String>,
+                issues: Vec<String>,
+            }
+
+            match serde_json::from_str::<SeniorReview>(&json_block) {
+                Ok(review) => {
+                    let cleaned_text = if review.issues.is_empty() {
+                        review.reason
+                    } else {
+                        format!("{}\n\nIssues:\n- {}", review.reason, review.issues.join("\n- "))
+                    };
+
+                    if let Some(thought) = review.thought {
+                        tracing::info!("🧠 [SENIOR_THOUGHT]: {}", thought);
+                        let _ = self.storage.save_post(axon_core::Post {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            thread_id: "lounge".to_string(),
+                            author_id: "Senior".to_string(),
+                            content: format!("**[Review: {}]**\n{}", task.title, thought),
+                            post_type: axon_core::PostType::Nogari,
+                            thought: None,
+                            full_code: None,
+                            metrics: None,
+                            created_at: chrono::Local::now(),
+                        }).await;
+                    }
+
+                    let status_upper = review.status.to_uppercase();
+                    if status_upper == "APPROVED" || status_upper == "WARNING" {
+                        if status_upper == "WARNING" {
+                            tracing::warn!("⚠️ [SENIOR_WARNING] Task {} passed with warnings: {}", task.id, cleaned_text);
+                        }
+                        return Ok(cleaned_text);
+                    } else {
+                        return Err(anyhow::anyhow!(cleaned_text));
+                    }
+                },
+                Err(e) => {
+                    if attempts >= max_attempts {
+                        tracing::error!("❌ [SENIOR_FATAL] Failed to get valid JSON review after {} attempts. Error: {}", max_attempts, e);
+                        // Final fallback: If it contains 'approve' in prose, we might let it slide to avoid deadlock
+                        let text_lower = resp.text.to_lowercase();
+                        if text_lower.contains("approve") || text_lower.contains("looks good") {
+                            return Ok(resp.text);
+                        }
+                        anyhow::bail!("Senior review failed (Invalid JSON Protocol): {}", resp.text);
+                    }
+                    tracing::warn!("⚠️ [SENIOR_RETRY] Invalid JSON response. Re-prompting... Error: {}", e);
+                    current_prompt = format!(
+                        "YOUR PREVIOUS RESPONSE WAS NOT VALID JSON. YOU MUST RESPOND ONLY WITH THE JSON OBJECT.\n\n\
+                         ERROR: {}\n\n\
+                         PREVIOUS RESPONSE: {}\n\n\
+                         FIX AND RESPOND WITH JSON NOW:", 
+                        e, resp.text
+                    );
+                }
+            }
         }
     }
 
@@ -2275,6 +2853,9 @@ impl Daemon {
                     retries: 0,
                     assigned_worker: None,
                     created_at: chrono::Local::now(),
+                    ir_path: None,
+                    task_kind: None,
+                    signature: None,
                 };
                 
                 let _ = self.submit_task(rework_task);
@@ -2284,6 +2865,7 @@ impl Daemon {
 
         Ok(scheduled_files)
     }
+
 
     async fn analyze_conflicts_and_propose_rules(&self, _task_id: &str, file_path: &str) -> anyhow::Result<()> {
         // v0.0.25: [ALR] Step 3 - Rule Candidate Generation (Sandbox)
@@ -2353,7 +2935,7 @@ impl Daemon {
         let rework_instruction = format!("\n\n[REWORK CONTEXT]\nPrevious attempt failed due to {}. You MUST use the latest version of all affected files and perform a FULL rewrite if necessary to ensure consistency.", reason);
         rework_task.description.push_str(&rework_instruction);
 
-        let _ = self.storage.save_task(&rework_task);
+        let _ = self.storage.save_task(rework_task.clone()).await;
         
         tracing::info!("🔄 [C2R_SPAWNED] Rework task {} created for original {}", rework_task.id, original_task.id);
 
@@ -2392,7 +2974,7 @@ impl Daemon {
         }
     }
 
-    pub fn setup_lounge(&self) -> anyhow::Result<()> {
+    pub async fn setup_lounge(&self) -> anyhow::Result<()> {
         let lounge_thread = axon_core::Thread {
             id: "lounge".to_string(),
             project_id: "system".to_string(),
@@ -2403,7 +2985,7 @@ impl Daemon {
             created_at: chrono::Local::now(),
             updated_at: chrono::Local::now(),
         };
-        let _ = self.storage.save_thread(&lounge_thread);
+        let _ = self.storage.save_thread(lounge_thread).await;
         Ok(())
     }
 }
@@ -2699,4 +3281,187 @@ pub fn get_month() -> u8 { 1 }
         let violations = simulate_execution_validation("", true);
         assert!(violations.is_empty());
     }
+}
+
+fn extract_json_block(raw: &str) -> String {
+    let mut cleaned = raw.to_string();
+    // 1. Strip <think>...</think>
+    if let Some(start) = cleaned.find("<think>") {
+        if let Some(end) = cleaned.find("</think>") {
+            cleaned.drain(start..end + 8);
+        }
+    }
+
+    // 2. Try deterministic delimiters
+    if let Some(start) = cleaned.find("<JSON_START>") {
+        let after_start = &cleaned[start + 12..];
+        if let Some(end) = after_start.find("<JSON_END>") {
+            return after_start[..end].trim().to_string();
+        }
+    }
+
+    // 3. Try markdown fences
+    if let Some(start) = cleaned.find("```json") {
+        let after_start = &cleaned[start + 7..];
+        if let Some(end) = after_start.find("```") {
+            return after_start[..end].trim().to_string();
+        }
+    }
+
+    // 4. Extreme fallback to brace/bracket matching
+    let start_brace = cleaned.find('{');
+    let start_bracket = cleaned.find('[');
+
+    let start = match (start_brace, start_bracket) {
+        (Some(b), Some(r)) => Some(std::cmp::min(b, r)),
+        (Some(b), None) => Some(b),
+        (None, Some(r)) => Some(r),
+        (None, None) => None,
+    };
+    if let Some(start_idx) = start {
+        let end_char = if cleaned.as_bytes()[start_idx] == b'{' { '}' } else { ']' };
+        if let Some(end_idx) = cleaned.rfind(end_char) {
+            return cleaned[start_idx..=end_idx].to_string();
+        }
+    }
+
+    cleaned.trim().to_string()
+}
+
+fn validate_stage_outputs(root: &std::path::Path, ir: Option<&axon_core::ir::ProjectIR>) -> anyhow::Result<()> {
+    // v0.0.32: Recursive discovery to support src/ and include/ separation
+    let mut entries = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+    
+    while let Some(dir) = stack.pop() {
+        if let Ok(dir_entries) = std::fs::read_dir(dir) {
+            for entry in dir_entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                    if name != "build" && name != "debug" && !name.starts_with('.') {
+                        stack.push(path);
+                    }
+                } else {
+                    entries.push(path);
+                }
+            }
+        }
+    }
+
+    if entries.is_empty() {
+        return Err(anyhow::anyhow!("No files found in project root. No materialization happened."));
+    }
+
+    // 1. IR-based Deterministic Check
+    if let Some(ir) = ir {
+        for component in ir.components.values() {
+            let target_path = root.join(&component.file_path);
+            if !target_path.exists() {
+                return Err(anyhow::anyhow!("Missing artifact: {} (Wait for materialization)", component.file_path));
+            }
+        }
+        tracing::info!("✅ [INTEGRITY_CHECK] All {} components found on disk.", ir.components.len());
+        return Ok(());
+    }
+
+    // 2. Fallback Heuristic Check (if IR is missing)
+    let has_headers = entries.iter().any(|p| p.extension().map(|s| s == "h").unwrap_or(false));
+    let has_sources = entries.iter().any(|p| p.extension().map(|s| s == "c" || s == "cpp").unwrap_or(false));
+
+    tracing::info!("🔍 [FILE_DISCOVERY] Found {} artifacts (headers={}, sources={})", entries.len(), has_headers, has_sources);
+
+    if !has_headers {
+        return Err(anyhow::anyhow!("Missing .h header files in project (check 'include/')."));
+    }
+    if !has_sources {
+        return Err(anyhow::anyhow!("Missing .c/.cpp source files in project (check 'src/')."));
+    }
+
+    Ok(())
+}
+
+fn dump_project_tree(root: &std::path::Path) -> String {
+    let mut tree = String::new();
+    if let Ok(entries) = std::fs::read_dir(root) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let relative = path.strip_prefix(root).unwrap_or(&path);
+            if path.is_file() {
+                tree.push_str(&format!("{}\n", relative.display()));
+            } else if path.is_dir() {
+                let dirname = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                if dirname == "build" || dirname == ".git" || dirname == "debug" { continue; }
+                tree.push_str(&format!("{}/ (dir)\n", relative.display()));
+                // Simple one-level recursion for now
+                if let Ok(sub) = std::fs::read_dir(&path) {
+                    for se in sub.flatten() {
+                        let sp = se.path();
+                        let sr = sp.strip_prefix(root).unwrap_or(&sp);
+                        if sp.is_file() {
+                            tree.push_str(&format!("  {}\n", sr.display()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    tree
+}
+
+fn discover_binary(build_dir: &std::path::Path) -> Option<std::path::PathBuf> {
+    let mut candidates = vec![
+        build_dir.join("app"),
+        build_dir.join("spec"),
+        build_dir.join("main"),
+    ];
+    
+    // v0.0.32: Add common subdirectories
+    for sub in ["bin", "Debug", "Release"] {
+        let sd = build_dir.join(sub);
+        if sd.exists() {
+            candidates.push(sd.join("app"));
+            candidates.push(sd.join("spec"));
+            candidates.push(sd.join("main"));
+        }
+    }
+
+    for candidate in candidates {
+        if candidate.exists() && candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    
+    // fallback: recursive executable scan
+    scan_for_executables(build_dir)
+}
+
+fn scan_for_executables(dir: &std::path::Path) -> Option<std::path::PathBuf> {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let dirname = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                if dirname == "CMakeFiles" || dirname == ".git" { continue; }
+                if let Some(found) = scan_for_executables(&path) {
+                    return Some(found);
+                }
+            } else if path.is_file() {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Ok(meta) = std::fs::metadata(&path) {
+                        if meta.permissions().mode() & 0o111 != 0 {
+                            let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                            // Strict filtering: no extension, not starting with cmake, not a common build tool
+                            if !filename.contains('.') && !filename.starts_with("cmake") && !filename.starts_with("Makefile") {
+                                return Some(path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
 }

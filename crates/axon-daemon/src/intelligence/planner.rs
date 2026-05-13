@@ -1,7 +1,7 @@
 use std::collections::{HashMap, VecDeque, HashSet};
 use axon_core::Task;
 
-/// v0.0.23: IR-based Execution Planner
+/// v0.0.28: IR-based Execution Planner
 /// Converts unstructured tasks into a deterministic Directed Acyclic Graph (DAG)
 pub struct ExecutionPlanner {
     // We'll store task relationships here
@@ -12,7 +12,7 @@ impl ExecutionPlanner {
         Self {}
     }
 
-    /// v0.0.23: Heuristic Dependency Discovery
+    /// v0.0.28: Heuristic Dependency Discovery
     /// Analyzes tasks and automatically links them based on file references.
     /// e.g., if 'calculate.rs' task mentions 'validation.rs' in its description.
     pub fn plan_dependencies(&self, tasks: &mut [Task]) {
@@ -43,7 +43,7 @@ impl ExecutionPlanner {
         }
     }
 
-    /// v0.0.23: Topological Order Verification
+    /// v0.0.28: Topological Order Verification
     /// Checks if the current task set has cycles.
     pub fn verify_dag(&self, tasks: &[Task]) -> bool {
         let mut graph = HashMap::new();

@@ -1,7 +1,7 @@
-use crate::ir::*;
+use axon_ir::*;
 use crate::ir_change::*;
 use crate::patch::*;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub fn patch_to_ir_changes(patch: Patch) -> Vec<IRChange> {
     let mut changes = Vec::new();
@@ -42,7 +42,7 @@ fn file_path_to_component(path: &str) -> String {
 }
 
 fn build_component(name: String, path: String, code: &str) -> Component {
-    let mut functions = std::collections::HashMap::new();
+    let mut functions = BTreeMap::new();
     let extracted = extract_functions(code);
     for f in extracted {
         functions.insert(f.name.clone(), f);
@@ -53,6 +53,9 @@ fn build_component(name: String, path: String, code: &str) -> Component {
         file_path: path,
         functions,
         imports: extract_imports(code),
+        associated_files: Vec::new(),
+        is_entrypoint: false,
+        data_models: Vec::new(),
     }
 }
 
@@ -68,7 +71,7 @@ fn extract_functions(code: &str) -> Vec<Function> {
                     functions.push(Function {
                         name,
                         signature: format!("{}(...)", sig), // Simplified
-                        dependencies: HashSet::new(),
+                        dependencies: BTreeSet::new(),
                         body_hash: None,
                     });
                 }
@@ -78,8 +81,8 @@ fn extract_functions(code: &str) -> Vec<Function> {
     functions
 }
 
-fn extract_imports(code: &str) -> HashSet<String> {
-    let mut imports = HashSet::new();
+fn extract_imports(code: &str) -> BTreeSet<String> {
+    let mut imports = BTreeSet::new();
     for line in code.lines() {
         if line.starts_with("import ") {
             imports.insert(line[7..].trim().to_string());

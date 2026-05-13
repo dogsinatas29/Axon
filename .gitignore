@@ -39,3 +39,8 @@ studio/.env
 __pycache__/
 *.pyc
 TEST/
+
+# OpenCode / OpenAgent local configs & temp traces
+.opencode.json
+.openagent.json
+.opencode/

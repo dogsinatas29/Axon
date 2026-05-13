@@ -73,7 +73,7 @@ impl LoungeManager {
         }
         file.write_all(log_entry.as_bytes())?;
 
-        // v0.0.25: Broadcast to Studio UI via EventBus
+        // v0.0.28: Broadcast to Studio UI via EventBus
         if let Some(bus) = &self.event_bus {
             bus.publish(Event {
                 id: uuid::Uuid::new_v4().to_string(),
@@ -111,7 +111,7 @@ impl LoungeManager {
 
         file.write_all(log_entry.as_bytes())?;
 
-        // v0.0.25: Broadcast to Studio UI via EventBus
+        // v0.0.28: Broadcast to Studio UI via EventBus
         if let Some(bus) = &self.event_bus {
             bus.publish(Event {
                 id: uuid::Uuid::new_v4().to_string(),

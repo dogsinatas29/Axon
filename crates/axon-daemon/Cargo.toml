@@ -9,6 +9,7 @@ axon-dispatcher = { path = "../axon-dispatcher" }
 axon-agent = { path = "../axon-agent" }
 axon-model = { path = "../axon-model" }
 axon-storage = { path = "../axon-storage" }
+axon-ir = { path = "../axon-ir" }
 anyhow = "1.0"
 tokio = { workspace = true }
 axum = { version = "0.7", features = ["ws", "multipart"] }

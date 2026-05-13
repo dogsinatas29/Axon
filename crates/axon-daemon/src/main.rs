@@ -75,9 +75,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             created_at: chrono::Local::now(),
                             updated_at: chrono::Local::now(),
                         };
-                        daemon.storage.save_thread(&thread).expect("Failed to save thread");
+                        daemon.storage.save_thread(thread).await.expect("Failed to save thread");
 
-                        // v0.0.16: Create a corresponding Task for the Scheduler to pick up
+                        // v0.0.28: Create a corresponding Task for the Scheduler to pick up
                         let task = axon_core::Task {
                             id: thread_id, // Use same ID for linkage
                             project_id: "default-project".to_string(),
@@ -98,8 +98,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             retries: 0,
                             assigned_worker: None,
                             created_at: chrono::Local::now(),
+                            ir_path: None,
+                            task_kind: None,
+                            signature: None,
                         };
-                        daemon.storage.save_task(&task).expect("Failed to save task");
+                        daemon.storage.save_task(task).await.expect("Failed to save task");
                         
                         tracing::info!("Generated thread & task: {}", title);
                     }
@@ -108,7 +111,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Run { resume, spec } => {
             println!("\n====================================================
-🏭 AXON: Automated Software Factory v0.0.25_BOOTSTRAP
+🏭 AXON: Automated Software Factory v0.0.28_HARDENED
 ====================================================
 ======================\n");
 
@@ -225,16 +228,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             };
 
-            // --- SMART MODEL DISCOVERY (v0.0.23) ---
-            // 누군가 처음 설치했을 때 하드코딩된 모델이 없어도 에러 없이 돌아가도록 합니다.
-            let mut default_model = "qwen:1.8b".to_string();
+            // --- SMART MODEL DISCOVERY (v0.0.28) ---
+            // v0.0.28: Prioritize DeepSeek-Coder-V2:Lite for its superior instruction obedience
+            let mut default_model = "deepseek-coder-v2:lite".to_string();
             let temp_drv = Arc::new(axon_model::OllamaDriver::new("http://localhost:11434".to_string(), "".into()));
             if let Ok(models) = temp_drv.list_available_models().await {
-                if let Some(first) = models.first() {
-                    default_model = first.clone();
-                    tracing::info!("✨ [AUTO_DISCOVERY] No config found. Using first available local model: {}", default_model);
+                let best_match = models.iter()
+                    .find(|m| m.contains("deepseek") && m.contains("lite"))
+                    .or_else(|| models.iter().find(|m| m.contains("qwen2.5") && m.contains("instruct")))
+                    .or_else(|| models.iter().find(|m| m.contains("deepseek")))
+                    .or_else(|| models.iter().find(|m| m.contains("qwen2.5")))
+                    .or_else(|| models.iter().find(|m| m.contains("instruct")))
+                    .or_else(|| models.first());
+
+                if let Some(found) = best_match {
+                    default_model = found.clone();
+                    tracing::info!("✨ [AUTO_DISCOVERY] No config found. Using best available local model: {}", default_model);
                 } else {
-                    tracing::warn!("⚠️ [OOB_WARNING] No local models found in Ollama. Falling back to default: {}. Please run 'ollama pull qwen:1.8b'", default_model);
+                    tracing::warn!("⚠️ [OOB_WARNING] No local models found in Ollama. Falling back to default: {}. Please run 'ollama pull deepseek-coder-v2:lite'", default_model);
                 }
             }
 
@@ -316,7 +327,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 };
                                 let input_ep = prompt(&msg_e).trim_end_matches('/').to_string();
                                 
-                                // v0.0.24: Connectivity Guard
+                                // v0.0.28: Connectivity Guard
                                 let msg_v = if locale == "ko_KR" { 
                                     format!("⏳ {} 연결 확인 중...", input_ep) 
                                 } else if locale == "ja_JP" {
@@ -422,13 +433,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             if model_name.is_empty() { model_name = m_idx_str; }
                         }
                     }
-                    if model_name.is_empty() { 
+
+                    // v0.0.28: Model Name Sanitization Guard
+                    // If model_name is still empty or looks like a URL (mistaken input), ask again
+                    while model_name.is_empty() || model_name.starts_with("http") { 
                         let msg_man = if locale == "ko_KR" { 
-                            "모델명 직접 입력: " 
+                            "모델명 직접 입력 (URL이 아닌 모델명을 입력하세요): " 
                         } else if locale == "ja_JP" {
-                            "モデル名を直接入力: "
+                            "モデル名を直接入力 (URLではなくモデル名を入力してください): "
                         } else { 
-                            "Enter Model Name: " 
+                            "Enter Model Name (Enter name, NOT a URL): " 
                         };
                         model_name = prompt(&msg_man); 
                     }
@@ -487,7 +501,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 (get_drv(&cfg.agents.architect), cfg.agents.architect.model.clone(), s_drvs, s_names, j_drvs, j_names)
             };
 
-            // --- Configuration Briefing (v0.0.25) ---
+            // --- Configuration Briefing (v0.0.28) ---
             println!("\n📋 --------------------------------------");
             let briefing_title = if final_locale == "ko_KR" { "현재 공장 가동 설정 요약" } else if final_locale == "ja_JP" { "現在の工場稼働設定の要約" } else { "Factory Configuration Briefing" };
             println!("   [{}]", briefing_title);
@@ -555,11 +569,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let daemon = Arc::new(Daemon::new(
                 storage,
                 architect_model,
-                arch_name, // v0.0.23: Use the explicitly selected name
+                arch_name, // v0.0.28: Use the explicitly selected name
                 senior_models,
-                senior_model_names, // v0.0.23: Use the explicitly selected names
+                senior_model_names, // v0.0.28: Use the explicitly selected names
                 junior_models,
-                junior_model_names, // v0.0.23: Use the explicitly selected names
+                junior_model_names, // v0.0.28: Use the explicitly selected names
                 worker_tx,
                 "Standard AXON Protocol".to_string(),
                 sampling_rate,

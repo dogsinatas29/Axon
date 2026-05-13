@@ -270,6 +270,7 @@ Also, you can inject personas into the hired agents.
 - **Header Resolver (v2)**: Fixed C-header mapping bug to support decoupled source/include structures (`src/*.c` <-> `include/*.h`) in the integrity gate.
 - **Task ID Namespace**: Implemented `hdr_` and `impl_` prefixing for deterministic task/thread isolation in the Work Board.
 - **Traceable Reworks**: Added `(Rework #N)` tagging to task titles for clear generation tracking and UI observability.
+- **언어별 IR 분리 후 C 언어 테스트**: 언어별 독립 IR 아키텍처 적용 후 C 언어 환경에서 파이프라인 정합성 최종 검증 완료.
 
 ### v0.0.25 - The Universal Factory (Phase 0-8)
 - **Language-Agnostic Engine**: Full native support for **C, Rust, and Python** projects with automatic entry point detection.

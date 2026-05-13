@@ -433,9 +433,19 @@ impl AgentRuntime {
                     }
                 }
                 
-                if filtered_files.len() > 1 {
-                    tracing::error!("🛡️ [SCOPE_VIOLATION] Junior tried to modify {} files. Only 1 allowed.", filtered_files.len());
-                    return Err(anyhow::anyhow!("Scope Violation: Multi-file diffs are NOT allowed. ({} files detected)", filtered_files.len()));
+                // v0.0.28: Task Type Contamination Protection
+                let is_header_task = task.kind.to_lowercase().contains("header");
+                let is_impl_task = task.kind.to_lowercase().contains("implementation") || task.kind.to_lowercase().contains("source");
+
+                for f in &filtered_files {
+                    if is_header_task && !f.path.ends_with(".h") && !f.path.ends_with(".hpp") {
+                         tracing::error!("🛡️ [TASK_TYPE_VIOLATION] Header task tried to modify non-header file '{}'.", f.path);
+                         return Err(anyhow::anyhow!("Task Type Violation: Header tasks are ONLY allowed to modify .h/.hpp files."));
+                    }
+                    if is_impl_task && (f.path.ends_with(".h") || f.path.ends_with(".hpp")) {
+                         tracing::error!("🛡️ [TASK_TYPE_VIOLATION] Implementation task tried to modify header file '{}'.", f.path);
+                         return Err(anyhow::anyhow!("Task Type Violation: Implementation tasks are NOT allowed to modify .h/.hpp files. Use HeaderGen stage for interfaces."));
+                    }
                 }
 
                 // v0.0.26: RETURN RAW CODE ONLY. No JSON wrapping for full_code.

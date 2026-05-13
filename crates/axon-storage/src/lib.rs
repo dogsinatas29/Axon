@@ -682,6 +682,13 @@ impl Storage {
         Ok(count)
     }
 
+    pub fn count_tasks_by_project(&self, project_id: &str) -> Result<usize> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT COUNT(*) FROM tasks WHERE project_id = ?1")?;
+        let count: usize = stmt.query_row(params![project_id], |row| row.get(0))?;
+        Ok(count)
+    }
+
     pub fn list_all_tasks(&self) -> Result<Vec<axon_core::Task>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, dependencies, result, target_file, lock_files, error_feedback, rework_count, base_hash, created_at, parent_task, reason, assigned_worker, kind, retries, senior_comment, ir_path, task_kind, signature FROM tasks ORDER BY created_at DESC")?;

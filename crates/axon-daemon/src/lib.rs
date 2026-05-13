@@ -967,10 +967,33 @@ impl BootstrapManager {
                                                 }
 
                                                 // v0.0.32: Wait for Headers to materialize before ImplGen
-                                                tracing::info!("⏳ [STAGE:HeaderGen] Waiting for header materialization...");
+                                                let expected_h_count = header_tasks.len();
+                                                tracing::info!("⏳ [STAGE:HeaderGen] Waiting for {} header tasks to materialize (Project: {})...", expected_h_count, self.project_id);
+                                                
+                                                // v0.0.28: Robust Synchronization.
+                                                // 1. Wait for DB Persistence (Initial Enqueue Visibility)
+                                                let mut p_wait = 0;
+                                                while daemon.storage.count_tasks_by_project(&self.project_id).unwrap_or(0) < expected_h_count {
+                                                    if p_wait > 10 { break; } // 10s timeout for persistence
+                                                    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+                                                    p_wait += 1;
+                                                }
+
+                                                // 2. Wait for Completion
                                                 let mut h_wait = 0;
-                                                while daemon.storage.count_active_tasks_by_project(&self.project_id).unwrap_or(0) > 0 {
-                                                    if h_wait > 30 { break; } // 2.5 mins
+                                                loop {
+                                                    let active_count = daemon.storage.count_active_tasks_by_project(&self.project_id).unwrap_or(0);
+                                                    if active_count == 0 {
+                                                        tracing::info!("✅ [STAGE:HeaderGen] All {} header tasks completed.", expected_h_count);
+                                                        break;
+                                                    }
+                                                    
+                                                    if h_wait > 60 { 
+                                                        tracing::warn!("⚠️ [STAGE:HeaderGen] Wait timeout reached (5 mins). Proceeding with caution.");
+                                                        break; 
+                                                    }
+                                                    
+                                                    tracing::info!("⏳ [STAGE:HeaderGen] {} tasks still active. Waiting...", active_count);
                                                     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
                                                     h_wait += 1;
                                                 }
@@ -2939,6 +2962,10 @@ impl Daemon {
     async fn spawn_rework_task(&self, original_task: &axon_core::Task, reason: &str, lock_files: &Vec<String>) -> anyhow::Result<()> {
         if original_task.rework_count >= 3 {
             tracing::error!("🛑 [REWORK_LIMIT] Task {} reached max retries. Escalating to human.", original_task.id);
+            let mut failed_task = original_task.clone();
+            failed_task.status = axon_core::TaskStatus::Failed;
+            failed_task.error_feedback = Some(format!("REWORK_LIMIT: Escalated to human after 3 failures. Last error: {}", reason));
+            let _ = self.storage.save_task(failed_task).await;
             return Ok(());
         }
 

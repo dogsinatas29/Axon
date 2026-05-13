@@ -611,17 +611,22 @@ impl Daemon {
                 // Skip Compile/Run gates if we are dealing with Headers or if we're in early bootstrap.
                 let is_header_batch = batch.tasks.iter().any(|t| t.task_kind == Some(axon_core::TaskKind::HeaderDecl));
                 
+                // v0.0.29: Load Architectural SSOT (ProjectIR) for contract enforcement
+                let ir_contract = load_project_ir(&project_root);
+
                 if is_header_batch {
                     tracing::info!("📎 [BATCH_BYPASS] Skipping Compile/Run gates for Header batch.");
                 } else {
-                    // 1. Compile Gate
-                    if let Err(err) = execution_validator::validate(&project_root, target, mode) {
+                    // 1. Compile Gate (v0.0.29: Added IR contract enforcement)
+                    if let Err(err) = execution_validator::validate(&project_root, target, mode, ir_contract.as_ref()) {
                         validation_success = false;
                         failures.push(format!("[BATCH_COMPILE_FAIL] {}", err));
                     }
 
                     // 2. Selective Run Gate
                     if validation_success {
+                        let _affected: Vec<String> = batch.dependency_closure.iter()
+                            .map(|s| s.clone()).collect();
                         let affected_set: std::collections::HashSet<String> = batch.dependency_closure.clone();
                         let run_targets = self.dep_graph.lock().unwrap().run_targets(&affected_set);
                         
@@ -3411,6 +3416,15 @@ fn extract_json_block(raw: &str) -> String {
         }
     }
 
+    // v0.0.32: Handle AXON:SPEC:COMPONENTS markers in physical files
+    if let Some(start_idx) = cleaned.find("<!-- AXON:SPEC:COMPONENTS") {
+        let sub = &cleaned[start_idx..];
+        if let Some(end_idx) = sub.find("-->") {
+            let json_raw = &sub["<!-- AXON:SPEC:COMPONENTS".len()..end_idx].trim();
+            return json_raw.to_string();
+        }
+    }
+
     // 3. Try markdown fences
     if let Some(start) = cleaned.find("```json") {
         let after_start = &cleaned[start + 7..];
@@ -3576,3 +3590,18 @@ fn scan_for_executables(dir: &std::path::Path) -> Option<std::path::PathBuf> {
     }
     None
 }
+fn load_project_ir(project_root: &str) -> Option<axon_ir::ProjectIR> {
+    let arch_path = std::path::Path::new(project_root).join("spec/architecture.md");
+    if !arch_path.exists() {
+        return None;
+    }
+    
+    if let Ok(content) = std::fs::read_to_string(arch_path) {
+        let json_str = extract_json_block(&content);
+        if let Ok(ir) = serde_json::from_str::<axon_ir::ProjectIR>(&json_str) {
+            return Some(ir);
+        }
+    }
+    None
+}
+

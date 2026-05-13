@@ -1,24 +1,129 @@
 use std::process::Command;
 use std::path::Path;
+use axon_ir::ProjectIR;
 
 pub enum ValidationMode {
     Incremental,
     Full,
 }
 
-pub fn validate(project_root: &str, file_path: &str, mode: ValidationMode) -> anyhow::Result<()> {
+pub fn validate(project_root: &str, file_path: &str, mode: ValidationMode, ir: Option<&ProjectIR>) -> anyhow::Result<()> {
+    // v0.0.29: Structural Validation (Semantic completeness & safety)
+    analyze_structural_integrity(project_root, file_path, ir)?;
+
     if file_path.ends_with(".rs") {
         validate_rust(project_root, mode)
     } else if file_path.ends_with(".py") {
         validate_python(project_root, file_path)
-    } else if file_path.ends_with(".c") {
-        validate_c(project_root, file_path)
+    } else if file_path.ends_with(".c") || file_path.ends_with(".h") {
+        validate_c(project_root, file_path, ir)
     } else {
         Ok(())
     }
 }
 
-fn validate_c(project_root: &str, file_path: &str) -> anyhow::Result<()> {
+/// v0.0.29: Semantic & Structural Integrity Analysis
+/// Detects stubs, header body violations, and hallucinated patterns before compilation.
+fn analyze_structural_integrity(project_root: &str, file_path: &str, ir: Option<&ProjectIR>) -> anyhow::Result<()> {
+    let path = Path::new(project_root).join(file_path);
+    if !path.exists() { return Ok(()); }
+    
+    let content = std::fs::read_to_string(&path)?;
+    let content_lower = content.to_lowercase();
+    
+    // 1. Stub & TODO Detection (Anti-Stub v3)
+    let stub_patterns = [
+        "// todo", "// implement", "// ...", 
+        "/* todo", "/* implement", "/* ...",
+        "// add logic", "/* add logic",
+        "// TODO", "FIXME", "panic!", "unimplemented!"
+    ];
+    
+    for pattern in &stub_patterns {
+        if content.contains(pattern) {
+            return Err(anyhow::anyhow!(
+                "SEMANTIC VIOLATION: Stub detected in '{}' (Pattern: '{}'). Implementation is incomplete.",
+                file_path, pattern
+            ));
+        }
+    }
+
+    // 2. Language-Specific Structural Rules
+    if file_path.ends_with(".h") {
+        // C Header Rules: Forbid function bodies, require guards
+        if content.contains('{') && (content.contains("if") || content.contains("while") || content.contains("return")) {
+            return Err(anyhow::anyhow!(
+                "STRUCTURAL VIOLATION: Function body detected in header file '{}'. Headers must only contain declarations.",
+                file_path
+            ));
+        }
+        if !content.contains("#ifndef") && !content.contains("#define") && !content.contains("#pragma once") {
+             return Err(anyhow::anyhow!(
+                "STRUCTURAL VIOLATION: Missing header guards in '{}'. Enforce #ifndef/#define pattern.",
+                file_path
+            ));
+        }
+    }
+
+    if file_path.ends_with("main.c") {
+        // Entry Point Rules: Detect "Hello World" fallback
+        if !content.contains("while") && !content.contains("for") && !content.contains("init") {
+            if content.len() < 150 {
+                return Err(anyhow::anyhow!(
+                    "SEMANTIC VIOLATION: 'main.c' appears to be a placeholder/fallback. Entry point must implement actual system orchestration logic (loops, init calls).",
+                ));
+            }
+        }
+    }
+
+    // 3. Architecture Alignment (IR Contract Enforcement)
+    if let Some(ir_data) = ir {
+        // A. Interface Drift Check
+        if let Some(comp) = ir_data.components.get(file_path) {
+            for (_, func) in &comp.functions {
+                // v0.0.29: Ensure the EXACT function signature/name is present in the file
+                if !content.contains(&func.name) {
+                    return Err(anyhow::anyhow!(
+                        "CONTRACT DRIFT: Function '{}' defined in Architecture IR is MISSING in file '{}'. Signature synchronization failed.",
+                        func.name, file_path
+                    ));
+                }
+            }
+        }
+
+        // B. Hallucinated Include Protection
+        for line in content.lines() {
+            if line.trim().starts_with("#include \"") {
+                let parts: Vec<&str> = line.split('"').collect();
+                if parts.len() >= 2 {
+                    let h_file = parts[1];
+                    // Skip standard libs if quoted (rare but possible)
+                    if h_file.ends_with(".h") {
+                        // Check if this header exists in the IR or physically exists in include/
+                        let h_path_ir = format!("include/{}", h_file);
+                        let h_path_phys = Path::new(project_root).join("include").join(h_file);
+                        let h_path_rel = Path::new(project_root).join(h_file);
+
+                        let mut found = false;
+                        if ir_data.components.contains_key(&h_path_ir) || ir_data.components.contains_key(h_file) { found = true; }
+                        if h_path_phys.exists() || h_path_rel.exists() { found = true; }
+                        
+                        if !found {
+                            return Err(anyhow::anyhow!(
+                                "HALLUCINATION DETECTED: Illegal include '#include \"{}\"' found in '{}'. This file is not in the architecture IR.",
+                                h_file, file_path
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_c(project_root: &str, file_path: &str, _ir: Option<&ProjectIR>) -> anyhow::Result<()> {
     let path = Path::new(project_root).join(file_path);
     let file_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
     

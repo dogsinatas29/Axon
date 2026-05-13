@@ -268,6 +268,8 @@ Also, you can inject personas into the hired agents.
 
 ### v0.0.28 - Architectural Auditor & Contract Consistency
 - **Architectural Auditor**: Refactored the Senior Agent into a strict binary compliance auditor (Contract Verifier), eliminating subjective style rejections and focusing purely on SSOT integrity.
+- **v0.0.29**: 언어별 IR 분리 후 C 언어 테스트 (Structural Hardening & Semantic Validation)
+- **v0.0.28**: Intelligent Fault Localization & Orchestration Hardening
 - **Intelligent Fault Localization (Self-Healing)**: Implemented a compiler-aware diagnosis layer that pinpointed exact source files (e.g., `main.c`) responsible for build failures, enabling surgical reworks and preventing infinite loops.
 - **Self-Healing Reviewer**: Implemented a 3-attempt retry loop for JSON protocol compliance, preventing pipeline deadlocks caused by small model formatting errors.
 - **Deterministic Materializer**: Hardened Junior Agent prompts to enforce absolute IR contract faithfulness (Consistency > Quality), suppressing function renaming and hallucinated headers.

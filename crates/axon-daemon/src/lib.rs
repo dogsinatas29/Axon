@@ -681,8 +681,42 @@ impl Daemon {
                 .map(|id| id.replace("file:", ""))
                 .collect();
 
+            // Spawn reworks for all affected files (Fan-out)
+            let affected: Vec<String> = batch.dependency_closure.iter()
+                .filter(|id| id.starts_with("file:"))
+                .map(|id| id.replace("file:", ""))
+                .collect();
+
+            // v0.0.28: Intelligent Fault Localization
+            let error_files = execution_validator::extract_error_files(&combined_err);
+            if !error_files.is_empty() {
+                tracing::info!("🎯 [FAULT_LOCALIZATION] Pinpointed culprits: {:?}", error_files);
+            }
+
             for task in &batch.tasks {
-                let _ = self.spawn_rework_task(task, "BATCH_FAIL", &affected).await;
+                let mut is_culprit = false;
+                if let Some(target) = &task.target_file {
+                    if error_files.iter().any(|f| target.contains(f)) {
+                        is_culprit = true;
+                    }
+                }
+                
+                // v0.0.28: Targeted Rework Strategy
+                if error_files.is_empty() || is_culprit {
+                    tracing::info!("♻️ [TARGETED_REWORK] Spawning rework for culprit task: {}", task.id);
+                    let _ = self.spawn_rework_task(task, &combined_err, &affected).await;
+                } else {
+                    tracing::info!("⏳ [REQUEUE_PENDING] Task {} was innocent. Re-queuing to Pending.", task.id);
+                    let mut t = task.clone();
+                    t.status = axon_core::TaskStatus::Pending;
+                    t.result = Some("Rolled back due to batch failure (Compilation Gate)".to_string());
+                    let _ = self.storage.save_task(t.clone()).await;
+                    
+                    let mut coord = self.coordinator.lock().unwrap();
+                    coord.add_task(t);
+                }
+                
+                // In all failure cases, the original task execution cycle is finished
                 let mut coord = self.coordinator.lock().unwrap();
                 coord.complete_task(task);
             }
@@ -1034,8 +1068,11 @@ impl BootstrapManager {
                 Stage::ImplGen => {
                     tracing::info!("🔨 [STAGE:ImplGen] Materializing Implementation Tasks... (Context: {})", context_size);
                     if let Some(ref ir) = ir_opt {
-                        let res = architect_runtime.process_bootstrap_step2_with_context(&serde_json::to_string(ir).unwrap(), context_size, Some(daemon.event_bus.clone())).await;
-                        match res {
+                        // v0.0.28: Skip task generation if we already have tasks (e.g. following BuildRepair or Rework)
+                        let active_count = daemon.storage.count_tasks_by_project(&self.project_id).unwrap_or(0);
+                        if active_count == 0 {
+                            let res = architect_runtime.process_bootstrap_step2_with_context(&serde_json::to_string(ir).unwrap(), context_size, Some(daemon.event_bus.clone())).await;
+                            match res {
                             Ok(post) => {
                                 let content = extract_json_block(post.content.trim());
                                 
@@ -1116,18 +1153,6 @@ impl BootstrapManager {
                                                 daemon.submit_task(task.clone());
                                             }
 
-                                            // v0.0.32: Wait for Implementations to materialize before moving to Build
-                                                tracing::info!("⏳ [STAGE:ImplGen] Waiting for source implementation tasks to complete...");
-                                                let mut i_wait = 0;
-                                                while daemon.storage.count_active_tasks_by_project(&self.project_id).unwrap_or(0) > 0 {
-                                                    if i_wait > 60 { break; } // 5 mins
-                                                    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-                                                    i_wait += 1;
-                                                }
-
-                                                stage = StageRouter::next_stage(&stage);
-                                                attempts = 0;
-                                                context_size = 8192; // Reset on success
                                             }
                                         },
                                         Err(e) => {
@@ -1154,7 +1179,24 @@ impl BootstrapManager {
                                 context_size = (context_size as f32 * 1.5) as usize;
                             }
                         }
-                    } else {
+                    }
+
+                    // v0.0.28: Wait for all implementation tasks in THIS project to complete
+                    tracing::info!("⏳ [STAGE:ImplGen] Waiting for source implementation tasks to materialize...");
+                    let mut i_wait = 0;
+                    while daemon.storage.count_active_tasks_by_project(&self.project_id).unwrap_or(0) > 0 {
+                        if i_wait > 60 { 
+                            tracing::warn!("⚠️ [IMPL_WAIT_TIMEOUT] Moving to build anyway.");
+                            break; 
+                        }
+                        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                        i_wait += 1;
+                    }
+
+                    stage = StageRouter::next_stage(&stage);
+                    attempts = 0;
+                    context_size = 8192; // Reset on success
+                } else {
                         stage = Stage::Skeleton;
                     }
                 },

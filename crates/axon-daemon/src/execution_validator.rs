@@ -192,3 +192,32 @@ pub fn selective_run(project_root: &str, file_path: &str, targets: Vec<String>) 
 
     Ok(())
 }
+
+/// v0.0.28: Intelligent Fault Localization
+/// Parses compiler/validator stderr to extract offending filenames.
+pub fn extract_error_files(error_msg: &str) -> Vec<String> {
+    let mut files = std::collections::HashSet::new();
+    
+    // Pattern 1: GCC/Clang (file.c:line:col: error:)
+    for line in error_msg.lines() {
+        if let Some(idx) = line.find(':') {
+            let potential_file = &line[..idx];
+            if potential_file.ends_with(".c") || potential_file.ends_with(".h") || potential_file.ends_with(".rs") || potential_file.ends_with(".py") {
+                files.insert(potential_file.to_string());
+            }
+        }
+    }
+    
+    // Pattern 2: Rust (error: ... --> src/main.rs:10:5)
+    for line in error_msg.lines() {
+        if let Some(idx) = line.find("--> ") {
+            let part = &line[idx + 4..];
+            if let Some(colon_idx) = part.find(':') {
+                let potential_file = &part[..colon_idx];
+                files.insert(potential_file.to_string());
+            }
+        }
+    }
+
+    files.into_iter().collect()
+}

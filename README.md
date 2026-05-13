@@ -80,6 +80,9 @@ AXON is a high-performance, deterministic AI agent factory designed to transform
 AXON is built to be technologically neutral. It doesn't just generate code; it orchestrates entire software ecosystems regardless of the underlying language.
 - **Multi-Stack Support**: Native, hardened support for **Rust, Python, and C** (v0.0.25+), with structural support for any language through explicit IR extensions.
 - **Polyglot IR**: The Architectural Intermediate Representation (IR) treats language-specific constraints as parameters, allowing for seamless cross-language project management.
+  - **Rust IR**: `crates/axon-ir/src/validator/langs/rust.rs`
+  - **Python IR**: `crates/axon-ir/src/validator/langs/python.rs`
+  - **C IR**: `crates/axon-ir/src/validator/langs/c.rs`
 - **Unified Protocol**: A standardized patch and validation protocol that ensures 100% code purity and integrity across diverse technology stacks.
 
 ## 🧠 Core Philosophy: "Code as a Result of Architecture"
@@ -265,6 +268,7 @@ Also, you can inject personas into the hired agents.
 
 ### v0.0.28 - Architectural Auditor & Contract Consistency
 - **Architectural Auditor**: Refactored the Senior Agent into a strict binary compliance auditor (Contract Verifier), eliminating subjective style rejections and focusing purely on SSOT integrity.
+- **Intelligent Fault Localization (Self-Healing)**: Implemented a compiler-aware diagnosis layer that pinpointed exact source files (e.g., `main.c`) responsible for build failures, enabling surgical reworks and preventing infinite loops.
 - **Self-Healing Reviewer**: Implemented a 3-attempt retry loop for JSON protocol compliance, preventing pipeline deadlocks caused by small model formatting errors.
 - **Deterministic Materializer**: Hardened Junior Agent prompts to enforce absolute IR contract faithfulness (Consistency > Quality), suppressing function renaming and hallucinated headers.
 - **Header Resolver (v2)**: Fixed C-header mapping bug to support decoupled source/include structures (`src/*.c` <-> `include/*.h`) in the integrity gate.

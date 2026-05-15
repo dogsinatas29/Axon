@@ -91,13 +91,47 @@ AXON treats coding not as a creative writing task, but as a **Deterministic Mate
 - **Physical Integrity**: Code must not only be logical but must also survive in the physical environment (Filesystem, Runtime).
 - **Adversarial Governance**: Agents must fight (Debate) to produce the most optimized logic.
 
-<a name="system-architecture-the-physical-pipeline"></a>
-## 🏛️ System Architecture: The Physical Pipeline (v0.0.23+)
+## 🏛️ System Architecture: The Physical Pipeline (v0.0.30+)
 
-<p align="center">
-  <img src="./asset/mermaid-diagram.png" alt="AXON Architecture Concept" width="800">
-</p>
-*Figure 1. The Deterministic Physical Pipeline: A 5-stage enforcement loop ensuring code integrity. It bridges the gap between logical LLM reasoning and physical filesystem reality with a mandatory Senior Gate and Auto-Rollback safety net.*
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Boss as 🧑‍⚖️ Boss (Decision Gate)
+    participant Spec as 📜 spec.md
+    participant Debugger as 🔍 Semantic Debugger
+    participant IR as 🔒 Sealed IR (Constitution)
+    participant Worker as 👷 Mechanical Assembly (LLM)
+    participant Gate as 🛑 GCC/Linker Gate
+
+    Note over Boss, Gate: AXON v0.0.30: No Semantic Closure, No Generation
+
+    Boss->>Spec: 명세 투입 및 부트스트랩
+    Spec->>Debugger: 의미론적 무결성 분석 (Risk Scoring)
+    
+    alt 모호함 발견 (Ambiguity Detected)
+        Debugger->>Boss: [SEMANTIC_INTERRUPT] 판결 요청
+        Note right of Boss: 데이터 모델, 소유권, 의존성 정책 결정
+        Boss->>IR: 입법권 행사 및 규약 봉인 (Sealing)
+    else 무결성 통과
+        Debugger->>IR: 규약 자동 봉인 (Auto-Seal)
+    end
+
+    Note over IR, Worker: [CRITICAL_CONTRACT] 주입 (추론 권한 박탈)
+
+    IR->>Worker: 봉인된 명세 하달
+    Worker->>Worker: 기계적 조립 (Deterministic Assembly)
+    Worker->>Gate: 컴파일 및 링크 검증
+    
+    alt 빌드 실패 (Physical Failure)
+        Gate->>Boss: 날것의 로그(Raw Log) 보고 및 재중재
+        Boss->>IR: 규약 수정 및 재봉인
+    else 빌드 성공
+        Gate->>Boss: 최종 아티팩트 승인 요청
+    end
+    
+    Boss-->>Boss: 공정 완료 (Sovereign Success)
+```
+*Figure 1. The Sovereign Governance Pipeline: A semantic-first enforcement loop ensuring architectural closure before generation.*
 
 1. **Logical Approval (Axon Pass)**: Junior's proposal is validated for logical consistency.
 2. **Materialization (Physical Commit)**: Code is written to the actual project filesystem.

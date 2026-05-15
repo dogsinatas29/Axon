@@ -133,6 +133,26 @@ body {
   box-shadow: 0 0 20px var(--border-glow);
 }
 
+.signal-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.signal-card.info { border-left: 4px solid var(--accent-primary); }
+.signal-card.warning { border-left: 4px solid var(--status-hold); background: rgba(255, 204, 0, 0.05); }
+.signal-card.error { border-left: 4px solid var(--status-error); background: rgba(255, 51, 102, 0.05); }
+.signal-card.critical { 
+  border: 1px solid var(--status-error); 
+  border-left-width: 6px; 
+  background: rgba(255, 51, 102, 0.15);
+  box-shadow: 0 0 15px rgba(255, 51, 102, 0.2);
+  animation: signal-shake 0.5s ease-in-out;
+}
+
+@keyframes signal-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
 .status-dot {
   width: 8px;
   height: 8px;
@@ -377,3 +397,9 @@ body {
 .status-badge.juniorproposal { background: rgba(0, 242, 255, 0.2); color: var(--accent-primary); }
 .status-badge.bossapproval { background: rgba(255, 204, 0, 0.2); color: var(--status-hold); }
 .status-badge.completed { background: rgba(0, 255, 149, 0.2); color: var(--status-running); }
+
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+}

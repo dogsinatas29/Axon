@@ -56,6 +56,12 @@ fn build_component(name: String, path: String, code: &str) -> Component {
         associated_files: Vec::new(),
         is_entrypoint: false,
         data_models: Vec::new(),
+        metadata: BTreeMap::new(),
+        allowed_includes: BTreeSet::new(),
+        forbidden_includes: BTreeSet::new(),
+        forbidden_symbols: BTreeSet::new(),
+        tier: ComponentTier::Core,
+        is_blocking: true,
     }
 }
 

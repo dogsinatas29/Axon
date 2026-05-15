@@ -165,6 +165,12 @@ mod tests {
             associated_files: Vec::new(),
             is_entrypoint: false,
             data_models: Vec::new(),
+            metadata: std::collections::BTreeMap::new(),
+            allowed_includes: std::collections::BTreeSet::new(),
+            forbidden_includes: std::collections::BTreeSet::new(),
+            forbidden_symbols: std::collections::BTreeSet::new(),
+            tier: crate::schema::ComponentTier::Core,
+            is_blocking: true,
         });
         ir.components.insert("b.c".to_string(), Component {
             name: "B".to_string(),
@@ -174,6 +180,12 @@ mod tests {
             associated_files: Vec::new(),
             is_entrypoint: false,
             data_models: Vec::new(),
+            metadata: std::collections::BTreeMap::new(),
+            allowed_includes: std::collections::BTreeSet::new(),
+            forbidden_includes: std::collections::BTreeSet::new(),
+            forbidden_symbols: std::collections::BTreeSet::new(),
+            tier: crate::schema::ComponentTier::Core,
+            is_blocking: true,
         });
 
         let graph = DependencyGraph::from_ir(&ir);

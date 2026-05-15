@@ -15,6 +15,8 @@ pub struct Thread {
     pub status: ThreadStatus,
     pub author: String,
     pub milestone_id: Option<String>,
+    pub task_kind: Option<TaskKind>,
+    pub rejection_count: u32,
     pub created_at: DateTime<Local>,
     pub updated_at: DateTime<Local>,
 }
@@ -98,6 +100,17 @@ impl Task {
 pub enum TaskKind {
     HeaderDecl,
     SourceImpl,
+    Integrator, // v0.0.28: Final Entry Point Integration
+}
+
+impl TaskKind {
+    pub fn phase(&self) -> u32 {
+        match self {
+            TaskKind::HeaderDecl => 1,
+            TaskKind::SourceImpl => 2,
+            TaskKind::Integrator => 3,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -207,6 +220,14 @@ pub enum EventType {
     SystemWarning,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+pub enum EventLevel {
+    Info,
+    Warning,
+    Error,
+    Critical,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Event {
     pub id: String,
@@ -214,6 +235,7 @@ pub struct Event {
     pub thread_id: Option<String>,
     pub agent_id: Option<String>,
     pub event_type: EventType,
+    pub level: EventLevel,
     pub source: String, // e.g., "daemon", "agent_id", "dispatcher"
     pub content: String,
     pub payload: Option<serde_json::Value>,

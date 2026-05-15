@@ -23,6 +23,7 @@ pub mod composer;
 use axon_core::{Agent, Post, PostType, AgentRole};
 pub use axon_core::{Task, DecomposedTask};
 use axon_model::{ModelDriver, ModelResponse};
+use axon_ir::{ComponentTier, default_true};
 use std::sync::{Arc, Mutex};
 use std::collections::{HashMap, VecDeque, BTreeMap, BTreeSet};
 use chrono::{DateTime, Local};
@@ -116,6 +117,7 @@ pub struct AgentRuntime {
     pub throttler: Option<Arc<tokio::sync::Semaphore>>,
     pub hot_cache: Arc<Mutex<HotRuleCache>>,
     pub project_id: String,
+    pub ir: Option<axon_core::ir::ProjectIR>, // v0.0.28: Architectural Contract
 }
 
 impl AgentRuntime {
@@ -139,11 +141,17 @@ impl AgentRuntime {
             throttler: None,
             hot_cache: Arc::new(Mutex::new(HotRuleCache::new())),
             project_id: "default-project".to_string(),
+            ir: None,
         }
     }
 
     pub fn with_project(mut self, project_id: String) -> Self {
         self.project_id = project_id;
+        self
+    }
+
+    pub fn with_ir(mut self, ir: axon_core::ir::ProjectIR) -> Self {
+        self.ir = Some(ir);
         self
     }
 
@@ -206,6 +214,7 @@ impl AgentRuntime {
                 thread_id: thread_id.clone(),
                 agent_id: Some(self.agent.id.clone()),
                 event_type: axon_core::EventType::AgentAction,
+                    level: axon_core::EventLevel::Info,
                 source: self.agent.id.clone(),
                 content: format!("Agent {} is thinking/generating response...", self.agent.name),
                 payload: None,
@@ -235,6 +244,7 @@ impl AgentRuntime {
                             thread_id: thread_id.clone(),
                             agent_id: Some(self.agent.id.clone()),
                             event_type: axon_core::EventType::AgentResponse,
+                    level: axon_core::EventLevel::Info,
                             source: self.agent.id.clone(),
                             content: format!("Agent {} completed generation.", self.agent.name),
                             payload: None,
@@ -262,6 +272,7 @@ impl AgentRuntime {
                                     thread_id: thread_id.clone(),
                                     agent_id: Some(self.agent.id.clone()),
                                     event_type: axon_core::EventType::SystemWarning,
+                    level: axon_core::EventLevel::Info,
                                     source: self.agent.id.clone(),
                                     content: format!("⚠️ API Quota Limit. Agent entering Standby for {:.0} seconds...", wait_secs),
                                     payload: None,
@@ -374,11 +385,97 @@ impl AgentRuntime {
             filtered_guide
         };
 
+        // v0.0.28: Executable Architecture Contract (Strict Rules)
+        let mut constraint_block = String::new();
+        if let Some(ref ir) = self.ir {
+            if let Some(comp) = ir.get_component(target_file) {
+                constraint_block.push_str("### 🔒 EXECUTABLE CONTRACT CONSTRAINTS ###\n");
+                
+                if !comp.allowed_includes.is_empty() {
+                    constraint_block.push_str("- **ALLOWED INCLUDES**: Only these are permitted: ");
+                    constraint_block.push_str(&comp.allowed_includes.iter().cloned().collect::<Vec<_>>().join(", "));
+                    constraint_block.push('\n');
+                }
+                
+                if !comp.forbidden_includes.is_empty() {
+                    constraint_block.push_str("- **FORBIDDEN INCLUDES**: DO NOT include these: ");
+                    constraint_block.push_str(&comp.forbidden_includes.iter().cloned().collect::<Vec<_>>().join(", "));
+                    constraint_block.push('\n');
+                }
+                
+                if !comp.forbidden_symbols.is_empty() {
+                    constraint_block.push_str("- **FORBIDDEN LOGIC**: This module MUST NOT contain: ");
+                    constraint_block.push_str(&comp.forbidden_symbols.iter().cloned().collect::<Vec<_>>().join(", "));
+                    constraint_block.push('\n');
+                }
+
+                if let Some(owner) = comp.metadata.get("ownership") {
+                    constraint_block.push_str(&format!("- **OWNERSHIP**: This module owns the logic for: {}\n", owner));
+                }
+
+                if !comp.functions.is_empty() {
+                    constraint_block.push_str("- **REQUIRED FUNCTIONS**: You MUST implement these exact signatures:\n");
+                    for func in comp.functions.values() {
+                        constraint_block.push_str(&format!("  - {}\n", func.signature));
+                    }
+                }
+            }
+        }
+
+        // v0.0.28: Topological Integrator Context
+        if let Some(kind) = task.task_kind {
+            if kind == axon_core::TaskKind::Integrator {
+                if let Some(ref ir) = self.ir {
+                    constraint_block.push_str("\n### 🔗 GLOBAL SYMBOL REGISTRY (INTEGRATION TARGETS) ###\n");
+                    constraint_block.push_str("You MUST call functions from these modules to ensure project integration:\n");
+                    for (path, comp) in &ir.components {
+                        if comp.is_entrypoint { continue; }
+                        // v0.0.29.25: Pruning Awareness
+                        // In an ideal world, we'd check if the file exists here, but the agent is stateless.
+                        // We rely on the Daemon to have already pruned the IR or tasks.
+                        // However, as a safeguard, we mark optional components as potentially missing.
+                        let tier_tag = if !comp.is_blocking { " [OPTIONAL]" } else { "" };
+                        
+                        for func in comp.functions.values() {
+                            constraint_block.push_str(&format!("- {}: {}{}\n", path, func.signature, tier_tag));
+                        }
+                    }
+                    constraint_block.push_str("\n**PRUNING RULE**: If an [OPTIONAL] module is missing from the project, do NOT attempt to call its functions. Comment out the integration code for it.\n");
+                    constraint_block.push_str("**DO NOT** generate a simple placeholder. You are the final glue of the project.\n");
+                }
+            }
+        }
+
+
+        let mut c_rule_block = String::new();
+        if target_file.ends_with(".c") {
+            c_rule_block.push_str("\n### ⚠️ [CRITICAL_C_CONSTITUTION - MANDATORY] ###\n");
+            c_rule_block.push_str("1. **MANDATORY INCLUDES**: You MUST include `<stdio.h>`, `<stdlib.h>`, and `<string.h>` at the top. ALSO include your corresponding .h file (e.g., `#include \"database.h\"`) FIRST before other logic.\n");
+            c_rule_block.push_str("2. **ABI INTEGRITY**: You MUST use EXACT function names and signatures from the architecture. NO variations allowed (e.g., `init_db` vs `init_database` is a FAILURE).\n");
+            c_rule_block.push_str("3. **SQLITE3 SAFETY**: NEVER use `strncpy` or `memcpy` into `sqlite3_column_text()` results. These are READ-ONLY. Copy to a local buffer instead. `sqlite3_exec` must pass `&zErrMsg` for error reporting.\n");
+            c_rule_block.push_str("4. **NO HALLUCINATED LIBRARIES**: ONLY include headers defined in the architecture or standard C headers. Do NOT add `sqlite3.h` to non-database modules.\n");
+            c_rule_block.push_str("5. **STRING LITERALS**: Do NOT break string literals with newlines in the source. Use `\\n` within a single line literal.\n");
+            c_rule_block.push_str("6. **STRUCT VISIBILITY**: If the IR defines a struct (e.g., `struct user_record`), you MUST define it or include the header that defines it. Do NOT invent new struct names.\n");
+            c_rule_block.push_str("7. **SEMANTIC SEALING (v0.0.29)**: If the architecture lacks a strict 'struct' definition or 'ownership' policy for a function you need to implement, DO NOT GUESS. Output 'ERROR: INSUFFICIENT_SEMANTICS - Missing [Struct/Policy Name]' and terminate.\n");
+            c_rule_block.push_str("VIOLATION OF THIS CONSTITUTION WILL TRIGGER AN IMMEDIATE REJECT SIGNAL.\n");
+        } else if target_file.ends_with(".h") {
+            c_rule_block.push_str("\n### ⚠️ [CRITICAL WARNING - MANDATORY C HEADER RULE] ###\n");
+            c_rule_block.push_str("1. You are writing a PURE C HEADER FILE (.h).\n");
+            c_rule_block.push_str("2. MUST include Header Guards (#ifndef, #define, #endif).\n");
+            c_rule_block.push_str("3. DECLARATIONS ONLY. ABSOLUTELY NO FUNCTION BODIES ( { ... } ).\n");
+            c_rule_block.push_str("4. ONLY signatures with a semicolon at the end (e.g., int func(int);).\n");
+            c_rule_block.push_str("If you include a function body in this header, the Senior will reject it and you will be penalized.\n");
+        }
 
         let system_prompt = format!(
-            "### [ROLE: AI JUNIOR AGENT - {persona_name}] ###\n\
+            "### 🏛️ SOVEREIGN CONSTITUTION (v0.0.29 GLOBAL MANDATES) ###\n\
+             1. **TECH STACK**: MUST use SQLite3 for persistence as defined in spec.md. NO local arrays or files unless specified.\n\
+             2. **C STANDARDS**: MUST follow C99. Use 'strncpy', 'strncat', 'snprintf' for security.\n\
+             3. **HEADER FREEZE**: Headers (.h) are for DECLARATIONS ONLY. NO function bodies allowed.\n\n\
+             ### [ROLE: AI JUNIOR AGENT - {persona_name}] ###\n\
              LANGUAGE: {lang_name}\n\
              {lang_instruction}\n\n\
+             {c_rule_block}\
              ### 🏛️ IR CONTRACT ENFORCEMENT (ABSOLUTE SSOT) ###\n\
              1. **EXACT MAPPING**: You MUST use the EXACT function names and signatures defined in the ARCHITECTURE GUIDE below. Renaming is FORBIDDEN.\n\
              2. **CONSISTENCY > QUALITY**: Even if you think a different name or structure is 'better', YOU MUST NOT CHANGE THE IR. You are an EXECUTOR, not an architect.\n\
@@ -386,6 +483,7 @@ impl AgentRuntime {
              4. **C/C++ INTERFACE RULE**: Implementation files (.c/.cpp) MUST #include their corresponding .h file FIRST.\n\
              5. **C SYNTAX SAFETY**: No multiline string breaks without escapes. Ensure proper null termination.\n\
              6. **NO STUBS**: Implement FULL functional logic. No placeholders or TODOs allowed.\n\n\
+             {constraint_block}\n\
              ### 🗺️ ARCHITECTURE GUIDE (YOUR CONTRACT) ###\n\
              {short_guide}\n\n\
              ### 📋 TASK DETAILS ###\n\
@@ -417,7 +515,9 @@ impl AgentRuntime {
             t_title = task.title,
             t_desc = task.description,
             feedback_block = feedback_block,
-            existing_code = existing_code
+            existing_code = existing_code,
+            constraint_block = constraint_block,
+            c_rule_block = c_rule_block
         );
 
         let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone()), 0).await?;
@@ -494,7 +594,7 @@ impl AgentRuntime {
             id: uuid::Uuid::new_v4().to_string(),
             thread_id: task.id.clone(),
             author_id: self.agent.id.clone(),
-            content: full_code.clone().unwrap_or(resp.text), // v0.0.32: Prioritize clean code for materializer
+            content: full_code.clone().unwrap_or(resp.text), // v0.0.29: Prioritize clean code for materializer
             thought,
             full_code,
             post_type: PostType::Proposal,
@@ -512,10 +612,10 @@ impl AgentRuntime {
     }
 
     pub async fn generate_ir(&self, spec: &str, hint: Option<String>, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::ir::ProjectIR> {
-        self.generate_ir_with_context(spec, hint, 0, event_bus).await
+        self.generate_ir_with_context(spec, hint, None, 0, event_bus).await
     }
 
-    pub async fn generate_ir_with_context(&self, spec: &str, hint: Option<String>, context_size: usize, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::ir::ProjectIR> {
+    pub async fn generate_ir_with_context(&self, spec: &str, hint: Option<String>, constraints: Option<&axon_core::spec::ImmutableConstraints>, context_size: usize, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::ir::ProjectIR> {
         // v0.0.22: Token Overflow Protection (Simple Truncate for 1.8B models)
         let model_name = self.agent.model.to_lowercase();
         let is_small = model_name.contains("qwen") || model_name.contains("1.8b") || model_name.contains("2b");
@@ -539,8 +639,15 @@ impl AgentRuntime {
             "".to_string()
         };
 
+        let constraint_block = if let Some(c) = constraints {
+            format!("\n### 🔒 IMMUTABLE CONSTRAINTS (MANDATORY) ###\n{}\n\n", serde_json::to_string_pretty(c).unwrap())
+        } else {
+            "".to_string()
+        };
+
         let system_prompt = format!(
             "{}\
+             {}\
              ### [LANGUAGE: {lang_name}] ###\n\
              - {lang_instruction}\n\n\
              ### ROLE: CTO & CHIEF ARCHITECT (L-DDP Isolation Mode) ###\n\
@@ -549,12 +656,16 @@ impl AgentRuntime {
              1. **RETURN ONLY VALID JSON**.\n\
              2. **NO EXPLANATIONS**.\n\
              3. **ENVELOPE**: Wrap your JSON between <JSON_START> and <JSON_END> tokens.\n\n\
+             ### IMMUTABLE RULES ###\n\
+             - You MUST respect the status (Core/Optional) defined in the constraints.\n\
+             - DO NOT promote 'Optional' to 'Core'.\n\
+             - DO NOT mark 'Optional' components as 'is_blocking: true'.\n\n\
              ### SOURCE SPEC ###\n\
              {}\n\n\
              ### EXPECTED JSON SCHEMA (MANDATORY: EXTRACT ALL MODULES FROM SPEC) ###\\n\\
              <JSON_START>\\n\\
              {{\\n\\
-               \"node_mapping\": {{ \"SPEC_NODE\": \"func\" }},\\n\\
+               \"node_mapping\": {{ \"SPEC_NODE\": \"file\" }},\\n\\
                \"components\": [\\n\\
                  {{\\n\\
                    \"name\": \"src/main.c\",\\n\\
@@ -580,7 +691,7 @@ impl AgentRuntime {
              CRITICAL: You MUST analyze the SOURCE SPEC and extract EVERY module, EVERY function, and EVERY header defined there.\\n\\
              FOR C PROJECTS: Every module (except main) MUST have a .h header in include/ and a .c source in src/. DO NOT truncate. DO NOT simplify.\\n\\
              Generate JSON Specification NOW:",
-            feedback_block, processed_spec
+            feedback_block, constraint_block, processed_spec
         );
 
         let mut last_err = String::new();
@@ -747,7 +858,9 @@ impl AgentRuntime {
                 "name": comp.name,
                 "file": comp.file_path,
                 "functions": json_functions,
-                "type": if comp.name.contains("main") { "entry" } else { "module" }
+                "type": if comp.name.contains("main") { "entry" } else { "module" },
+                "tier": comp.tier,
+                "is_blocking": comp.is_blocking
             }));
         }
         
@@ -757,6 +870,66 @@ impl AgentRuntime {
         md.push_str("\n-->\n");
         
         Ok(md)
+    }
+
+    pub async fn process_spec_analysis(&self, spec_content: &str, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<axon_core::spec::ImmutableConstraints> {
+        let (lang_name, _lang_instruction) = match self.locale.as_str() {
+            "ko_KR" => ("한국어 (Korean)", "응답은 한국어로 작성하십시오."),
+            "ja_JP" => ("日本語 (Japanese)", "日本語で作成してください。"),
+            _ => ("English", "Write in English."),
+        };
+
+        let log_msg = match self.locale.as_str() {
+            "ko_KR" => format!("요원 {} (아키텍트) 명세 분석 중: 불변 제약 조건 추출...", self.agent.id),
+            _ => format!("Agent {} (Architect) Analyzing Spec: Extracting Immutable Constraints...", self.agent.id),
+        };
+        tracing::info!("{}", log_msg);
+
+        let system_prompt = format!(
+            "### SPEC CONSTRAINT EXTRACTOR (v0.0.29.25 [SEMANTIC_STABILITY]) ###\n\
+             ROLE: CHIEF COMPLIANCE OFFICER. EXTRACT IMMUTABLE CONSTRAINTS FROM THE SPEC.\n\
+             YOUR GOAL: Identify which components are 'Optional' and which are 'Core/Required' as per the HUMAN specification.\n\n\
+             ### EXTRACTION RULES ###\n\
+             1. LANGUAGE: {}.\n\
+             2. FORMAT: VALID JSON OBJECT ONLY.\n\
+             3. SCHEMA:\n\
+             {{\n\
+               \"project_id\": \"id\",\n\
+               \"components\": [\n\
+                 {{ \"name\": \"component_name\", \"status\": \"Core\" | \"Optional\", \"promotion_forbidden\": true, \"blocking_forbidden\": true }}\n\
+               ],\n\
+               \"forbidden_patterns\": [\"word1\", \"word2\"]\n\
+             }}\n\
+             4. OPTIONAL VS CORE: If the spec mentions 'Choice', 'Optional', '선택', '가변', or 'If needed', mark as 'Optional'.\n\
+             5. PROMOTION_FORBIDDEN: Set to true for all 'Optional' components to prevent the Architect from upgrading them to 'Core'.\n\
+             6. BLOCKING_FORBIDDEN: Set to true for all 'Optional' components to prevent them from blocking the build.\n\
+             7. NO HALLUCINATION: Only extract what is explicitly or implicitly mentioned in the spec.\n\n\
+             ### SPECIFICATION SOURCE ###\n\
+             {}\n\n\
+             <JSON_START>\n\
+             Generate Immutable Constraints JSON NOW:",
+            lang_name,
+            spec_content
+        );
+
+        let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), None, 0).await?;
+        
+        // Extract JSON between <JSON_START> and <JSON_END> or just take the raw response
+        let json_text = if let Some(start) = resp.text.find("<JSON_START>") {
+            let remaining = &resp.text[start + "<JSON_START>".len()..];
+            if let Some(end) = remaining.find("<JSON_END>") {
+                remaining[..end].trim().to_string()
+            } else {
+                remaining.trim().to_string()
+            }
+        } else {
+            resp.text.trim().to_string()
+        };
+
+        let constraints: axon_core::spec::ImmutableConstraints = serde_json::from_str(&json_text)
+            .map_err(|e| anyhow::anyhow!("Constraint Parse Error: {} | Raw: {}", e, json_text))?;
+
+        Ok(constraints)
     }
 
     pub async fn process_bootstrap_step1(&self, task: &Task, error_feedback: Option<String>, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
@@ -904,7 +1077,7 @@ impl AgentRuntime {
                  ### 🗺️ REQUIRED MAPPING ###\n\
                  --- CRITICAL: YOU MUST INCLUDE THIS EXACT BLOCK AT THE END ---\n\
                  <!-- AXON:SPEC:COMPONENTS\n\
-                 {{ \"components\": [ {{ \"name\": \"Main\", \"file\": \"main.py\", \"symbols\": [\"main\"], \"type\": \"entry\" }} ] }}\n\
+                 {{ \"components\": [ {{ \"name\": \"Main\", \"file\": \"[ENTRY_FILE]\", \"symbols\": [\"main\"], \"type\": \"entry\" }} ] }}\n\
                  -->\n\n\
                  ### SPECIFICATION SOURCE ###\n\
                  {}\n\n\
@@ -926,24 +1099,45 @@ impl AgentRuntime {
                  Generate a COMPREHENSIVE and EXECUTABLE architecture.md for project: {}.\n\n\
                  {}\n\
                  {}\n\n\
-                 ### 🏛️ ARCHITECTURE PROTOCOL (v0.0.21) ###\n\
-                 YOU MUST follow this structure EXACTLY:\n\
-                 ## Components\n\
-                 - Detailed list of every file and its specific responsibility.\n\n\
-                 ## Data Flow\n\
-                 - Exhaustive step-by-step logic and data movement path.\n\n\
-                 ## File Map\n\
-                 - Direct mapping of modules to file paths.\n\n\
-                 ## Interfaces\n\
-                 - Precise function signatures, arguments, and return types.\n\n\
-                 ### 🔒 HARD CONSTRAINTS (NON-NEGOTIABLE) ###\n\
-                 1. REQUIRED: You MUST include 'main.py' and a '```mermaid' block.\n\
-                 2. FORBIDDEN: NEVER use 'controller' (Use 'orchestrator'), 'manager', or 'hub'.\n\
-                 3. LANGUAGE: Use {}.\n\
-                 4. OUTPUT: ONLY markdown content. NO conversational preamble.\n\n\
+                 ### 🏛️ ARCHITECTURE PROTOCOL (v0.0.29 [SEMANTIC_SEALING]) ###
+                 YOU MUST follow this structure EXACTLY:
+                 ## Components
+                 - Detailed list of every file and its specific responsibility.
+                 - **OPTIONAL ISOLATION**: DO NOT include 'optional' or 'choice' features from spec.md unless specifically instructed.
+                 
+                 ## Data Schema
+                 - EXHAUSTIVE list of all structs, enums, and custom types.
+                 - **NO INFERENCE**: Do NOT invent structs from SQL schemas. Define them ONLY if explicitly required for C interop.
+                 - Every field name and type must be defined here.
+
+                 ## Data Flow
+                 - Exhaustive step-by-step logic and data movement path.
+
+                 ## File Map
+                 - Direct mapping of modules to file paths.
+
+                 ## Interfaces
+                 - Precise function signatures, arguments, and return types.
+                 - **SEMANTIC CONTRACT**: Explicitly define 'Ownership' (Caller/Callee) and 'Error Handling' for EVERY function.
+                 - EVERY custom struct used here MUST be defined in 'Data Schema'.
+
+                 ## Semantic Criticality
+                 - Classify every component as 'core' or 'optional'.
+                 - 'core': Essential for the MVP. `is_blocking: true`.
+                 - 'optional': UI, Logging, or high-complexity features. `is_blocking: false`.
+
+                 ### 🔒 HARD CONSTRAINTS (NON-NEGOTIABLE) ###
+                 1. REQUIRED: You MUST include a 'main' entry file and a '```mermaid' block.
+                 2. FORBIDDEN: NEVER use 'controller' (Use 'orchestrator'), 'manager', or 'hub'.
+                 3. SEMANTIC REDUCTION: If a feature introduces high complexity (e.g. ncurses, external IO) without a clear contract, EXCLUDE it.
+                 4. LANGUAGE: Use {}.
+                 5. OUTPUT: ONLY markdown content. NO conversational preamble.
                  ### 🗺️ REQUIRED MAPPING BLOCK (MANDATORY AT THE END) ###\n\
                  <!-- AXON:SPEC:COMPONENTS\n\
-                 {{ \"components\": [ {{ \"name\": \"Name\", \"file\": \"main.py\", \"symbols\": [\"main\"], \"type\": \"entry\" }} ] }}\n\
+                 {{ \"components\": [ \n\
+                   {{ \"name\": \"Name\", \"file\": \"[ENTRY_FILE]\", \"symbols\": [\"main\"], \"type\": \"entry\" }},\n\
+                   {{ \"name\": \"Header\", \"file\": \"[HEADER_FILE]\", \"symbols\": [], \"type\": \"header\" }}\n\
+                 ] }}\n\
                  -->\n\n\
                  ### SPECIFICATION SOURCE ###\n\
                  {}\n\n\
@@ -1113,15 +1307,21 @@ impl AgentRuntime {
              4. component_id: MUST match the physical file path from architecture (e.g. \"src/main.c\")\n\
              5. title: MUST contain filename (e.g. \"Implement dataprocessor.c\")\n\
              6. NO LEAKAGE: Do NOT include logic in descriptions.\n\
-             7. HEADER-FIRST: .c tasks MUST reference .h counterparts. SCOPE: ONE TASK PER FILE.\n\
-             8. ENVELOPE: Wrap your JSON array between <JSON_START> and <JSON_END> tokens.\n\n\
+             7. MANDATORY IMPLEMENTATION: YOU MUST create tasks for ALL source files (.c, .h, .rs, .py, etc.) in architecture.\n\
+                - For every component (type=\"module\" or type=\"entry\"), create a corresponding task.\n\
+                - NEVER skip the entry point (e.g. main.c).\n\
+             8. SCOPE: ONE TASK PER FILE. DO NOT create separate tasks for individual functions. One task MUST cover the entire file implementation.\n\
+             9. TYPE DEFINITION: Every custom struct/enum defined in the architecture MUST be included in full in its corresponding .h task.\n\
+             10. ENVELOPE: Wrap your JSON array between <JSON_START> and <JSON_END> tokens.\n\n\
              ### ARCHITECTURE GUIDE ###\n\
              {}\n\n\
              ### EXPECTED OUTPUT EXAMPLE ###\n\
              <JSON_START>\n\
              [\n\
                {{ \"id\": \"task_001\", \"title\": \"Implement calculator.h\", \"description\": \"Core interface\", \"component_id\": \"include/calculator.h\" }},\n\
-               {{ \"id\": \"task_002\", \"title\": \"Implement calculator.c\", \"description\": \"Core logic\", \"component_id\": \"src/calculator.c\" }}\n\
+               {{ \"id\": \"task_002\", \"title\": \"Implement calculator.c\", \"description\": \"Core logic\", \"component_id\": \"src/calculator.c\" }},\n\
+               {{ \"id\": \"task_003\", \"title\": \"Implement database.h\", \"description\": \"Database interface\", \"component_id\": \"include/database.h\" }},\n\
+               {{ \"id\": \"task_004\", \"title\": \"Implement database.c\", \"description\": \"Database logic\", \"component_id\": \"src/database.c\" }}\n\
              ]\n\
              <JSON_END>\n\n\
              Generate Decomposed Tasks NOW:",
@@ -1349,6 +1549,10 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
         functions: Vec<RawFunction>,
         #[serde(default)]
         is_entrypoint: bool,
+        #[serde(default)]
+        tier: ComponentTier,
+        #[serde(default = "default_true")]
+        is_blocking: bool,
     }
 
     #[derive(serde::Deserialize)]
@@ -1382,7 +1586,7 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
         } else {
             c.file.clone()
         };
-        // v0.0.32: Use physical file_path as the primary key for IR components
+        // v0.0.29: Use physical file_path as the primary key for IR components
         // This ensures deterministic lookup from DecomposedTasks that use paths as IDs.
         components.insert(file.clone(), Component {
             name: c.name,
@@ -1392,6 +1596,12 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
             associated_files: Vec::new(),
             is_entrypoint: c.is_entrypoint,
             data_models: Vec::new(),
+            metadata: BTreeMap::new(),
+            allowed_includes: BTreeSet::new(),
+            forbidden_includes: BTreeSet::new(),
+            forbidden_symbols: BTreeSet::new(),
+            tier: c.tier,
+            is_blocking: c.is_blocking,
         });
     }
 
@@ -1401,10 +1611,11 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
         constraints: Vec::new(),
         constraint_ids: std::collections::HashSet::new(),
         thought: None,
+        language: None,
     })
 }
 
-/// v0.0.32: Deterministic JSON cleaner for LLM outputs.
+/// v0.0.29: Deterministic JSON cleaner for LLM outputs.
 /// Handles common syntax issues and normalization without LLM retries.
 fn clean_json_robust(json: &str) -> String {
     let mut s = json.trim().to_string();

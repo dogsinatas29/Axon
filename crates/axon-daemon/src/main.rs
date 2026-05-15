@@ -19,16 +19,29 @@
 mod cli;
 
 use axon_daemon::Daemon;
-use axon_model::ModelDriver;
 use clap::Parser;
 use cli::{Cli, Commands};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+use tracing_subscriber::{fmt, Registry, prelude::*};
+use axon_daemon::observability::EventBusLayer;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt::init();
+    // v0.0.29: [DYNAMIC_OBSERVABILITY] Reloadable filter for Stage-aware logging
+    let filter = tracing_subscriber::EnvFilter::new("info");
+    let (filter, reload_handle) = tracing_subscriber::reload::Layer::new(filter);
+
+    let subscriber = Registry::default()
+        .with(filter)
+        .with(fmt::Layer::default())
+        .with(EventBusLayer);
+    tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
+
+    // v0.0.29: Pass handle to EventBus or keep it available for later
+    let logger_handle = Arc::new(reload_handle);
+    
     let cli = Cli::parse();
 
     match cli.command {
@@ -72,6 +85,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             status: axon_core::ThreadStatus::Draft,
                             author: "BOSS".to_string(),
                             milestone_id: None,
+                            task_kind: None,
+                            rejection_count: 0,
                             created_at: chrono::Local::now(),
                             updated_at: chrono::Local::now(),
                         };
@@ -155,25 +170,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 input.trim().to_string()
             }
 
-            // --- PHASE 00: Language Selector ---
+            // v0.0.29: Restore Language Selection Prompt
             let system_locale = std::env::var("LANG").unwrap_or_else(|_| "en_US".to_string());
-            let mut final_locale = if system_locale.contains("ko") { "ko_KR".to_string() }
-                                  else if system_locale.contains("ja") { "ja_JP".to_string() }
-                                  else { "en_US".to_string() };
-
-            let lang_choice = prompt(&format!("Use detected language ({})? [Y/n]: ", final_locale));
-            if lang_choice.to_lowercase() == "n" {
-                println!("\nSelect Factory Language:");
+            let detected_lang = if system_locale.contains("ko") { "ko_KR" }
+                                  else if system_locale.contains("ja") { "ja_JP" }
+                                  else { "en_US" };
+            
+            println!("🌐 Detected System Language: {}", detected_lang);
+            let use_detected = prompt("Use detected language? [Y/n]: ");
+            
+            let final_locale = if use_detected.trim().to_lowercase() == "n" {
+                println!("\nSelect Language / 언어 선택 / 言語選択:");
                 println!("  1. English (en_US)");
                 println!("  2. 한국어 (ko_KR)");
                 println!("  3. 日本語 (ja_JP)");
-                let manual_choice = prompt("Choice [1-3]: ");
-                final_locale = match manual_choice.as_str() {
+                let lang_choice = prompt("Choice (1-3): ");
+                match lang_choice.trim() {
                     "2" => "ko_KR".to_string(),
                     "3" => "ja_JP".to_string(),
                     _ => "en_US".to_string(),
-                };
-            }
+                }
+            } else {
+                detected_lang.to_string()
+            };
             println!("✅ Language Set to: {}\n", final_locale);
 
             let mut available_models = Vec::new();
@@ -186,19 +205,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Ok(content) = std::fs::read_to_string("axon_config.json") {
                     if let Ok(mut parsed) = serde_json::from_str::<AxonConfig>(&content) {
                         parsed.locale = final_locale.clone();
-                        if resume {
-                            fast_cfg = Some(parsed);
-                        } else {
-                            let msg = if final_locale == "ko_KR" { 
-                                "📦 기존 설정(axon_config.json)을 발견했습니다. 빠른 재개를 사용하시겠습니까? [Y/n]: " 
-                            } else if final_locale == "ja_JP" {
-                                "📦 既存の設定 (axon_config.json) が見つかりました。高速再開を使用しますか？ [Y/n]: "
-                            } else { 
-                                "📦 Existing factory settings (axon_config.json) found. Fast Resume? [Y/n]: " 
-                            };
-                            let choice = prompt(msg);
-                            if choice.trim().to_lowercase() != "n" { fast_cfg = Some(parsed); }
-                        }
+                        let msg = if final_locale == "ko_KR" { 
+                            "📦 기존 설정(axon_config.json)을 발견했습니다. 빠른 재개를 사용하시겠습니까? [Y/n]: " 
+                        } else if final_locale == "ja_JP" {
+                            "📦 既存の設定(axon_config.json)が見つかりました。高速再開を使用しますか？ [Y/n]: "
+                        } else { 
+                            "📦 Existing factory settings (axon_config.json) found. Fast Resume? [Y/n]: " 
+                        };
+                        let choice = prompt(msg);
+                        if choice.trim().to_lowercase() != "n" { fast_cfg = Some(parsed); }
                     }
                 }
             }
@@ -228,245 +243,88 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             };
 
-            // --- SMART MODEL DISCOVERY (v0.0.28) ---
-            // v0.0.28: Prioritize DeepSeek-Coder-V2:Lite for its superior instruction obedience
-            let mut default_model = "deepseek-coder-v2:lite".to_string();
-            let temp_drv = Arc::new(axon_model::OllamaDriver::new("http://localhost:11434".to_string(), "".into()));
-            if let Ok(models) = temp_drv.list_available_models().await {
-                let best_match = models.iter()
-                    .find(|m| m.contains("deepseek") && m.contains("lite"))
-                    .or_else(|| models.iter().find(|m| m.contains("qwen2.5") && m.contains("instruct")))
-                    .or_else(|| models.iter().find(|m| m.contains("deepseek")))
-                    .or_else(|| models.iter().find(|m| m.contains("qwen2.5")))
-                    .or_else(|| models.iter().find(|m| m.contains("instruct")))
-                    .or_else(|| models.first());
-
-                if let Some(found) = best_match {
-                    default_model = found.clone();
-                    tracing::info!("✨ [AUTO_DISCOVERY] No config found. Using best available local model: {}", default_model);
-                } else {
-                    tracing::warn!("⚠️ [OOB_WARNING] No local models found in Ollama. Falling back to default: {}. Please run 'ollama pull deepseek-coder-v2:lite'", default_model);
-                }
-            }
 
             let (architect_model, arch_name, senior_models, senior_model_names, junior_models, junior_model_names) = if let Some(cfg) = &fast_cfg {
-                let msg = if final_locale == "ko_KR" { 
-                    "✅ 저장된 설정으로부터 공장 가동을 재개합니다..." 
-                } else if final_locale == "ja_JP" {
-                    "✅ 保存された設定から工場稼働を再開します..."
-                } else { 
-                    "✅ Resuming factory operation from saved configuration..." 
-                };
+                let msg = if final_locale == "ko_KR" { "✅ 저장된 설정으로부터 공장 가동을 재개합니다..." } else if final_locale == "ja_JP" { "✅ 保存された設定から工場の稼働を再開します..." } else { "✅ Resuming factory operation..." };
                 println!("{}", msg);
                 let arch_drv = get_drv(&cfg.agents.architect);
                 let mut s_drvs = Vec::new();
                 let mut s_names = Vec::new();
-                for s_cfg in &cfg.agents.seniors { 
-                    s_drvs.push(get_drv(s_cfg)); 
-                    s_names.push(s_cfg.model.clone());
-                }
+                for s_cfg in &cfg.agents.seniors { s_drvs.push(get_drv(s_cfg)); s_names.push(s_cfg.model.clone()); }
                 let mut j_drvs = Vec::new();
                 let mut j_names = Vec::new();
-                for j_cfg in &cfg.agents.juniors { 
-                    j_drvs.push(get_drv(j_cfg)); 
-                    j_names.push(j_cfg.model.clone());
-                }
+                for j_cfg in &cfg.agents.juniors { j_drvs.push(get_drv(j_cfg)); j_names.push(j_cfg.model.clone()); }
                 (arch_drv, cfg.agents.architect.model.clone(), s_drvs, s_names, j_drvs, j_names)
             } else {
                 let arch_config: AgentConfig;
                 let mut senior_configs = Vec::new();
                 let mut junior_configs = Vec::new();
-
                 let mut global_local_endpoint: Option<String> = None;
                 let mut use_global_endpoint = false;
 
-                async fn recruit_agent_async(
-                    role: &str, 
-                    available_models: &Vec<(&str, String)>, 
-                    locale: &str,
-                    cached_endpoint: &mut Option<String>,
-                    use_cached: &mut bool
-                ) -> AgentConfig {
-                    let title = if locale == "ko_KR" { 
-                        format!("{} 모집", role) 
-                    } else if locale == "ja_JP" {
-                        format!("{} 募集", role)
-                    } else { 
-                        format!("RECRUITING: {}", role.to_uppercase()) 
-                    };
-                    println!("\n--- [{}] ---", title);
-                    if locale == "ko_KR" { 
-                        println!("🔍 사용 가능한 엔진:"); 
-                    } else if locale == "ja_JP" {
-                        println!("🔍 利用可能なエンジン:");
-                    } else { 
-                        println!("Q Available Intelligence:"); 
-                    }
-                    for (i, (name, _)) in available_models.iter().enumerate() { println!("  {}. {}", i + 1, name); }
-                    println!("  L. LocalAI (Custom Endpoint)");
+                async fn recruit_agent_async(role: &str, _available_models: &Vec<(&str, String)>, locale: &str, cached_endpoint: &mut Option<String>, use_cached: &mut bool) -> AgentConfig {
+                    let recruit_header = if locale == "ko_KR" { format!("\n--- [{} 모집] ---", role) } else if locale == "ja_JP" { format!("\n--- [{} 募集] ---", role) } else { format!("\n--- [Recruiting {}] ---", role) };
+                    println!("{}", recruit_header);
                     
-                    let msg = if locale == "ko_KR" { 
-                        format!("{}를 위한 제공자 선택 (번호 또는 L): ", role) 
-                    } else if locale == "ja_JP" {
-                        format!("{} のプロバイダーを選択 (番号または L): ", role)
-                    } else { 
-                        format!("Select Provider for {} (Number or L): ", role) 
-                    };
-                    let p_idx_str = prompt(&msg);
+                    let engine_list = if locale == "ko_KR" { "🔍 사용 가능한 엔진: (1. Gemini, L. LocalAI)" } else if locale == "ja_JP" { "🔍 使用可能なエンジン: (1. Gemini, L. LocalAI)" } else { "🔍 Available Engines: (1. Gemini, L. LocalAI)" };
+                    println!("{}", engine_list);
+                    
+                    let provider_prompt = if locale == "ko_KR" { format!("{}를 위한 제공자 선택 (번호 또는 L): ", role) } else if locale == "ja_JP" { format!("{}のためのプロバイダー選択 (番号または L): ", role) } else { format!("Select provider for {} (Number or L): ", role) };
+                    let p_idx_str = prompt(&provider_prompt);
+                    
                     let (runtime, provider, endpoint) = if p_idx_str.to_lowercase() == "l" {
-                        let ep = if *use_cached && cached_endpoint.is_some() {
-                            cached_endpoint.clone().unwrap()
-                        } else {
+                        let ep = if *use_cached && cached_endpoint.is_some() { cached_endpoint.clone().unwrap() } else {
                             loop {
-                                let msg_e = if locale == "ko_KR" { 
-                                    "로컬 엔드포인트 입력: " 
-                                } else if locale == "ja_JP" {
-                                    "ローカルエンドポイントを入力: "
-                                } else { 
-                                    "Enter Local Endpoint: " 
-                                };
-                                let input_ep = prompt(&msg_e).trim_end_matches('/').to_string();
+                                let ep_prompt = if locale == "ko_KR" { "로컬 엔드포인트 입력: " } else if locale == "ja_JP" { "ローカルエンドポイント入力: " } else { "Enter local endpoint: " };
+                                let input_ep = prompt(ep_prompt).trim_end_matches('/').to_string();
                                 
-                                // v0.0.28: Connectivity Guard
-                                let msg_v = if locale == "ko_KR" { 
-                                    format!("⏳ {} 연결 확인 중...", input_ep) 
-                                } else if locale == "ja_JP" {
-                                    format!("⏳ {} 接続確認中...", input_ep)
-                                } else { 
-                                    format!("⏳ Validating connection to {}...", input_ep) 
-                                };
-                                println!("{}", msg_v);
+                                let wait_msg = if locale == "ko_KR" { format!("⏳ {} 연결 확인 중...", input_ep) } else if locale == "ja_JP" { format!("⏳ {} 接続確認中...", input_ep) } else { format!("⏳ Checking connection to {}...", input_ep) };
+                                println!("{}", wait_msg);
                                 
-                                match reqwest::Client::builder()
-                                    .timeout(std::time::Duration::from_secs(3))
-                                    .build()
-                                    .unwrap()
-                                    .get(&input_ep)
-                                    .send()
-                                    .await 
-                                {
-                                    Ok(_) => {
-                                        let msg_ok = if locale == "ko_KR" { "✅ [SUCCESS] 엔드포인트에 접속 가능합니다.\n" } else if locale == "ja_JP" { "✅ [SUCCESS] エンドポイントに接続可能です。\n" } else { "✅ [SUCCESS] Endpoint is reachable.\n" };
-                                        println!("{}", msg_ok);
-                                        break input_ep;
-                                    }
-                                    Err(e) => {
-                                        let msg_f = if locale == "ko_KR" { 
-                                            format!("❌ [CONNECTION FAILED]: {}\n다시 입력하시겠습니까? (서버가 켜져 있는지 확인하세요)", e) 
-                                        } else if locale == "ja_JP" {
-                                            format!("❌ [接続失敗]: {}\n再入力しますか？ (サーバーが起動しているか確認してください)", e)
-                                        } else { 
-                                            format!("❌ [CONNECTION FAILED]: {}\nRetry? (Ensure your local AI server is running)", e) 
-                                        };
-                                        println!("{}", msg_f);
-                                    }
+                                if reqwest::get(&input_ep).await.is_ok() { 
+                                    let success_msg = if locale == "ko_KR" { "✅ [SUCCESS] 접속 가능합니다.\n" } else if locale == "ja_JP" { "✅ [SUCCESS] 接続可能です。\n" } else { "✅ [SUCCESS] Connection established.\n" };
+                                    println!("{}", success_msg); 
+                                    break input_ep; 
                                 }
+                                
+                                let fail_msg = if locale == "ko_KR" { "❌ [FAILED] 접속 실패. 다시 입력하세요." } else if locale == "ja_JP" { "❌ [FAILED] 接続失敗。再入力してください。" } else { "❌ [FAILED] Connection failed. Please retry." };
+                                println!("{}", fail_msg);
                             }
                         };
-
                         if cached_endpoint.is_none() {
                             *cached_endpoint = Some(ep.clone());
-                            let msg_q = if locale == "ko_KR" { 
-                                "이후 모든 요원에게 이 주소를 동일하게 적용할까요? [Y/n]: " 
-                            } else if locale == "ja_JP" {
-                                "以降のすべてのエージェントにこのアドレスを適用しますか？ [Y/n]: "
-                            } else { 
-                                "Use this endpoint for all subsequent agents? [Y/n]: " 
-                            };
-                            if prompt(&msg_q).to_lowercase() != "n" {
-                                *use_cached = true;
-                            }
+                            let apply_all_prompt = if locale == "ko_KR" { "이후 모든 요원에게 이 주소를 동일하게 적용할까요? [Y/n]: " } else if locale == "ja_JP" { "以降のすべてのエージェントにこのアドレスを適用しますか？ [Y/n]: " } else { "Apply this endpoint to all future agents? [Y/n]: " };
+                            if prompt(apply_all_prompt).to_lowercase() != "n" { *use_cached = true; }
                         }
                         ("local".to_string(), None, Some(ep))
-                    } else {
-                        let idx: usize = p_idx_str.parse().unwrap_or(1);
-                        let name = available_models.get(idx - 1).map(|(n, _)| *n).unwrap_or("Gemini");
-                        ("cloud".to_string(), Some(name.to_lowercase()), None)
-                    };
+                    } else { ("cloud".to_string(), Some("gemini".to_string()), None) };
 
-                    let drv: Arc<dyn axon_model::ModelDriver + Send + Sync> = if runtime == "cloud" {
-                        let provider_name = provider.as_deref().unwrap_or("gemini");
-                        let key = match provider_name {
-                            "gemini" => std::env::var("GEMINI_API_KEY").unwrap_or_default(),
-                            "claude" => std::env::var("CLAUDE_API_KEY").unwrap_or_default(),
-                            "openai" => std::env::var("OPEN_AI_KEY").unwrap_or_default(),
-                            _ => "".to_string()
-                        };
-                        match provider_name {
-                            "gemini" => Arc::new(axon_model::GeminiDriver::new(key, "".into())),
-                            "claude" => Arc::new(axon_model::ClaudeDriver::new(key, "".into())),
-                            "openai" => Arc::new(axon_model::OpenAIDriver::new(key, "".into())),
-                            _ => Arc::new(axon_model::MockDriver),
-                        }
-                    } else {
+                    let drv: Arc<dyn axon_model::ModelDriver + Send + Sync> = if runtime == "local" {
                         Arc::new(axon_model::OllamaDriver::new(endpoint.clone().unwrap_or_default(), "".into()))
-                    };
+                    } else { Arc::new(axon_model::MockDriver) };
 
-                    let msg_d = if locale == "ko_KR" { 
-                        format!("🔍 {}를 위한 모델 검색 중...", role) 
-                    } else if locale == "ja_JP" {
-                        format!("🔍 {} のモデルを検索中...", role)
-                    } else { 
-                        format!("🔍 Discovering models for {}...", role) 
-                    };
-                    println!("{}", msg_d);
                     let mut model_name = String::new();
                     if let Ok(models) = drv.list_available_models().await {
-                        if !models.is_empty() {
-                            if locale == "ko_KR" { 
-                                println!("사용 가능한 모델:"); 
-                            } else if locale == "ja_JP" {
-                                println!("利用可能なモデル:");
-                            } else { 
-                                println!("Available Models:"); 
-                            }
-                            for (i, m) in models.iter().enumerate() { println!("  {}. {}", i + 1, m); }
-                            let msg_m = if locale == "ko_KR" { 
-                                "번호 선택 (또는 이름 입력): " 
-                            } else if locale == "ja_JP" {
-                                "番号を選択 (または名前を入力): "
-                            } else { 
-                                "Select Number (or type name): " 
-                            };
-                            let m_idx_str = prompt(&msg_m);
-                            if let Ok(m_idx) = m_idx_str.parse::<usize>() { if let Some(m) = models.get(m_idx - 1) { model_name = m.clone(); } }
-                            if model_name.is_empty() { model_name = m_idx_str; }
-                        }
-                    }
-
-                    // v0.0.28: Model Name Sanitization Guard
-                    // If model_name is still empty or looks like a URL (mistaken input), ask again
-                    while model_name.is_empty() || model_name.starts_with("http") { 
-                        let msg_man = if locale == "ko_KR" { 
-                            "모델명 직접 입력 (URL이 아닌 모델명을 입력하세요): " 
-                        } else if locale == "ja_JP" {
-                            "モデル名を直接入力 (URLではなくモデル名を入力してください): "
-                        } else { 
-                            "Enter Model Name (Enter name, NOT a URL): " 
-                        };
-                        model_name = prompt(&msg_man); 
+                        let avail_models_msg = if locale == "ko_KR" { "사용 가능한 모델:" } else if locale == "ja_JP" { "使用可能なモデル:" } else { "Available models:" };
+                        println!("{}", avail_models_msg);
+                        for (i, m) in models.iter().enumerate() { println!("  {}. {}", i + 1, m); }
+                        
+                        let select_msg = if locale == "ko_KR" { "번호 선택 (또는 이름 입력): " } else if locale == "ja_JP" { "番号選択 (または名前入力): " } else { "Select number (or enter name): " };
+                        let m_idx_str = prompt(select_msg);
+                        if let Ok(m_idx) = m_idx_str.parse::<usize>() { if let Some(m) = models.get(m_idx - 1) { model_name = m.clone(); } }
+                        if model_name.is_empty() { model_name = m_idx_str; }
                     }
                     AgentConfig { runtime, provider, endpoint, model: model_name }
                 }
 
                 arch_config = recruit_agent_async("Architect", &available_models, &final_locale, &mut global_local_endpoint, &mut use_global_endpoint).await;
-                let msg_s = if final_locale == "ko_KR" { 
-                    "\n시니어 요원 수 (기본 1): " 
-                } else if final_locale == "ja_JP" {
-                    "\nシニアエージェントの数 (デフォルト 1): "
-                } else { 
-                    "\nNumber of Seniors (default 1): " 
-                };
-                let senior_count: usize = prompt(&msg_s).parse().unwrap_or(1);
+                
+                let senior_count_prompt = if final_locale == "ko_KR" { "\n시니어 요원 수 (기본 1): " } else if final_locale == "ja_JP" { "\nシニアエージェント数 (基本 1): " } else { "\nNumber of Senior Agents (Default 1): " };
+                let senior_count: usize = prompt(senior_count_prompt).parse().unwrap_or(1);
                 for i in 0..senior_count { senior_configs.push(recruit_agent_async(&format!("Senior #{}", i + 1), &available_models, &final_locale, &mut global_local_endpoint, &mut use_global_endpoint).await); }
-                let msg_j = if final_locale == "ko_KR" { 
-                    "\n주니어 요원 수 (기본 1): " 
-                } else if final_locale == "ja_JP" {
-                    "\nジュニアエージェントの数 (デフォルト 1): "
-                } else { 
-                    "\nNumber of Juniors (default 1): " 
-                };
-                let junior_count: usize = prompt(&msg_j).parse().unwrap_or(1);
+                
+                let junior_count_prompt = if final_locale == "ko_KR" { "\n주니어 요원 수 (기본 1): " } else if final_locale == "ja_JP" { "\nジュニアエージェント数 (基本 1): " } else { "\nNumber of Junior Agents (Default 1): " };
+                let junior_count: usize = prompt(junior_count_prompt).parse().unwrap_or(1);
                 for i in 0..junior_count { junior_configs.push(recruit_agent_async(&format!("Junior #{}", i + 1), &available_models, &final_locale, &mut global_local_endpoint, &mut use_global_endpoint).await); }
 
                 let cfg = AxonConfig {
@@ -474,30 +332,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     execution: ExecutionConfig { review_queue_limit: 5, sampling_rate: 0.3, fallback_enabled: true },
                     locale: final_locale.clone(),
                 };
-
-                if let Ok(json) = serde_json::to_string_pretty(&cfg) {
-                    let _ = std::fs::write("axon_config.json", json);
-                    let msg_save = if final_locale == "ko_KR" { 
-                        "\n💾 설정 저장 완료." 
-                    } else if final_locale == "ja_JP" {
-                        "\n💾 設定を保存しました。"
-                    } else { 
-                        "\n💾 Configuration saved." 
-                    };
-                    println!("{}", msg_save);
-                }
-                let mut s_drvs = Vec::new();
-                let mut s_names = Vec::new();
-                for s_cfg in &cfg.agents.seniors { 
-                    s_drvs.push(get_drv(s_cfg)); 
-                    s_names.push(s_cfg.model.clone());
-                }
-                let mut j_drvs = Vec::new();
-                let mut j_names = Vec::new();
-                for j_cfg in &cfg.agents.juniors { 
-                    j_drvs.push(get_drv(j_cfg)); 
-                    j_names.push(j_cfg.model.clone());
-                }
+                if let Ok(json) = serde_json::to_string_pretty(&cfg) { let _ = std::fs::write("axon_config.json", json); }
+                
+                let mut s_drvs = Vec::new(); let mut s_names = Vec::new();
+                for s_cfg in &cfg.agents.seniors { s_drvs.push(get_drv(s_cfg)); s_names.push(s_cfg.model.clone()); }
+                let mut j_drvs = Vec::new(); let mut j_names = Vec::new();
+                for j_cfg in &cfg.agents.juniors { j_drvs.push(get_drv(j_cfg)); j_names.push(j_cfg.model.clone()); }
                 (get_drv(&cfg.agents.architect), cfg.agents.architect.model.clone(), s_drvs, s_names, j_drvs, j_names)
             };
 
@@ -532,7 +372,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            let spec_path = if !skip_bootstrap {
+            let mut spec_path = if !skip_bootstrap {
                 if let Some(s) = spec {
                     s
                 } else {
@@ -548,6 +388,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 "".to_string()
             };
+            
+            // v0.0.29: Input Validation Guard
+            if !skip_bootstrap && !spec_path.is_empty() && !std::path::Path::new(&spec_path).exists() {
+                println!("❌ Spec file '{}' not found. Falling back to manual input.", spec_path);
+                loop {
+                    let msg = if final_locale == "ko_KR" {
+                        "공장 가동을 위한 요구사항 명세서 경로를 다시 입력하세요: "
+                    } else if final_locale == "ja_JP" {
+                        "工場の稼働に必要な要件定義書のパスを再入力してください: "
+                    } else {
+                        "Please re-enter Specification File Path: "
+                    };
+                    let input = prompt(msg);
+                    if input.is_empty() || std::path::Path::new(&input).exists() {
+                        spec_path = input;
+                        break;
+                    }
+                    println!("❌ File '{}' not found.", input);
+                }
+            }
 
             println!("\n====================================================");
             let msg_all_systems = if final_locale == "ko_KR" { "🚀 모든 시스템 가동 준비 완료: 공장 라인 활성화 중..." } else if final_locale == "ja_JP" { "🚀 全システム稼働準備完了: 工場ラインを活性化中..." } else { "🚀 ALL SYSTEMS GO: Activating Factory Line..." };
@@ -580,6 +440,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 final_locale.clone(),
             ));
 
+            EventBusLayer::init(daemon.event_bus.clone());
+
             let daemon_clone = daemon.clone();
             tokio::spawn(async move {
                 if let Err(e) = axon_daemon::server::start_server(daemon_clone).await {
@@ -603,6 +465,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     );
                 }
             }
+
+            // v0.0.29: [RELEASE_THE_TRACE] Configuration complete. Activate full observability for factory run.
+            let _ = logger_handle.modify(|filter| {
+                *filter = tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("trace"));
+            });
 
             daemon.run().await?;
         }

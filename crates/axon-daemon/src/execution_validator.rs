@@ -29,7 +29,6 @@ fn analyze_structural_integrity(project_root: &str, file_path: &str, ir: Option<
     if !path.exists() { return Ok(()); }
     
     let content = std::fs::read_to_string(&path)?;
-    let content_lower = content.to_lowercase();
     
     // 1. Stub & TODO Detection (Anti-Stub v3)
     let stub_patterns = [
@@ -79,20 +78,19 @@ fn analyze_structural_integrity(project_root: &str, file_path: &str, ir: Option<
     // 3. Architecture Alignment (IR Contract Enforcement)
     if let Some(ir_data) = ir {
         // A. Interface Drift Check
+        // A. Interface Drift Check (v0.0.29: ABI Signature Matching)
         if let Some(comp) = ir_data.components.get(file_path) {
             for (_, func) in &comp.functions {
-                // v0.0.29: Ensure the EXACT function signature/name is present in the file
-                if !content.contains(&func.name) {
+                // v0.0.29: Ensure the EXACT function signature is present in the file
+                if !content.contains(&func.signature) {
+                    tracing::warn!("⚠️ [ABI_DRIFT] Missing signature in {}: expected '{}'", file_path, func.signature);
                     return Err(anyhow::anyhow!(
-                        "CONTRACT DRIFT: Function '{}' defined in Architecture IR is MISSING in file '{}'. Signature synchronization failed.",
-                        func.name, file_path
+                        "CONTRACT DRIFT: ABI Signature mismatch in '{}'.\nExpected: '{}'\nImplementation might have hallucinated arguments or return types.",
+                        file_path, func.signature
                     ));
                 }
             }
-        }
-
-        // B. Hallucinated Include Protection
-        for line in content.lines() {
+            for line in content.lines() {
             if line.trim().starts_with("#include \"") {
                 let parts: Vec<&str> = line.split('"').collect();
                 if parts.len() >= 2 {
@@ -117,8 +115,49 @@ fn analyze_structural_integrity(project_root: &str, file_path: &str, ir: Option<
                     }
                 }
             }
+        } // End of include protection loop
+        
+        // C. Dependency Discipline Check (v0.0.28)
+        for inc in &comp.forbidden_includes {
+            if content.contains(&format!("#include \"{}\"", inc)) || content.contains(&format!("#include <{}>", inc)) {
+                return Err(anyhow::anyhow!(
+                    "CONTRACT VIOLATION: Forbidden include '{}' found in file '{}'. This violates the architectural isolation rules.",
+                    inc, file_path
+                ));
+            }
         }
-    }
+
+        // D. Logic Isolation Check (v0.0.28)
+        for sym in &comp.forbidden_symbols {
+            if content.contains(sym) {
+                return Err(anyhow::anyhow!(
+                    "CONTRACT VIOLATION: Forbidden symbol/logic '{}' found in file '{}'. This module MUST NOT contain this logic.",
+                    sym, file_path
+                ));
+            }
+        }
+        // E. Entrypoint Integrity Gate (v0.0.28)
+        if comp.is_entrypoint && ir_data.components.len() > 1 {
+            let mut calls_others = false;
+            for (other_path, other_comp) in &ir_data.components {
+                if other_path == file_path { continue; }
+                for func in other_comp.functions.values() {
+                    if content.contains(&func.name) {
+                        calls_others = true;
+                        break;
+                    }
+                }
+                if calls_others { break; }
+            }
+
+            if !calls_others {
+                return Err(anyhow::anyhow!(
+                    "ENTRYPOINT COLLAPSE: 'main.c' is a trivial placeholder and does NOT integrate with other modules. Global integration logic is missing.",
+                ));
+            }
+        }
+    } // End if let Some(comp)
+    } // End if let Some(ir_data)
 
     Ok(())
 }
@@ -144,19 +183,39 @@ fn validate_c(project_root: &str, file_path: &str, _ir: Option<&ProjectIR>) -> a
         }
     }
 
-    // v0.0.28: Stage 4 - Full Build Loop via CMake
-    if Path::new(project_root).join("CMakeLists.txt").exists() {
+    // v0.0.29: Sequential Integrity Check
+    // ONLY trigger full CMake build if:
+    // 1. CMakeLists.txt exists
+    // 2. ALL components defined in IR actually exist as files (Phase 3 completion check)
+    let mut all_files_exist = true;
+    if let Some(ir_data) = _ir {
+        for (f_path, _) in &ir_data.components {
+             if !Path::new(project_root).join(f_path).exists() {
+                 all_files_exist = false;
+                 break;
+             }
+        }
+    } else {
+        all_files_exist = false; // No IR context, cannot verify completeness
+    }
+
+    if Path::new(project_root).join("CMakeLists.txt").exists() && all_files_exist {
         validate_c_project(project_root)?;
     } else {
-        // Fallback: Quick syntax check
+        // v0.0.29: Fallback to individual file syntax check if project is incomplete
+        tracing::info!("🧪 [SEQUENTIAL_VALIDATION] Project incomplete. Performing individual syntax check for '{}'", file_path);
         let output = Command::new("gcc")
             .arg("-fsyntax-only")
+            .arg("-Iinclude") // v0.0.29: Include header path for individual check
             .arg(file_path)
             .current_dir(project_root)
             .output()?;
             
         if !output.status.success() {
             let err = String::from_utf8_lossy(&output.stderr);
+            // v0.0.29: Materialize terminal log for Boss Board
+            let _ = std::fs::create_dir_all(Path::new(project_root).join("debug"));
+            let _ = std::fs::write(Path::new(project_root).join("debug/last_compiler_error.txt"), &*err);
             return Err(anyhow::anyhow!("C syntax check failed for {}:\n{}", file_path, err));
         }
     }
@@ -186,6 +245,9 @@ fn validate_c_project(project_root: &str) -> anyhow::Result<()> {
         
     if !make_output.status.success() {
         let err = String::from_utf8_lossy(&make_output.stderr);
+        // v0.0.29: Materialize terminal log for Boss Board
+        let _ = std::fs::create_dir_all(Path::new(project_root).join("debug"));
+        let _ = std::fs::write(Path::new(project_root).join("debug/last_compiler_error.txt"), &*err);
         // Stage 4: Critical feedback for the agent
         return Err(anyhow::anyhow!("Build failed. COMPILER ERROR:\n{}", err));
     }
@@ -298,31 +360,36 @@ pub fn selective_run(project_root: &str, file_path: &str, targets: Vec<String>) 
     Ok(())
 }
 
-/// v0.0.28: Intelligent Fault Localization
-/// Parses compiler/validator stderr to extract offending filenames.
-pub fn extract_error_files(error_msg: &str) -> Vec<String> {
-    let mut files = std::collections::HashSet::new();
-    
-    // Pattern 1: GCC/Clang (file.c:line:col: error:)
-    for line in error_msg.lines() {
-        if let Some(idx) = line.find(':') {
-            let potential_file = &line[..idx];
-            if potential_file.ends_with(".c") || potential_file.ends_with(".h") || potential_file.ends_with(".rs") || potential_file.ends_with(".py") {
-                files.insert(potential_file.to_string());
-            }
-        }
-    }
-    
-    // Pattern 2: Rust (error: ... --> src/main.rs:10:5)
-    for line in error_msg.lines() {
-        if let Some(idx) = line.find("--> ") {
-            let part = &line[idx + 4..];
-            if let Some(colon_idx) = part.find(':') {
-                let potential_file = &part[..colon_idx];
-                files.insert(potential_file.to_string());
-            }
-        }
-    }
+pub struct ErrorLocation {
+    pub file: String,
+    pub line: usize,
+    pub message: String,
+}
 
-    files.into_iter().collect()
+/// v0.0.29: Advanced Fault Localization
+/// Extracts file, line, and message for 'Code Peek' UI features.
+pub fn extract_error_locations(error_msg: &str) -> Vec<ErrorLocation> {
+    let mut locations = Vec::new();
+    
+    // Pattern: file.c:line:col: error: message
+    for line in error_msg.lines() {
+        let parts: Vec<&str> = line.split(':').collect();
+        if parts.len() >= 4 {
+            let file = parts[0].trim();
+            if file.ends_with(".c") || file.ends_with(".h") || file.ends_with(".rs") || file.ends_with(".py") {
+                if let Ok(line_num) = parts[1].trim().parse::<usize>() {
+                    locations.push(ErrorLocation {
+                        file: file.to_string(),
+                        line: line_num,
+                        message: parts[3..].join(":").trim().to_string(),
+                    });
+                }
+            }
+        }
+    }
+    locations
+}
+
+pub fn extract_error_files(error_msg: &str) -> Vec<String> {
+    extract_error_locations(error_msg).into_iter().map(|l| l.file).collect()
 }

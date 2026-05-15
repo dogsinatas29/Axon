@@ -21,6 +21,22 @@ pub struct ProjectIR {
     pub constraint_ids: std::collections::HashSet<u64>,
     #[serde(default)]
     pub thought: Option<String>,
+    #[serde(default)]
+    pub language: Option<String>, // v0.0.28: Primary language for this project (e.g., "c", "rust")
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ComponentTier {
+    Core,       // Tier 0: Critical for project integrity
+    Optional,   // Tier 1: Bonus feature, can be pruned if failing
+    Experimental, // Tier 2: Sandbox feature
+}
+
+impl Default for ComponentTier {
+    fn default() -> Self {
+        Self::Core
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,7 +51,22 @@ pub struct Component {
     pub is_entrypoint: bool,
     #[serde(default)]
     pub data_models: Vec<String>,
+    #[serde(default)]
+    pub metadata: BTreeMap<String, String>, // v0.0.28: Generic metadata
+    #[serde(default)]
+    pub allowed_includes: BTreeSet<String>, // v0.0.28: Dependency discipline
+    #[serde(default)]
+    pub forbidden_includes: BTreeSet<String>,
+    #[serde(default)]
+    pub forbidden_symbols: BTreeSet<String>, // v0.0.28: Logic isolation
+    #[serde(default)]
+    pub tier: ComponentTier, // v0.0.29: Criticality level
+    #[serde(default = "default_true")]
+    pub is_blocking: bool, // v0.0.29: Whether failure blocks the whole factory
 }
+
+pub fn default_true() -> bool { true }
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Function {
@@ -53,6 +84,7 @@ impl ProjectIR {
             constraints: Vec::new(),
             constraint_ids: std::collections::HashSet::new(),
             thought: None,
+            language: None,
         }
     }
 
@@ -76,7 +108,11 @@ impl ProjectIR {
                     file: String,
                     name: String,
                     symbols: Vec<String>,
-                    #[serde(rename = "type")] _type: String
+                    #[serde(rename = "type")] _type: String,
+                    #[serde(default)]
+                    tier: ComponentTier,
+                    #[serde(default = "default_true")]
+                    is_blocking: bool,
                 }
 
                 if let Ok(raw) = serde_json::from_str::<Components>(json_str) {
@@ -101,6 +137,12 @@ impl ProjectIR {
                             associated_files: Vec::new(),
                             is_entrypoint: false,
                             data_models: Vec::new(),
+                            metadata: BTreeMap::new(),
+                            allowed_includes: BTreeSet::new(),
+                            forbidden_includes: BTreeSet::new(),
+                            forbidden_symbols: BTreeSet::new(),
+                            tier: c.tier,
+                            is_blocking: c.is_blocking,
                         });
                         tracing::debug!("[IR_REGISTER] key={} name={}", canonical_key, comp_name);
                     }
@@ -123,6 +165,7 @@ impl ProjectIR {
                         constraints,
                         constraint_ids: std::collections::HashSet::new(),
                         thought: None,
+                        language: None,
                     });
                 }
             }

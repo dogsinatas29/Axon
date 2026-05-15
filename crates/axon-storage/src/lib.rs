@@ -202,8 +202,19 @@ impl Storage {
             },
             WriteOp::SaveThread(th) => {
                 tx.execute(
-                    "INSERT OR REPLACE INTO threads (id, project_id, title, status, author, milestone_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                    params![th.id, th.project_id, th.title, format!("{:?}", th.status), th.author, th.milestone_id, th.created_at.to_rfc3339(), th.updated_at.to_rfc3339()],
+                    "INSERT OR REPLACE INTO threads (id, project_id, title, status, author, milestone_id, task_kind, rejection_count, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                    params![
+                        th.id, 
+                        th.project_id, 
+                        th.title, 
+                        format!("{:?}", th.status), 
+                        th.author, 
+                        th.milestone_id, 
+                        th.task_kind.as_ref().map(|k| serde_json::to_string(k).unwrap_or_default()),
+                        th.rejection_count,
+                        th.created_at.to_rfc3339(), 
+                        th.updated_at.to_rfc3339()
+                    ],
                 ).is_ok()
             },
             WriteOp::SavePost(p) => {
@@ -332,6 +343,8 @@ impl Storage {
                 status TEXT NOT NULL,
                 author TEXT NOT NULL,
                 milestone_id TEXT,
+                task_kind TEXT,
+                rejection_count INTEGER DEFAULT 0,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )",
@@ -398,6 +411,21 @@ impl Storage {
                 tracing::info!("🛠️ [DB_MIGRATION:posts] Adding missing column: {}", col_name);
                 let _ = conn.execute(&format!("ALTER TABLE posts ADD COLUMN {} {}", col_name, col_type), []);
             }
+        }
+        
+        let table_info_threads: Vec<String> = conn
+            .prepare("PRAGMA table_info(threads)")?
+            .query_map([], |row| row.get(1))?
+            .collect::<Result<Vec<String>, _>>()?;
+
+        if !table_info_threads.contains(&"task_kind".to_string()) {
+            tracing::info!("🛠️ [DB_MIGRATION:threads] Adding missing column: task_kind");
+            let _ = conn.execute("ALTER TABLE threads ADD COLUMN task_kind TEXT", []);
+        }
+
+        if !table_info_threads.contains(&"rejection_count".to_string()) {
+            tracing::info!("🛠️ [DB_MIGRATION:threads] Adding missing column: rejection_count");
+            let _ = conn.execute("ALTER TABLE threads ADD COLUMN rejection_count INTEGER DEFAULT 0", []);
         }
 
         // 3. Auxiliary Tables
@@ -537,7 +565,7 @@ impl Storage {
 
     pub fn list_runnable_threads(&self) -> Result<Vec<axon_core::Thread>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at FROM threads WHERE status != 'Completed' AND status != 'Paused'")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at, task_kind, rejection_count FROM threads WHERE status != 'Completed' AND status != 'Paused'")?;
         let thread_iter = stmt.query_map([], |row| {
             Ok(axon_core::Thread {
                 id: row.get(0)?,
@@ -546,6 +574,8 @@ impl Storage {
                 status: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(3)?)).unwrap_or(axon_core::ThreadStatus::Draft),
                 author: row.get(4)?,
                 milestone_id: row.get(5)?,
+                task_kind: row.get::<_, Option<String>>(8)?.and_then(|s| serde_json::from_str(&s).ok()),
+                rejection_count: row.get(9)?,
                 created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),
                 updated_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?).unwrap().with_timezone(&Local),
             })
@@ -560,7 +590,7 @@ impl Storage {
 
     pub fn list_all_threads(&self) -> Result<Vec<axon_core::Thread>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at FROM threads ORDER BY updated_at DESC")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at, task_kind, rejection_count FROM threads ORDER BY updated_at DESC")?;
         let thread_iter = stmt.query_map([], |row| {
             Ok(axon_core::Thread {
                 id: row.get(0)?,
@@ -569,6 +599,8 @@ impl Storage {
                 status: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(3)?)).unwrap_or(axon_core::ThreadStatus::Draft),
                 author: row.get(4)?,
                 milestone_id: row.get(5)?,
+                task_kind: row.get::<_, Option<String>>(8)?.and_then(|s| serde_json::from_str(&s).ok()),
+                rejection_count: row.get(9)?,
                 created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),
                 updated_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?).unwrap().with_timezone(&Local),
             })
@@ -675,7 +707,7 @@ impl Storage {
 
     pub fn count_active_tasks_by_project(&self, project_id: &str) -> Result<usize> {
         let conn = self.conn.lock().unwrap();
-        // v0.0.32: Count everything that is NOT 'Completed'. 
+        // v0.0.29: Count everything that is NOT 'Completed'. 
         // This includes 'Pending', 'InProgress', and 'Failed' (awaiting rework).
         let mut stmt = conn.prepare("SELECT COUNT(*) FROM tasks WHERE project_id = ?1 AND status != 'Completed'")?;
         let count: usize = stmt.query_row(params![project_id], |row| row.get(0))?;
@@ -685,6 +717,13 @@ impl Storage {
     pub fn count_tasks_by_project(&self, project_id: &str) -> Result<usize> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare("SELECT COUNT(*) FROM tasks WHERE project_id = ?1")?;
+        let count: usize = stmt.query_row(params![project_id], |row| row.get(0))?;
+        Ok(count)
+    }
+
+    pub fn count_impl_tasks_by_project(&self, project_id: &str) -> Result<usize> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT COUNT(*) FROM tasks WHERE project_id = ?1 AND task_kind = 'SourceImpl'")?;
         let count: usize = stmt.query_row(params![project_id], |row| row.get(0))?;
         Ok(count)
     }
@@ -826,7 +865,7 @@ impl Storage {
 
     pub fn get_thread(&self, id: &str) -> Result<Option<axon_core::Thread>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at FROM threads WHERE id = ?1")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at, task_kind, rejection_count FROM threads WHERE id = ?1")?;
         let mut thread_iter = stmt.query_map(params![id], |row| {
             Ok(axon_core::Thread {
                 id: row.get(0)?,
@@ -835,6 +874,8 @@ impl Storage {
                 status: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(3)?)).unwrap_or(axon_core::ThreadStatus::Draft),
                 author: row.get(4)?,
                 milestone_id: row.get(5)?,
+                task_kind: row.get::<_, Option<String>>(8)?.and_then(|s| serde_json::from_str(&s).ok()),
+                rejection_count: row.get(9)?,
                 created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),
                 updated_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?).unwrap().with_timezone(&Local),
             })
@@ -1031,6 +1072,7 @@ impl Storage {
                 thread_id: row.get(2)?,
                 agent_id: row.get(3)?,
                 event_type: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(4)?)).unwrap_or(axon_core::EventType::SystemLog),
+                level: axon_core::EventLevel::Info, // Default level for persisted logs
                 source: row.get(5)?,
                 content: row.get(6)?,
                 payload: row.get::<_, Option<String>>(7)?.and_then(|s| serde_json::from_str(&s).ok()),

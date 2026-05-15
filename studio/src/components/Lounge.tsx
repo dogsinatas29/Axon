@@ -22,15 +22,16 @@ import type { Event } from '../types';
 
 interface LoungeProps {
   events: Event[];
+  t: any;
 }
 
-const Lounge: React.FC<LoungeProps> = ({ events }) => {
+const Lounge: React.FC<LoungeProps> = ({ events, t }) => {
   return (
     <section className="panel">
       <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <MessageSquare size={14} style={{ marginRight: '0.5rem' }} />
-          Nogari Lounge
+          {t.nogariLounge}
         </div>
         <Terminal size={14} color="var(--text-dim)" />
       </div>
@@ -49,7 +50,7 @@ const Lounge: React.FC<LoungeProps> = ({ events }) => {
         {events.filter(ev => ev.event_type === 'MessagePosted').length === 0 && (
             <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.8rem', marginTop: '2rem', opacity: 0.5 }}>
                 <MessageSquare size={32} style={{ marginBottom: '1rem', opacity: 0.2 }} />
-                <p>에이전트들이 작업에 집중하고 있습니다.<br/>잠시 후 노가리가 시작됩니다...</p>
+                <p>{t.agentsBusy}<br/>{t.nogariSoon}</p>
             </div>
         )}
       </div>

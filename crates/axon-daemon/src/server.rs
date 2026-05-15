@@ -66,6 +66,7 @@ pub async fn start_server(daemon: Arc<Daemon>) -> Result<(), Box<dyn std::error:
         .route("/api/project/:project_id/threads", get(list_threads_by_project))
         .route("/api/threads/:id/posts", get(list_posts))
         .route("/api/threads/:id/approve", post(approve_thread))
+        .route("/api/threads/:id/clarify", post(clarify_thread))
         .route("/api/specs", post(submit_spec))
         .route("/api/project/:project_id/specs", post(submit_spec_by_project))
         .route("/api/tasks", get(list_tasks))
@@ -193,7 +194,11 @@ async fn submit_spec_internal(
                         assigned_worker: None,
                         created_at: chrono::Local::now(),
                         ir_path: None,
-                        task_kind: None,
+                        task_kind: if let Some(f) = t["target_file"].as_str() {
+                            if f.ends_with(".h") { Some(axon_core::TaskKind::HeaderDecl) }
+                            else if f.contains("main") { Some(axon_core::TaskKind::Integrator) }
+                            else { Some(axon_core::TaskKind::SourceImpl) }
+                        } else { None },
                         signature: None,
                     };
                     let _ = daemon.storage.save_task(task.clone()).await;
@@ -205,6 +210,8 @@ async fn submit_spec_internal(
                         status: axon_core::ThreadStatus::Draft,
                         author: "Architect".to_string(),
                         milestone_id: None,
+                        task_kind: task.task_kind.clone(),
+                        rejection_count: 0,
                         created_at: task.created_at,
                         updated_at: task.created_at,
                     };
@@ -230,6 +237,7 @@ async fn submit_spec_internal(
                         thread_id: Some(task.id.clone()),
                         agent_id: None,
                         event_type: axon_core::EventType::ThreadCreated,
+                    level: axon_core::EventLevel::Info,
                         source: "architect".to_string(),
                         content: format!("🆕 New strategic thread created: {}", task.title),
                         payload: None,
@@ -276,6 +284,8 @@ async fn submit_spec_internal(
                     status: axon_core::ThreadStatus::Draft,
                     author: "Architect".to_string(),
                     milestone_id: None,
+                    task_kind: None,
+                    rejection_count: 0,
                     created_at: task.created_at,
                     updated_at: task.created_at,
                 };
@@ -307,12 +317,71 @@ async fn submit_spec_internal(
     }
 }
 
+#[derive(serde::Deserialize)]
+struct ClarifyRequest {
+    command: String,
+}
+
+async fn clarify_thread(
+    Path(id): Path<String>,
+    State(daemon): State<Arc<Daemon>>,
+    Json(payload): Json<ClarifyRequest>,
+) -> impl IntoResponse {
+    tracing::info!("🚨 [BOSS_INTERRUPT] Received clarification for thread: {}", id);
+    
+    // 1. Find and Update Task
+    if let Ok(Some(mut task)) = daemon.storage.get_task(&id) {
+        let clarification_msg = format!("\n\n--- 🚨 BOSS CLARIFICATION ---\n{}\n----------------------------\n", payload.command);
+        
+        // Append to error feedback so Junior sees it as the ultimate constraint
+        let mut feedback = task.error_feedback.unwrap_or_default();
+        feedback.push_str(&clarification_msg);
+        task.error_feedback = Some(feedback);
+        
+        // Update status and allow retry
+        task.status = TaskStatus::Pending;
+        task.rework_count = 0; // Reset for fresh attempt with Boss guidance
+        
+        if let Err(e) = daemon.storage.save_task(task.clone()).await {
+            tracing::error!("Failed to save clarified task: {}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+
+        // 2. Update Thread status back to Working
+        if let Ok(Some(mut thread)) = daemon.storage.get_thread(&id) {
+            thread.status = axon_core::ThreadStatus::Working;
+            let _ = daemon.storage.save_thread(thread).await;
+        }
+
+        // 3. Re-enqueue
+        if let Err(e) = daemon.dispatcher.enqueue_task(task) {
+            tracing::error!("Failed to re-enqueue clarified task: {}", e);
+        }
+
+        daemon.publish_event(axon_core::Event {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: "system".to_string(),
+            thread_id: Some(id),
+            agent_id: None,
+            event_type: axon_core::EventType::AgentAction,
+            level: axon_core::EventLevel::Warning,
+            source: "BOSS".to_string(),
+            content: format!("Boss issued a direct clarification: {}", payload.command),
+            payload: None,
+            timestamp: chrono::Local::now(),
+        });
+
+        "Clarified".into_response()
+    } else {
+        StatusCode::NOT_FOUND.into_response()
+    }
+}
+
 async fn approve_thread(
     Path(id): Path<String>,
     State(daemon): State<Arc<Daemon>>,
 ) -> impl IntoResponse {
-    let runnable = daemon.storage.list_all_threads().unwrap_or_default();
-    if let Some(mut thread) = runnable.into_iter().find(|t| t.id == id) {
+    if let Ok(Some(mut thread)) = daemon.storage.get_thread(&id) {
         thread.status = axon_core::ThreadStatus::Completed;
         if let Err(e) = daemon.storage.save_thread(thread.clone()).await {
              tracing::error!("❌ Failed to save thread: {}", e);
@@ -328,6 +397,7 @@ async fn approve_thread(
             thread_id: Some(id),
             agent_id: None,
             event_type: axon_core::EventType::ApprovalGranted,
+                    level: axon_core::EventLevel::Info,
             source: "BOSS".to_string(),
             content: "BOSS approved the thread.".to_string(),
             payload: None,
@@ -350,6 +420,7 @@ async fn pause_daemon(
         thread_id: None,
         agent_id: None,
         event_type: axon_core::EventType::SystemLog,
+                    level: axon_core::EventLevel::Info,
         source: "daemon".to_string(),
         content: "Daemon PAUSED by BOSS".to_string(),
         payload: None,
@@ -368,6 +439,7 @@ async fn resume_daemon(
         thread_id: None,
         agent_id: None,
         event_type: axon_core::EventType::SystemLog,
+                    level: axon_core::EventLevel::Info,
         source: "daemon".to_string(),
         content: "Daemon RESUMED by BOSS".to_string(),
         payload: None,
@@ -455,6 +527,7 @@ async fn hire_agent(
         thread_id: None,
         agent_id: Some(agent_id.clone()),
         event_type: axon_core::EventType::AgentAssigned,
+                    level: axon_core::EventLevel::Info,
         source: "daemon".to_string(),
         content: format!("New agent {} hired as {:?}", runtime.agent.name, runtime.agent.role),
         payload: None,
@@ -496,6 +569,7 @@ async fn fire_agent(
             thread_id: None,
             agent_id: Some(id.clone()),
             event_type: axon_core::EventType::SystemLog,
+                    level: axon_core::EventLevel::Info,
             source: "daemon".to_string(),
             content: format!("Agent {} (and all its subordinates) fired.", agent.name),
             payload: None,

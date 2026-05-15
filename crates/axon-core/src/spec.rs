@@ -11,10 +11,41 @@ pub struct ComponentSpec {
     pub functions: Vec<FunctionSpec>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FunctionSpec {
     pub name: String,
     pub signature: String,
+}
+
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+pub enum ComponentStatus {
+    Core,
+    Optional,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ComponentConstraint {
+    pub name: String,
+    pub status: ComponentStatus,
+    pub promotion_forbidden: bool,
+    pub blocking_forbidden: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ImmutableConstraints {
+    pub project_id: String,
+    pub components: Vec<ComponentConstraint>,
+    pub forbidden_patterns: Vec<String>,
+}
+
+impl ImmutableConstraints {
+    pub fn new(project_id: String) -> Self {
+        Self {
+            project_id,
+            components: Vec::new(),
+            forbidden_patterns: Vec::new(),
+        }
+    }
 }
 
 pub fn parse_architecture_md(input: &str) -> Result<Spec, String> {

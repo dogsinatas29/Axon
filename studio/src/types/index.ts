@@ -25,6 +25,7 @@ export interface Thread {
   author: string;
   project_id?: string;
   milestone_id?: string;
+  task_kind?: 'HeaderDecl' | 'SourceImpl' | 'Integrator';
   created_at: string;
   updated_at: string;
   rejection_count?: number;
@@ -68,6 +69,7 @@ export interface Event {
   thread_id?: string;
   agent_id?: string;
   source?: string;
+  level?: 'Info' | 'Warning' | 'Error' | 'Critical';
   event_type: 
     | 'ThreadCreated' | 'ThreadAssigned' | 'ThreadStarted' | 'ThreadCompleted'
     | 'PostAdded' | 'MessagePosted'

@@ -25,9 +25,10 @@ interface ThreadDetailProps {
   thread: Thread;
   onClose: () => void;
   onApprove: (id: string) => void;
+  t: any;
 }
 
-const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, onApprove }) => {
+const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, onApprove, t }) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -133,7 +134,7 @@ const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, onApprove 
 
       <div className="posts-container">
         {loading ? (
-          <div className="loading">Analyzing transmission history...</div>
+          <div className="loading">{t.analyzingHistory}</div>
         ) : (
           posts.map(post => (
             <div key={post.id} className={`post-card ${post.post_type.toLowerCase()}`}>
@@ -155,10 +156,10 @@ const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, onApprove 
             className="btn-approve"
             onClick={() => onApprove(thread.id)}
           >
-            <Check size={18} /> APPROVE & LOCK
+            <Check size={18} /> {t.approveLock}
           </button>
         )}
-        <button className="btn-secondary" onClick={onClose}>STAND BY</button>
+        <button className="btn-secondary" onClick={onClose}>{t.standBy}</button>
       </div>
     </motion.div>
   );

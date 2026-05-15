@@ -37,7 +37,7 @@ const App: React.FC = () => {
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [locale] = useState<string>('ko_KR');
+  const [locale, setLocale] = useState<string>('en_US');
   const [activeChannel, setActiveChannel] = useState<'dashboard' | 'work' | 'office' | 'boss' | 'nogari' | 'signals'>('dashboard');
   
   const t = getTranslation(locale);
@@ -84,6 +84,9 @@ const App: React.FC = () => {
       const data = await res.json();
       setIsRunning(data.is_running);
       setTotalSignals(data.total_signals);
+      if (data.locale) {
+        setLocale(data.locale);
+      }
     } catch (err) {
       console.error('Failed to fetch status', err);
     }
@@ -255,8 +258,8 @@ const App: React.FC = () => {
                   <button className="btn-mini" onClick={() => setActiveChannel('work')}>{t.viewAll}</button>
                 </div>
                 <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem', overflowY: 'auto' }}>
-                    {threads.filter(t => t.id !== 'lounge').slice(0, 6).map(t => (
-                        <ThreadCard key={t.id} thread={t} onClick={() => setSelectedThreadId(t.id)} />
+                    {threads.filter(t => t.id !== 'lounge').slice(0, 6).map(th => (
+                        <ThreadCard key={th.id} thread={th} onClick={() => setSelectedThreadId(th.id)} t={t} />
                     ))}
                     {threads.length === 0 && <div className="empty-state">{t.noThreads}</div>}
                 </div>
@@ -278,7 +281,14 @@ const App: React.FC = () => {
                   }}
                   style={{ cursor: 'pointer' }}
                 >
-                  <ThreadCard thread={thread} />
+                  <ThreadCard 
+                    thread={thread} 
+                    t={t} 
+                    onClick={(id) => {
+                      setSelectedThreadId(id);
+                      setActiveChannel('work');
+                    }} 
+                  />
                 </div>
               ))}
               {activeThreads.length === 0 && <div className="empty-state">{t.noWorkThreads}</div>}
@@ -286,13 +296,13 @@ const App: React.FC = () => {
           </section>
         )}
 
-        {activeChannel === 'office' && <Office agents={agents} setAgents={setAgents} />}
+        {activeChannel === 'office' && <Office agents={agents} setAgents={setAgents} t={t} />}
 
-        {activeChannel === 'boss' && <BossBoard />}
+        {activeChannel === 'boss' && <BossBoard threads={threads} events={events} t={t} />}
         
         {activeChannel === 'nogari' && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <Lounge events={events} />
+            <Lounge events={events} t={t} />
           </div>
         )}
 
@@ -301,13 +311,30 @@ const App: React.FC = () => {
             <div className="panel-header">{t.realTimeSignals}</div>
             <div style={{ flex: 1, padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {events.filter(e => e.event_type !== 'MessagePosted').map(e => (
-                    <div key={e.id} className="card" style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                        <div style={{ color: 'var(--accent-primary)', fontWeight: 'bold', minWidth: '120px', fontSize: '0.7rem' }}>
-                          [{e.event_type.toUpperCase()}]
+                    <div 
+                      key={e.id} 
+                      className={`card signal-card ${e.level?.toLowerCase() || 'info'}`} 
+                      style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}
+                    >
+                        <div style={{ 
+                          color: e.level === 'Critical' ? 'var(--status-error)' : 'var(--accent-primary)', 
+                          fontWeight: 'bold', 
+                          minWidth: '120px', 
+                          fontSize: '0.7rem' 
+                        }}>
+                          [{e.event_type.toUpperCase()}] {e.level === 'Critical' && '🚨'}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '0.9rem', marginBottom: '0.3rem' }}>{e.content}</div>
-                          <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>{new Date(e.timestamp).toLocaleString()}</div>
+                          <div style={{ 
+                            fontSize: '0.9rem', 
+                            marginBottom: '0.3rem',
+                            fontWeight: e.level === 'Critical' || e.level === 'Error' ? 'bold' : 'normal'
+                          }}>
+                            {e.content}
+                          </div>
+                          <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>
+                            {e.source} | {new Date(e.timestamp).toLocaleString()}
+                          </div>
                         </div>
                     </div>
                 ))}
@@ -323,6 +350,7 @@ const App: React.FC = () => {
             thread={selectedThread} 
             onClose={() => setSelectedThreadId(null)}
             onApprove={handleApprove}
+            t={t}
           />
         )}
       </AnimatePresence>

@@ -17,12 +17,24 @@
  */
 
 import React, { useState } from 'react';
-import { Terminal, Send, ShieldCheck } from 'lucide-react';
+import { Terminal, Send, ShieldCheck, AlertCircle, Cpu } from 'lucide-react';
+import { type Thread, type Event } from '../types';
 
-const BossBoard: React.FC = () => {
+interface BossBoardProps {
+  threads: Thread[];
+  events: Event[];
+  t: any;
+}
+
+const BossBoard: React.FC<BossBoardProps> = ({ threads, events, t }) => {
   const [spec, setSpec] = useState('');
+  const [selectedInterruptId, setSelectedInterruptId] = useState<string | null>(null);
+  const [clarification, setClarification] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // v0.0.29: Filter for "ALERT" tasks (3+ rejections or specifically marked as interrupts)
+  const interrupts = threads.filter(th => (th.rejection_count || 0) >= 3);
+
+  const handleSubmitSpec = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!spec.trim()) return;
 
@@ -34,14 +46,31 @@ const BossBoard: React.FC = () => {
       });
 
       if (response.ok) {
-        alert('새로운 명세가 공장에 하달되었습니다. 에이전트들이 분석을 시작합니다.');
+        alert(t.specSubmitted || 'Spec submitted successfully.');
         setSpec('');
-      } else {
-        alert('명세 하달 중 오류가 발생했습니다.');
       }
     } catch (error) {
       console.error('Error submitting spec:', error);
-      alert('서버 연결에 실패했습니다.');
+    }
+  };
+
+  const handleIssueClarification = async () => {
+    if (!selectedInterruptId || !clarification.trim()) return;
+
+    try {
+        const response = await fetch(`http://localhost:8080/api/threads/${selectedInterruptId}/clarify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: clarification }),
+        });
+
+        if (response.ok) {
+            alert(t.clarificationIssued || 'Clarification issued to factory.');
+            setClarification('');
+            setSelectedInterruptId(null);
+        }
+    } catch (error) {
+        console.error('Error issuing clarification:', error);
     }
   };
 
@@ -49,17 +78,259 @@ const BossBoard: React.FC = () => {
     <section className="panel" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <div className="panel-header">
         <ShieldCheck size={16} style={{ marginRight: '0.5rem' }} />
-        사장 게시판 (Boss Board) - Spec Declaration
+        {t.bossBoardTitle} - Factory Control Tower
       </div>
       
-      <div style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-        <div className="card" style={{ border: '1px border var(--accent-primary)' }}>
-            <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--accent-primary)' }}>🚀 New Specification Declaration</h3>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }}>
+        {/* 1. Critical Interrupts at the TOP */}
+        <div className="card" style={{ border: interrupts.length > 0 ? '1px solid var(--status-error)' : '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ fontSize: '1rem', marginBottom: '1.5rem', color: interrupts.length > 0 ? 'var(--status-error)' : 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Terminal size={16} />
+                {t.bugRepository} {interrupts.length > 0 && `(${interrupts.length})`}
+            </h3>
+            
+            {/* Horizontal list of problem tasks */}
+            <div style={{ display: 'flex', gap: '0.8rem', overflowX: 'auto', paddingBottom: '1rem', marginBottom: interrupts.length > 0 ? '1rem' : 0 }}>
+                {interrupts.map(th => {
+                    const isActive = selectedInterruptId === th.id;
+                    return (
+                        <div 
+                            key={th.id}
+                            onClick={() => setSelectedInterruptId(isActive ? null : th.id)}
+                            style={{
+                                minWidth: '220px',
+                                padding: '1rem',
+                                background: isActive ? 'rgba(255,0,0,0.15)' : 'rgba(255,0,0,0.05)',
+                                border: `1px solid ${isActive ? 'var(--status-error)' : 'rgba(255,0,0,0.15)'}`,
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.8rem',
+                                boxShadow: isActive ? '0 4px 12px rgba(255,0,0,0.15)' : 'none'
+                            }}
+                        >
+                            <AlertCircle size={18} color="var(--status-error)" className={isActive ? 'animate-pulse' : ''} />
+                            <div style={{ flex: 1, overflow: 'hidden' }}>
+                                <div style={{ fontSize: '0.85rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{th.title}</div>
+                                <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{th.rejection_count} {t.rejections}</div>
+                            </div>
+                        </div>
+                    );
+                })}
+                {interrupts.length === 0 && (
+                    <div style={{ flex: 1, color: 'var(--text-dim)', fontSize: '0.8rem', textAlign: 'center', padding: '1rem' }}>
+                        {t.noBugs}
+                    </div>
+                )}
+            </div>
+
+            {/* Shared Diagnosis Area for the selected task */}
+            {selectedInterruptId && (
+                <div style={{ 
+                    padding: '1.5rem', 
+                    background: 'rgba(0,0,0,0.3)', 
+                    border: '1px solid rgba(255,0,0,0.2)',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1.5rem',
+                    animation: 'slideDown 0.3s ease-out'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                        <Cpu size={14} color="var(--status-error)" />
+                        <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--status-error)' }}>
+                            {interrupts.find(it => it.id === selectedInterruptId)?.title} - {t.interruptReason}
+                        </span>
+                    </div>
+
+                        {(() => {
+                            const event = events.find(ev => ev.thread_id === selectedInterruptId && (ev.level === 'Critical' || ev.level === 'Error'));
+                            if (!event || !event.content.includes('### 🧠 AI DIAGNOSIS')) return null;
+
+                            const diagMatch = event.content.match(/### 🧠 AI DIAGNOSIS\n([\s\S]*?)(?:\n\n---|\n### 🔍 CODE_PEEK|$)/);
+                            if (!diagMatch) return null;
+
+                            const diagnosis = diagMatch[1];
+                            const cause = diagnosis.match(/(?:원인:|Cause:)\s*(.*)/)?.[1] || '분석 중...';
+                            const solution = diagnosis.match(/(?:해결 방법:|Solution:)\s*(.*)/)?.[1] || '지침 대기 중...';
+
+                            return (
+                                <div style={{ 
+                                    marginBottom: '1.5rem', 
+                                    padding: '1.2rem', 
+                                    background: 'rgba(255, 152, 0, 0.1)', 
+                                    border: '1px solid rgba(255, 152, 0, 0.3)',
+                                    borderRadius: '8px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.8rem'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#ff9800', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                                        <Cpu size={16} /> {t.aiDiagnosis || 'AI 진단 보고서'}
+                                    </div>
+                                    <div style={{ fontSize: '0.85rem' }}>
+                                        <span style={{ color: '#ff9800', fontWeight: 'bold' }}>• 원인:</span> {cause}
+                                    </div>
+                                    <div style={{ fontSize: '0.85rem' }}>
+                                        <span style={{ color: '#00ff88', fontWeight: 'bold' }}>• 해결 방법:</span> {solution}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
+                        <div style={{ 
+                            padding: '1.2rem', 
+                            background: '#0a0a0a', 
+                            border: '1px solid #333',
+                            borderRadius: '6px',
+                            color: '#e0e0e0',
+                            fontSize: '0.75rem',
+                            whiteSpace: 'pre-wrap',
+                            fontFamily: '"Fira Code", "Courier New", monospace',
+                            maxHeight: '300px',
+                            overflowY: 'auto',
+                            boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5)',
+                            lineHeight: '1.4'
+                        }}>
+                            {(() => {
+                                const event = events.find(ev => ev.thread_id === selectedInterruptId && (ev.level === 'Critical' || ev.level === 'Error'));
+                                if (!event) return '⚠️ [SYSTEM_STALL]: No diagnostic trace captured. Re-synthesis loop in progress...';
+                                
+                                const content = event.content;
+                                
+                                if (content.includes('[CONSENSUS_BREAKDOWN]')) {
+                                    const parts = content.split('\n\n');
+                                    return (
+                                        <>
+                                            <div style={{ color: '#ff4444', fontWeight: 'bold', borderBottom: '1px solid #333', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
+                                                🚨 CONSENSUS_BREAKDOWN: Senior vs Validator
+                                            </div>
+                                            {parts.map((p, i) => {
+                                                if (p.includes('[SENIOR_REVIEW_AUDIT]')) {
+                                                    return <div key={i} style={{ color: '#00e5ff', marginBottom: '1rem', borderLeft: '3px solid #00e5ff', paddingLeft: '0.8rem' }}>{p}</div>;
+                                                }
+                                                if (p.includes('[EXECUTION_VALIDATOR]')) {
+                                                    return <div key={i} style={{ color: '#ff4444', background: 'rgba(255,68,68,0.05)', padding: '0.8rem', borderRadius: '4px' }}>{p}</div>;
+                                                }
+                                                if (p.includes('### 🧠 AI DIAGNOSIS')) return null; // Already shown in card
+                                                return <div key={i}>{p}</div>;
+                                            })}
+                                        </>
+                                    );
+                                }
+
+                                {(() => {
+                                    const peekMatch = content.match(/### 🔍 CODE_PEEK: (.*?)\n([\s\S]*?)\n\n---/);
+                                    if (!peekMatch) return null;
+
+                                    const fileName = peekMatch[1];
+                                    const snippet = peekMatch[2];
+
+                                    return (
+                                        <div style={{ marginBottom: '1.5rem' }}>
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', marginBottom: '0.4rem', fontFamily: 'monospace' }}>
+                                                🎯 THE SMOKING GUN: {fileName}
+                                            </div>
+                                            <div style={{ 
+                                                background: '#151515', 
+                                                border: '1px solid #333', 
+                                                borderRadius: '4px',
+                                                padding: '0.8rem',
+                                                fontFamily: '"Fira Code", monospace',
+                                                fontSize: '0.7rem',
+                                                color: '#bbb',
+                                                lineHeight: '1.2'
+                                            }}>
+                                                {snippet.split('\n').map((line, i) => {
+                                                    const isErrorLine = line.startsWith('>>');
+                                                    return (
+                                                        <div key={i} style={{ 
+                                                            backgroundColor: isErrorLine ? 'rgba(255,68,68,0.1)' : 'transparent',
+                                                            color: isErrorLine ? '#ff4444' : 'inherit',
+                                                            fontWeight: isErrorLine ? 'bold' : 'normal',
+                                                            padding: '0 4px',
+                                                            borderLeft: isErrorLine ? '2px solid #ff4444' : '2px solid transparent'
+                                                        }}>
+                                                            {line}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                if (content.includes('[SENIOR_REJECT]')) {
+                                    const diagnosisCleaned = content.replace(/### 🧠 AI DIAGNOSIS[\s\S]*?\n\n---/, '');
+                                    return (
+                                        <>
+                                            <div style={{ color: '#00e5ff', fontWeight: 'bold', borderBottom: '1px solid #333', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
+                                                🏛️ SENIOR_REJECT: Performance/Logic Violation
+                                            </div>
+                                            <div style={{ color: '#fff' }}>{diagnosisCleaned.replace(/🚨 \[SENIOR_REJECT\] .*\n\n/, '')}</div>
+                                        </>
+                                    );
+                                }
+
+                                if (content.includes('[BUILD_REJECT]')) {
+                                    return (
+                                        <>
+                                            <div style={{ color: '#ff9800', fontWeight: 'bold', borderBottom: '1px solid #333', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
+                                                🛠️ BUILD_REJECT: GCC/Syntax Error
+                                            </div>
+                                            <div style={{ color: '#ff4444' }}>{content.replace(/🚨 \[BUILD_REJECT\] .*\n\n/, '')}</div>
+                                        </>
+                                    );
+                                }
+                                
+                                return content;
+                            })()}
+                        </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <label style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>{t.bossClarification}</label>
+                        <textarea 
+                            value={clarification}
+                            onChange={(e) => setClarification(e.target.value)}
+                            placeholder="명확한 기술적 지시를 입력하세요..."
+                            style={{ 
+                                width: '100%', 
+                                height: '100px',
+                                background: 'rgba(0,0,0,0.5)', 
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                borderRadius: '4px',
+                                padding: '1rem',
+                                color: 'white',
+                                resize: 'none',
+                                fontFamily: 'inherit'
+                            }}
+                        />
+                    </div>
+
+                    <button 
+                        className="btn-control" 
+                        onClick={handleIssueClarification}
+                        style={{ background: 'var(--status-error)', borderColor: 'var(--status-error)', color: 'white', alignSelf: 'flex-end' }}
+                    >
+                        <ShieldCheck size={16} /> {t.issueCommand}
+                    </button>
+                </div>
+            )}
+        </div>
+
+        {/* 2. New Spec Input BELOW */}
+        <div className="card" style={{ border: '1px solid var(--accent-primary)' }}>
+            <h3 style={{ fontSize: '1rem', marginBottom: '1.5rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Cpu size={16} />
+                {t.newSpecDeclaration}
+            </h3>
+            <form onSubmit={handleSubmitSpec} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <textarea 
                     value={spec}
                     onChange={(e) => setSpec(e.target.value)}
-                    placeholder="공장에 하달할 새로운 기능 명세나 마일스톤을 입력하세요... (예: 'v0.0.3: 데이터베이스 마이그레이션 로직 구현')"
+                    placeholder={t.specPlaceholder}
                     style={{ 
                         width: '100%', 
                         height: '150px', 
@@ -73,19 +344,9 @@ const BossBoard: React.FC = () => {
                     }}
                 />
                 <button type="submit" className="btn-control" style={{ alignSelf: 'flex-end', padding: '0.5rem 2rem' }}>
-                    <Send size={16} /> 명령 하달 (Submit Spec)
+                    <Send size={16} /> {t.submitCommand}
                 </button>
             </form>
-        </div>
-
-        <div className="card">
-            <h3 style={{ fontSize: '0.9rem', marginBottom: '1rem', opacity: 0.8 }}>
-                <Terminal size={14} style={{ marginRight: '0.5rem' }} />
-                Bug Repository & Interrupts
-            </h3>
-            <div style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textAlign: 'center', padding: '2rem' }}>
-                No critical bug reports or interrupts pending.
-            </div>
         </div>
       </div>
     </section>

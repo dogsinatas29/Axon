@@ -23,9 +23,10 @@ import type { Agent, AgentRole } from '../types';
 interface OfficeProps {
   agents: Agent[];
   setAgents: React.Dispatch<React.SetStateAction<Agent[]>>;
+  t: any;
 }
 
-const Office: React.FC<OfficeProps> = ({ agents, setAgents }) => {
+const Office: React.FC<OfficeProps> = ({ agents, setAgents, t }) => {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['architect-agent-1', 'senior-agent-1']));
 
   const toggleExpand = (id: string) => {
@@ -52,7 +53,7 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents }) => {
   };
 
   const fireAgent = async (id: string) => {
-    if (!window.confirm('Are you sure you want to fire this agent? If this is a Senior, all subordinates will be fired as well.')) return;
+    if (!window.confirm(t.fireConfirm)) return;
     try {
       const response = await fetch(`http://localhost:8080/api/agents/${id}/fire`, {
         method: 'POST',
@@ -75,7 +76,7 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents }) => {
         });
       } else {
         const errorText = await response.text();
-        alert(`Firing failed: ${errorText}`);
+        alert(`${t.firingFailed}: ${errorText}`);
       }
     } catch (err) {
       console.error('Firing failed', err);
@@ -140,7 +141,7 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents }) => {
                 readOnly
                 style={{ width: '40px', height: '4px' }}
               />
-              <span style={{ fontSize: '0.6rem' }}>DTR: {agent.dtr}</span>
+              <span style={{ fontSize: '0.6rem' }}>{t.dtrLabel}: {agent.dtr}</span>
             </div>
           </div>
         </div>
@@ -159,22 +160,22 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents }) => {
       <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <Users size={16} style={{ marginRight: '0.5rem' }} />
-          The Office <span style={{ color: 'var(--text-dim)', marginLeft: '0.3rem' }}>/ Org Chart</span>
+          {t.office} <span style={{ color: 'var(--text-dim)', marginLeft: '0.3rem' }}>/ {t.orgChart}</span>
         </div>
-        <button className="btn-mini" onClick={() => hireAgent(null, 'Architect')}><Plus size={12} /> BOSS-LEVEL</button>
+        <button className="btn-mini" onClick={() => hireAgent(null, 'Architect')}><Plus size={12} /> {t.hireBossLevel}</button>
       </div>
       <div style={{ padding: '1rem', overflowY: 'auto', flex: 1 }}>
         <div style={{ borderLeft: '2px solid rgba(255,255,255,0.05)', paddingLeft: '0.5rem' }}>
           <div style={{ marginBottom: '1rem', textAlign: 'center', opacity: 0.8 }}>
              <div style={{ display: 'inline-block', padding: '0.5rem 1rem', border: '1px solid var(--accent-secondary)', borderRadius: '4px', fontSize: '0.9rem', fontWeight: 'bold', background: 'rgba(112, 0, 255, 0.1)' }}>
-               BOSS (YOU)
+               {t.bossYou}
              </div>
              <div style={{ height: '20px', width: '2px', background: 'var(--accent-secondary)', margin: '0 auto' }}></div>
           </div>
           {rootAgents.map(agent => renderAgentNode(agent))}
           {agents.length === 0 && (
             <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.8rem', marginTop: '2rem' }}>
-              No hierarchy established. Hire some agents!
+              {t.noHierarchy}
             </div>
           )}
         </div>

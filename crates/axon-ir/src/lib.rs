@@ -20,7 +20,7 @@ pub mod canonicalizer;
 pub mod emitter;
 pub mod spec_extractor;
 
-pub use schema::{ProjectIR, Component, Function, Constraint};
+pub use schema::{ProjectIR, Component, Function, Constraint, ComponentTier, default_true};
 pub use parser::{parse, InputFormat, detect_format};
 pub use validator::{validate_ir, validate_runtime_contract, validate_language_capability, ValidationError, ValidationKind};
 pub use linker::{link_dependencies, DependencyGraph};

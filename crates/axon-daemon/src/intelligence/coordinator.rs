@@ -107,7 +107,18 @@ impl Coordinator {
             .max_by_key(|f| self.file_priorities.get(*f).map(|p| p.score()).unwrap_or(0))
             .cloned()?;
 
-        let seed_task = self.per_file_queues.get_mut(&next_file)?.pop_front()?;
+        let seed_task = loop {
+            let t = self.per_file_queues.get_mut(&next_file)?.pop_front()?;
+            if t.rework_count >= MAX_TASK_RETRIES {
+                tracing::error!("🛑 [TASK_QUARANTINED] task={} rework_count={} target_file={:?}", t.id, t.rework_count, t.target_file);
+                self.quarantined_tasks.insert(t.id.clone());
+                if self.per_file_queues.get(&next_file).unwrap().is_empty() {
+                    return None;
+                }
+                continue;
+            }
+            break t;
+        };
         
         let mut batch_tasks = vec![seed_task.clone()];
         let mut closure = HashSet::new();
@@ -149,8 +160,19 @@ impl Coordinator {
         })
     }
 
-    pub fn complete_task(&mut self, task: &Task) {
+    pub fn complete_task(&mut self, task: &Task, success: bool) {
         let file = task.target_file.clone().unwrap_or_else(|| "logic".to_string());
         self.active_files.remove(&file);
+        
+        // v0.0.29: [QUEUE_POP_AND_BREAK]
+        // If the task was successful, clear any redundant tasks for this file from the queue.
+        if success {
+            if let Some(q) = self.per_file_queues.get_mut(&file) {
+                if !q.is_empty() {
+                    tracing::info!("✂️ [COORD_CLEANUP] Clearing {} redundant tasks for file '{}'", q.len(), file);
+                    q.clear();
+                }
+            }
+        }
     }
 }

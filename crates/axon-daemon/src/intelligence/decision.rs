@@ -3,9 +3,11 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum Stage {
+    SpecAnalysis, // v0.0.29.25: Extract immutable constraints from spec.md
     Skeleton,
     HeaderGen,
     ImplGen,
+    IntegratorGen,
     Build,
     BuildRepair,
     Runtime,
@@ -91,9 +93,11 @@ pub struct StageRouter;
 impl StageRouter {
     pub fn next_stage(current: &Stage) -> Stage {
         match current {
+            Stage::SpecAnalysis => Stage::Skeleton,
             Stage::Skeleton => Stage::HeaderGen,
             Stage::HeaderGen => Stage::ImplGen,
-            Stage::ImplGen => Stage::Build,
+            Stage::ImplGen => Stage::IntegratorGen, // v0.0.28: Top-down logic
+            Stage::IntegratorGen => Stage::Build,
             Stage::Build => Stage::Runtime,
             Stage::BuildRepair => Stage::Build,
             Stage::Runtime => Stage::Sync,
@@ -116,24 +120,28 @@ impl StageRouter {
         // v0.0.28: Prevent forward jumps on retry. 
         // If the suggested retry stage is ahead of current stage, stay in current stage.
         let target_rank = match target {
-            Stage::Skeleton => 0,
-            Stage::HeaderGen => 1,
-            Stage::ImplGen => 2,
-            Stage::Build => 3,
-            Stage::BuildRepair => 3,
-            Stage::Runtime => 4,
-            Stage::Sync => 5,
-            Stage::Complete => 6,
+            Stage::SpecAnalysis => 0,
+            Stage::Skeleton => 1,
+            Stage::HeaderGen => 2,
+            Stage::ImplGen => 3,
+            Stage::IntegratorGen => 4,
+            Stage::Build => 5,
+            Stage::BuildRepair => 5,
+            Stage::Runtime => 6,
+            Stage::Sync => 7,
+            Stage::Complete => 8,
         };
         let current_rank = match current {
-            Stage::Skeleton => 0,
-            Stage::HeaderGen => 1,
-            Stage::ImplGen => 2,
-            Stage::Build => 3,
-            Stage::BuildRepair => 3,
-            Stage::Runtime => 4,
-            Stage::Sync => 5,
-            Stage::Complete => 6,
+            Stage::SpecAnalysis => 0,
+            Stage::Skeleton => 1,
+            Stage::HeaderGen => 2,
+            Stage::ImplGen => 3,
+            Stage::IntegratorGen => 4,
+            Stage::Build => 5,
+            Stage::BuildRepair => 5,
+            Stage::Runtime => 6,
+            Stage::Sync => 7,
+            Stage::Complete => 8,
         };
 
         if target_rank > current_rank {

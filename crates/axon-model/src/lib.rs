@@ -273,7 +273,7 @@ impl OllamaDriver {
             base_url: base_url.trim_end_matches('/').to_string(),
             model_name,
             client: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(180)) // Increased for local LLM swap hell
+                .timeout(std::time::Duration::from_secs(310)) // v0.0.29: Increased for complex reasoning/Skeleton
                 .build()
                 .unwrap_or_default(),
         }
@@ -362,7 +362,7 @@ impl OllamaDriver {
                 .json(&body)
                 .send();
             
-            let response = tokio::time::timeout(std::time::Duration::from_secs(120), response_future).await;
+            let response = tokio::time::timeout(std::time::Duration::from_secs(300), response_future).await;
 
             match response {
                 Ok(Ok(res)) => {

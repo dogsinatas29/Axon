@@ -175,6 +175,12 @@ AXON uses a **Feedback-Driven Correction** mechanism to handle runtime and logic
 2. **Context Injection**: The failure data is injected back into the Junior's prompt for the next iteration.
 3. **Self-Correction**: The Junior attempts to fix the code based on the actual physical feedback, reducing token waste.
 
+### 🖥️ 사장 게시판의 기본 인터페이스 (Boss Board Interface)
+<p align="center">
+  <img src="./asset/boss_insterface.png" alt="Boss Board Interface" width="800">
+</p>
+*Figure 7. AXON Boss Board Interface: The primary control center where the Boss oversees the entire factory. It provides a unified view of architectural progress, real-time agent debates, and high-fidelity project metrics. This interface allows for direct intervention, manual task lock-ins, and strategic adjustments to the production line.*
+
 ### 📡 Real-time Signal & Log Management
 <p align="center">
   <img src="./asset/signals_view.png" alt="Signals View" width="800">
@@ -266,10 +272,20 @@ Also, you can inject personas into the hired agents.
 
 ## 📋 Release Notes
 
+### v0.0.29 - Deterministic Synthesis Pipeline & Semantic Hardening
+- **Semantic Stability Hardening**: Implemented `SpecAnalysis` stage to extract `ImmutableConstraints`, preventing Architect agents from arbitrarily upgrading 'Optional' components to 'Core' status.
+- **Task Graph & Ordering Validation**: Enforced strict dependency-aware ordering (Headers → Implementations → main) and verified task counts against the IR.
+- **Header Freeze Protocol**: Mandatory declaration-only enforcement for C header files to prevent logic leakage into interfaces.
+- **Fail-Fast & Rework Limit**: Integrated a global watchdog that aborts the pipeline after 3 failed rework attempts to prevent infinite token loops and ensure convergence.
+- **🚨 Critical Flaw & Audit Failure Analysis (v0.0.29.25)**:
+  - **Ghost Structs**: Identified missing field definitions in `architecture.md` leading to hallucinated data models (e.g., `struct user_record` vs `struct user`).
+  - **Senior Audit Failure**: Identified "Blind Approvals" where Senior agents used incorrect feedback logic (e.g., approving non-DB modules using SQLite3 validation logs).
+  - **Interface Drift**: Detected severe semantic mismatch between IR signatures and actual implementation, risking linker failures.
+  - **Logical Over-complication**: Observed Junior agents violating KISS principles, leading to self-trapped logical loops during the 90+ GCC rejection cycles.
+
 ### v0.0.28 - Architectural Auditor & Contract Consistency
 - **Architectural Auditor**: Refactored the Senior Agent into a strict binary compliance auditor (Contract Verifier), eliminating subjective style rejections and focusing purely on SSOT integrity.
-- **v0.0.29**: 언어별 IR 분리 후 C 언어 테스트 (Structural Hardening & Semantic Validation)
-- **v0.0.28**: Intelligent Fault Localization & Orchestration Hardening
+- **Structural Hardening**: Added Anti-Stub v3 and Header Guard to prevent placeholder logic and enforce source/header separation.
 - **Intelligent Fault Localization (Self-Healing)**: Implemented a compiler-aware diagnosis layer that pinpointed exact source files (e.g., `main.c`) responsible for build failures, enabling surgical reworks and preventing infinite loops.
 - **Self-Healing Reviewer**: Implemented a 3-attempt retry loop for JSON protocol compliance, preventing pipeline deadlocks caused by small model formatting errors.
 - **Deterministic Materializer**: Hardened Junior Agent prompts to enforce absolute IR contract faithfulness (Consistency > Quality), suppressing function renaming and hallucinated headers.

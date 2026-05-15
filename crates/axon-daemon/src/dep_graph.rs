@@ -21,6 +21,7 @@ pub struct Node {
     pub id: String,
     pub node_type: NodeType,
     pub role: NodeRole,
+    pub is_blocking: bool, // v0.0.29.25: Criticality
 }
 
 pub struct DepGraph {
@@ -38,8 +39,8 @@ impl DepGraph {
         }
     }
 
-    pub fn add_node(&mut self, id: &str, node_type: NodeType, role: NodeRole) {
-        self.nodes.insert(id.to_string(), Node { id: id.to_string(), node_type, role });
+    pub fn add_node(&mut self, id: &str, node_type: NodeType, role: NodeRole, is_blocking: bool) {
+        self.nodes.insert(id.to_string(), Node { id: id.to_string(), node_type, role, is_blocking });
     }
 
     pub fn add_edge(&mut self, from: &str, to: &str) {
@@ -70,126 +71,147 @@ impl DepGraph {
 
     /// Build initial graph from architecture.md JSON components
     pub fn build_from_ir(&mut self, ir: &serde_json::Value) {
-        if let Some(components) = ir.get("components").and_then(|c| c.as_array()) {
-            // First pass: Add all nodes
-            for comp in components {
-                let comp_name = comp.get("name").and_then(|n| n.as_str()).unwrap_or("unknown");
-                let comp_role = match comp.get("role").and_then(|v| v.as_str()) {
-                    Some("entry") => NodeRole::Entry,
-                    Some("boundary") => NodeRole::Boundary,
-                    _ => NodeRole::Pure,
-                };
-                let comp_id = format!("comp:{}", comp_name);
-                self.add_node(&comp_id, NodeType::Component, comp_role);
-
-                if let Some(file_path) = comp.get("file").and_then(|f| f.as_str()) {
-                    let file_id = format!("file:{}", file_path);
-                    self.add_node(&file_id, NodeType::File, comp_role);
-                    self.add_edge(&comp_id, &file_id);
-
-                    if let Some(funcs) = comp.get("functions").and_then(|f| f.as_array()) {
-                        for func in funcs {
-                            let func_name = func.get("name").and_then(|n| n.as_str()).unwrap_or("unknown");
-                            let func_id = format!("func:{}::{}", file_path, func_name);
-                            self.add_node(&func_id, NodeType::Function, comp_role);
-                            self.add_edge(&file_id, &func_id);
-                        }
-                    }
+        let components_opt = ir.get("components");
+        if let Some(components) = components_opt {
+            if let Some(arr) = components.as_array() {
+                for comp in arr {
+                    self.process_component_json(comp);
+                }
+            } else if let Some(map) = components.as_object() {
+                for comp in map.values() {
+                    self.process_component_json(comp);
                 }
             }
+        }
 
-            // Second pass: Add edges between components
-            for comp in components {
-                let comp_name = comp.get("name").and_then(|n| n.as_str()).unwrap_or("unknown");
-                let comp_id = format!("comp:{}", comp_name);
-                if let Some(deps) = comp.get("dependencies").and_then(|d| d.as_array()) {
-                    for dep in deps {
-                        if let Some(dep_name) = dep.as_str() {
-                            let dep_id = format!("comp:{}", dep_name);
-                            self.add_edge(&comp_id, &dep_id);
-                        }
-                    }
+        // Second pass: Add edges between components (Dependencies)
+        if let Some(components) = components_opt {
+            if let Some(arr) = components.as_array() {
+                for comp in arr { self.process_component_deps(comp); }
+            } else if let Some(map) = components.as_object() {
+                for comp in map.values() { self.process_component_deps(comp); }
+            }
+        }
+    }
+
+    fn process_component_json(&mut self, comp: &serde_json::Value) {
+        let comp_name = comp.get("name").and_then(|n| n.as_str()).unwrap_or("unknown");
+        let comp_role = match comp.get("role").and_then(|v| v.as_str()) {
+            Some("entry") => NodeRole::Entry,
+            Some("boundary") => NodeRole::Boundary,
+            _ => NodeRole::Pure,
+        };
+        // v0.0.29.25: Criticality
+        let is_blocking = comp.get("is_blocking").and_then(|v| v.as_bool()).unwrap_or(true);
+
+        let comp_id = format!("comp:{}", comp_name);
+        self.add_node(&comp_id, NodeType::Component, comp_role, is_blocking);
+
+        // v0.0.29: Support both 'file' (legacy/RawComponent) and 'file_path' (ProjectIR/Component)
+        let file_path_opt = comp.get("file").or_else(|| comp.get("file_path")).and_then(|f| f.as_str());
+        
+        if let Some(file_path) = file_path_opt {
+            let file_id = format!("file:{}", file_path);
+            self.add_node(&file_id, NodeType::File, comp_role, is_blocking);
+            self.add_edge(&comp_id, &file_id);
+
+            if let Some(funcs) = comp.get("functions").and_then(|f| f.as_array()) {
+                for func in funcs {
+                    let func_name = func.get("name").and_then(|n| n.as_str()).unwrap_or("unknown");
+                    let func_id = format!("func:{}::{}", file_path, func_name);
+                    self.add_node(&func_id, NodeType::Function, comp_role, is_blocking);
+                    self.add_edge(&file_id, &func_id);
+                }
+            } else if let Some(funcs_map) = comp.get("functions").and_then(|f| f.as_object()) {
+                // v0.0.29: Support BTreeMap structure from ProjectIR
+                for (func_name, _func_obj) in funcs_map {
+                    let func_id = format!("func:{}::{}", file_path, func_name);
+                    self.add_node(&func_id, NodeType::Function, comp_role, is_blocking);
+                    self.add_edge(&file_id, &func_id);
                 }
             }
         }
     }
 
-    pub fn generate_cmake(&self, project_name: &str) -> String {
+    fn process_component_deps(&mut self, comp: &serde_json::Value) {
+        let comp_name = comp.get("name").and_then(|n| n.as_str()).unwrap_or("unknown");
+        let comp_id = format!("comp:{}", comp_name);
+        
+        // Support both 'dependencies' (Vec) and 'imports' (BTreeSet)
+        let deps_opt = comp.get("dependencies").or_else(|| comp.get("imports")).and_then(|d| d.as_array());
+        if let Some(deps) = deps_opt {
+            for dep in deps {
+                if let Some(dep_name) = dep.as_str() {
+                    let dep_id = format!("comp:{}", dep_name);
+                    self.add_edge(&comp_id, &dep_id);
+                }
+            }
+        }
+    }
+
+    pub fn generate_cmake(&self, project_name: &str, locale: &str, sandbox_root: &std::path::Path) -> String {
         let mut out = String::new();
-        out.push_str("# AXON AUTO-GENERATED CMAKE\n");
+        let header = if locale == "ko_KR" {
+            "# AXON v0.0.29.25 SOVEREIGN 빌드 스크립트 (PRUNING_ENABLED)\n"
+        } else if locale == "ja_JP" {
+            "# AXON v0.0.29.25 SOVEREIGN ビルドスクリプト (PRUNING_ENABLED)\n"
+        } else {
+            "# AXON v0.0.29.25 SOVEREIGN BUILD SCRIPT (PRUNING_ENABLED)\n"
+        };
+        out.push_str(header);
         out.push_str("cmake_minimum_required(VERSION 3.10)\n");
         out.push_str(&format!("project({})\n\n", project_name));
         out.push_str("set(CMAKE_C_STANDARD 99)\n");
         out.push_str("set(CMAKE_CXX_STANDARD 17)\n\n");
 
-        let mut libraries = Vec::new();
-        let mut executables = Vec::new();
-        let mut target_deps: HashMap<String, Vec<String>> = HashMap::new();
+        let mut source_files = HashSet::new();
+        let mut has_sqlite = false;
 
         for (node_id, node) in &self.nodes {
-            if let NodeType::Component = node.node_type {
-                let comp_name = node_id.replace("comp:", "");
-                
-                // Target classification: Check if any of its functions is 'main' OR if it's an Entry role
-                let mut is_exe = if let Some(edges) = self.edges_out.get(node_id) {
-                    edges.iter().any(|eid| {
-                        if let Some(file_edges) = self.edges_out.get(eid) {
-                            file_edges.iter().any(|fid| fid.contains("::main"))
-                        } else { false }
-                    })
-                } else { false };
-
-                // v0.0.32: Fallback to Entry role if no main found
-                if !is_exe && node.role == NodeRole::Entry {
-                    is_exe = true;
-                }
-
-                let src_file = if let Some(edges) = self.edges_out.get(node_id) {
-                    edges.iter()
-                        .find(|eid| eid.starts_with("file:"))
-                        .map(|eid| eid.replace("file:", ""))
-                        .unwrap_or_else(|| format!("{}.c", comp_name))
-                } else {
-                    format!("{}.c", comp_name)
-                };
-
-                if is_exe {
-                    executables.push((comp_name.clone(), src_file));
-                } else {
-                    libraries.push((comp_name.clone(), src_file));
-                }
-
-                // Link dependencies
-                if let Some(edges) = self.edges_out.get(node_id) {
-                    let mut deps = Vec::new();
-                    for eid in edges {
-                        if eid.starts_with("comp:") {
-                            deps.push(eid.replace("comp:", ""));
-                        }
+            if let NodeType::File = node.node_type {
+                let file_path = node_id.replace("file:", "");
+                if file_path.ends_with(".c") || file_path.ends_with(".cpp") {
+                    // v0.0.29.25: Physical Pruning
+                    let full_path = sandbox_root.join(&file_path);
+                    if node.is_blocking || full_path.exists() {
+                        source_files.insert(file_path.clone());
+                    } else {
+                        out.push_str(&format!("# [PRUNED] Optional file missing: {}\n", file_path));
                     }
-                    if !deps.is_empty() {
-                        target_deps.insert(comp_name.clone(), deps);
-                    }
+                }
+                if file_path.contains("database") || file_path.contains("sqlite") {
+                    has_sqlite = true;
                 }
             }
         }
 
-        // v0.0.32: Extreme Fallback - If no executables found at all, force the first library to be an executable
-        if executables.is_empty() && !libraries.is_empty() {
-            let (name, src) = libraries.remove(0);
-            executables.push((name, src));
+        let mut sources: Vec<String> = source_files.into_iter().collect();
+        sources.sort();
+
+        out.push_str("include_directories(include)\n\n");
+
+        if has_sqlite {
+            out.push_str("find_package(PkgConfig REQUIRED)\n");
+            out.push_str("pkg_check_modules(SQLITE3 REQUIRED sqlite3)\n");
+            out.push_str("include_directories(${SQLITE3_INCLUDE_DIRS})\n\n");
         }
 
-        // Output order: Libraries first, then Executables, then Linking
-        for (name, src) in libraries {
-            out.push_str(&format!("add_library({} {})\n", name, src));
+        if !sources.is_empty() {
+            out.push_str(&format!("add_executable({} {})\n", project_name, sources.join(" ")));
+        } else {
+            let err_msg = if locale == "ko_KR" {
+                "# 오류: 아키텍처 명세에 소스 파일이 정의되지 않았거나 모두 Pruning 되었습니다.\n"
+            } else if locale == "ja_JP" {
+                "# エラー: アーキテクチャ仕様にソースファイルが定義されていないか、すべて剪定されました。\n"
+            } else {
+                "# ERROR: Architectural Spec defines no source files or all have been pruned.\n"
+            };
+            out.push_str(err_msg);
+            out.push_str(&format!("add_executable({} src/main.c)\n", project_name));
         }
-        for (name, src) in executables {
-            out.push_str(&format!("add_executable({} {})\n", name, src));
-        }
-        out.push('\n');
-        for (name, deps) in target_deps {
-            out.push_str(&format!("target_link_libraries({} PRIVATE {})\n", name, deps.join(" ")));
+
+        if has_sqlite {
+            out.push_str(&format!("target_link_libraries({} PRIVATE ${{SQLITE3_LIBRARIES}})\n", project_name));
         }
 
         out

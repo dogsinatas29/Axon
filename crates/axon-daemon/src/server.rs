@@ -83,6 +83,8 @@ pub async fn start_server(daemon: Arc<Daemon>) -> Result<(), Box<dyn std::error:
         .route("/api/status", get(get_status))
         .route("/health", get(health_check))
         .route("/queue", get(get_queue_api))
+        .route("/api/semantics/risks", get(get_semantic_risks))
+        .route("/api/semantics/decide", post(submit_semantic_decision))
         .nest_service("/", ServeDir::new(studio_path))
         .layer(cors)
         .with_state(daemon);
@@ -711,3 +713,50 @@ async fn get_queue_api(
         limit: daemon.dispatcher.limit(),
     })
 }
+
+async fn get_semantic_risks(
+    State(daemon): State<Arc<Daemon>>,
+) -> Json<axon_core::validator::SemanticClosure> {
+    let project_id = "default"; // TODO: Multi-project
+    let project_root = format!("./{}", project_id);
+    if let Some(ir) = crate::intelligence::decision::load_project_ir(&project_root) {
+        let extractor = crate::intelligence::semantic_debugger::SemanticRiskExtractor::new(&project_root);
+        Json(extractor.extract_risks(&ir).await)
+    } else {
+        Json(axon_core::validator::SemanticClosure::default())
+    }
+}
+
+async fn submit_semantic_decision(
+    State(daemon): State<Arc<Daemon>>,
+    Json(decision): Json<axon_core::validator::SemanticDecision>,
+) -> impl IntoResponse {
+    let project_id = "default";
+    let project_root = format!("./{}", project_id);
+    
+    let mut closure = crate::intelligence::decision::load_sealed_ir(&project_root)
+        .unwrap_or_default();
+    
+    // Add the new decision
+    closure.decisions.push(decision.clone());
+    
+    if let Err(e) = crate::intelligence::decision::save_sealed_ir(&project_root, &closure) {
+        tracing::error!("Failed to save semantic decision: {}", e);
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    tracing::info!("🏛️ [BOSS_ARBITRATION] Decision registered for risk '{}': {}", decision.risk_id, decision.action);
+    
+    // Resume daemon if all critical risks are resolved
+    if let Some(ir) = crate::intelligence::decision::load_project_ir(&project_root) {
+        let extractor = crate::intelligence::semantic_debugger::SemanticRiskExtractor::new(&project_root);
+        let updated_closure = extractor.extract_risks(&ir).await;
+        if !updated_closure.has_critical_risks() {
+            tracing::info!("🔓 [SEMANTIC_CLEAR] All critical risks resolved. Resuming factory...");
+            let _ = daemon.pause_tx.send(false);
+        }
+    }
+
+    StatusCode::OK.into_response()
+}
+

@@ -30,9 +30,50 @@ const BossBoard: React.FC<BossBoardProps> = ({ threads, events, t }) => {
   const [spec, setSpec] = useState('');
   const [selectedInterruptId, setSelectedInterruptId] = useState<string | null>(null);
   const [clarification, setClarification] = useState('');
+  const [semanticClosure, setSemanticClosure] = useState<any>(null);
+  const [selectedRisk, setSelectedRisk] = useState<any>(null);
+
+  // Fetch semantic risks periodically
+  React.useEffect(() => {
+    const fetchRisks = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/semantics/risks');
+        if (response.ok) {
+          const data = await response.ok ? await response.json() : null;
+          setSemanticClosure(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch semantic risks:', err);
+      }
+    };
+    fetchRisks();
+    const interval = setInterval(fetchRisks, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // v0.0.29: Filter for "ALERT" tasks (3+ rejections or specifically marked as interrupts)
   const interrupts = threads.filter(th => (th.rejection_count || 0) >= 3);
+
+  const handleSemanticDecision = async (action: string) => {
+    if (!selectedRisk) return;
+    try {
+      const response = await fetch('http://localhost:8080/api/semantics/decide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          risk_id: selectedRisk.target,
+          action,
+          comment: clarification || 'Sealed by Boss'
+        }),
+      });
+      if (response.ok) {
+        setSelectedRisk(null);
+        setClarification('');
+      }
+    } catch (err) {
+      console.error('Failed to submit semantic decision:', err);
+    }
+  };
 
   const handleSubmitSpec = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,18 +117,110 @@ const BossBoard: React.FC<BossBoardProps> = ({ threads, events, t }) => {
 
   return (
     <section className="panel" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-      <div className="panel-header">
+      <div className="panel-header" style={{ background: 'var(--status-error)', color: 'white' }}>
         <ShieldCheck size={16} style={{ marginRight: '0.5rem' }} />
-        {t.bossBoardTitle} - Factory Control Tower
+        {t.bossBoardTitle} - Semantic Arbitration Console (v0.0.30)
       </div>
       
       <div style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }}>
-        {/* 1. Critical Interrupts at the TOP */}
-        <div className="card" style={{ border: interrupts.length > 0 ? '1px solid var(--status-error)' : '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '1rem', marginBottom: '1.5rem', color: interrupts.length > 0 ? 'var(--status-error)' : 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Terminal size={16} />
-                {t.bugRepository} {interrupts.length > 0 && `(${interrupts.length})`}
+        
+        {/* 1. Semantic Interrupts (NEW in v0.0.30) */}
+        <div className="card" style={{ border: semanticClosure?.risks?.length > 0 ? '2px solid var(--status-error)' : '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,0,0,0.02)' }}>
+            <h3 style={{ fontSize: '1rem', marginBottom: '1.2rem', color: 'var(--status-error)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <AlertCircle size={18} />
+                SEMANTIC INTERRUPTS {semanticClosure?.risks?.length > 0 && `(${semanticClosure.risks.length})`}
             </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem', minHeight: '300px' }}>
+                {/* Left: Risk List */}
+                <div style={{ borderRight: '1px solid rgba(255,255,255,0.05)', paddingRight: '1rem' }}>
+                    {semanticClosure?.risks?.map((risk: any, i: number) => {
+                        const isResolved = semanticClosure.decisions.some((d: any) => d.risk_id === risk.target);
+                        const isSelected = selectedRisk?.target === risk.target;
+                        return (
+                            <div 
+                                key={i}
+                                onClick={() => setSelectedRisk(risk)}
+                                style={{
+                                    padding: '0.8rem',
+                                    marginBottom: '0.5rem',
+                                    background: isSelected ? 'rgba(255,0,0,0.2)' : 'rgba(255,255,255,0.03)',
+                                    border: `1px solid ${isSelected ? 'var(--status-error)' : 'rgba(255,255,255,0.1)'}`,
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    opacity: isResolved ? 0.5 : 1
+                                }}
+                            >
+                                <div style={{ fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>{risk.kind}</span>
+                                    {isResolved && <ShieldCheck size={12} color="var(--status-success)" />}
+                                </div>
+                                <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>{risk.target}</div>
+                            </div>
+                        );
+                    })}
+                    {(!semanticClosure?.risks || semanticClosure.risks.length === 0) && (
+                        <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.8rem', paddingTop: '2rem' }}>
+                            No unresolved semantic risks.
+                        </div>
+                    )}
+                </div>
+
+                {/* Right: Detail & Arbitration */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {selectedRisk ? (
+                        <>
+                            <div style={{ padding: '1rem', background: '#000', border: '1px solid #333', borderRadius: '4px', flex: 1, overflowY: 'auto' }}>
+                                <div style={{ fontSize: '0.9rem', color: 'var(--status-error)', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                                    {selectedRisk.message}
+                                </div>
+                                <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: '1rem' }}>
+                                    Target: {selectedRisk.target}
+                                </div>
+                                <pre style={{ fontSize: '0.75rem', background: '#111', padding: '0.8rem', borderRadius: '4px', color: '#00ff88', borderLeft: '2px solid #00ff88' }}>
+                                    {selectedRisk.context}
+                                </pre>
+                            </div>
+
+                            <textarea 
+                                value={clarification}
+                                onChange={(e) => setClarification(e.target.value)}
+                                placeholder="Decision context (optional)..."
+                                style={{ height: '60px', background: 'rgba(0,0,0,0.3)', border: '1px solid #333', color: 'white', padding: '0.5rem', fontSize: '0.8rem' }}
+                            />
+
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <button className="btn-control" onClick={() => handleSemanticDecision('SEAL')} style={{ flex: 1, background: '#00e5ff', color: '#000', fontWeight: 'bold' }}>SEAL STRUCT</button>
+                                <button className="btn-control" onClick={() => handleSemanticDecision('EXCLUDE')} style={{ flex: 1, background: '#ff4444', color: 'white' }}>EXCLUDE</button>
+                                <button className="btn-control" onClick={() => handleSemanticDecision('APPROVE')} style={{ flex: 1, background: '#00ff88', color: '#000' }}>APPROVE OPTIONAL</button>
+                                <button className="btn-control" onClick={() => handleSemanticDecision('STOP')} style={{ flex: 1, background: '#333', color: 'white' }}>STOP</button>
+                            </div>
+                        </>
+                    ) : (
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)', fontSize: '0.85rem', background: 'rgba(0,0,0,0.1)', borderRadius: '4px' }}>
+                            Select a risk to begin arbitration.
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+
+        {/* 2. Legacy Failure Interrupts (3+ rejections) */}
+        {interrupts.length > 0 && (
+            <div className="card" style={{ border: '1px solid var(--status-error)', background: 'rgba(255,0,0,0.01)' }}>
+                <h3 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--status-error)' }}>
+                    REWORK INTERRUPTS ({interrupts.length})
+                </h3>
+                {/* ... existing logic for interrupts ... */}
+                <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto' }}>
+                    {interrupts.map(th => (
+                        <div key={th.id} onClick={() => setSelectedInterruptId(th.id)} style={{ padding: '0.5rem 1rem', background: 'rgba(255,0,0,0.1)', border: '1px solid rgba(255,0,0,0.2)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }}>
+                            {th.title}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
             
             {/* Horizontal list of problem tasks */}
             <div style={{ display: 'flex', gap: '0.8rem', overflowX: 'auto', paddingBottom: '1rem', marginBottom: interrupts.length > 0 ? '1rem' : 0 }}>

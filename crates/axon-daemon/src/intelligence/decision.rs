@@ -1,5 +1,38 @@
 // # encoding: utf-8
 use serde::{Deserialize, Serialize};
+use axon_ir::ProjectIR;
+use axon_core::validator::{SemanticClosure, SemanticDecision};
+use std::path::Path;
+
+pub fn load_project_ir(project_root: &str) -> Option<ProjectIR> {
+    let path = Path::new(project_root).join("contracts/project_ir.json");
+    if path.exists() {
+        if let Ok(content) = std::fs::read_to_string(path) {
+            return serde_json::from_str(&content).ok();
+        }
+    }
+    None
+}
+
+pub fn load_sealed_ir(project_root: &str) -> Option<SemanticClosure> {
+    let path = Path::new(project_root).join("contracts/sealed_ir.json");
+    if path.exists() {
+        if let Ok(content) = std::fs::read_to_string(path) {
+            return serde_json::from_str(&content).ok();
+        }
+    }
+    None
+}
+
+pub fn save_sealed_ir(project_root: &str, closure: &SemanticClosure) -> anyhow::Result<()> {
+    let path = Path::new(project_root).join("contracts/sealed_ir.json");
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let content = serde_json::to_string_pretty(closure)?;
+    std::fs::write(path, content)?;
+    Ok(())
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum Stage {
@@ -282,6 +315,7 @@ pub struct PromptContext {
     pub cause: Option<FailureCause>,
     pub files: Vec<(String, String)>,
     pub target: String,
+    pub project_root: String, // v0.0.30: Required for contract injection
 }
 
 pub struct PromptBuilder;
@@ -289,6 +323,16 @@ pub struct PromptBuilder;
 impl PromptBuilder {
     pub fn build(ctx: &PromptContext) -> String {
         let mut prompt = String::new();
+
+        // v0.0.30: [CRITICAL_CONTRACT] Injection
+        if let Some(sealed) = load_sealed_ir(&ctx.project_root) {
+            prompt.push_str("\n[CRITICAL_CONTRACT]\n");
+            prompt.push_str("The following semantic decisions are BINDING and IMMUTABLE:\n\n");
+            for decision in &sealed.decisions {
+                prompt.push_str(&format!("- {}: {} ({})\n", decision.risk_id, decision.action, decision.comment));
+            }
+            prompt.push_str("\nViolation of these contracts will result in immediate rejection.\n\n");
+        }
 
         prompt.push_str(&Self::base(&ctx.stage));
 

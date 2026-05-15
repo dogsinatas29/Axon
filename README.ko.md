@@ -280,6 +280,12 @@ Axon의 작업 에이전트들의 위계를 보여주는 게시판입니다.
 
 ## 📋 릴리즈 노트
 
+### v0.0.30 - 시맨틱 봉인 및 중재 루프 (Semantic Sealing & Arbitration Loop)
+- **시맨틱 디버거 MVP (Semantic Debugger)**: 생성 전 유령 구조체(Ghost Structs), 의존성 격상(Dependency Escalation), ABI 변질을 자동으로 탐지하는 진단기 도입.
+- **시맨틱 중재 콘솔 (Arbitration Console)**: 기존 사장 게시판을 아키텍처 결정을 "봉인(Sealing)"하고 시맨틱 공백을 해소하는 거버넌스 도구로 개편.
+- **[CRITICAL_CONTRACT] 프롬프트 주입**: 사장이 승인한 시맨틱 결정을 주니어 에이전트 프롬프트에 불변 계약으로 강제 주입하여 자의적 추론 차단.
+- **Shift-Left 권한 구조**: 코드를 먼저 짜고 고치는 방식에서, 시맨틱 완결성을 먼저 확보(Closure)한 뒤에만 생성이 진행되는 "승인 기반 상태 전이" 모델 확립.
+
 ### v0.0.29 - 결정론적 합성 파이프라인 및 시맨틱 하드닝 (Semantic Hardening)
 - **시맨틱 안정성 강화**: `SpecAnalysis` 단계를 구현하여 불변 제약 조건(`ImmutableConstraints`)을 추출, 아키텍트가 '선택(Optional)' 요소를 임의로 '필수(Core)'로 격상시키는 것을 방지함.
 - **태스크 그래프 및 순서 검증**: 의존성 인식 순서(Headers → Implementations → main)를 강제하고, IR 대비 태스크 수 정합성을 검증함.

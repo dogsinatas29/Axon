@@ -3,6 +3,8 @@ pub mod types;
 pub mod analysis;
 pub mod debug;
 pub mod integration;
+pub mod semantic;
+pub use semantic::{SemanticRisk, SemanticRiskLevel, SemanticRiskKind, SemanticClosure, SemanticDecision};
 
 use rustpython_parser::Parse;
 use rustpython_ast::Suite;

@@ -272,6 +272,12 @@ Also, you can inject personas into the hired agents.
 
 ## 📋 Release Notes
 
+### v0.0.30 - Semantic Sealing & Arbitration Loop
+- **Semantic Debugger MVP**: Automated detection of Ghost Structs, Dependency Escalation, and ABI Drift before generation.
+- **Semantic Arbitration Console**: Rebuilt the Boss Board into a governance console for sealing architectural decisions and resolving semantic gaps.
+- **[CRITICAL_CONTRACT] Injection**: Mandatory contract enforcement in Junior prompts, ensuring agents follow Boss-approved semantic decisions.
+- **Shift-Left Authority**: Established a "Permissioned State Transition" model where generation only proceeds after semantic closure and human arbitration.
+
 ### v0.0.29 - Deterministic Synthesis Pipeline & Semantic Hardening
 - **Semantic Stability Hardening**: Implemented `SpecAnalysis` stage to extract `ImmutableConstraints`, preventing Architect agents from arbitrarily upgrading 'Optional' components to 'Core' status.
 - **Task Graph & Ordering Validation**: Enforced strict dependency-aware ordering (Headers → Implementations → main) and verified task counts against the IR.

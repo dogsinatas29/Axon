@@ -35,6 +35,7 @@ use std::path::PathBuf;
 use tokio::sync::mpsc;
 use std::collections::{HashMap, HashSet};
 use crate::intelligence::decision::*;
+use crate::intelligence::semantic_debugger::SemanticRiskExtractor;
 
 // Legacy routing types removed in v0.0.25
 
@@ -300,6 +301,43 @@ impl Daemon {
                 if pause_rx.changed().await.is_err() {
                     break;
                 }
+                continue;
+            }
+
+            // v0.0.30: [PHASE 1] Semantic Inspection Gate
+            let semantic_risks = {
+                // v0.0.29: Use latest ProjectIR from disk or memory
+                // For KISS, we load it here or use a cached version
+                let project_id = "default"; // TODO: Multi-project support
+                let project_root = format!("./{}", project_id);
+                if let Some(ir) = crate::intelligence::decision::load_project_ir(&project_root) {
+                    let extractor = SemanticRiskExtractor::new(&project_root);
+                    extractor.extract_risks(&ir).await
+                } else {
+                    axon_core::validator::SemanticClosure::default()
+                }
+            };
+
+            if semantic_risks.has_critical_risks() {
+                let risk = semantic_risks.risks.first().unwrap();
+                tracing::error!("🚨 [SEMANTIC_INTERRUPT] Project blocked due to critical risk: {}", risk.message);
+                
+                self.publish_event(axon_core::Event {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    project_id: "system".to_string(),
+                    thread_id: None,
+                    agent_id: None,
+                    event_type: axon_core::EventType::Signal,
+                    level: axon_core::EventLevel::Critical,
+                    source: "SEMANTIC_DEBUGGER".to_string(),
+                    content: format!("### 🚨 [SEMANTIC_INTERRUPT]\n\n**Reason:** {}\n\n**Target:** {}\n\n**Context:**\n```\n{}\n```\n\n**Action:** Generation halted. Boss arbitration required.", 
+                        risk.message, risk.target, risk.context),
+                    payload: Some(serde_json::to_value(&semantic_risks).unwrap_or_default()),
+                    timestamp: chrono::Local::now(),
+                });
+
+                // Pause the daemon to wait for Boss Arbitration
+                let _ = self.pause_tx.send(true);
                 continue;
             }
 

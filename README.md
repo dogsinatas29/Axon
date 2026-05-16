@@ -324,7 +324,8 @@ Also, you can inject personas into the hired agents.
 - **Violation Trace UI**: Introduced a high-density violation analysis sidebar to pinpoint specific symbol mismatches and physical errors (e.g., SQLite3 protocol violations).
 - **Zero-Warning Production Engine**: Fully reconstructed the `TEST2/spec` project to achieve **100% build success (0 warnings)** with gcc 15.2.0, enforcing strict SQLite3 C API lifecycle compliance.
 - **Strategic Phase Sorting**: Reordered all task and risk lists to follow the logical manufacturing sequence: **Phase 1 (Headers) → Phase 2 (Implementations) → Phase 3 (Integration)**.
-- **Daemon Hardening**: Eliminated all internal Rust compiler warnings in the `axon-daemon` to ensure 100% engine purity and reliability.
+- **Daemon Hardening**: Eliminated all internal Rust compiler warnings to ensure 100% engine purity and reliability.
+- **C-Native Focus**: Current IR hardening and production validation in v0.0.30 have been focused exclusively on the C language stack.
 
 ### v0.0.29 - Deterministic Synthesis Pipeline & Semantic Hardening
 - **Semantic Stability Hardening**: Implemented `SpecAnalysis` stage to extract `ImmutableConstraints`, preventing Architect agents from arbitrarily upgrading 'Optional' components to 'Core' status.

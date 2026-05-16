@@ -1,4 +1,8 @@
 <p align="center">
+  <a href="README.ko.md">🇰🇷 한국어 문서 (Korean Version)</a>
+</p>
+
+<p align="center">
   <h1 align="center">AXON</h1>
   <h3 align="center">The Automated Software Factory</h3>
   <p align="center">Turn specs into verified, production-ready code.</p>
@@ -6,11 +10,21 @@
 </p>
 
 <p align="center">
+  <a href="https://youtu.be/3dzJkv2ieJg">
+    <img src="https://img.youtube.com/vi/3dzJkv2ieJg/0.jpg" alt="AXON Hardened Demo" width="600">
+  </a>
+  <br>
+  <b>Governance Hardening & BossBoard v0.0.30 Demo</b>
+  <br>
+  <i>(Used Specification: <a href="./TEST2/spec.md">/TEST2/spec.md</a>)</i>
+</p>
+
+<p align="center">
   <a href="https://youtu.be/gmUdrVNKrPg">
     <img src="https://img.youtube.com/vi/gmUdrVNKrPg/0.jpg" alt="AXON Demo Video" width="600">
   </a>
   <br>
-  <b>Full pipeline demo</b>
+  <b>Full pipeline demo (Initial)</b>
 </p>
 
 <a name="when-to-use-axon"></a>
@@ -23,8 +37,6 @@
 
 <p align="center">
   <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="License: GPL 3.0"></a>
-  <br>
-  <a href="README.ko.md">🇰🇷 한국어 버전 (Korean Version)</a>
 </p>
 
 **[Source Specification (spec.md)](./spec.md)**
@@ -306,11 +318,13 @@ Also, you can inject personas into the hired agents.
 
 ## 📋 Release Notes
 
-### v0.0.30 - Semantic Sealing & Arbitration Loop
-- **Semantic Debugger MVP**: Automated detection of Ghost Structs, Dependency Escalation, and ABI Drift before generation.
-- **Semantic Arbitration Console**: Rebuilt the Boss Board into a governance console for sealing architectural decisions and resolving semantic gaps.
-- **[CRITICAL_CONTRACT] Injection**: Mandatory contract enforcement in Junior prompts, ensuring agents follow Boss-approved semantic decisions.
-- **Shift-Left Authority**: Established a "Permissioned State Transition" model where generation only proceeds after semantic closure and human arbitration.
+### v0.0.30 - Governance Hardening & Production Integrity (FINAL)
+- **BossBoard v2 (The Command Center)**: Implemented a grid-locked viewport with a fixed tactical command desk, ensuring the Boss always has immediate access to [SEAL/REWORK] actions.
+- **Sacred Contract Portal**: Added a glass-morphism modal for real-time viewing of the full Architectural IR (Sacred Contract), providing absolute legal grounding for every decision.
+- **Violation Trace UI**: Introduced a high-density violation analysis sidebar to pinpoint specific symbol mismatches and physical errors (e.g., SQLite3 protocol violations).
+- **Zero-Warning Production Engine**: Fully reconstructed the `TEST2/spec` project to achieve **100% build success (0 warnings)** with gcc 15.2.0, enforcing strict SQLite3 C API lifecycle compliance.
+- **Strategic Phase Sorting**: Reordered all task and risk lists to follow the logical manufacturing sequence: **Phase 1 (Headers) → Phase 2 (Implementations) → Phase 3 (Integration)**.
+- **Daemon Hardening**: Eliminated all internal Rust compiler warnings in the `axon-daemon` to ensure 100% engine purity and reliability.
 
 ### v0.0.29 - Deterministic Synthesis Pipeline & Semantic Hardening
 - **Semantic Stability Hardening**: Implemented `SpecAnalysis` stage to extract `ImmutableConstraints`, preventing Architect agents from arbitrarily upgrading 'Optional' components to 'Core' status.

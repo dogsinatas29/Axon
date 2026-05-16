@@ -2,6 +2,7 @@
 name = "axon-daemon"
 version = "0.1.0"
 edition = "2024"
+default-run = "axon-daemon"
 
 [dependencies]
 axon-core = { path = "../axon-core" }
@@ -30,3 +31,4 @@ regex = "1.12.3"
 sha2 = "0.11.0"
 rusqlite = { version = "0.29", features = ["bundled"] }
 once_cell = "1.21.4"
+socket2 = "0.6.3"

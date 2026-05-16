@@ -1,0 +1,28 @@
+{
+  "precedents": [
+    {
+      "id": "PREC-USER-AUTH",
+      "risk_kind": "InterfaceDrift",
+      "target_pattern": "user_.*",
+      "action": {
+        "AutoSeal": {
+          "comment": "Trust all user-related interface changes for Auth modules."
+        }
+      },
+      "comment": "Dangerous regex precedent for testing.",
+      "trust_level": "LocalStable",
+      "success_count": 10,
+      "failure_count": 0,
+      "severity_override": null,
+      "fingerprint_requirement": {
+        "role": "Auth",
+        "has_pointers": true,
+        "security_sensitive": true,
+        "is_persistent": false,
+        "field_count": 2,
+        "blast_radius_score": 5
+      },
+      "metadata": {}
+    }
+  ]
+}

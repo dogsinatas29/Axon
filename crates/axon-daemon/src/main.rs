@@ -126,7 +126,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Run { resume, spec } => {
             println!("\n====================================================
-🏭 AXON: Automated Software Factory v0.0.28_HARDENED
+🏭 AXON: Automated Software Factory v0.0.30_HARDENED
 ====================================================
 ======================\n");
 
@@ -388,6 +388,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 "".to_string()
             };
+
+            // v0.0.30: If spec_path is empty but architecture.md exists, try to auto-detect project
+            if spec_path.is_empty() {
+                let mut found_arch = None;
+                if std::path::Path::new("architecture.md").exists() {
+                    found_arch = Some(std::path::PathBuf::from("."));
+                } else if let Ok(entries) = std::fs::read_dir(".") {
+                    for entry in entries.flatten() {
+                        if entry.path().is_dir() {
+                            let arch = entry.path().join("architecture.md");
+                            if arch.exists() {
+                                found_arch = Some(entry.path());
+                                break;
+                            }
+                        }
+                    }
+                }
+                if let Some(p) = found_arch {
+                    let pid = p.file_name().and_then(|s| s.to_str()).unwrap_or("spec").to_string();
+                    println!("♻️  Auto-detected active project: '{}'. Resuming pipeline...", pid);
+                    spec_path = if p == std::path::PathBuf::from(".") { "architecture.md".to_string() } else { format!("{}/spec.md", pid) };
+                }
+            }
             
             // v0.0.29: Input Validation Guard
             if !skip_bootstrap && !spec_path.is_empty() && !std::path::Path::new(&spec_path).exists() {
@@ -414,7 +437,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", msg_all_systems);
             let msg_target_spec = if final_locale == "ko_KR" { format!("   - 대상 명세서: {}", spec_path) } else if final_locale == "ja_JP" { format!("   - ターゲット仕様書: {}", spec_path) } else { format!("   - Target Spec: {}", spec_path) };
             println!("{}", msg_target_spec);
-            println!("   - Studio UI  : http://localhost:8080");
+            println!("   - Studio UI  : http://localhost:9000");
             println!("====================================================\n");
 
             thread::sleep(Duration::from_millis(1500));

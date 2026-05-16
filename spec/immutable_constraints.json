@@ -1,0 +1,20 @@
+{
+  "project_id": "Authority Attack Test",
+  "components": [
+    {
+      "name": "save_user_interface_modification",
+      "status": "Core",
+      "promotion_forbidden": true,
+      "blocking_forbidden": true
+    }
+  ],
+  "forbidden_patterns": [
+    "Callee Owns",
+    "메모리 해제"
+  ],
+  "ambiguity_detected": true,
+  "ambiguity_details": [
+    "명세에 명시된 컴포넌트가 3개 미만입니다. 설계 결정이 필요할 수 있습니다."
+  ],
+  "recommended_action": "REVIEW_REQUIRED"
+}

@@ -62,7 +62,7 @@ pub async fn start_server(daemon: Arc<Daemon>) -> Result<(), Box<dyn std::error:
 
     let app = Router::new()
         .route("/ws", get(ws_handler))
-        .route("/api/threads", get(list_threads)) // Keep for backward compatibility or global view
+        .route("/api/threads", get(list_threads)) 
         .route("/api/project/:project_id/threads", get(list_threads_by_project))
         .route("/api/threads/:id/posts", get(list_posts))
         .route("/api/threads/:id/approve", post(approve_thread))
@@ -77,7 +77,6 @@ pub async fn start_server(daemon: Arc<Daemon>) -> Result<(), Box<dyn std::error:
         .route("/api/agents", get(list_agents_api))
         .route("/api/agents/hire", post(hire_agent))
         .route("/api/agents/:id/fire", post(fire_agent))
-        // PHASE_11: Standard API Interface
         .route("/submit", post(submit_task))
         .route("/api/tasks/:id", get(get_task_api))
         .route("/api/status", get(get_status))
@@ -85,14 +84,25 @@ pub async fn start_server(daemon: Arc<Daemon>) -> Result<(), Box<dyn std::error:
         .route("/queue", get(get_queue_api))
         .route("/api/semantics/risks", get(get_semantic_risks))
         .route("/api/semantics/decide", post(submit_semantic_decision))
+        .route("/api/approval/pending", get(get_pending_approval))
+        .route("/api/approval/respond", post(respond_approval))
         .nest_service("/", ServeDir::new(studio_path))
         .layer(cors)
         .with_state(daemon);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
-    tracing::info!("Studio UI available at http://localhost:8080");
+    let addr = SocketAddr::from(([127, 0, 0, 1], 9000));
     
-    let listener = tokio::net::TcpListener::bind(addr).await?;
+    // v0.0.30: [PORT_HARDENING] Ensure immediate port recovery on restart
+    let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::STREAM, None)?;
+    socket.set_reuse_address(true)?;
+    #[cfg(not(windows))]
+    socket.set_reuse_port(true)?;
+    socket.bind(&addr.into())?;
+    socket.listen(128)?;
+    socket.set_nonblocking(true)?;
+    let listener = tokio::net::TcpListener::from_std(socket.into())?;
+    
+    tracing::info!("Studio UI available at http://localhost:9000");
     axum::serve(listener, app).await?;
 
     Ok(())
@@ -132,7 +142,9 @@ async fn get_events(
 async fn list_tasks(
     State(daemon): State<Arc<Daemon>>,
 ) -> Json<Vec<Task>> {
+    tracing::info!("🔍 [RADAR] Scanning global task database for semantic risks...");
     let tasks = daemon.storage.list_all_tasks().unwrap_or_default();
+    tracing::info!("📊 [RADAR] Total tasks found: {}", tasks.len());
     Json(tasks)
 }
 
@@ -163,7 +175,6 @@ async fn submit_spec_internal(
 ) -> impl IntoResponse {
     tracing::info!("Received new spec submission for project: {}", project_id);
     
-    // Simulate spec parsing into tasks using LLM
     let prompt = format!(
         "PARSE THIS SPEC INTO TASKS (JSON ARRAY with fields: title, description, target_file):\n\n{}",
         submission.content
@@ -172,7 +183,6 @@ async fn submit_spec_internal(
     match daemon.architect_model.generate(prompt).await {
         Ok(resp) => {
             let tasks_json = resp.text;
-            // Very basic parsing attempt
             if let Ok(tasks_raw) = serde_json::from_str::<Vec<serde_json::Value>>(&tasks_json) {
                 for t in tasks_raw {
                     let task = Task {
@@ -232,14 +242,13 @@ async fn submit_spec_internal(
                     };
                     let _ = daemon.storage.save_post(new_post).await;
                     
-                    // v0.0.28: Notify UI immediately via WebSocket
                     daemon.publish_event(axon_core::Event {
                         id: uuid::Uuid::new_v4().to_string(),
                         project_id: task.project_id.clone(),
                         thread_id: Some(task.id.clone()),
                         agent_id: None,
                         event_type: axon_core::EventType::ThreadCreated,
-                    level: axon_core::EventLevel::Info,
+                        level: axon_core::EventLevel::Info,
                         source: "architect".to_string(),
                         content: format!("🆕 New strategic thread created: {}", task.title),
                         payload: None,
@@ -252,7 +261,6 @@ async fn submit_spec_internal(
                 }
                 "Spec processed and tasks queued".into_response()
             } else {
-                // Fallback: create a single task from the submission
                 let task = Task {
                     id: uuid::Uuid::new_v4().to_string(),
                     project_id: project_id.clone(),
@@ -330,36 +338,24 @@ async fn clarify_thread(
     Json(payload): Json<ClarifyRequest>,
 ) -> impl IntoResponse {
     tracing::info!("🚨 [BOSS_INTERRUPT] Received clarification for thread: {}", id);
-    
-    // 1. Find and Update Task
     if let Ok(Some(mut task)) = daemon.storage.get_task(&id) {
         let clarification_msg = format!("\n\n--- 🚨 BOSS CLARIFICATION ---\n{}\n----------------------------\n", payload.command);
-        
-        // Append to error feedback so Junior sees it as the ultimate constraint
         let mut feedback = task.error_feedback.unwrap_or_default();
         feedback.push_str(&clarification_msg);
         task.error_feedback = Some(feedback);
-        
-        // Update status and allow retry
         task.status = TaskStatus::Pending;
-        task.rework_count = 0; // Reset for fresh attempt with Boss guidance
-        
+        task.rework_count = 0;
         if let Err(e) = daemon.storage.save_task(task.clone()).await {
             tracing::error!("Failed to save clarified task: {}", e);
             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         }
-
-        // 2. Update Thread status back to Working
         if let Ok(Some(mut thread)) = daemon.storage.get_thread(&id) {
             thread.status = axon_core::ThreadStatus::Working;
             let _ = daemon.storage.save_thread(thread).await;
         }
-
-        // 3. Re-enqueue
         if let Err(e) = daemon.dispatcher.enqueue_task(task) {
             tracing::error!("Failed to re-enqueue clarified task: {}", e);
         }
-
         daemon.publish_event(axon_core::Event {
             id: uuid::Uuid::new_v4().to_string(),
             project_id: "system".to_string(),
@@ -372,7 +368,6 @@ async fn clarify_thread(
             payload: None,
             timestamp: chrono::Local::now(),
         });
-
         "Clarified".into_response()
     } else {
         StatusCode::NOT_FOUND.into_response()
@@ -389,32 +384,27 @@ async fn approve_thread(
              tracing::error!("❌ Failed to save thread: {}", e);
              return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         }
-        
-        // Lock-in architecture section (v0.0.28 Isolation Path applied)
         let _ = daemon.lock_in_architecture(&thread.project_id, &thread.title);
-
+        let _ = daemon.seal_semantic_risks(&thread.id).await;
         daemon.publish_event(axon_core::Event {
             id: uuid::Uuid::new_v4().to_string(),
             project_id: thread.project_id.clone(),
             thread_id: Some(id),
             agent_id: None,
             event_type: axon_core::EventType::ApprovalGranted,
-                    level: axon_core::EventLevel::Info,
+            level: axon_core::EventLevel::Info,
             source: "BOSS".to_string(),
-            content: "BOSS approved the thread.".to_string(),
+            content: "BOSS가 스레드를 승인했습니다.".to_string(),
             payload: None,
             timestamp: chrono::Local::now(),
         });
-        
         "Approved".into_response()
     } else {
         axum::http::StatusCode::NOT_FOUND.into_response()
     }
 }
 
-async fn pause_daemon(
-    State(daemon): State<Arc<Daemon>>,
-) -> impl IntoResponse {
+async fn pause_daemon(State(daemon): State<Arc<Daemon>>) -> impl IntoResponse {
     let _ = daemon.pause_tx.send(true);
     daemon.publish_event(axon_core::Event {
         id: uuid::Uuid::new_v4().to_string(),
@@ -422,7 +412,7 @@ async fn pause_daemon(
         thread_id: None,
         agent_id: None,
         event_type: axon_core::EventType::SystemLog,
-                    level: axon_core::EventLevel::Info,
+        level: axon_core::EventLevel::Info,
         source: "daemon".to_string(),
         content: "Daemon PAUSED by BOSS".to_string(),
         payload: None,
@@ -431,9 +421,7 @@ async fn pause_daemon(
     "Paused".into_response()
 }
 
-async fn resume_daemon(
-    State(daemon): State<Arc<Daemon>>,
-) -> impl IntoResponse {
+async fn resume_daemon(State(daemon): State<Arc<Daemon>>) -> impl IntoResponse {
     let _ = daemon.pause_tx.send(false);
     daemon.publish_event(axon_core::Event {
         id: uuid::Uuid::new_v4().to_string(),
@@ -441,7 +429,7 @@ async fn resume_daemon(
         thread_id: None,
         agent_id: None,
         event_type: axon_core::EventType::SystemLog,
-                    level: axon_core::EventLevel::Info,
+        level: axon_core::EventLevel::Info,
         source: "daemon".to_string(),
         content: "Daemon RESUMED by BOSS".to_string(),
         payload: None,
@@ -458,23 +446,16 @@ struct StatusResponse {
     locale: String,
 }
 
-async fn get_status(
-    State(daemon): State<Arc<Daemon>>,
-) -> Json<StatusResponse> {
+async fn get_status(State(daemon): State<Arc<Daemon>>) -> Json<StatusResponse> {
     let is_paused = *daemon.pause_rx.borrow();
-    
-    // v0.0.28: Strategic sync - robust filtering of non-work threads
     let threads = daemon.storage.list_runnable_threads().unwrap_or_default();
     let strategic_threads = threads.iter().filter(|t| {
         let is_lounge = t.id == "lounge" || t.title.contains("Lounge");
         let is_system = t.project_id == "system" || t.project_id == "AXON-SYSTEM";
         !is_lounge && !is_system
     }).count();
-    
-    // v0.0.28: Clean signal count - exclude Nogari chat logs from the factory overview stats
     let events = daemon.storage.list_events(1000).unwrap_or_default();
     let process_signals = events.iter().filter(|e| e.event_type != axon_core::EventType::MessagePosted).count();
-    
     Json(StatusResponse {
         is_running: !is_paused,
         active_threads: strategic_threads,
@@ -483,9 +464,7 @@ async fn get_status(
     })
 }
 
-async fn list_agents_api(
-    State(daemon): State<Arc<Daemon>>,
-) -> Json<Vec<axon_core::Agent>> {
+async fn list_agents_api(State(daemon): State<Arc<Daemon>>) -> Json<Vec<axon_core::Agent>> {
     let agents = daemon.storage.list_agents().unwrap_or_default();
     Json(agents)
 }
@@ -496,10 +475,7 @@ struct HireRequest {
     parent_id: Option<String>,
 }
 
-async fn hire_agent(
-    State(daemon): State<Arc<Daemon>>,
-    Json(req): Json<HireRequest>,
-) -> impl IntoResponse {
+async fn hire_agent(State(daemon): State<Arc<Daemon>>, Json(req): Json<HireRequest>) -> impl IntoResponse {
     let agent_id = format!("agent-{}", uuid::Uuid::new_v4().to_string()[..8].to_string());
     let (model, model_name) = match req.role {
         axon_core::AgentRole::Architect => (daemon.architect_model.clone(), daemon.architect_model_name.clone()),
@@ -512,110 +488,72 @@ async fn hire_agent(
             daemon.junior_model_names.first().cloned().unwrap_or_else(|| daemon.architect_model_name.clone())
         ),
     };
-
-    let mut runtime = axon_agent::AgentRuntime::new(
-        agent_id.clone(),
-        req.role,
-        model_name,
-        model,
-    );
+    let mut runtime = axon_agent::AgentRuntime::new(agent_id.clone(), req.role, model_name, model);
     runtime.agent.parent_id = req.parent_id;
-    
     let _ = daemon.storage.save_agent(runtime.agent.clone()).await;
-    
     daemon.publish_event(axon_core::Event {
         id: uuid::Uuid::new_v4().to_string(),
         project_id: "system".to_string(),
         thread_id: None,
         agent_id: Some(agent_id.clone()),
         event_type: axon_core::EventType::AgentAssigned,
-                    level: axon_core::EventLevel::Info,
+        level: axon_core::EventLevel::Info,
         source: "daemon".to_string(),
         content: format!("New agent {} hired as {:?}", runtime.agent.name, runtime.agent.role),
         payload: None,
         timestamp: chrono::Local::now(),
     });
-
     Json(runtime.agent)
 }
 
-async fn fire_agent(
-    Path(id): Path<String>,
-    State(daemon): State<Arc<Daemon>>,
-) -> impl IntoResponse {
+async fn fire_agent(Path(id): Path<String>, State(daemon): State<Arc<Daemon>>) -> impl IntoResponse {
     let agents = daemon.storage.list_agents().unwrap_or_default();
     let fired_agent = agents.iter().find(|a| a.id == id);
-    
     if let Some(agent) = fired_agent {
-        // Enforce minimum requirements (Cannot fire the last Senior or Junior)
         let same_role_count = agents.iter().filter(|a| a.role == agent.role).count();
         if same_role_count <= 1 && agent.role != axon_core::AgentRole::Architect {
-            return (axum::http::StatusCode::BAD_REQUEST, "Cannot fire the last agent of this role. Minimum requirement: 1 Senior, 1 Junior.").into_response();
+            return (axum::http::StatusCode::BAD_REQUEST, "Cannot fire last agent of role.").into_response();
         }
-
-        // CASCADING FIRE (v0.0.28): If a Senior is fired, fire all sub-juniors simultaneously
-        let children_to_fire: Vec<String> = agents.iter()
-            .filter(|a| a.parent_id.as_deref() == Some(&id))
-            .map(|a| a.id.clone())
-            .collect();
-
-        for child_id in children_to_fire {
-            let _ = daemon.storage.delete_agent(child_id).await;
-        }
-
+        let children_to_fire: Vec<String> = agents.iter().filter(|a| a.parent_id.as_deref() == Some(&id)).map(|a| a.id.clone()).collect();
+        for child_id in children_to_fire { let _ = daemon.storage.delete_agent(child_id).await; }
         let _ = daemon.storage.delete_agent(id.clone()).await;
-        
         daemon.publish_event(axon_core::Event {
             id: uuid::Uuid::new_v4().to_string(),
             project_id: "system".to_string(),
             thread_id: None,
             agent_id: Some(id.clone()),
             event_type: axon_core::EventType::SystemLog,
-                    level: axon_core::EventLevel::Info,
+            level: axon_core::EventLevel::Info,
             source: "daemon".to_string(),
-            content: format!("Agent {} (and all its subordinates) fired.", agent.name),
+            content: format!("Agent {} fired.", agent.name),
             payload: None,
             timestamp: chrono::Local::now(),
         });
-        
         axum::http::StatusCode::OK.into_response()
     } else {
         axum::http::StatusCode::NOT_FOUND.into_response()
     }
 }
 
-async fn ws_handler(
-    ws: WebSocketUpgrade,
-    State(daemon): State<Arc<Daemon>>,
-) -> impl IntoResponse {
+async fn ws_handler(ws: WebSocketUpgrade, State(daemon): State<Arc<Daemon>>) -> impl IntoResponse {
     ws.on_upgrade(|socket| handle_socket(socket, daemon))
 }
 
 async fn handle_socket(mut socket: WebSocket, daemon: Arc<Daemon>) {
-    tracing::info!("New WebSocket connection established");
     let mut rx = daemon.event_bus.subscribe();
-
     loop {
         tokio::select! {
             Ok(event) = rx.recv() => {
                 if let Ok(text) = serde_json::to_string(&event) {
-                    if socket.send(Message::Text(text)).await.is_err() {
-                        break;
-                    }
+                    if socket.send(Message::Text(text)).await.is_err() { break; }
                 }
             }
             msg = socket.next() => {
-                match msg {
-                    Some(Ok(Message::Close(_))) | None => break,
-                    _ => {}
-                }
+                match msg { Some(Ok(Message::Close(_))) | None => break, _ => {} }
             }
         }
     }
-    tracing::info!("WebSocket connection closed");
 }
-
-// PHASE_11: Standard API Handlers
 
 #[derive(serde::Deserialize)]
 pub struct TaskRequest {
@@ -631,10 +569,7 @@ pub struct SubmitResponse {
     pub queue_size: usize,
 }
 
-async fn submit_task(
-    State(daemon): State<Arc<Daemon>>,
-    Json(req): Json<TaskRequest>,
-) -> Json<SubmitResponse> {
+async fn submit_task(State(daemon): State<Arc<Daemon>>, Json(req): Json<TaskRequest>) -> Json<SubmitResponse> {
     let project_id = req.project_id.unwrap_or_else(|| "default-project".to_string());
     let task_id = uuid::Uuid::new_v4().to_string();
     let task = Task {
@@ -661,102 +596,247 @@ async fn submit_task(
         task_kind: None,
         signature: None,
     };
-
     let _ = daemon.storage.save_task(task.clone()).await;
-    let queue_size = daemon.dispatcher.len();
-    
-    if let Err(e) = daemon.dispatcher.enqueue_task(task) {
-        tracing::error!("❌ [QUEUE_REJECTED] via /submit: {}", e);
-        return Json(SubmitResponse {
-            status: "REJECTED".to_string(),
-            task_id,
-            queue_size,
-        });
-    }
-
-    Json(SubmitResponse {
-        status: "ACCEPTED".to_string(),
-        task_id,
-        queue_size: daemon.dispatcher.len(),
-    })
+    let _ = daemon.dispatcher.enqueue_task(task);
+    Json(SubmitResponse { status: "ACCEPTED".to_string(), task_id, queue_size: daemon.dispatcher.len() })
 }
 
-async fn get_task_api(
-    Path(id): Path<String>,
-    State(daemon): State<Arc<Daemon>>,
-) -> impl IntoResponse {
+async fn get_task_api(Path(id): Path<String>, State(daemon): State<Arc<Daemon>>) -> impl IntoResponse {
     match daemon.storage.get_task(&id) {
         Ok(Some(task)) => Json(task).into_response(),
-        Ok(None) => axum::http::StatusCode::NOT_FOUND.into_response(),
-        Err(e) => {
-            tracing::error!("Database error: {}", e);
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
+        Ok(None) => StatusCode::NOT_FOUND.into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 
-async fn health_check() -> Json<serde_json::Value> {
-    Json(serde_json::json!({ "status": "OK" }))
-}
+async fn health_check() -> Json<serde_json::Value> { Json(serde_json::json!({ "status": "OK" })) }
 
 #[derive(serde::Serialize)]
-pub struct QueueResponse {
-    pub length: usize,
-    pub limit: usize,
+pub struct QueueResponse { pub length: usize, pub limit: usize }
+async fn get_queue_api(State(daemon): State<Arc<Daemon>>) -> Json<QueueResponse> {
+    Json(QueueResponse { length: daemon.dispatcher.len(), limit: daemon.dispatcher.limit() })
 }
 
-async fn get_queue_api(
-    State(daemon): State<Arc<Daemon>>,
-) -> Json<QueueResponse> {
-    Json(QueueResponse {
-        length: daemon.dispatcher.len(),
-        limit: daemon.dispatcher.limit(),
-    })
-}
 
-async fn get_semantic_risks(
-    State(daemon): State<Arc<Daemon>>,
-) -> Json<axon_core::validator::SemanticClosure> {
-    let project_id = "default"; // TODO: Multi-project
-    let project_root = format!("./{}", project_id);
-    if let Some(ir) = crate::intelligence::decision::load_project_ir(&project_root) {
-        let extractor = crate::intelligence::semantic_debugger::SemanticRiskExtractor::new(&project_root);
-        Json(extractor.extract_risks(&ir).await)
-    } else {
-        Json(axon_core::validator::SemanticClosure::default())
+async fn get_semantic_risks(State(daemon): State<Arc<Daemon>>) -> Json<serde_json::Value> {
+    let mut risks: Vec<serde_json::Value> = Vec::new();
+    let root_path = std::env::current_dir().unwrap_or_default();
+    let mut stack = vec![root_path];
+    let mut visited_count = 0;
+    let mut global_ir: Option<axon_ir::ProjectIR> = None;
+
+    while let Some(path) = stack.pop() {
+        visited_count += 1;
+        if visited_count > 100 { break; }
+        let approval_file = path.join(".axon_approval_pending");
+        if approval_file.exists() {
+             let (actor, cause, expected, detected, recommend) = if daemon.locale == "ko_KR" {
+                 ("Sovereign Gatekeeper", "새로운 명세가 감지되었습니다. 제조 공정 시작을 위해 보스의 승인이 필요합니다.", "승인된 명세 (Authorized Specification)", "설계 초안 대기 중 (New Design Draft)", "[승인 & 봉인] 버튼을 눌러 공정 시작을 승인하십시오.")
+             } else if daemon.locale == "ja_JP" {
+                 ("統治官 (Sovereign Gatekeeper)", "新しい仕様が検出されました。製造工程を開始するには社長の承認が必要です。", "承認された仕様 (Authorized Specification)", "設計ドラ프트待機中 (New Design Draft)", "[承認 & 封印] ボタンを押して工程の開始を承認してください。")
+             } else {
+                 ("Sovereign Gatekeeper", "New specification detected. Boss approval required to start manufacturing.", "Authorized Specification", "New Design Draft awaiting approval", "Click [OVERRIDE & SEAL] to approve.")
+             };
+
+             risks.push(serde_json::json!({
+                 "risk_id": "pending_approval",
+                 "kind": "Bootstrap",
+                 "level": "Critical",
+                 "target": "Factory Gateway",
+                 "failed_stage": "SpecAnalysis",
+                 "actor": actor,
+                 "cause": cause,
+                 "expected": expected,
+                 "detected": detected,
+                 "recommendation": recommend,
+                 "component": "GATEWAY",
+             }));
+        }
+        if let Some(ir) = crate::intelligence::decision::load_project_ir(&path.to_string_lossy()) {
+            global_ir = Some(ir.clone());
+            let extractor = crate::intelligence::semantic_debugger::SemanticRiskExtractor::new(&path.to_string_lossy());
+            let extracted = extractor.extract_risks(&ir).await;
+            for risk in extracted.risks { risks.push(serde_json::to_value(risk).unwrap()); }
+        }
+        if let Ok(entries) = std::fs::read_dir(&path) {
+            for entry in entries.flatten() {
+                if entry.path().is_dir() && !entry.file_name().to_string_lossy().starts_with('.') && entry.file_name() != "target" { stack.push(entry.path()); }
+            }
+        }
     }
+
+    tracing::info!("🔍 [RADAR] Scanning global task database for semantic risks...");
+    let tasks = daemon.storage.list_all_tasks().unwrap_or_default();
+    tracing::info!("📊 [RADAR] Total tasks found: {}", tasks.len());
+    for task in tasks {
+        let thread_rejection = daemon.storage.get_thread(&task.id).ok().flatten().map(|t| t.rejection_count).unwrap_or(0);
+        if (task.rework_count >= 3 || thread_rejection >= 3) && task.status != axon_core::TaskStatus::Completed {
+            let posts = daemon.storage.list_posts_by_thread(&task.id).unwrap_or_default();
+            let error_post = posts.iter().rev().find(|p| p.author_id != "BOSS" && (p.content.to_lowercase().contains("error") || p.content.to_lowercase().contains("reject") || p.content.to_lowercase().contains("fail")));
+            let raw_log = error_post.map(|p| p.content.clone()).unwrap_or_else(|| task.error_feedback.clone().unwrap_or_else(|| "Unknown Failure".to_string()));
+            let last_code = posts.iter().rev().find(|p| p.full_code.is_some()).and_then(|p| p.full_code.clone());
+            
+            let mut actor = if daemon.locale == "ja_JP" { "契約検証官" } else { "Contract Verifier" };
+            let mut failed_stage = if daemon.locale == "ja_JP" { "契約検証" } else { "Contract Verification" };
+            if raw_log.contains("error:") || raw_log.contains("cmake") {
+                actor = if daemon.locale == "ja_JP" { "コンパイラ (Clang/GCC)" } else { "Compiler (Clang/GCC)" };
+                failed_stage = if daemon.locale == "ja_JP" { "ビル드/링크" } else { "Build/Linking" };
+            } else if raw_log.contains("SENIOR_REJECT") || raw_log.contains("Review") || raw_log.contains("rejected") {
+                actor = if daemon.locale == "ko_KR" { "시니어 AI 감사관" } else if daemon.locale == "ja_JP" { "シニアAI監査役" } else { "Senior AI Auditor" };
+                failed_stage = if daemon.locale == "ko_KR" { "의미론적 리뷰" } else if daemon.locale == "ja_JP" { "意味論적レビュー" } else { "Semantic Review" };
+            }
+
+            // v0.0.30: Consolidated rejection info
+            let max_rejection = if thread_rejection > task.rework_count { thread_rejection } else { task.rework_count };
+            let rejection_summary = if daemon.locale == "ko_KR" {
+                format!("🚨 {}회 반려됨 (임계값 초과)", max_rejection)
+            } else {
+                format!("🚨 {} REJECTIONS (Threshold Exceeded)", max_rejection)
+            };
+
+            let mut target_line = -1;
+            if let Some(caps) = regex::Regex::new(r"[:\s](\d+)[:\s]").ok().and_then(|re| re.captures(&raw_log)) {
+                target_line = caps.get(1).and_then(|m| m.as_str().parse::<i32>().ok()).unwrap_or(-1);
+            }
+
+            // v0.0.30: Deep Contract Mining from IR
+            let mut expected = if daemon.locale == "ko_KR" { "설계 규약을 찾을 수 없음" } else { "Design Contract Not Found" }.to_string();
+            if let Some(ref ir) = global_ir {
+                if let Some(target_file) = &task.target_file {
+                    for comp in ir.components.values() {
+                        let target_name = std::path::Path::new(target_file).file_name().and_then(|n| n.to_str()).unwrap_or(target_file);
+                        let comp_name_path = std::path::Path::new(&comp.file_path).file_name().and_then(|n| n.to_str()).unwrap_or(&comp.file_path);
+                        if &comp.file_path == target_file || comp_name_path == target_name {
+                            expected = format!("Component: {}\nTier: {:?}\nContracts: {}", 
+                                comp.name, comp.tier, 
+                                comp.functions.keys().cloned().collect::<Vec<_>>().join(", "));
+                            break;
+                        }
+                    }
+                }
+            }
+
+            let detected = if raw_log.len() > 150 { format!("{}...", &raw_log[..150]) } else { raw_log.clone() };
+
+            risks.push(serde_json::json!({
+                "risk_id": format!("rejection_limit_{}", task.id),
+                "kind": "ImplementationFail",
+                "level": "Critical",
+                "target": task.title,
+                "actor": actor,
+                "failed_stage": failed_stage,
+                "cause": format!("{} | {}", rejection_summary, raw_log),
+                "expected": expected,
+                "detected": detected,
+                "target_line": target_line,
+                "component": task.target_file.clone().unwrap_or_else(|| "unknown".to_string()),
+                "full_code": last_code,
+                "task_id": task.id,
+            }));
+        }
+    }
+    Json(serde_json::json!({ "risks": risks, "locale": daemon.locale }))
 }
 
 async fn submit_semantic_decision(
     State(daemon): State<Arc<Daemon>>,
-    Json(decision): Json<axon_core::validator::SemanticDecision>,
+    Json(decision): Json<serde_json::Value>,
 ) -> impl IntoResponse {
-    let project_id = "default";
-    let project_root = format!("./{}", project_id);
-    
-    let mut closure = crate::intelligence::decision::load_sealed_ir(&project_root)
-        .unwrap_or_default();
-    
-    // Add the new decision
-    closure.decisions.push(decision.clone());
-    
-    if let Err(e) = crate::intelligence::decision::save_sealed_ir(&project_root, &closure) {
-        tracing::error!("Failed to save semantic decision: {}", e);
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    let risk_id = decision["risk_id"].as_str().unwrap_or_default();
+    let action = decision["action"].as_str().unwrap_or("SEAL");
+    let comment = decision["comment"].as_str().unwrap_or("");
+
+    tracing::info!("⚖️ [BOSS_DECISION] Risk: {}, Action: {}", risk_id, action);
+
+    if risk_id == "pending_approval" {
+        let root = std::env::current_dir().unwrap_or_default();
+        let mut stack = vec![root];
+        while let Some(path) = stack.pop() {
+            let approval_file = path.join(".axon_approval_pending");
+            if approval_file.exists() {
+                if action == "SEAL" || action == "Approve" {
+                    if let Ok(content) = std::fs::read_to_string(&approval_file) {
+                        if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(&content) {
+                            val["approved"] = serde_json::json!(true);
+                            if let Ok(json) = serde_json::to_string_pretty(&val) {
+                                let _ = std::fs::write(&approval_file, json);
+                                tracing::info!("✅ [SOVEREIGN_SEAL] Seal applied to approval file. Factory proceeding...");
+                            }
+                        }
+                    }
+                } else {
+                    let _ = std::fs::write(path.join(".axon_rejected"), "Boss rejected bootstrap");
+                }
+            }
+            if let Ok(entries) = std::fs::read_dir(&path) {
+                for entry in entries.flatten() {
+                    if entry.path().is_dir() && !entry.file_name().to_string_lossy().starts_with('.') { stack.push(entry.path()); }
+                }
+            }
+        }
+        return StatusCode::OK.into_response();
     }
 
-    tracing::info!("🏛️ [BOSS_ARBITRATION] Decision registered for risk '{}': {}", decision.risk_id, decision.action);
-    
-    // Resume daemon if all critical risks are resolved
-    if let Some(ir) = crate::intelligence::decision::load_project_ir(&project_root) {
-        let extractor = crate::intelligence::semantic_debugger::SemanticRiskExtractor::new(&project_root);
-        let updated_closure = extractor.extract_risks(&ir).await;
-        if !updated_closure.has_critical_risks() {
-            tracing::info!("🔓 [SEMANTIC_CLEAR] All critical risks resolved. Resuming factory...");
-            let _ = daemon.pause_tx.send(false);
+    if risk_id.starts_with("rejection_limit_") {
+        let task_id = &risk_id["rejection_limit_".len()..];
+        let boss_code = decision["code"].as_str();
+
+        if let Ok(Some(mut task)) = daemon.storage.get_task(task_id) {
+            if action == "SEAL" {
+                // Direct Boss Intervention: If code is provided, write it to file
+                if let (Some(code), Some(rel_path)) = (boss_code, &task.target_file) {
+                    let target_path = std::path::Path::new(&task.project_id).join(rel_path);
+                    
+                    tracing::info!("✍️ [BOSS_OVERRIDE] Writing direct code override to {:?} (Length: {} bytes)", target_path, code.len());
+                    if let Err(e) = std::fs::write(&target_path, code) {
+                        tracing::error!("❌ [BOSS_OVERRIDE_FAIL] Failed to write file {:?}: {}", target_path, e);
+                    }
+                }
+
+                task.status = axon_core::TaskStatus::Completed;
+                task.error_feedback = Some(format!("[BOSS_OVERRIDE]: {}", comment));
+                let _ = daemon.storage.save_task(task).await;
+                tracing::info!("✅ [BOSS_SEALED] Task {} force-completed.", task_id);
+            } else if action == "REWORK" {
+                task.rework_count = 0;
+                task.status = axon_core::TaskStatus::Pending;
+                task.senior_comment = Some(format!("[BOSS_HINT]: {}", comment));
+                let _ = daemon.storage.save_task(task.clone()).await;
+                let _ = daemon.dispatcher.enqueue_task(task);
+                tracing::info!("🔄 [BOSS_REWORK] Task {} re-queued with hint.", task_id);
+            } else {
+                task.status = axon_core::TaskStatus::Failed;
+                let _ = daemon.storage.save_task(task).await;
+                tracing::info!("🛑 [BOSS_CANCELLED] Task {} marked as failed.", task_id);
+            }
+            return StatusCode::OK.into_response();
         }
     }
 
-    StatusCode::OK.into_response()
+    StatusCode::NOT_FOUND.into_response()
 }
 
+async fn get_pending_approval(State(_daemon): State<Arc<Daemon>>) -> impl IntoResponse {
+    let root_path = std::env::current_dir().unwrap_or_default();
+    let mut stack = vec![root_path];
+    while let Some(path) = stack.pop() {
+        let approval_file = path.join(".axon_approval_pending");
+        if approval_file.exists() {
+            if let Ok(content) = std::fs::read_to_string(&approval_file) {
+                if let Ok(approval) = serde_json::from_str::<serde_json::Value>(&content) {
+                    if approval["approved"].as_bool() == Some(false) { return Json(approval).into_response(); }
+                }
+            }
+        }
+        if let Ok(entries) = std::fs::read_dir(&path) {
+            for entry in entries.flatten() {
+                if entry.path().is_dir() && !entry.file_name().to_string_lossy().starts_with('.') { stack.push(entry.path()); }
+            }
+        }
+    }
+    StatusCode::NOT_FOUND.into_response()
+}
+
+async fn respond_approval(State(daemon): State<Arc<Daemon>>, Json(decision): Json<serde_json::Value>) -> impl IntoResponse {
+    submit_semantic_decision(State(daemon), Json(decision)).await
+}

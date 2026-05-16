@@ -1,0 +1,32 @@
+{
+  "node_mapping": {},
+  "components": {
+    "user_storage.h": {
+      "name": "UserStorage",
+      "file_path": "user_storage.h",
+      "functions": {
+        "save_user": {
+          "name": "save_user",
+          "signature": "int save_user(const char* json_data);",
+          "dependencies": [],
+          "body_hash": null,
+          "locked": false
+        }
+      },
+      "imports": [],
+      "associated_files": [],
+      "is_entrypoint": false,
+      "data_models": [],
+      "metadata": {},
+      "allowed_includes": [],
+      "forbidden_includes": [],
+      "forbidden_symbols": [],
+      "tier": "core",
+      "is_blocking": true,
+      "locked": true
+    }
+  },
+  "constraints": [],
+  "thought": "Compromised IR for Authority Test",
+  "language": "c"
+}

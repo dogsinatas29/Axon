@@ -17,3 +17,4 @@ pub mod coordinator;
 pub mod language_contract;
 pub mod include_path_normalizer;
 pub mod semantic_debugger;
+pub mod jurisprudence;

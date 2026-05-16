@@ -1,0 +1,27 @@
+{
+  "ambiguity_details": [
+    "명세에 명시된 컴포넌트가 3개 미만입니다. 설계 결정이 필요할 수 있습니다."
+  ],
+  "ambiguity_detected": true,
+  "approved": false,
+  "components_found": 1,
+  "decisions": [],
+  "message": "⚠️ 명세가 모호합니다. 보스의 판결이 필요합니다.",
+  "recommended_action": "REVIEW_REQUIRED",
+  "risks": [
+    {
+      "component": "spec.md",
+      "description": "명세 분석이 성공적으로 완료되었습니다.",
+      "id": "spec_analysis_ready",
+      "impact": "다음 공정(HeaderGen)으로 진행할 준비가 되었습니다.",
+      "level": "Info",
+      "options": [
+        "Proceed",
+        "Edit Spec"
+      ],
+      "recommendation": "사장 게시판에서 [SEAL]을 눌러 공정을 시작하십시오.",
+      "risk_kind": "InterfaceDrift"
+    }
+  ],
+  "status": "AMBIGUITY_DETECTED"
+}

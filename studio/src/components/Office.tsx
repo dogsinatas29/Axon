@@ -38,7 +38,7 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents, t }) => {
 
   const hireAgent = async (parentId: string | null, role: AgentRole) => {
     try {
-      const response = await fetch('http://localhost:8080/api/agents/hire', {
+      const response = await fetch(`http://localhost:${window.location.port}/api/agents/hire`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role, parent_id: parentId }),
@@ -55,7 +55,7 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents, t }) => {
   const fireAgent = async (id: string) => {
     if (!window.confirm(t.fireConfirm)) return;
     try {
-      const response = await fetch(`http://localhost:8080/api/agents/${id}/fire`, {
+      const response = await fetch(`http://localhost:${window.location.port}/api/agents/${id}/fire`, {
         method: 'POST',
       });
       if (response.ok) {
@@ -156,7 +156,7 @@ const Office: React.FC<OfficeProps> = ({ agents, setAgents, t }) => {
   });
 
   return (
-    <section className="panel" style={{ flex: 1, maxHeight: '600px', display: 'flex', flexDirection: 'column' }}>
+    <section className="panel" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <Users size={16} style={{ marginRight: '0.5rem' }} />

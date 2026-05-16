@@ -44,7 +44,7 @@ const App: React.FC = () => {
 
   const fetchThreads = async () => {
     try {
-      const res = await fetch('http://localhost:8080/api/threads');
+      const res = await fetch(`http://localhost:${window.location.port}/api/threads`);
       const data: Thread[] = await res.json();
       
       // v0.0.23: Priority Sorting (Active Threads at Top)
@@ -59,6 +59,19 @@ const App: React.FC = () => {
         const prioB = getPriority(b.status);
         
         if (prioA !== prioB) return prioA - prioB;
+
+        // Within same status, sort by Phase (task_kind)
+        const getPhaseOrder = (kind: string | undefined) => {
+            if (kind === 'HeaderDecl') return 1;
+            if (kind === 'SourceImpl') return 2;
+            return 3;
+        };
+
+        const phaseA = getPhaseOrder(a.task_kind);
+        const phaseB = getPhaseOrder(b.task_kind);
+
+        if (phaseA !== phaseB) return phaseA - phaseB;
+
         return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
       });
       
@@ -70,7 +83,7 @@ const App: React.FC = () => {
 
   const fetchAgents = async () => {
     try {
-      const res = await fetch('http://localhost:8080/api/agents');
+      const res = await fetch(`http://localhost:${window.location.port}/api/agents`);
       const data = await res.json();
       setAgents(data);
     } catch (err) {
@@ -80,7 +93,7 @@ const App: React.FC = () => {
 
   const fetchStatus = async () => {
     try {
-      const res = await fetch('http://localhost:8080/api/status');
+      const res = await fetch(`http://localhost:${window.location.port}/api/status`);
       const data = await res.json();
       setIsRunning(data.is_running);
       setTotalSignals(data.total_signals);
@@ -94,7 +107,7 @@ const App: React.FC = () => {
 
   const fetchEvents = async () => {
     try {
-      const res = await fetch('http://localhost:8080/api/events');
+      const res = await fetch(`http://localhost:${window.location.port}/api/events`);
       const data = await res.json();
       // Reverse the data if backend returns DESC order (we want newest at top in UI)
       setEvents(data);
@@ -109,7 +122,8 @@ const App: React.FC = () => {
     fetchStatus();
     fetchEvents();
     
-    const socket = initSocket('ws://localhost:8080');
+    // v0.0.30: Fixed redundant /ws suffix
+    const socket = initSocket(`${window.location.protocol}//${window.location.hostname}:${window.location.port}`);
     
     socket.onEvent((ev: any) => {
       if (ev.event_type) {
@@ -139,7 +153,7 @@ const App: React.FC = () => {
   const handleTogglePause = async () => {
     try {
         const endpoint = isRunning ? 'pause' : 'resume';
-        await fetch(`http://localhost:8080/api/${endpoint}`, { method: 'POST' });
+        await fetch(`http://localhost:${window.location.port}/api/${endpoint}`, { method: 'POST' });
         setIsRunning(!isRunning);
     } catch (err) {
         console.error('Toggle pause failed', err);
@@ -148,7 +162,7 @@ const App: React.FC = () => {
 
   const handleApprove = async (id: string) => {
     try {
-      await fetch(`http://localhost:8080/api/threads/${id}/approve`, { method: 'POST' });
+      await fetch(`http://localhost:${window.location.port}/api/threads/${id}/approve`, { method: 'POST' });
       setSelectedThreadId(null);
       fetchThreads();
     } catch (err) {
@@ -252,12 +266,12 @@ const App: React.FC = () => {
                 </div>
             </section>
             
-            <section className="panel" style={{ overflow: 'hidden' }}>
+            <section className="panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>{t.recentStrategicThreads}</span>
                   <button className="btn-mini" onClick={() => setActiveChannel('work')}>{t.viewAll}</button>
                 </div>
-                <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem', overflowY: 'auto' }}>
+                <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem', overflowY: 'visible' }}>
                     {threads.filter(t => t.id !== 'lounge').slice(0, 6).map(th => (
                         <ThreadCard key={th.id} thread={th} onClick={() => setSelectedThreadId(th.id)} t={t} />
                     ))}
@@ -268,9 +282,9 @@ const App: React.FC = () => {
         )}
 
         {activeChannel === 'work' && (
-          <section className="panel" style={{ flex: 1 }}>
+          <section className="panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <div className="panel-header">{t.workBoardTitle} / {projectId}</div>
-            <div className="thread-grid" style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem', overflowY: 'auto' }}>
+            <div className="thread-grid" style={{ padding: '1rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gridAutoRows: 'max-content', alignContent: 'start', gap: '0.6rem', overflowY: 'auto', flex: 1, minHeight: 0 }}>
               {/* v0.0.25: Strategic sync - use pre-filtered activeThreads for consistent display */}
               {activeThreads.map(thread => (
                 <div 

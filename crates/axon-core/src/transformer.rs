@@ -62,6 +62,7 @@ fn build_component(name: String, path: String, code: &str) -> Component {
         forbidden_symbols: BTreeSet::new(),
         tier: ComponentTier::Core,
         is_blocking: true,
+        locked: false,
     }
 }
 
@@ -79,6 +80,7 @@ fn extract_functions(code: &str) -> Vec<Function> {
                         signature: format!("{}(...)", sig), // Simplified
                         dependencies: BTreeSet::new(),
                         body_hash: None,
+                        locked: false,
                     });
                 }
             }

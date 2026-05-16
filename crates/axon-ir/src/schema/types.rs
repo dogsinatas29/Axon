@@ -63,6 +63,8 @@ pub struct Component {
     pub tier: ComponentTier, // v0.0.29: Criticality level
     #[serde(default = "default_true")]
     pub is_blocking: bool, // v0.0.29: Whether failure blocks the whole factory
+    #[serde(default)]
+    pub locked: bool, // v0.0.30: SSOT physical seal status
 }
 
 pub fn default_true() -> bool { true }
@@ -74,6 +76,8 @@ pub struct Function {
     pub signature: String,
     pub dependencies: BTreeSet<String>,
     pub body_hash: Option<u64>,
+    #[serde(default)]
+    pub locked: bool, // v0.0.30: SSOT physical seal status
 }
 
 impl ProjectIR {
@@ -125,6 +129,7 @@ impl ProjectIR {
                                 signature: format!("{}()", s),
                                 dependencies: BTreeSet::new(),
                                 body_hash: None,
+                                locked: false,
                             });
                         }
                         let canonical_key = crate::canonicalizer::canonicalize_path(&c.file);
@@ -143,6 +148,7 @@ impl ProjectIR {
                             forbidden_symbols: BTreeSet::new(),
                             tier: c.tier,
                             is_blocking: c.is_blocking,
+                            locked: false,
                         });
                         tracing::debug!("[IR_REGISTER] key={} name={}", canonical_key, comp_name);
                     }

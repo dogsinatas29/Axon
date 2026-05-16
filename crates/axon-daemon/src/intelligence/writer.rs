@@ -19,10 +19,12 @@ impl ArchitectureWriter {
 
         // 2. Render Human-Readable Section (Optional but good for UX)
         for comp in ir.components.values() {
-            out.push_str(&format!("### {}\n", comp.name));
+            let comp_lock = if comp.locked { " [✅ LOCKED]" } else { "" };
+            out.push_str(&format!("### {}{}\n", comp.name, comp_lock));
             out.push_str(&format!("- File: `{}`\n", comp.file_path));
             for func in comp.functions.values() {
-                out.push_str(&format!("  - `{}`\n", func.name));
+                let func_lock = if func.locked { " [✅ LOCKED]" } else { "" };
+                out.push_str(&format!("  - `{}`{}\n", func.name, func_lock));
             }
             out.push_str("\n");
         }
@@ -42,6 +44,12 @@ impl ArchitectureWriter {
         }
 
         out
+    }
+
+    pub fn write_architecture(project_root: &str, ir: &ProjectIR) -> std::io::Result<()> {
+        let content = Self::generate(ir);
+        let path = std::path::Path::new(project_root).join("architecture.md");
+        std::fs::write(path, content)
     }
 
     fn render_spec_json(ir: &ProjectIR) -> String {

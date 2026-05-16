@@ -21,8 +21,9 @@ let listeners: ((data: any) => void)[] = [];
 
 export const initSocket = (url: string) => {
   if (!socket) {
-    // Convert http/https to ws/wss
-    const wsUrl = url.replace(/^http/, 'ws') + '/ws';
+    // Convert http/https to ws/wss and ensure clean /ws suffix
+    const base = url.replace(/\/$/, ''); // Remove trailing slash
+    const wsUrl = base.replace(/^http/, 'ws') + '/ws';
     socket = new WebSocket(wsUrl);
     
     socket.onopen = () => {

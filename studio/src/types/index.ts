@@ -29,6 +29,8 @@ export interface Thread {
   created_at: string;
   updated_at: string;
   rejection_count?: number;
+  error_feedback?: string;
+  reason?: string;
 }
 
 export type PostType = 'Proposal' | 'Review' | 'Patch' | 'Nogari' | 'System' | 'Instruction';

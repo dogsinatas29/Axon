@@ -913,21 +913,72 @@ impl AgentRuntime {
         );
 
         let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), None, 0).await?;
-        
-        // Extract JSON between <JSON_START> and <JSON_END> or just take the raw response
-        let json_text = if let Some(start) = resp.text.find("<JSON_START>") {
-            let remaining = &resp.text[start + "<JSON_START>".len()..];
-            if let Some(end) = remaining.find("<JSON_END>") {
-                remaining[..end].trim().to_string()
-            } else {
-                remaining.trim().to_string()
-            }
-        } else {
-            resp.text.trim().to_string()
-        };
 
-        let constraints: axon_core::spec::ImmutableConstraints = serde_json::from_str(&json_text)
+        let json_text = extract_json(&resp.text).unwrap_or_else(|| resp.text.trim().to_string());
+
+        let mut val: serde_json::Value = serde_json::from_str(&json_text)
+            .map_err(|e| anyhow::anyhow!("Constraint JSON Error: {} | Raw: {}", e, json_text))?;
+        
+        // v0.0.30 Hardening: Inject missing metadata fields for small/forgetful models
+        if val.get("ambiguity_detected").is_none() {
+            val["ambiguity_detected"] = serde_json::json!(false);
+        }
+        if val.get("ambiguity_details").is_none() {
+            val["ambiguity_details"] = serde_json::json!([]);
+        }
+        if val.get("recommended_action").is_none() {
+            val["recommended_action"] = serde_json::json!("PROCEED");
+        }
+
+        let mut constraints: axon_core::spec::ImmutableConstraints = serde_json::from_value(val)
             .map_err(|e| anyhow::anyhow!("Constraint Parse Error: {} | Raw: {}", e, json_text))?;
+
+        let optional_count = constraints.components.iter().filter(|c| c.status == axon_core::spec::ComponentStatus::Optional).count();
+        let total_count = constraints.components.len();
+        let optional_ratio = if total_count > 0 { optional_count as f64 / total_count as f64 } else { 0.0 };
+
+        if optional_ratio > 0.5 {
+            constraints.ambiguity_detected = true;
+            constraints.ambiguity_details.push(format!(
+                "명세의 {:.0}%가 선택적(Optional) 요소입니다. 아키텍트의 과잉 추론 위험",
+                optional_ratio * 100.0
+            ));
+        }
+
+        if total_count < 3 {
+            constraints.ambiguity_detected = true;
+            constraints.ambiguity_details.push("명세에 명시된 컴포넌트가 3개 미만입니다. 설계 결정이 필요할 수 있습니다.".to_string());
+        }
+
+        let vague_patterns = ["선택", "필요시", "if needed", "optional", "가능하면", "추가"];
+        for pattern in vague_patterns {
+            if spec_content.to_lowercase().contains(&pattern.to_lowercase()) {
+                constraints.ambiguity_details.push(format!("명세에 '{}' 패턴이 포함되어 있습니다.", pattern));
+            }
+        }
+
+        if spec_content.contains("CREATE TABLE") {
+            let has_table_name = spec_content.contains("user_records");
+            let has_id_field = spec_content.contains("id") && spec_content.contains("PRIMARY KEY");
+            let has_created_at = spec_content.contains("created_at");
+            let has_timestamp = spec_content.contains("TIMESTAMP");
+
+            if !has_table_name {
+                constraints.ambiguity_details.push("Spec에 명시된 테이블명이 architecture에서 변경되었을 수 있습니다.".to_string());
+                constraints.ambiguity_detected = true;
+            }
+            if !has_id_field || !has_created_at || !has_timestamp {
+                constraints.ambiguity_details.push("Spec에 명시된 SQLite 스키마 필드(id, created_at 등)가 architecture에 누락되었을 수 있습니다.".to_string());
+                constraints.ambiguity_detected = true;
+            }
+        }
+
+        if constraints.ambiguity_detected {
+            constraints.recommended_action = "REVIEW_REQUIRED".to_string();
+            tracing::warn!("⚠️ [AMBIGUITY_DETECTED] 명세 분석 결과 모호함이 감지되었습니다: {:?}", constraints.ambiguity_details);
+        } else {
+            constraints.recommended_action = "PROCEED".to_string();
+        }
 
         Ok(constraints)
     }
@@ -1579,6 +1630,7 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
                 signature: sig,
                 dependencies: BTreeSet::new(),
                 body_hash: None,
+                locked: false,
             });
         }
         let file = if c.file.is_empty() {
@@ -1602,6 +1654,7 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
             forbidden_symbols: BTreeSet::new(),
             tier: c.tier,
             is_blocking: c.is_blocking,
+            locked: false,
         });
     }
 
@@ -1638,19 +1691,31 @@ fn clean_json_robust(json: &str) -> String {
 
 /// v0.0.22: Universal JSON Extraction Helper (Supports { } and [ ])
 fn extract_json(raw: &str) -> Option<String> {
+    // v0.0.30: Explicitly strip markdown code blocks first
+    let mut sanitized = raw.trim().to_string();
+    if sanitized.starts_with("```") {
+        if let Some(start) = sanitized.find('{') {
+            sanitized = sanitized[start..].to_string();
+        }
+        if let Some(end) = sanitized.rfind('}') {
+            sanitized = sanitized[..=end].to_string();
+        } else if let Some(end) = sanitized.rfind("```") {
+            sanitized = sanitized[..end].to_string();
+        }
+    }
+    
+    let raw = sanitized.as_str();
     let bytes = raw.as_bytes();
 
-    // Find the first real JSON array start '[' — must be followed by '{', '"', digit, '[', or whitespace.
-    // This filters out GitHub-style markdown alerts like [!NOTE], [!TIP], etc.
     let start_obj = {
         let mut found = None;
-        // v0.0.26: Look for { that is followed by AXON IR keywords to skip C code blocks
         if let Some(idx) = raw.find("{") {
             let sub = &raw[idx..];
-            if sub.contains("\"components\"") || sub.contains("\"node_mapping\"") {
+            // v0.0.30: Added SpecAnalysis keywords (project_id, forbidden_patterns)
+            if sub.contains("\"components\"") || sub.contains("\"node_mapping\"") || 
+               sub.contains("\"project_id\"") || sub.contains("\"forbidden_patterns\"") {
                 found = Some(idx);
             } else {
-                // If the first { doesn't have keywords, look for the next one
                 if let Some(idx2) = sub[1..].find("{") {
                     found = Some(idx + 1 + idx2);
                 } else {

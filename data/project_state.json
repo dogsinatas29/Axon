@@ -1,5 +1,5 @@
 {
-  "aiCount": 198,
+  "aiCount": 216,
   "cluster_flows": [],
   "clusters": [
     {
@@ -72,6 +72,25 @@
       },
       "id": "cluster_crates_axon_daemon",
       "label": "📂 axon-daemon",
+      "type": "folder"
+    },
+    {
+      "bounds": {
+        "height": 0,
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      "children": [],
+      "collapsed": false,
+      "data": {},
+      "id": "cluster_crates_axon_daemon_default",
+      "label": "📂 default",
+      "nodes": [],
+      "position": {
+        "x": 0,
+        "y": 0
+      },
       "type": "folder"
     },
     {
@@ -287,6 +306,44 @@
       },
       "id": "cluster_crates_axon_storage_src",
       "label": "📂 src",
+      "type": "folder"
+    },
+    {
+      "bounds": {
+        "height": 0,
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      "children": [],
+      "collapsed": false,
+      "data": {},
+      "id": "cluster_default",
+      "label": "📂 default",
+      "nodes": [],
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "folder"
+    },
+    {
+      "bounds": {
+        "height": 0,
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      "children": [],
+      "collapsed": false,
+      "data": {},
+      "id": "cluster_default_src",
+      "label": "📂 src",
+      "nodes": [],
+      "position": {
+        "x": 0,
+        "y": 0
+      },
       "type": "folder"
     },
     {
@@ -21857,12 +21914,1616 @@
       "visual": {
         "opacity": 0.5
       }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "ComponentTier",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://ComponentTier",
+      "id": "ComponentTier",
+      "intelligence": {},
+      "label": "ComponentTier",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_core_src_validator",
+      "data": {
+        "cluster_id": "cluster_crates_axon_core_src_validator",
+        "degree": 0,
+        "file": "crates/axon-core/src/validator/semantic.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "semantic",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-core/src/validator/semantic.rs",
+      "id": "crates/axon-core/src/validator/semantic.rs",
+      "intelligence": {},
+      "label": "semantic",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "default/architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "default/architecture.md",
+      "id": "default/architecture.md",
+      "intelligence": {},
+      "label": "architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "default/spec.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "spec",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "default/spec.md",
+      "id": "default/spec.md",
+      "intelligence": {},
+      "label": "spec",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_default",
+      "data": {
+        "cluster_id": "cluster_default",
+        "degree": 0,
+        "file": "default/user_storage.h",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "user_storage",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "default/user_storage.h",
+      "id": "default/user_storage.h",
+      "intelligence": {},
+      "label": "user_storage",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/jurisprudence.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "jurisprudence",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/jurisprudence.rs",
+      "id": "crates/axon-daemon/src/intelligence/jurisprudence.rs",
+      "intelligence": {},
+      "label": "jurisprudence",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+      "data": {
+        "cluster_id": "cluster_crates_axon_daemon_src_intelligence",
+        "degree": 0,
+        "file": "crates/axon-daemon/src/intelligence/semantic_debugger.rs",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "semantic_debugger",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "crates/axon-daemon/src/intelligence/semantic_debugger.rs",
+      "id": "crates/axon-daemon/src/intelligence/semantic_debugger.rs",
+      "intelligence": {},
+      "label": "semantic_debugger",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "default_true",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://default_true",
+      "id": "default_true",
+      "intelligence": {},
+      "label": "default_true",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_default_src",
+      "data": {
+        "cluster_id": "cluster_default_src",
+        "degree": 0,
+        "file": "default/src/database.h",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "database",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "default/src/database.h",
+      "id": "default/src/database.h",
+      "intelligence": {},
+      "label": "database",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "determine_scope",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://determine_scope",
+      "id": "determine_scope",
+      "intelligence": {},
+      "label": "determine_scope",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "Diagnostic",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://Diagnostic",
+      "id": "Diagnostic",
+      "intelligence": {},
+      "label": "Diagnostic",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "docs/manifesto_v0.0.30.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "manifesto_v0.0.30",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "docs/manifesto_v0.0.30.md",
+      "id": "docs/manifesto_v0.0.30.md",
+      "intelligence": {},
+      "label": "manifesto_v0.0.30",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "generate_hint",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://generate_hint",
+      "id": "generate_hint",
+      "intelligence": {},
+      "label": "generate_hint",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "infer_cause",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://infer_cause",
+      "id": "infer_cause",
+      "intelligence": {},
+      "label": "infer_cause",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "👻",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "is_blocking: c.is_blocking",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "ghost://is_blocking: c.is_blocking",
+      "id": "is_blocking: c.is_blocking",
+      "intelligence": {},
+      "label": "is_blocking: c.is_blocking",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "source",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "JurisprudenceDB",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://JurisprudenceDB",
+      "id": "JurisprudenceDB",
+      "intelligence": {},
+      "label": "JurisprudenceDB",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "locked: false",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://locked: false",
+      "id": "locked: false",
+      "intelligence": {},
+      "label": "locked: false",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/axon_boss_board_problem_definition_md.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "axon_boss_board_problem_definition_md",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/axon_boss_board_problem_definition_md.md",
+      "id": "mile_stone/axon_boss_board_problem_definition_md.md",
+      "intelligence": {},
+      "label": "axon_boss_board_problem_definition_md",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.30_bootstrap.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.30_bootstrap",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.30_bootstrap.md",
+      "id": "mile_stone/v0.0.30_bootstrap.md",
+      "intelligence": {},
+      "label": "v0.0.30_bootstrap",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.30_goal.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.30_goal",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.30_goal.md",
+      "id": "mile_stone/v0.0.30_goal.md",
+      "intelligence": {},
+      "label": "v0.0.30_goal",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.30_Immediate_Post-Hardening.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.30_Immediate_Post-Hardening",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.30_Immediate_Post-Hardening.md",
+      "id": "mile_stone/v0.0.30_Immediate_Post-Hardening.md",
+      "intelligence": {},
+      "label": "v0.0.30_Immediate_Post-Hardening",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.30_lightweight_multi_md_foundation.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.30_lightweight_multi_md_foundation",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.30_lightweight_multi_md_foundation.md",
+      "id": "mile_stone/v0.0.30_lightweight_multi_md_foundation.md",
+      "intelligence": {},
+      "label": "v0.0.30_lightweight_multi_md_foundation",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.30_mechanical_assembly_transition.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.30_mechanical_assembly_transition",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.30_mechanical_assembly_transition.md",
+      "id": "mile_stone/v0.0.30_mechanical_assembly_transition.md",
+      "intelligence": {},
+      "label": "v0.0.30_mechanical_assembly_transition",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.30_ui_intervention_architecture.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.30_ui_intervention_architecture",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.30_ui_intervention_architecture.md",
+      "id": "mile_stone/v0.0.30_ui_intervention_architecture.md",
+      "intelligence": {},
+      "label": "v0.0.30_ui_intervention_architecture",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "mile_stone/v0.0.30.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.30",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "mile_stone/v0.0.30.md",
+      "id": "mile_stone/v0.0.30.md",
+      "intelligence": {},
+      "label": "v0.0.30",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "doc_shelf",
+      "data": {
+        "cluster_id": "doc_shelf",
+        "degree": 0,
+        "file": "release_note/v0.0.30_release_notes.md",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": true,
+        "icon": "📚",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "v0.0.30_release_notes",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active",
+        "type": "document"
+      },
+      "degree": 0,
+      "filePath": "release_note/v0.0.30_release_notes.md",
+      "id": "release_note/v0.0.30_release_notes.md",
+      "intelligence": {},
+      "label": "v0.0.30_release_notes",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "document",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "sealed_ir",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://sealed_ir",
+      "id": "sealed_ir",
+      "intelligence": {},
+      "label": "sealed_ir",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "SemanticClosure",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://SemanticClosure",
+      "id": "SemanticClosure",
+      "intelligence": {},
+      "label": "SemanticClosure",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "SemanticDecision",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://SemanticDecision",
+      "id": "SemanticDecision",
+      "intelligence": {},
+      "label": "SemanticDecision",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "SemanticRisk",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://SemanticRisk",
+      "id": "SemanticRisk",
+      "intelligence": {},
+      "label": "SemanticRisk",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "SemanticRiskExtractor",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://SemanticRiskExtractor",
+      "id": "SemanticRiskExtractor",
+      "intelligence": {},
+      "label": "SemanticRiskExtractor",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "Stage",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://Stage",
+      "id": "Stage",
+      "intelligence": {},
+      "label": "Stage",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "☁️",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "StageRouter",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "external://StageRouter",
+      "id": "StageRouter",
+      "intelligence": {},
+      "label": "StageRouter",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "external",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "👻",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "the daemon to wait for Boss Arbitration\n                let _ = self.pause_tx.send(true)",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "ghost://the daemon to wait for Boss Arbitration\n                let _ = self.pause_tx.send(true)",
+      "id": "the daemon to wait for Boss Arbitration\n                let _ = self.pause_tx.send(true)",
+      "intelligence": {},
+      "label": "the daemon to wait for Boss Arbitration\n                let _ = self.pause_tx.send(true)",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "source",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_ghosts",
+      "data": {
+        "cluster_id": "cluster_ghosts",
+        "degree": 0,
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "👻",
+        "isScoped": false,
+        "isSovereign": false,
+        "isUserCreated": false,
+        "label": "tier: c.tier",
+        "layer": "ai",
+        "opacity": 0.5,
+        "scale": 1,
+        "status": "ghost"
+      },
+      "degree": 0,
+      "filePath": "ghost://tier: c.tier",
+      "id": "tier: c.tier",
+      "intelligence": {},
+      "label": "tier: c.tier",
+      "layer": "ai",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "ghost",
+      "type": "source",
+      "visual": {
+        "opacity": 0.5
+      }
+    },
+    {
+      "cluster_id": "cluster_scratch",
+      "data": {
+        "cluster_id": "cluster_scratch",
+        "degree": 0,
+        "file": "scratch/final_dedupe_risks.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "final_dedupe_risks",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "scratch/final_dedupe_risks.py",
+      "id": "scratch/final_dedupe_risks.py",
+      "intelligence": {},
+      "label": "final_dedupe_risks",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_scratch",
+      "data": {
+        "cluster_id": "cluster_scratch",
+        "degree": 0,
+        "file": "scratch/fix_ir_project_id.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "fix_ir_project_id",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "scratch/fix_ir_project_id.py",
+      "id": "scratch/fix_ir_project_id.py",
+      "intelligence": {},
+      "label": "fix_ir_project_id",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_scratch",
+      "data": {
+        "cluster_id": "cluster_scratch",
+        "degree": 0,
+        "file": "scratch/patch_lib_final.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "patch_lib_final",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "scratch/patch_lib_final.py",
+      "id": "scratch/patch_lib_final.py",
+      "intelligence": {},
+      "label": "patch_lib_final",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_scratch",
+      "data": {
+        "cluster_id": "cluster_scratch",
+        "degree": 0,
+        "file": "scratch/patch_lib_provenance.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "patch_lib_provenance",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "scratch/patch_lib_provenance.py",
+      "id": "scratch/patch_lib_provenance.py",
+      "intelligence": {},
+      "label": "patch_lib_provenance",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_scratch",
+      "data": {
+        "cluster_id": "cluster_scratch",
+        "degree": 0,
+        "file": "scratch/patch_lib_unified.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "patch_lib_unified",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "scratch/patch_lib_unified.py",
+      "id": "scratch/patch_lib_unified.py",
+      "intelligence": {},
+      "label": "patch_lib_unified",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_scratch",
+      "data": {
+        "cluster_id": "cluster_scratch",
+        "degree": 0,
+        "file": "scratch/patch_lib.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "patch_lib",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "scratch/patch_lib.py",
+      "id": "scratch/patch_lib.py",
+      "intelligence": {},
+      "label": "patch_lib",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_scratch",
+      "data": {
+        "cluster_id": "cluster_scratch",
+        "degree": 0,
+        "file": "scratch/patch_server_dedupe.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "patch_server_dedupe",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "scratch/patch_server_dedupe.py",
+      "id": "scratch/patch_server_dedupe.py",
+      "intelligence": {},
+      "label": "patch_server_dedupe",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_scratch",
+      "data": {
+        "cluster_id": "cluster_scratch",
+        "degree": 0,
+        "file": "scratch/patch_server_ghost.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "patch_server_ghost",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "scratch/patch_server_ghost.py",
+      "id": "scratch/patch_server_ghost.py",
+      "intelligence": {},
+      "label": "patch_server_ghost",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_scratch",
+      "data": {
+        "cluster_id": "cluster_scratch",
+        "degree": 0,
+        "file": "scratch/prune_nested_risks.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "prune_nested_risks",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "scratch/prune_nested_risks.py",
+      "id": "scratch/prune_nested_risks.py",
+      "intelligence": {},
+      "label": "prune_nested_risks",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_scratch",
+      "data": {
+        "cluster_id": "cluster_scratch",
+        "degree": 0,
+        "file": "scratch/purify_server_risks.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "purify_server_risks",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "scratch/purify_server_risks.py",
+      "id": "scratch/purify_server_risks.py",
+      "intelligence": {},
+      "label": "purify_server_risks",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
+    },
+    {
+      "cluster_id": "cluster_scratch",
+      "data": {
+        "cluster_id": "cluster_scratch",
+        "degree": 0,
+        "file": "scratch/restore_server_header.py",
+        "hasAtomicSignature": false,
+        "hasImportSignature": false,
+        "hiddenOnCanvas": false,
+        "icon": "📄",
+        "isScoped": false,
+        "isSovereign": true,
+        "isUserCreated": true,
+        "label": "restore_server_header",
+        "layer": "user",
+        "opacity": 1,
+        "scale": 1,
+        "status": "active"
+      },
+      "degree": 0,
+      "filePath": "scratch/restore_server_header.py",
+      "id": "scratch/restore_server_header.py",
+      "intelligence": {},
+      "label": "restore_server_header",
+      "layer": "user",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "status": "active",
+      "type": "source",
+      "visual": {
+        "opacity": 1
+      }
     }
   ],
-  "userCount": 345,
+  "userCount": 373,
   "_iron_guard": {
     "version": "0.2.18.1",
-    "byte_size": 362320,
+    "byte_size": 389784,
     "encoding": "UTF-8",
     "alignment": 8
   }

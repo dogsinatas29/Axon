@@ -16,26 +16,28 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-pub mod server;
-pub mod observability;
-pub mod controller;
 pub mod admin;
+pub mod controller;
 pub mod debug_hook;
-pub mod intelligence;
 pub mod dep_graph;
 pub mod execution_validator;
+pub mod intelligence;
+pub mod observability;
+pub mod server;
 use crate::dep_graph::DepGraph;
-use rusqlite::params;
+use crate::intelligence::decision::{
+    Diagnostic, Stage, StageRouter, determine_scope, generate_hint, infer_cause,
+};
+use crate::intelligence::semantic_debugger::SemanticRiskExtractor;
+use axon_core::BatchAssignment;
 use axon_core::events;
 use axon_dispatcher::Dispatcher;
-use axon_core::BatchAssignment;
 use axon_storage::Storage;
-use std::sync::Arc;
-use std::path::PathBuf;
-use tokio::sync::mpsc;
+use rusqlite::params;
 use std::collections::{HashMap, HashSet};
-use crate::intelligence::decision::*;
-use crate::intelligence::semantic_debugger::SemanticRiskExtractor;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::mpsc;
 
 // Legacy routing types removed in v0.0.25
 
@@ -43,7 +45,6 @@ pub struct BootstrapManager {
     pub project_id: String,
     pub sandbox_root: PathBuf,
 }
-
 
 #[derive(Clone)]
 pub struct Daemon {
@@ -73,7 +74,6 @@ pub struct Daemon {
     pub dep_graph: Arc<std::sync::Mutex<DepGraph>>,
 }
 
-
 #[allow(dead_code)]
 impl Daemon {
     pub fn publish_event(&self, event: axon_core::Event) {
@@ -94,7 +94,9 @@ impl Daemon {
                 if path.exists() {
                     return path.to_string_lossy().to_string();
                 }
-                if !curr.pop() { break; }
+                if !curr.pop() {
+                    break;
+                }
             }
         }
         format!("tools/{}", name)
@@ -111,7 +113,12 @@ impl Daemon {
                         let path = entry.path();
                         if path.is_dir() {
                             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                            if name.starts_with('.') || name == "target" || name == "crates" || name == "tools" || name == "mile_stone" {
+                            if name.starts_with('.')
+                                || name == "target"
+                                || name == "crates"
+                                || name == "tools"
+                                || name == "mile_stone"
+                            {
                                 continue;
                             }
                             stack.push(path);
@@ -132,11 +139,18 @@ impl Daemon {
         serde_json::to_string(&state).unwrap_or_else(|_| "{}".to_string())
     }
 
-    fn record_failure_trace(&self, task_id: &str, error: &str, file: &str, symbol: &str, stage: &str) {
+    fn record_failure_trace(
+        &self,
+        task_id: &str,
+        error: &str,
+        file: &str,
+        symbol: &str,
+        stage: &str,
+    ) {
         let trace_dir = ".axon_trace";
         let _ = std::fs::create_dir_all(trace_dir);
         let path = format!("{}/traces.ndjson", trace_dir);
-        
+
         let trace = serde_json::json!({
             "ts": chrono::Local::now().to_rfc3339(),
             "task_id": task_id,
@@ -151,7 +165,7 @@ impl Daemon {
             if let Ok(mut file) = std::fs::OpenOptions::new()
                 .create(true)
                 .append(true)
-                .open(path) 
+                .open(path)
             {
                 let _ = writeln!(file, "{}", content);
             }
@@ -159,7 +173,7 @@ impl Daemon {
     }
 
     pub fn new(
-        storage: Arc<Storage>, 
+        storage: Arc<Storage>,
         architect_model: Arc<dyn axon_model::ModelDriver + Send + Sync>,
         architect_model_name: String,
         senior_models: Vec<Arc<dyn axon_model::ModelDriver + Send + Sync>>,
@@ -173,7 +187,7 @@ impl Daemon {
     ) -> Self {
         let event_bus = Arc::new(events::EventBus::new(100));
         let (pause_tx, pause_rx) = tokio::sync::watch::channel(false);
-        
+
         tracing::info!("🌐 Active Factory Locale: {}", locale);
 
         Self {
@@ -191,45 +205,42 @@ impl Daemon {
             pause_rx,
             locale,
             controller: Arc::new(controller::ControlSystem::new()),
-            lounge: Arc::new(axon_agent::lounge::LoungeManager::new(".").with_event_bus(event_bus.clone())),
+            lounge: Arc::new(
+                axon_agent::lounge::LoungeManager::new(".").with_event_bus(event_bus.clone()),
+            ),
             admin: Arc::new(admin::AdminSystem::new(storage.clone())),
             rr_indices: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
             throttler: Arc::new(tokio::sync::Semaphore::new(1)),
             sampling_rate,
             task_counter: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             validation_counter: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
-            coordinator: Arc::new(std::sync::Mutex::new(intelligence::coordinator::Coordinator::new())),
+            coordinator: Arc::new(std::sync::Mutex::new(
+                intelligence::coordinator::Coordinator::new(),
+            )),
             final_gate_lock: Arc::new(tokio::sync::Mutex::new(())),
             dep_graph: Arc::new(std::sync::Mutex::new(dep_graph::DepGraph::new())),
         }
     }
 
     pub async fn run(&self) -> anyhow::Result<()> {
-        let startup_msg = if self.locale == "ko_KR" {
-            "AXON 데몬 가동 시작 (멀티 워커 모드 - Phase 07)..."
-        } else if self.locale == "ja_JP" {
-            "AXON デーモン起動開始 (マルチワーカーモード - Phase 07)..."
-        } else {
-            "AXON Daemon starting (Multi-Worker Mode - Phase 07)..."
-        };
-        tracing::info!("{}", startup_msg);
-        
-        // v0.0.25: Ensure Lounge thread exists for UI visibility on resume
-        let _ = self.setup_lounge().await;
-        
+
         // RECOVERY (v0.0.15): DB에서 처리되지 않은 태스크들을 불러와 스케줄러 큐에 재진입시킵니다.
         // v0.0.23: Use ExecutionPlanner to build the DAG before enqueuing
         if let Ok(tasks) = self.storage.list_all_tasks() {
             let planner = intelligence::planner::ExecutionPlanner::new();
-            
+
             // Filter only pending/in-progress tasks
-            let mut ready_tasks: Vec<_> = tasks.into_iter()
-                .filter(|t| t.status == axon_core::TaskStatus::Pending || t.status == axon_core::TaskStatus::InProgress)
+            let mut ready_tasks: Vec<_> = tasks
+                .into_iter()
+                .filter(|t| {
+                    t.status == axon_core::TaskStatus::Pending
+                        || t.status == axon_core::TaskStatus::InProgress
+                })
                 .collect();
 
             if !ready_tasks.is_empty() {
                 planner.plan_dependencies(&mut ready_tasks);
-                
+
                 let mut recovered_count = 0;
                 let mut coordinator_tasks = Vec::new();
                 for mut task in ready_tasks {
@@ -238,7 +249,7 @@ impl Daemon {
                     coordinator_tasks.push(task);
                     recovered_count += 1;
                 }
-                
+
                 // v0.0.25: Load tasks into Coordinator SSOT
                 {
                     let mut coord = self.coordinator.lock().unwrap();
@@ -246,26 +257,33 @@ impl Daemon {
                     for t in coordinator_tasks {
                         coord.add_task(t);
                     }
-                    
+
                     // v0.0.25: [ALR] Initialize Priorities from DepGraph
                     let graph = self.dep_graph.lock().unwrap();
                     for (node_id, _) in &graph.nodes {
                         if node_id.starts_with("file:") {
                             let fname = node_id.replace("file:", "");
-                            let deps = graph.edges_in.get(node_id).map(|s| s.len() as u32).unwrap_or(0);
+                            let deps = graph
+                                .edges_in
+                                .get(node_id)
+                                .map(|s| s.len() as u32)
+                                .unwrap_or(0);
                             coord.update_priority(&fname, false, false, deps);
                         }
                     }
                 }
-                
-                tracing::info!("♻️ Recovered {} unfinished tasks with Coordinator Per-file Queue mapping.", recovered_count);
+
+                tracing::info!(
+                    "♻️ Recovered {} unfinished tasks with Coordinator Per-file Queue mapping.",
+                    recovered_count
+                );
             }
         }
-        
+
         // v0.0.25: [ALR] Multi-worker scale based on available junior agents
-        let worker_count = self.junior_models.len().max(1); 
+        let worker_count = self.junior_models.len().max(1);
         let mut worker_handles = Vec::new();
-        
+
         for i in 0..worker_count {
             let daemon = self.clone();
             let handle = tokio::spawn(async move {
@@ -275,7 +293,7 @@ impl Daemon {
             });
             worker_handles.push(handle);
         }
-        
+
         tracing::info!("👷 {} workers activated and ready.", worker_count);
 
         // Keep the main run task alive until all workers exit (which they shouldn't)
@@ -286,7 +304,6 @@ impl Daemon {
         Ok(())
     }
 
-
     pub fn submit_task(&self, task: axon_core::Task) {
         let mut coord = self.coordinator.lock().unwrap();
         coord.add_task(task);
@@ -294,9 +311,19 @@ impl Daemon {
 
     async fn worker_loop(&self, id: usize) -> anyhow::Result<()> {
         let mut pause_rx = self.pause_rx.clone();
-        
+
         loop {
-            // Check pause status
+            // v0.0.30: [SEMANTIC_MICROKERNEL] Generation Permission Gate (Constitutional Authority)
+            // Generation is NOT a right; it is a leased permission. 
+            // If the Boss has not approved the contract or if Semantic Closure is false, 
+            // the worker MUST NOT proceed.
+            if let Err(_e) = self.check_generation_permission("default").await {
+                // If permission is denied, we SLEEP and loop. We do NOT look at the task queue.
+                tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                continue;
+            }
+
+            // Check pause status (User-initiated pause)
             if *pause_rx.borrow() {
                 if pause_rx.changed().await.is_err() {
                     break;
@@ -305,23 +332,68 @@ impl Daemon {
             }
 
             // v0.0.30: [PHASE 1] Semantic Inspection Gate
-            let semantic_risks = {
-                // v0.0.29: Use latest ProjectIR from disk or memory
-                // For KISS, we load it here or use a cached version
-                let project_id = "default"; // TODO: Multi-project support
-                let project_root = format!("./{}", project_id);
+            let project_id = "default";
+            let project_root = format!("./{}", project_id);
+
+            let (semantic_risks, ir_hash) = {
                 if let Some(ir) = crate::intelligence::decision::load_project_ir(&project_root) {
                     let extractor = SemanticRiskExtractor::new(&project_root);
-                    extractor.extract_risks(&ir).await
+                    let ir_hash = crate::intelligence::decision::calculate_ir_hash(&ir);
+                    let mut closure = extractor.extract_risks(&ir).await;
+
+                    // v0.0.31: [AUTO-ARBITRATION] Precedent Replay
+                    let matcher = crate::intelligence::jurisprudence::JurisprudenceMatcher::load(
+                        &project_root,
+                    );
+                    let mut auto_decisions = Vec::new();
+                    for risk in &closure.risks {
+                        if !closure.decisions.iter().any(|d| d.risk_id == risk.id) {
+                            if let Some(decision) = matcher.auto_arbitrate(risk, &ir_hash) {
+                                auto_decisions.push(decision);
+                            }
+                        }
+                    }
+
+                    if !auto_decisions.is_empty() {
+                        tracing::info!(
+                            "⚖️ [JURISPRUDENCE] Found {} auto-resolvable risks.",
+                            auto_decisions.len()
+                        );
+                        let mut sealed =
+                            crate::intelligence::decision::load_sealed_ir(&project_root)
+                                .unwrap_or_default();
+                        for d in auto_decisions {
+                            crate::intelligence::decision::archive_decision(&project_root, &d).ok();
+                            sealed.decisions.push(d);
+                        }
+                        let _ =
+                            crate::intelligence::decision::save_sealed_ir(&project_root, &sealed);
+
+                        // Re-extract risks with newly sealed decisions
+                        closure = extractor.extract_risks(&ir).await;
+                    }
+
+                    (closure, ir_hash)
                 } else {
-                    axon_core::validator::SemanticClosure::default()
+                    (
+                        axon_core::validator::SemanticClosure::default(),
+                        String::new(),
+                    )
                 }
             };
 
-            if semantic_risks.has_critical_risks() {
-                let risk = semantic_risks.risks.first().unwrap();
-                tracing::error!("🚨 [SEMANTIC_INTERRUPT] Project blocked due to critical risk: {}", risk.message);
-                
+            if semantic_risks.has_critical_risks(&ir_hash) {
+                let risk = semantic_risks
+                    .risks
+                    .iter()
+                    .find(|r| r.level == axon_core::validator::SemanticRiskLevel::Critical)
+                    .unwrap_or(semantic_risks.risks.first().unwrap());
+
+                tracing::error!(
+                    "🚨 [SEMANTIC_INTERRUPT] Project blocked due to critical risk: {}",
+                    risk.message
+                );
+
                 self.publish_event(axon_core::Event {
                     id: uuid::Uuid::new_v4().to_string(),
                     project_id: "system".to_string(),
@@ -349,7 +421,12 @@ impl Daemon {
             };
 
             if let Some(batch) = ready_batch {
-                tracing::info!("👷 [Worker {}] Coordinator DISPATCHED batch {} with {} tasks", id, batch.id, batch.tasks.len());
+                tracing::info!(
+                    "👷 [Worker {}] Coordinator DISPATCHED batch {} with {} tasks",
+                    id,
+                    batch.id,
+                    batch.tasks.len()
+                );
                 self.publish_event(axon_core::Event {
                     id: uuid::Uuid::new_v4().to_string(),
                     project_id: "system".to_string(),
@@ -358,17 +435,22 @@ impl Daemon {
                     event_type: axon_core::EventType::SystemLog,
                     level: axon_core::EventLevel::Info,
                     source: format!("WORKER-{}", id),
-                    content: format!("👷 [Worker {}] DISPATCHED batch {} ({} tasks)", id, batch.id, batch.tasks.len()),
+                    content: format!(
+                        "👷 [Worker {}] DISPATCHED batch {} ({} tasks)",
+                        id,
+                        batch.id,
+                        batch.tasks.len()
+                    ),
                     payload: None,
                     timestamp: chrono::Local::now(),
                 });
-                
+
                 let result = self.handle_assignment(BatchAssignment { batch }).await;
-                
+
                 if let Err(e) = result {
                     tracing::error!("❌ [Worker {}] Task execution failed: {}", id, e);
                 }
-                
+
                 // Physical cooldown to avoid API burst on multi-worker
                 tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
             } else {
@@ -376,25 +458,102 @@ impl Daemon {
                 tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
             }
         }
+        Ok(())
+    }
+
+    /// v0.0.30: [SEMANTIC_MICROKERNEL] Generation Permission System
+    /// Checks if the project has a valid 'Sealed Contract' and no pending boss approvals.
+    pub async fn check_generation_permission(&self, project_id: &str) -> anyhow::Result<()> {
+        let project_root = format!("./{}", project_id);
+        let approval_file = std::path::Path::new(&project_root).join(".axon_approval_pending");
+
+        // Rule 1: Global State Lock (The Semaphore)
+        if approval_file.exists() {
+            tracing::warn!("🛑 [GENERATION_LOCKED] Pending boss approval found for project '{}'. Dispatching is forbidden.", project_id);
+            return Err(anyhow::anyhow!("GENERATION_LOCKED: Boss approval is pending for project '{}'. Please resolve the .axon_approval_pending gate first.", project_id));
+        }
+
+        // Rule 2: Semantic Closure Check
+        if let Some(ir) = crate::intelligence::decision::load_project_ir(&project_root) {
+            let extractor = SemanticRiskExtractor::new(&project_root);
+            let ir_hash = crate::intelligence::decision::calculate_ir_hash(&ir);
+            let closure = extractor.extract_risks(&ir).await;
+
+            if closure.has_critical_risks(&ir_hash) {
+                tracing::warn!("❌ [SEMANTIC_CLOSURE_FAIL] Critical risks detected in project '{}'. Pipeline transition denied.", project_id);
+                return Err(anyhow::anyhow!("SEMANTIC_VIOLATION: Project '{}' has unresolved critical semantic risks. Generation is forbidden.", project_id));
+            }
+        }
 
         Ok(())
+    }
+
+    /// v0.0.30: [PHYSICAL_INTEGRITY_GATE] Basic syntax and requirement check before AI review.
+    pub async fn validate_physical_integrity(&self, task: &axon_core::Task, code: &str) -> Vec<String> {
+        let mut errors = Vec::new();
+        let target = task.target_file.as_deref().unwrap_or("Unknown");
+
+        // 1. Basic Syntax Probe (Multi-language)
+        if code.matches('"').count() % 2 != 0 {
+            errors.push("SYNTAX_ERROR: Unclosed string literal detected (\").".to_string());
+        }
+
+        // 2. C-Specific Physical Requirements
+        if target.ends_with(".c") {
+            if !code.contains("#include") {
+                errors.push("PHYSICAL_ERROR: C source file missing #include directives.".to_string());
+            }
+            if code.contains("sqlite3") && !code.contains("<sqlite3.h>") {
+                errors.push("PHYSICAL_ERROR: sqlite3 usage detected but <sqlite3.h> is missing.".to_string());
+            }
+            // Check for hollow implementation
+            if !code.contains('{') {
+                errors.push("PHYSICAL_ERROR: Implementation file contains no function bodies ({ ... }).".to_string());
+            }
+        }
+
+        // 3. Header-Specific Physical Requirements
+        if target.ends_with(".h") {
+            if code.contains('{') && !code.contains("static inline") {
+                errors.push("PHYSICAL_ERROR: Function body { ... } detected in header file. Headers must be declaration-only.".to_string());
+            }
+        }
+
+        errors
     }
 
     pub async fn handle_assignment(&self, assignment: BatchAssignment) -> anyhow::Result<()> {
         let batch = assignment.batch;
         let batch_id = batch.id.clone();
         let _start_total = std::time::Instant::now();
+
+        // v0.0.30: [SEMANTIC_MICROKERNEL] Verify Generation Permission before implementation
+        if let Some(first_task) = batch.tasks.first() {
+            if let Err(e) = self.check_generation_permission(&first_task.project_id).await {
+                tracing::error!("🔥 [AUTHORITY_VIOLATION] Worker {} attempted to generate without permission: {}", batch_id, e);
+                return Err(e);
+            }
+        }
+
+        tracing::info!(
+            "⚙️ [BATCH_START] Processing batch {} with {} tasks.",
+            batch.id,
+            batch.tasks.len()
+        );
         
-        tracing::info!("⚙️ [BATCH_START] Processing batch {} with {} tasks.", batch.id, batch.tasks.len());
         self.publish_event(axon_core::Event {
             id: uuid::Uuid::new_v4().to_string(),
             project_id: "system".to_string(),
             thread_id: None,
             agent_id: None,
             event_type: axon_core::EventType::SystemLog,
-                    level: axon_core::EventLevel::Info,
+            level: axon_core::EventLevel::Info,
             source: "BATCH_PROCESSOR".to_string(),
-            content: format!("⚙️ [BATCH_START] Processing batch {} ({} tasks)", batch.id, batch.tasks.len()),
+            content: format!(
+                "⚙️ [BATCH_START] Processing batch {} ({} tasks)",
+                batch.id,
+                batch.tasks.len()
+            ),
             payload: None,
             timestamp: chrono::Local::now(),
         });
@@ -412,9 +571,12 @@ impl Daemon {
                 thread_id: Some(task.id.clone()),
                 agent_id: None,
                 event_type: axon_core::EventType::ThreadCreated,
-                    level: axon_core::EventLevel::Info,
+                level: axon_core::EventLevel::Info,
                 source: "daemon".to_string(),
-                content: format!("🧵 [WORK_BOARD] Starting implementation for: {}", task.title),
+                content: format!(
+                    "🧵 [WORK_BOARD] Starting implementation for: {}",
+                    task.title
+                ),
                 payload: None,
                 timestamp: chrono::Local::now(),
             });
@@ -425,7 +587,7 @@ impl Daemon {
                 thread_id: Some(task.id.clone()),
                 agent_id: Some("system".to_string()),
                 event_type: axon_core::EventType::SystemLog,
-                    level: axon_core::EventLevel::Info,
+                level: axon_core::EventLevel::Info,
                 source: "daemon".to_string(),
                 content: format!("👷 [Worker {}] Commencing task: {}", batch_id, task.title),
                 payload: None,
@@ -454,21 +616,47 @@ impl Daemon {
             let task = &batch.tasks[i];
             match res {
                 Ok((patch, metrics)) => {
-                    // v0.0.29: [TERMINATION_SIGNAL] Skip if already completed by another worker or previous attempt
-                    if patch == "ALREADY_COMPLETED" {
-                        tracing::info!("✂️ [TERMINATION_SIGNAL] Skipping Senior Review for already completed task: {}", task.id);
-                        continue;
-                    }
                     all_metrics.push(metrics.clone());
 
+                    // v0.0.30: [PHYSICAL_INTEGRITY_GATE] Early rejection for broken code
+                    let physical_errors = self.validate_physical_integrity(task, &patch).await;
+                    if !physical_errors.is_empty() {
+                        let err_msg = format!("PHYSICAL_INTEGRITY_FAIL: {}", physical_errors.join("; "));
+                        tracing::error!("🛑 [PHYSICAL_GATE] Task {} rejected: {}", task.id, err_msg);
+                        
+                        failed_task_ids.insert(task.id.clone());
+                        failures.push(format!("REJECTED by Physical Gate ({}): {}", task.target_file.as_deref().unwrap_or("unknown"), err_msg));
+                        
+
+                        let _ = self.storage.save_post(axon_core::Post {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            thread_id: task.id.clone(),
+                            author_id: "Validator".to_string(),
+                            content: format!("### 🛑 [PHYSICAL_GATE_REJECTED]\n\n{}", err_msg),
+                            thought: None,
+                            full_code: None,
+                            post_type: axon_core::PostType::Review,
+                            metrics: None,
+                            created_at: chrono::Local::now(),
+                        }).await;
+                        
+                        continue;
+                    }
+
                     // v0.0.29: Senior review with timeout (120s)
-                    match tokio::time::timeout(std::time::Duration::from_secs(120), self.verify_with_senior(task, &patch)).await {
+                    match tokio::time::timeout(
+                        std::time::Duration::from_secs(120),
+                        self.verify_with_senior(task, &patch),
+                    )
+                    .await
+                    {
                         Ok(Err(err)) => {
                             let cleaned_text = err.to_string();
-                            let err_msg = format!("Task {} failed senior review: {}", task.id, cleaned_text);
+                            let err_msg =
+                                format!("Task {} failed senior review: {}", task.id, cleaned_text);
                             failures.push(err_msg.clone());
                             failed_task_ids.insert(task.id.clone());
-                            
+
                             // v0.0.29: IMMEDIATE EVENT BROADCAST for UI responsiveness
                             let _ = self.publish_event(axon_core::Event {
                                 id: uuid::Uuid::new_v4().to_string(),
@@ -476,41 +664,53 @@ impl Daemon {
                                 thread_id: Some(task.id.clone()),
                                 agent_id: Some("Senior".to_string()),
                                 event_type: axon_core::EventType::ApprovalRejected,
-                    level: axon_core::EventLevel::Info,
+                                level: axon_core::EventLevel::Info,
                                 source: "Senior".to_string(),
-                                content: format!("### ❌ [REJECTED]\n\nSenior identified issues: {}", cleaned_text),
+                                content: format!(
+                                    "### ❌ [REJECTED]\n\nSenior identified issues: {}",
+                                    cleaned_text
+                                ),
                                 payload: None,
                                 timestamp: chrono::Local::now(),
                             });
 
-                            let _ = self.storage.save_post(axon_core::Post {
-                                id: uuid::Uuid::new_v4().to_string(),
-                                thread_id: task.id.clone(),
-                                author_id: "Senior".to_string(),
-                                content: format!("### ❌ [REJECTED]\n\n{}", cleaned_text),
-                                thought: None,
-                                full_code: None,
-                                post_type: axon_core::PostType::Review,
-                                metrics: None,
-                                created_at: chrono::Local::now(),
-                            }).await;
-                            
-                            tracing::info!("📢 [SENIOR_REJECT] Posted rejection to thread {}", task.id);
+                            let _ = self
+                                .storage
+                                .save_post(axon_core::Post {
+                                    id: uuid::Uuid::new_v4().to_string(),
+                                    thread_id: task.id.clone(),
+                                    author_id: "Senior".to_string(),
+                                    content: format!("### ❌ [REJECTED]\n\n{}", cleaned_text),
+                                    thought: None,
+                                    full_code: None,
+                                    post_type: axon_core::PostType::Review,
+                                    metrics: None,
+                                    created_at: chrono::Local::now(),
+                                })
+                                .await;
+
+                            tracing::info!(
+                                "📢 [SENIOR_REJECT] Posted rejection to thread {}",
+                                task.id
+                            );
                         }
                         Err(_timeout) => {
-                            let err_msg = format!("Task {} senior review timed out after 120s", task.id);
+                            let err_msg =
+                                format!("Task {} senior review timed out after 120s", task.id);
                             failures.push(err_msg.clone());
                             failed_task_ids.insert(task.id.clone());
-                            
+
                             let _ = self.publish_event(axon_core::Event {
                                 id: uuid::Uuid::new_v4().to_string(),
                                 project_id: task.project_id.clone(),
                                 thread_id: Some(task.id.clone()),
                                 agent_id: Some("Senior".to_string()),
                                 event_type: axon_core::EventType::MessagePosted,
-                    level: axon_core::EventLevel::Info,
+                                level: axon_core::EventLevel::Info,
                                 source: "Senior".to_string(),
-                                content: "### ⚠️ [TIMEOUT]\n\nSenior review timed out. Re-queueing...".to_string(),
+                                content:
+                                    "### ⚠️ [TIMEOUT]\n\nSenior review timed out. Re-queueing..."
+                                        .to_string(),
                                 payload: None,
                                 timestamp: chrono::Local::now(),
                             });
@@ -520,17 +720,20 @@ impl Daemon {
                             senior_comments.insert(task.id.clone(), comment.clone());
 
                             // v0.0.29: Save Approval Post to UI
-                            let _ = self.storage.save_post(axon_core::Post {
-                                id: uuid::Uuid::new_v4().to_string(),
-                                thread_id: task.id.clone(),
-                                author_id: "Senior".to_string(),
-                                content: format!("### ✅ [APPROVED]\n\n{}", comment),
-                                thought: None,
-                                full_code: None,
-                                post_type: axon_core::PostType::Review,
-                                metrics: None,
-                                created_at: chrono::Local::now(),
-                            }).await;
+                            let _ = self
+                                .storage
+                                .save_post(axon_core::Post {
+                                    id: uuid::Uuid::new_v4().to_string(),
+                                    thread_id: task.id.clone(),
+                                    author_id: "Senior".to_string(),
+                                    content: format!("### ✅ [APPROVED]\n\n{}", comment),
+                                    thought: None,
+                                    full_code: None,
+                                    post_type: axon_core::PostType::Review,
+                                    metrics: None,
+                                    created_at: chrono::Local::now(),
+                                })
+                                .await;
 
                             let _ = self.publish_event(axon_core::Event {
                                 id: uuid::Uuid::new_v4().to_string(),
@@ -538,39 +741,68 @@ impl Daemon {
                                 thread_id: Some(task.id.clone()),
                                 agent_id: Some("Senior".to_string()),
                                 event_type: axon_core::EventType::ApprovalGranted,
-                    level: axon_core::EventLevel::Info,
+                                level: axon_core::EventLevel::Info,
                                 source: "Senior".to_string(),
-                                content: format!("### ✅ [APPROVED]\n\nSenior approved: {}", comment),
+                                content: format!(
+                                    "### ✅ [APPROVED]\n\nSenior approved: {}",
+                                    comment
+                                ),
                                 payload: None,
                                 timestamp: chrono::Local::now(),
                             });
 
-                            tracing::info!("📢 [SENIOR_APPROVE] Posted approval to thread {}", task.id);
-                            
+                            tracing::info!(
+                                "📢 [SENIOR_APPROVE] Posted approval to thread {}",
+                                task.id
+                            );
+
                             // v0.0.29: Final materialization of the code to disk
                             if let Some(target) = &task.target_file {
                                 let fpath = std::path::Path::new(&task.project_id).join(target);
-                                
+
                                 // v0.0.29: [MATERIALIZER] Ensure directory exists
                                 if let Some(parent) = fpath.parent() {
                                     let _ = std::fs::create_dir_all(parent);
                                 }
-                                
-                                tracing::info!("💾 [FILE_WRITE] Materializing {} -> {}", task.title, fpath.display());
+
+                                // v0.0.30 Sovereign Protection: Check if Boss already overrode this task
+                                if let Ok(Some(current_task)) = self.storage.get_task(&task.id) {
+                                    if current_task.status == axon_core::TaskStatus::Completed {
+                                        tracing::warn!("🛡️ [SOVEREIGN_PROTECTION] Aborting file write for task {}. Boss already issued a SEAL/OVERRIDE.", task.id);
+                                        return Ok(());
+                                    }
+                                }
+
+                                tracing::info!(
+                                    "💾 [FILE_WRITE] Materializing {} -> {}",
+                                    task.title,
+                                    fpath.display()
+                                );
                                 if let Err(e) = std::fs::write(&fpath, &patch) {
-                                    tracing::error!("❌ [FILE_WRITE_FAIL] Failed to write {}: {}", fpath.display(), e);
+                                    tracing::error!(
+                                        "❌ [FILE_WRITE_FAIL] Failed to write {}: {}",
+                                        fpath.display(),
+                                        e
+                                    );
                                 } else {
-                                    tracing::info!("✅ [FILE_WRITE_OK] Written {} bytes to {}", patch.len(), fpath.display());
-                                    
+                                    tracing::info!(
+                                        "✅ [FILE_WRITE_OK] Written {} bytes to {}",
+                                        patch.len(),
+                                        fpath.display()
+                                    );
+
                                     self.publish_event(axon_core::Event {
                                         id: uuid::Uuid::new_v4().to_string(),
                                         project_id: task.project_id.clone(),
                                         thread_id: Some(task.id.clone()),
                                         agent_id: None,
                                         event_type: axon_core::EventType::ArtifactCreated,
-                    level: axon_core::EventLevel::Info,
+                                        level: axon_core::EventLevel::Info,
                                         source: "daemon".to_string(),
-                                        content: format!("💾 [MATERIALIZER] Code materialized: {} -> {:?}", task.title, fpath),
+                                        content: format!(
+                                            "💾 [MATERIALIZER] Code materialized: {} -> {:?}",
+                                            task.title, fpath
+                                        ),
                                         payload: None,
                                         timestamp: chrono::Local::now(),
                                     });
@@ -586,10 +818,15 @@ impl Daemon {
                 }
             }
         }
-        
+
         if !failed_task_ids.is_empty() {
-            tracing::error!("❌ [BATCH_PARTIAL_FAIL] {}/{} tasks failed in batch {}.", failed_task_ids.len(), batch.tasks.len(), batch.id);
-            
+            tracing::error!(
+                "❌ [BATCH_PARTIAL_FAIL] {}/{} tasks failed in batch {}.",
+                failed_task_ids.len(),
+                batch.tasks.len(),
+                batch.id
+            );
+
             // v0.0.25: Strategic Visibility - Alert UI of partial batch failure
             self.publish_event(axon_core::Event {
                 id: uuid::Uuid::new_v4().to_string(),
@@ -597,9 +834,13 @@ impl Daemon {
                 thread_id: None,
                 agent_id: None,
                 event_type: axon_core::EventType::Signal,
-                    level: axon_core::EventLevel::Info,
+                level: axon_core::EventLevel::Info,
                 source: "daemon".to_string(),
-                content: format!("🚨 [BATCH_PARTIAL_FAIL] {} tasks rejected in batch {}. Re-queueing...", failed_task_ids.len(), batch.id),
+                content: format!(
+                    "🚨 [BATCH_PARTIAL_FAIL] {} tasks rejected in batch {}. Re-queueing...",
+                    failed_task_ids.len(),
+                    batch.id
+                ),
                 payload: None,
                 timestamp: chrono::Local::now(),
             });
@@ -617,41 +858,54 @@ impl Daemon {
 
                     // v0.0.29: Fail-Fast Implementation (Senior Rejection)
                     if task.rework_count >= 3 {
-                        tracing::error!("🛑 [FATAL] Task {} failed after {} reworks. Senior rejected too many times.", task.id, task.rework_count);
+                        tracing::error!("🛑 [FATAL] Task {} failed after 3 reworks.", task.id);
                         let mut failed_task = task.clone();
                         failed_task.status = axon_core::TaskStatus::Failed;
-                        failed_task.error_feedback = Some(format!("REWORK_LIMIT_REACHED (Senior): {}", failures.join(" | ")));
-                        let _ = self.storage.save_task(failed_task.clone()).await;
-                        let _ = self.storage.update_project_state(&task.project_id, "ImplGen", "failed").await;
-                        
+
                         // v0.0.29: AI-driven Failure Diagnosis
                         let raw_failures = failures.join("\n---\n");
-                        let diagnosis = self.diagnose_failure(task, &raw_failures).await.unwrap_or_else(|_| "진단 실패: 로그 분석 중 오류 발생".to_string());
+                        let diagnosis = self
+                            .diagnose_failure(task, &raw_failures)
+                            .await
+                            .unwrap_or_else(|_| "진단 실패: 로그 분석 중 오류 발생".to_string());
+
+                        // v0.0.30: [PROVENANCE_HARDENING] Determine rejection source
+                        let source_label = if raw_failures.contains("PHYSICAL_") {
+                            "시스템 게이트 (물리적 정합성 위반)"
+                        } else if raw_failures.contains("COMPILE_") || raw_failures.contains("error:") {
+                            "컴파일러 (빌드 실패)"
+                        } else {
+                            "시니어 AI (코드 리뷰 반려)"
+                        };
+
+                        // v0.0.30: Save Diagnosis & Provenance to Task
+                        failed_task.error_feedback = Some(format!(
+                            "### 🚨 [반려 주체: {}]\n\n{}\n\n---\n### 🔍 상세 오류 로그\n{}",
+                            source_label, diagnosis, raw_failures
+                        ));
+
+                        let _ = self.storage.save_task(failed_task.clone()).await;
+                        let _ = self.storage.update_project_state(&task.project_id, "ImplGen", "failed").await;
 
                         // v0.0.29: Enrich FATAL message with Senior Audit details
                         let senior_report = if let Ok(posts) = self.storage.list_posts_by_thread(&task.id) {
-                            posts.iter()
-                                .filter(|p| p.post_type == axon_core::PostType::Review)
-                                .last()
+                            posts.iter().filter(|p| p.post_type == axon_core::PostType::Review).last()
                                 .map(|p| format!("[SENIOR_REVIEW_AUDIT]: Status='REJECTED'\n\"{}\"", p.content))
                                 .unwrap_or_else(|| "[SENIOR_REVIEW_AUDIT]: No review data found.".to_string())
-                        } else {
-                            "[SENIOR_REVIEW_AUDIT]: Storage error.".to_string()
-                        };
+                        } else { "[SENIOR_REVIEW_AUDIT]: Storage error.".to_string() };
 
                         self.event_bus.publish(axon_core::Event {
                             id: uuid::Uuid::new_v4().to_string(),
                             project_id: task.project_id.clone(),
                             thread_id: Some(task.id.clone()),
                             agent_id: None,
-                            event_type: axon_core::EventType::AgentAction, 
+                            event_type: axon_core::EventType::AgentAction,
                             level: axon_core::EventLevel::Critical,
                             source: "DAEMON".to_string(),
-                            content: format!("🚨 [SENIOR_REJECT] {}\n\n### 🧠 AI DIAGNOSIS\n{}\n\n---\n{}", task.title, diagnosis, senior_report),
+                            content: format!("🚨 [{} 반려] {}\n\n### 🧠 AI 진단 결과\n{}\n\n---\n{}", source_label, task.title, diagnosis, senior_report),
                             payload: None,
                             timestamp: chrono::Local::now(),
                         });
-                        
                         tokio::time::sleep(std::time::Duration::from_secs(3)).await;
                         std::process::exit(1);
                     }
@@ -660,14 +914,18 @@ impl Daemon {
                     // v0.0.29: RESET TO PENDING (Crucial for re-dispatch!)
                     rework_task.status = axon_core::TaskStatus::Pending;
                     rework_task.rework_count += 1;
-                    
+
                     // v0.0.29: Clear visual tracking in logs/UI
-                    rework_task.title = format!("{} (Rework #{})", task.title.split(" (Rework #").next().unwrap_or(&task.title), rework_task.rework_count);
-                    
+                    rework_task.title = format!(
+                        "{} (Rework #{})",
+                        task.title.split(" (Rework #").next().unwrap_or(&task.title),
+                        rework_task.rework_count
+                    );
+
                     // Combine all batch failures into the task feedback
                     let combined_failure = failures.join("\n---\n");
                     rework_task.error_feedback = Some(combined_failure);
-                    
+
                     let _ = self.storage.save_task(rework_task.clone()).await;
 
                     // v0.0.29: Sync thread rejection count for UI visibility
@@ -678,7 +936,7 @@ impl Daemon {
 
                     {
                         let mut coord = self.coordinator.lock().unwrap();
-                        coord.complete_task(task, false); 
+                        coord.complete_task(task, false);
                         coord.add_task(rework_task); // Re-queue ONLY the failed task
                     }
                 } else {
@@ -694,11 +952,13 @@ impl Daemon {
         // =========================================================================
         // v0.0.25: [FINAL_GATE] Atomic Batch Integrity
         // =========================================================================
-        
+
         let _gate = self.final_gate_lock.lock().await;
 
         let mut validation_success = true;
-        let cycle = self.validation_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let cycle = self
+            .validation_counter
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let mode = if cycle > 0 && cycle % 10 == 0 {
             execution_validator::ValidationMode::Full
         } else {
@@ -709,31 +969,44 @@ impl Daemon {
         if let Some(rep_task) = batch.tasks.first() {
             if let Some(target) = &rep_task.target_file {
                 let project_root = format!("./{}", rep_task.project_id);
-                
+
                 // v0.0.29: Structural Readiness Check
                 // Skip Compile/Run gates if we are dealing with Headers or if we're in early bootstrap.
-                let is_header_batch = batch.tasks.iter().any(|t| t.task_kind == Some(axon_core::TaskKind::HeaderDecl));
-                
+                let is_header_batch = batch
+                    .tasks
+                    .iter()
+                    .any(|t| t.task_kind == Some(axon_core::TaskKind::HeaderDecl));
+
                 // v0.0.29: Load Architectural SSOT (ProjectIR) for contract enforcement
                 let ir_contract = load_project_ir(&project_root);
 
                 if is_header_batch {
-                    tracing::info!("📎 [BATCH_BYPASS] Skipping Compile/Run gates for Header batch.");
+                    tracing::info!(
+                        "📎 [BATCH_BYPASS] Skipping Compile/Run gates for Header batch."
+                    );
                 } else {
                     // 1. Compile Gate (v0.0.29: Added IR contract enforcement)
-                    if let Err(err) = execution_validator::validate(&project_root, target, mode, ir_contract.as_ref()) {
+                    if let Err(err) = execution_validator::validate(
+                        &project_root,
+                        target,
+                        mode,
+                        ir_contract.as_ref(),
+                    ) {
                         validation_success = false;
                         failures.push(format!("[BATCH_COMPILE_FAIL] {}", err));
                     }
 
                     // 2. Selective Run Gate
                     if validation_success {
-                        let _affected: Vec<String> = batch.dependency_closure.iter()
-                            .map(|s| s.clone()).collect();
-                        let affected_set: std::collections::HashSet<String> = batch.dependency_closure.clone();
+                        let _affected: Vec<String> =
+                            batch.dependency_closure.iter().map(|s| s.clone()).collect();
+                        let affected_set: std::collections::HashSet<String> =
+                            batch.dependency_closure.clone();
                         let run_targets = self.dep_graph.lock().unwrap().run_targets(&affected_set);
-                        
-                        if let Err(err) = execution_validator::selective_run(&project_root, target, run_targets) {
+
+                        if let Err(err) =
+                            execution_validator::selective_run(&project_root, target, run_targets)
+                        {
                             validation_success = false;
                             failures.push(format!("[BATCH_RUN_FAIL] {}", err));
                         }
@@ -743,7 +1016,10 @@ impl Daemon {
         }
 
         if validation_success {
-            tracing::info!("🚀 [BATCH_PROMOTION] Batch {} passed all gates. Committing to SSOT.", batch_id);
+            tracing::info!(
+                "🚀 [BATCH_PROMOTION] Batch {} passed all gates. Committing to SSOT.",
+                batch_id
+            );
             if let Some(task) = batch.tasks.first() {
                 self.publish_event(axon_core::Event {
                     id: uuid::Uuid::new_v4().to_string(),
@@ -753,7 +1029,10 @@ impl Daemon {
                     event_type: axon_core::EventType::SystemLog,
                     level: axon_core::EventLevel::Info,
                     source: "FACTORY_ENGINE".to_string(),
-                    content: format!("🚀 [BATCH_PROMOTION] Batch {} passed all gates. Committing to SSOT.", batch_id),
+                    content: format!(
+                        "🚀 [BATCH_PROMOTION] Batch {} passed all gates. Committing to SSOT.",
+                        batch_id
+                    ),
                     payload: None,
                     timestamp: chrono::Local::now(),
                 });
@@ -765,13 +1044,13 @@ impl Daemon {
                     t.senior_comment = Some(comment.clone());
                 }
                 let _ = self.storage.save_task(t.clone()).await;
-                
+
                 // Release locks and notify UI
                 {
                     let mut coord = self.coordinator.lock().unwrap();
                     coord.complete_task(&t, true);
                 }
-                
+
                 if let Ok(Some(mut thread)) = self.storage.get_thread(&t.id) {
                     thread.status = axon_core::ThreadStatus::Completed;
                     let _ = self.storage.save_thread(thread).await;
@@ -779,17 +1058,25 @@ impl Daemon {
             }
         } else {
             let combined_err = failures.join(" | ");
-            tracing::error!("🛑 [BATCH_GATE_REJECT] Integrity check failed for batch {}: {}", batch.id, combined_err);
-            // v0.0.29: [PHYSICAL_ROLLBACK_GUARD] 
+            tracing::error!(
+                "🛑 [BATCH_GATE_REJECT] Integrity check failed for batch {}: {}",
+                batch.id,
+                combined_err
+            );
+            // v0.0.29: [PHYSICAL_ROLLBACK_GUARD]
             // 1. Restore previous versions for modified files
             for (fname, content) in &backups {
                 let fpath = std::path::Path::new(&batch.tasks[0].project_id).join(fname);
                 let _ = std::fs::write(&fpath, content);
-                tracing::info!("♻️ [ROLLBACK_RESTORE] Restored previous version of: {}", fpath.display());
+                tracing::info!(
+                    "♻️ [ROLLBACK_RESTORE] Restored previous version of: {}",
+                    fpath.display()
+                );
             }
-            
+
             // 2. QUARANTINE newly created files that failed validation
-            let quarantine_dir = std::path::Path::new(&batch.tasks[0].project_id).join("quarantine");
+            let quarantine_dir =
+                std::path::Path::new(&batch.tasks[0].project_id).join("quarantine");
             let _ = std::fs::create_dir_all(&quarantine_dir);
             for task in &batch.tasks {
                 if let Some(target) = &task.target_file {
@@ -797,21 +1084,30 @@ impl Daemon {
                     if !backups.contains_key(target) {
                         let fpath = std::path::Path::new(&task.project_id).join(target);
                         if fpath.exists() {
-                            let file_name = std::path::Path::new(target).file_name().unwrap_or_default();
+                            let file_name =
+                                std::path::Path::new(target).file_name().unwrap_or_default();
                             let q_path = quarantine_dir.join(file_name);
-                            tracing::warn!("☣️ [QUARANTINE_MOVE] Isolating invalid artifact to analysis: {}", q_path.display());
+                            tracing::warn!(
+                                "☣️ [QUARANTINE_MOVE] Isolating invalid artifact to analysis: {}",
+                                q_path.display()
+                            );
                             let _ = std::fs::rename(&fpath, q_path);
                         }
                     }
                 }
             }
             let error_files = execution_validator::extract_error_files(&combined_err);
-            let affected: Vec<String> = batch.dependency_closure.iter()
+            let affected: Vec<String> = batch
+                .dependency_closure
+                .iter()
                 .filter(|id| id.starts_with("file:"))
                 .map(|id| id.replace("file:", ""))
                 .collect();
             if !error_files.is_empty() {
-                tracing::info!("🎯 [FAULT_LOCALIZATION] Pinpointed culprits: {:?}", error_files);
+                tracing::info!(
+                    "🎯 [FAULT_LOCALIZATION] Pinpointed culprits: {:?}",
+                    error_files
+                );
             }
 
             for task in &batch.tasks {
@@ -821,39 +1117,68 @@ impl Daemon {
                         is_culprit = true;
                     }
                 }
-                
+
                 // v0.0.29: Fail-Fast Implementation (Integrity Gate)
                 if task.rework_count >= 3 {
-                    tracing::error!("🛑 [FATAL] Task {} failed after {} reworks. Last error: {}", task.id, task.rework_count, combined_err);
+                    tracing::error!(
+                        "🛑 [FATAL] Task {} failed after {} reworks. Last error: {}",
+                        task.id,
+                        task.rework_count,
+                        combined_err
+                    );
                     let mut failed_task = task.clone();
                     failed_task.status = axon_core::TaskStatus::Failed;
-                    failed_task.error_feedback = Some(format!("REWORK_LIMIT_REACHED: {}", combined_err));
+                    failed_task.error_feedback =
+                        Some(format!("REWORK_LIMIT_REACHED: {}", combined_err));
                     let _ = self.storage.save_task(failed_task.clone()).await;
-                    let _ = self.storage.update_project_state(&task.project_id, "ImplGen", "failed").await;
-                    
+                    let _ = self
+                        .storage
+                        .update_project_state(&task.project_id, "ImplGen", "failed")
+                        .await;
+
                     // v0.0.29: Consensus Breakdown Audit (Senior Approval vs Validator Rejection)
-                    let senior_audit = if let Ok(posts) = self.storage.list_posts_by_thread(&task.id) {
-                        posts.iter()
+                    let senior_audit = if let Ok(posts) =
+                        self.storage.list_posts_by_thread(&task.id)
+                    {
+                        posts
+                            .iter()
                             .filter(|p| p.post_type == axon_core::PostType::Review)
                             .last()
-                            .map(|p| format!("[SENIOR_REVIEW_AUDIT]: Status='APPROVED'\nThought: {}\n---", p.thought.as_deref().unwrap_or("No thought recorded")))
-                            .unwrap_or_else(|| "[SENIOR_REVIEW_AUDIT]: No review data found.\n---".to_string())
+                            .map(|p| {
+                                format!(
+                                    "[SENIOR_REVIEW_AUDIT]: Status='APPROVED'\nThought: {}\n---",
+                                    p.thought.as_deref().unwrap_or("No thought recorded")
+                                )
+                            })
+                            .unwrap_or_else(|| {
+                                "[SENIOR_REVIEW_AUDIT]: No review data found.\n---".to_string()
+                            })
                     } else {
                         "[SENIOR_REVIEW_AUDIT]: Storage error.\n---".to_string()
                     };
 
-                    let compiler_log = std::fs::read_to_string(std::path::Path::new(&task.project_id).join("debug/last_compiler_error.txt"))
-                        .unwrap_or_else(|_| combined_err.clone());
-                    
+                    let compiler_log = std::fs::read_to_string(
+                        std::path::Path::new(&task.project_id)
+                            .join("debug/last_compiler_error.txt"),
+                    )
+                    .unwrap_or_else(|_| combined_err.clone());
+
                     // v0.0.29: AI-driven Failure Diagnosis (Consensus Breakdown)
-                    let diagnosis = self.diagnose_failure(task, &compiler_log).await.unwrap_or_else(|_| "진단 실패: 컴파일 에러 분석 중 오류 발생".to_string());
+                    let diagnosis = self
+                        .diagnose_failure(task, &compiler_log)
+                        .await
+                        .unwrap_or_else(|_| "진단 실패: 컴파일 에러 분석 중 오류 발생".to_string());
 
                     // v0.0.29: Code Peek (Extract offending snippet)
                     let error_locs = execution_validator::extract_error_locations(&compiler_log);
                     let mut code_peek = String::new();
-                    for loc in error_locs.iter().take(2) { // Show up to 2 snippets
+                    for loc in error_locs.iter().take(2) {
+                        // Show up to 2 snippets
                         if let Ok(snippet) = self.get_code_snippet(&task.project_id, loc).await {
-                            code_peek.push_str(&format!("\n### 🔍 CODE_PEEK: {} (Line {})\n{}\n", loc.file, loc.line, snippet));
+                            code_peek.push_str(&format!(
+                                "\n### 🔍 CODE_PEEK: {} (Line {})\n{}\n",
+                                loc.file, loc.line, snippet
+                            ));
                         }
                     }
 
@@ -871,26 +1196,33 @@ impl Daemon {
                         payload: None,
                         timestamp: chrono::Local::now(),
                     });
-                    
+
                     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
                     std::process::exit(1);
                 }
 
                 // v0.0.28: Targeted Rework Strategy
                 if error_files.is_empty() || is_culprit {
-                    tracing::info!("♻️ [TARGETED_REWORK] Spawning rework for culprit task: {}", task.id);
+                    tracing::info!(
+                        "♻️ [TARGETED_REWORK] Spawning rework for culprit task: {}",
+                        task.id
+                    );
                     let _ = self.spawn_rework_task(task, &combined_err, &affected).await;
                 } else {
-                    tracing::info!("⏳ [REQUEUE_PENDING] Task {} was innocent. Re-queuing to Pending.", task.id);
+                    tracing::info!(
+                        "⏳ [REQUEUE_PENDING] Task {} was innocent. Re-queuing to Pending.",
+                        task.id
+                    );
                     let mut t = task.clone();
                     t.status = axon_core::TaskStatus::Pending;
-                    t.result = Some("Rolled back due to batch failure (Compilation Gate)".to_string());
+                    t.result =
+                        Some("Rolled back due to batch failure (Compilation Gate)".to_string());
                     let _ = self.storage.save_task(t.clone()).await;
-                    
+
                     let mut coord = self.coordinator.lock().unwrap();
                     coord.add_task(t);
                 }
-                
+
                 // In all failure cases, the original task execution cycle is finished
                 let mut coord = self.coordinator.lock().unwrap();
                 coord.complete_task(task, false);
@@ -912,7 +1244,8 @@ impl Daemon {
         // v0.0.25: Ensure Lounge thread exists for UI visibility on resume
         let _ = self.setup_lounge().await;
 
-        let mut sandbox_path = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let mut sandbox_path =
+            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
         sandbox_path.push(&project_id);
 
         let manager = BootstrapManager {
@@ -933,14 +1266,19 @@ impl Daemon {
 
 impl BootstrapManager {
     pub async fn run_v3(&self, daemon: &Daemon, spec_content: String) -> anyhow::Result<()> {
-        tracing::info!("🚀 Starting State Machine Pipeline (L-DDP Phase 1.4) for project '{}'...", self.project_id);
+        tracing::info!(
+            "🚀 Starting State Machine Pipeline (L-DDP Phase 1.4) for project '{}'...",
+            self.project_id
+        );
 
         let mut architect_runtime = axon_agent::AgentRuntime::new(
             "architect-agent-001".to_string(),
             axon_core::AgentRole::Architect,
             daemon.architect_model_name.clone(),
-            daemon.architect_model.clone()
-        ).with_timeout(1200).with_project(self.project_id.clone());
+            daemon.architect_model.clone(),
+        )
+        .with_timeout(1200)
+        .with_project(self.project_id.clone());
         architect_runtime.set_locale(&daemon.locale);
 
         let mut stage = Stage::SpecAnalysis;
@@ -953,73 +1291,117 @@ impl BootstrapManager {
 
         loop {
             tracing::info!("🏭 [FACTORY_STAGE] Currently running: {:?}", stage);
-            
+
             // v0.0.29: [RESUME_LOGIC] Check if we can skip Skeleton/HeaderGen
-            if stage == Stage::Skeleton {
+            if stage == Stage::Skeleton && !daemon.storage.list_all_tasks().unwrap_or_default().is_empty() {
                 let arch_path = self.sandbox_root.join("architecture.md");
                 if arch_path.exists() {
                     if let Ok(content) = std::fs::read_to_string(&arch_path) {
                         if content.contains("AXON:SPEC:COMPONENTS") {
-                            tracing::info!("♻️ [RESUME] Found existing architecture.md. Loading IR and skipping Skeleton stage.");
+                            tracing::info!(
+                                "♻️ [RESUME] Found existing architecture.md. Loading IR and skipping Skeleton stage."
+                            );
                             // Extract JSON and verify
                             if let Some(json_start) = content.find("<!-- AXON:SPEC:COMPONENTS") {
                                 if let Some(json_end) = content.rfind("-->") {
-                                    let json_str = &content[json_start + "<!-- AXON:SPEC:COMPONENTS".len()..json_end];
-                                    if let Ok(ir_val) = serde_json::from_str::<serde_json::Value>(json_str.trim()) {
+                                    let json_str = &content
+                                        [json_start + "<!-- AXON:SPEC:COMPONENTS".len()..json_end];
+                                    if let Ok(ir_val) =
+                                        serde_json::from_str::<serde_json::Value>(json_str.trim())
+                                    {
                                         // v0.0.29: Use the official constructor and fully restore components
                                         let mut ir = axon_core::ir::ProjectIR::new();
-                                        ir.thought = Some("Restored from existing architecture.md".to_string());
-                                        
+                                        ir.thought = Some(
+                                            "Restored from existing architecture.md".to_string(),
+                                        );
+
                                         if let Some(mapping) = ir_val["node_mapping"].as_object() {
                                             for (k, v) in mapping {
-                                                ir.node_mapping.insert(k.clone(), v.as_str().unwrap_or("file").to_string());
+                                                ir.node_mapping.insert(
+                                                    k.clone(),
+                                                    v.as_str().unwrap_or("file").to_string(),
+                                                );
                                             }
                                         }
 
                                         if let Some(comps) = ir_val["components"].as_array() {
                                             for c_val in comps {
-                                                let name = c_val["name"].as_str().unwrap_or("unknown").to_string();
-                                                let file_path = c_val["file"].as_str().unwrap_or(&name).to_string();
-                                                let is_entry = c_val["type"].as_str().unwrap_or("") == "entry";
-                                                
-                                                let mut functions = std::collections::BTreeMap::new();
+                                                let name = c_val["name"]
+                                                    .as_str()
+                                                    .unwrap_or("unknown")
+                                                    .to_string();
+                                                let file_path = c_val["file"]
+                                                    .as_str()
+                                                    .unwrap_or(&name)
+                                                    .to_string();
+                                                let is_entry =
+                                                    c_val["type"].as_str().unwrap_or("") == "entry";
+
+                                                let mut functions =
+                                                    std::collections::BTreeMap::new();
                                                 if let Some(funcs) = c_val["functions"].as_array() {
                                                     for f_val in funcs {
-                                                        let f_name = f_val["name"].as_str().unwrap_or("unknown").to_string();
-                                                        let f_sig = f_val["signature"].as_str().unwrap_or("void unknown()").to_string();
-                                                        functions.insert(f_name.clone(), axon_core::ir::Function {
-                                                            name: f_name,
-                                                            signature: f_sig,
-                                                            dependencies: std::collections::BTreeSet::new(),
-                                                            body_hash: None,
-                                                        });
+                                                        let f_name = f_val["name"]
+                                                            .as_str()
+                                                            .unwrap_or("unknown")
+                                                            .to_string();
+                                                        let f_sig = f_val["signature"]
+                                                            .as_str()
+                                                            .unwrap_or("void unknown()")
+                                                            .to_string();
+                                                        functions.insert(
+                                                            f_name.clone(),
+                                                            axon_core::ir::Function {
+                                                                name: f_name,
+                                                                signature: f_sig,
+                                                                dependencies:
+                                                                    std::collections::BTreeSet::new(
+                                                                    ),
+                                                                body_hash: None,
+                                                                locked: false,
+                                                            },
+                                                        );
                                                     }
                                                 }
 
-                                                let tier = if c_val["tier"].as_str() == Some("optional") { axon_ir::ComponentTier::Optional } else { axon_ir::ComponentTier::Core };
-                                                let is_blocking = c_val["is_blocking"].as_bool().unwrap_or(true);
+                                                let tier =
+                                                    if c_val["tier"].as_str() == Some("optional") {
+                                                        axon_ir::ComponentTier::Optional
+                                                    } else {
+                                                        axon_ir::ComponentTier::Core
+                                                    };
+                                                let is_blocking =
+                                                    c_val["is_blocking"].as_bool().unwrap_or(true);
 
-                                                ir.components.insert(file_path.clone(), axon_core::ir::Component {
-                                                    name,
-                                                    file_path,
-                                                    functions,
-                                                    imports: std::collections::BTreeSet::new(),
-                                                    associated_files: Vec::new(),
-                                                    is_entrypoint: is_entry,
-                                                    data_models: Vec::new(),
-                                                    metadata: std::collections::BTreeMap::new(),
-                                                    allowed_includes: std::collections::BTreeSet::new(),
-                                                    forbidden_includes: std::collections::BTreeSet::new(),
-                                                    forbidden_symbols: std::collections::BTreeSet::new(),
-                                                    tier,
-                                                    is_blocking,
-                                                });
+                                                ir.components.insert(
+                                                    file_path.clone(),
+                                                    axon_core::ir::Component {
+                                                        name,
+                                                        file_path,
+                                                        functions,
+                                                        imports: std::collections::BTreeSet::new(),
+                                                        associated_files: Vec::new(),
+                                                        is_entrypoint: is_entry,
+                                                        data_models: Vec::new(),
+                                                        metadata: std::collections::BTreeMap::new(),
+                                                        allowed_includes:
+                                                            std::collections::BTreeSet::new(),
+                                                        forbidden_includes:
+                                                            std::collections::BTreeSet::new(),
+                                                        forbidden_symbols:
+                                                            std::collections::BTreeSet::new(),
+                                                        tier,
+                                                        is_blocking,
+                                                        locked: false,
+                                                    },
+                                                );
                                             }
                                         }
 
                                         // Update global guide early
                                         {
-                                            let mut guide = daemon.architecture_guide.write().unwrap();
+                                            let mut guide =
+                                                daemon.architecture_guide.write().unwrap();
                                             *guide = content.clone();
                                         }
 
@@ -1036,47 +1418,287 @@ impl BootstrapManager {
 
             match stage {
                 Stage::SpecAnalysis => {
-                    tracing::info!("🔍 [STAGE:SpecAnalysis] Analyzing spec.md for Immutable Constraints...");
-                    match architect_runtime.process_spec_analysis(&spec_content, Some(daemon.event_bus.clone())).await {
+                    tracing::info!(
+                        "🔍 [STAGE:SpecAnalysis] Analyzing spec.md for Immutable Constraints..."
+                    );
+                    match architect_runtime
+                        .process_spec_analysis(&spec_content, Some(daemon.event_bus.clone()))
+                        .await
+                    {
                         Ok(constraints) => {
-                            let constraints_path = self.sandbox_root.join("immutable_constraints.json");
+                            let constraints_path =
+                                self.sandbox_root.join("immutable_constraints.json");
                             if let Ok(json) = serde_json::to_string_pretty(&constraints) {
                                 let _ = std::fs::write(&constraints_path, json);
                             }
-                            tracing::info!("✅ [SPEC_ANALYSIS_OK] Extracted {} constraints.", constraints.components.len());
-                            stage = Stage::Skeleton;
+                            tracing::info!(
+                                "✅ [SPEC_ANALYSIS_OK] Extracted {} constraints.",
+                                constraints.components.len()
+                            );
+
+                            let approval_status = if constraints.ambiguity_detected {
+                                "AMBIGUITY_DETECTED"
+                            } else {
+                                "READY_FOR_SKELETON"
+                            };
+
+                            let approval_file = self.sandbox_root.join(".axon_approval_pending");
+                            
+                            // v0.0.30 Hardening: Ensure the physical directory exists before writing
+                            if let Some(parent) = approval_file.parent() {
+                                let _ = std::fs::create_dir_all(parent);
+                            }
+
+                            let (msg, desc, impact, recommend) = if daemon.locale == "ko_KR" {
+                                (
+                                    "명세 분석 완료. 설계를 시작할까요?",
+                                    "명세 분석이 성공적으로 완료되었습니다.",
+                                    "다음 공정(HeaderGen)으로 진행할 준비가 되었습니다.",
+                                    "사장 게시판에서 [SEAL]을 눌러 공정을 시작하십시오."
+                                )
+                            } else if daemon.locale == "ja_JP" {
+                                (
+                                    "仕様分析が完了しました。設計を開始しますか？",
+                                    "仕様分析が正常に完了しました。",
+                                    "次工程(HeaderGen)に進む準備이 정비되었습니다.",
+                                    "社長掲示板で[SEAL]をクリックして工程を開始してください。"
+                                )
+                            } else {
+                                (
+                                    "Spec analysis completed. Start design?",
+                                    "Specification analysis completed successfully.",
+                                    "Ready to advance to the next stage (HeaderGen).",
+                                    "Click [SEAL] on the Boss Board to start the process."
+                                )
+                            };
+
+                            let approval_info = serde_json::json!({
+                                "status": approval_status,
+                                "message": if constraints.ambiguity_detected { 
+                                    if daemon.locale == "ko_KR" { "⚠️ 명세가 모호합니다. 보스의 판결이 필요합니다." } 
+                                    else if daemon.locale == "ja_JP" { "⚠️ 仕様が曖昧です。社長の裁決が必要です。" }
+                                    else { "⚠️ Specification is ambiguous. Boss verdict required." }
+                                } else { msg },
+                                "ambiguity_detected": constraints.ambiguity_detected,
+                                "ambiguity_details": constraints.ambiguity_details,
+                                "recommended_action": constraints.recommended_action,
+                                "components_found": constraints.components.len(),
+                                "risks": [
+                                    {
+                                        "id": "spec_analysis_ready",
+                                        "risk_kind": "InterfaceDrift",
+                                        "component": "spec.md",
+                                        "level": "Info",
+                                        "description": desc,
+                                        "impact": impact,
+                                        "recommendation": recommend,
+                                        "options": ["Proceed", "Edit Spec"]
+                                    }
+                                ],
+                                "decisions": [],
+                                "approved": false
+                            });
+                            let _ = std::fs::write(
+                                &approval_file,
+                                serde_json::to_string_pretty(&approval_info).unwrap_or_default(),
+                            );
+
+                            tracing::info!(
+                                "🛑 [BOSS_APPROVAL_GATE] Waiting for boss approval. File: {:?}",
+                                approval_file
+                            );
+
+                            let approved;
+                            loop {
+                                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+                                if approval_file.exists() {
+                                    if let Ok(content) = std::fs::read_to_string(&approval_file) {
+                                        if let Ok(approval) =
+                                            serde_json::from_str::<serde_json::Value>(&content)
+                                        {
+                                            if approval["approved"].as_bool().unwrap_or(false) {
+                                                approved = true;
+                                                tracing::info!(
+                                                    "✅ [BOSS_APPROVED] Constraint contract sealed. Advancing to Skeleton stage..."
+                                                );
+                                                // Remove file to signal consumption
+                                                let _ = std::fs::remove_file(&approval_file);
+                                                break;
+                                            }
+                                            
+                                            // v0.0.30: Allow explicit rejection to abort the process
+                                            if approval["status"].as_str() == Some("REJECTED") {
+                                                approved = false;
+                                                tracing::error!("❌ [BOSS_REJECTED] Boss rejected the specification analysis. Aborting.");
+                                                let _ = std::fs::remove_file(&approval_file);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // v0.0.30: [STRICT_GOVERNANCE] 
+                                    // If file is missing, it might have been deleted by the UI/Backend seal action.
+                                    // But we prefer the explicit 'approved: true' flag. 
+                                    // For now, keep it as a stall to ensure Boss explicitly clicked Seal.
+                                    tracing::warn!("🛑 [GOVERNANCE_STALL] Approval file missing. Waiting for re-generation or manual intervention.");
+                                }
+                            }
+
+                            if approved {
+                                stage = Stage::Skeleton;
+                            } else {
+                                return Err(anyhow::anyhow!(
+                                    "Boss did not approve the specification analysis."
+                                ));
+                            }
                         }
                         Err(e) => {
-                            tracing::warn!("⚠️ [SPEC_ANALYSIS_FAIL] Failed to extract constraints, falling back to direct design. Error: {}", e);
-                            stage = Stage::Skeleton;
+                            // v0.0.30: [BOSS_BOARD_PROBLEM_DEFINITION] Surfacing fatal errors to Boss
+                            let err_msg = format!("SPEC_ANALYSIS_FATAL: {}", e);
+                            tracing::error!("🔥 [AUTHORITY_FAILURE] {}", err_msg);
+
+                            // v0.0.30: Create a structured dummy risk aligned with BossBoard UI expectations
+                            let risk_payload = serde_json::json!({
+                                "id": "spec_analysis_fail",
+                                "component": "spec.md", // UI expects 'component', not 'target'
+                                "risk_kind": "InterfaceDrift", // UI expects 'risk_kind', not 'kind'
+                                "level": "Critical",
+                                "description": if daemon.locale == "ko_KR" { "명세 분석 실패 (규격 위반)" } else if daemon.locale == "ja_JP" { "仕様分析失敗 (規약違反)" } else { "Spec Analysis Failed (Schema Violation)" },
+                                "message": if daemon.locale == "ko_KR" { "명세 분석 실패 (규격 위반)" } else if daemon.locale == "ja_JP" { "仕様分析失敗 (規약違反)" } else { "Spec Analysis Failed (Schema Violation)" },
+                                "cause": if daemon.locale == "ko_KR" { format!("AI 에이전트가 헌법(JSON Schema)을 위반했습니다: {}", e) } else if daemon.locale == "ja_JP" { format!("AIエージェントが憲法(JSON Schema)に違反しました: {}", e) } else { format!("AI agent violated the JSON Schema protocol: {}", e) },
+                                "impact": if daemon.locale == "ko_KR" { "불변 제약 조건을 확정할 수 없어 전체 공정이 동결되었습니다." } else if daemon.locale == "ja_JP" { "不変制約条件を確定できず、全工程が凍結されました。" } else { "Immutable constraints could not be finalized. Factory line frozen." },
+                                "options": ["Retry (재시도)", "Edit Spec (명세 수정)"],
+                                "recommendation": if daemon.locale == "ko_KR" { "사장 게시판에서 '승인'을 눌러 재시도하거나, spec.md를 수정하십시오." } else if daemon.locale == "ja_JP" { "社長掲示板で[RETRY]をクリックするか、spec.mdを修正してください。" } else { "Click [RETRY] on the Boss Board or edit spec.md to resolve." },
+                                "context": e.to_string()
+                            });
+
+                            let closure_payload = serde_json::json!({
+                                "risks": [risk_payload],
+                                "decisions": [],
+                                "is_sealed": false
+                            });
+
+                            daemon.event_bus.publish(axon_core::Event {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                project_id: "system".to_string(),
+                                thread_id: None,
+                                agent_id: None,
+                                event_type: axon_core::EventType::Signal,
+                                level: axon_core::EventLevel::Critical,
+                                source: "SpecAnalysis".to_string(),
+                                content: format!("### 🚨 [SPEC_ANALYSIS_FAILED]\n\nAI가 명세 분석 규격(JSON)을 위반했습니다. 보스의 판결이 필요합니다."),
+                                payload: Some(closure_payload.clone()),
+                                timestamp: chrono::Local::now(),
+                            });
+
+                             // Create an Arbitration File for the error state
+                            let approval_file = self.sandbox_root.join(".axon_approval_pending");
+                            
+                            // v0.0.30 Hardening: Ensure parent directory exists
+                            if let Err(e) = std::fs::create_dir_all(&self.sandbox_root) {
+                                tracing::error!("❌ [SANDBOX_CREATE_FAIL] Failed to create directory {:?}: {}", self.sandbox_root, e);
+                            }
+
+                            tracing::info!("📝 [ARBITRATION_FILE] Attempting to write report to: {:?}", approval_file);
+                            
+                            let approval_info = serde_json::json!({
+                                "status": "SPEC_ANALYSIS_ERROR",
+                                "message": if daemon.locale == "ko_KR" { format!("❌ 명세 분석 중 치명적 오류 발생: {}", e) } else if daemon.locale == "ja_JP" { format!("❌ 仕様分析中に致命的なエラーが発生しました: {}", e) } else { format!("❌ Fatal error during spec analysis: {}", e) },
+                                "ambiguity_detected": true,
+                                "error_detail": e.to_string(),
+                                "approved": false,
+                                "risks": [risk_payload],
+                                "decisions": []
+                            });
+                            
+                            match std::fs::write(
+                                &approval_file,
+                                serde_json::to_string_pretty(&approval_info).unwrap_or_default(),
+                            ) {
+                                Ok(_) => tracing::info!("✅ [ARBITRATION_REPORT] Successfully written to {:?}", approval_file),
+                                Err(err) => tracing::error!("❌ [ARBITRATION_REPORT_FAIL] Failed to write report to {:?}: {}", approval_file, err),
+                            }
+
+                            tracing::warn!("🛑 [ERROR_ARBITRATION] Waiting for boss decision on SpecAnalysis failure...");
+
+                            // Wait for Boss to click "Approve" (Retry) or fix manually
+                            loop {
+                                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                                if approval_file.exists() {
+                                    if let Ok(content) = std::fs::read_to_string(&approval_file) {
+                                        if let Ok(approval) = serde_json::from_str::<serde_json::Value>(&content) {
+                                            if approval["approved"].as_bool().unwrap_or(false) {
+                                                tracing::info!("🔄 [BOSS_RETRY] Boss requested retry for SpecAnalysis.");
+                                                let _ = std::fs::remove_file(&approval_file);
+                                                // Stay in SpecAnalysis stage and loop back
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
                 Stage::Skeleton => {
-                    tracing::info!("📐 [STAGE:Skeleton] Designing Architecture IR... (Context: {})", context_size);
-                    
+                    tracing::info!(
+                        "📐 [STAGE:Skeleton] Designing Architecture IR... (Context: {})",
+                        context_size
+                    );
+
                     let constraints = {
                         let constraints_path = self.sandbox_root.join("immutable_constraints.json");
                         if constraints_path.exists() {
                             if let Ok(json) = std::fs::read_to_string(&constraints_path) {
-                                serde_json::from_str::<axon_core::spec::ImmutableConstraints>(&json).ok()
-                            } else { None }
-                        } else { None }
+                                serde_json::from_str::<axon_core::spec::ImmutableConstraints>(&json)
+                                    .ok()
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
                     };
 
-                    let res = architect_runtime.generate_ir_with_context(&spec_content, current_hint.clone(), constraints.as_ref(), context_size, Some(daemon.event_bus.clone())).await;
+                    let res = architect_runtime
+                        .generate_ir_with_context(
+                            &spec_content,
+                            current_hint.clone(),
+                            constraints.as_ref(),
+                            context_size,
+                            Some(daemon.event_bus.clone()),
+                        )
+                        .await;
                     match res {
                         Ok(ir) => {
                             // Validation Gate
                             let mut errors = Vec::new();
-                            let is_c = ir.components.values().any(|c| c.file_path.ends_with(".c") || c.file_path.ends_with(".h"));
+                            let is_c = ir.components.values().any(|c| {
+                                c.file_path.ends_with(".c") || c.file_path.ends_with(".h")
+                            });
                             if is_c {
                                 if !ir.components.values().any(|c| c.file_path.ends_with(".h")) {
                                     errors.push("Missing .h headers for C project.".to_string());
                                 }
                                 // v0.0.29: Enforce Entry Point for C projects
-                                if !ir.components.values().any(|c| c.file_path.contains("main.c") || c.is_entrypoint) {
+                                if !ir
+                                    .components
+                                    .values()
+                                    .any(|c| c.file_path.contains("main.c") || c.is_entrypoint)
+                                {
                                     errors.push("C project MUST have a 'main.c' or an 'is_entrypoint' component.".to_string());
+                                }
+
+                                // v0.0.30: [SEMANTIC_GATE] Data Integrity Check
+                                for comp in ir.components.values() {
+                                    let name_lower = comp.name.to_lowercase();
+                                    if (name_lower.contains("database")
+                                        || name_lower.contains("db"))
+                                        && comp.data_models.is_empty()
+                                    {
+                                        tracing::warn!("⚠️ [SEMANTIC_WARNING] Database component '{}' has NO data models. Proceeding anyway.", comp.name);
+                                    }
                                 }
                             }
 
@@ -1087,19 +1709,33 @@ impl BootstrapManager {
                                         // Find corresponding component in IR
                                         let mut found = false;
                                         for comp in ir.components.values() {
-                                            if comp.name.to_lowercase().contains(&constraint.name.to_lowercase()) || 
-                                               comp.file_path.to_lowercase().contains(&constraint.name.to_lowercase()) {
+                                            if comp
+                                                .name
+                                                .to_lowercase()
+                                                .contains(&constraint.name.to_lowercase())
+                                                || comp
+                                                    .file_path
+                                                    .to_lowercase()
+                                                    .contains(&constraint.name.to_lowercase())
+                                            {
                                                 found = true;
-                                                if constraint.status == axon_core::spec::ComponentStatus::Optional && comp.tier == axon_ir::ComponentTier::Core {
+                                                if constraint.status
+                                                    == axon_core::spec::ComponentStatus::Optional
+                                                    && comp.tier == axon_ir::ComponentTier::Core
+                                                {
                                                     errors.push(format!("⚠️ [SEMANTIC_VIOLATION] Component '{}' promoted to Core despite being Optional in spec.", constraint.name));
                                                 }
-                                                if constraint.blocking_forbidden && comp.is_blocking {
+                                                if constraint.blocking_forbidden && comp.is_blocking
+                                                {
                                                     errors.push(format!("⚠️ [SEMANTIC_VIOLATION] Component '{}' set to Blocking despite being Optional in spec.", constraint.name));
                                                 }
                                             }
                                         }
-                                        if !found && constraint.status == axon_core::spec::ComponentStatus::Core {
-                                             errors.push(format!("⚠️ [SEMANTIC_VIOLATION] Core component '{}' missing from architecture.", constraint.name));
+                                        if !found
+                                            && constraint.status
+                                                == axon_core::spec::ComponentStatus::Core
+                                        {
+                                            errors.push(format!("⚠️ [SEMANTIC_VIOLATION] Core component '{}' missing from architecture.", constraint.name));
                                         }
                                     }
                                 }
@@ -1107,21 +1743,29 @@ impl BootstrapManager {
 
                             if errors.is_empty() {
                                 ir_opt = Some(ir.clone());
-                                
+
                                 // v0.0.28: Post Architect's thought to the Lounge
                                 if let Some(thought) = ir.thought.clone() {
-                                    tracing::info!("🏛️ [ARC_THOUGHT] Saving Architect reasoning to lounge...");
-                                    let _ = daemon.storage.save_post(axon_core::Post {
-                                        id: uuid::Uuid::new_v4().to_string(),
-                                        thread_id: "lounge".to_string(),
-                                        author_id: "Architect".to_string(),
-                                        content: format!("**[Design Stage: Skeleton]**\n{}", thought),
-                                        post_type: axon_core::PostType::Nogari,
-                                        thought: None,
-                                        full_code: None,
-                                        metrics: None,
-                                        created_at: chrono::Local::now(),
-                                    }).await;
+                                    tracing::info!(
+                                        "🏛️ [ARC_THOUGHT] Saving Architect reasoning to lounge..."
+                                    );
+                                    let _ = daemon
+                                        .storage
+                                        .save_post(axon_core::Post {
+                                            id: uuid::Uuid::new_v4().to_string(),
+                                            thread_id: "lounge".to_string(),
+                                            author_id: "Architect".to_string(),
+                                            content: format!(
+                                                "**[Design Stage: Skeleton]**\n{}",
+                                                thought
+                                            ),
+                                            post_type: axon_core::PostType::Nogari,
+                                            thought: None,
+                                            full_code: None,
+                                            metrics: None,
+                                            created_at: chrono::Local::now(),
+                                        })
+                                        .await;
 
                                     daemon.publish_event(axon_core::Event {
                                         id: uuid::Uuid::new_v4().to_string(),
@@ -1129,7 +1773,7 @@ impl BootstrapManager {
                                         thread_id: Some("lounge".to_string()),
                                         agent_id: Some("Architect".to_string()),
                                         event_type: axon_core::EventType::MessagePosted,
-                    level: axon_core::EventLevel::Info,
+                                        level: axon_core::EventLevel::Info,
                                         source: "ARCHITECT".to_string(),
                                         content: format!("🏛️ Architect: {}", thought),
                                         payload: None,
@@ -1145,76 +1789,128 @@ impl BootstrapManager {
                                 }
 
                                 // v0.0.28: Materialize architecture and CMakeLists.txt EARLY
-                                let arch_md = architect_runtime.generate_architecture_from_ir(&ir, Some(daemon.event_bus.clone())).await?;
-                                
+                                let arch_md = architect_runtime
+                                    .generate_architecture_from_ir(
+                                        &ir,
+                                        Some(daemon.event_bus.clone()),
+                                    )
+                                    .await?;
+
                                 // v0.0.29: Update global architecture guide for Junior agents
                                 {
                                     let mut guide = daemon.architecture_guide.write().unwrap();
                                     *guide = arch_md.clone();
-                                    tracing::info!("📑 [GUIDE_UPDATE] Global architecture guide updated ({} bytes)", arch_md.len());
+                                    tracing::info!(
+                                        "📑 [GUIDE_UPDATE] Global architecture guide updated ({} bytes)",
+                                        arch_md.len()
+                                    );
                                 }
 
                                 let _ = std::fs::create_dir_all(&self.sandbox_root);
-                                let _ = std::fs::write(self.sandbox_root.join("architecture.md"), arch_md);
-                                
+                                let _ = std::fs::write(
+                                    self.sandbox_root.join("architecture.md"),
+                                    arch_md,
+                                );
+
                                 let mut graph = crate::dep_graph::DepGraph::new();
                                 graph.build_from_ir(&serde_json::to_value(&ir).unwrap_or_default());
-                                let cmake_content = graph.generate_cmake(&self.project_id, &daemon.locale, &self.sandbox_root);
-                                let _ = std::fs::write(self.sandbox_root.join("CMakeLists.txt"), cmake_content);
-                                
+                                let cmake_content = graph.generate_cmake(
+                                    &self.project_id,
+                                    &daemon.locale,
+                                    &self.sandbox_root,
+                                );
+                                let _ = std::fs::write(
+                                    self.sandbox_root.join("CMakeLists.txt"),
+                                    cmake_content,
+                                );
+
                                 stage = StageRouter::next_stage(&stage);
                                 attempts = 0;
                                 current_hint = None;
                             } else {
-                                let diag = Diagnostic { code: "SKELETON_ERR".into(), message: errors.join(", ") };
+                                let diag = Diagnostic {
+                                    code: "SKELETON_ERR".into(),
+                                    message: errors.join(", "),
+                                };
                                 let cause = infer_cause(&diag);
                                 let scope = determine_scope(&cause);
-                                tracing::warn!("❌ [SKELETON_FAIL] cause={:?}, scope={:?}, error=\"{}\"", cause, scope, errors.join(", "));
-                                
-                                if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in Skeleton stage.")); }
-                                
+                                tracing::warn!(
+                                    "❌ [SKELETON_FAIL] cause={:?}, scope={:?}, error=\"{}\"",
+                                    cause,
+                                    scope,
+                                    errors.join(", ")
+                                );
+
+                                if attempts >= max_retries {
+                                    return Err(anyhow::anyhow!(
+                                        "Max retries reached in Skeleton stage."
+                                    ));
+                                }
+
                                 // v0.0.28: [Invariant] Skeleton invalid -> retry only. Never jump to HeaderGen.
                                 stage = Stage::Skeleton;
                                 current_hint = Some(generate_hint(&cause).to_string());
                                 attempts += 1;
                                 context_size = (context_size as f32 * 1.5) as usize; // v0.0.28: Fix regression
                             }
-                        },
+                        }
                         Err(e) => {
-                            let diag = Diagnostic { code: "SKELETON_LLM_ERR".into(), message: e.to_string() };
+                            let diag = Diagnostic {
+                                code: "SKELETON_LLM_ERR".into(),
+                                message: e.to_string(),
+                            };
                             let cause = infer_cause(&diag);
                             let scope = determine_scope(&cause);
                             let hint = intelligence::decision::generate_hint(&cause);
-                            
-                            tracing::warn!("❌ [SKELETON_LLM_FAIL] cause={:?}, scope={:?}, hint={}", cause, scope, hint);
-                            
-                            if attempts >= max_retries { 
-                                tracing::error!("🔥 [SKELETON_CRITICAL] Max retries reached: {}", e);
-                                return Err(e); 
+
+                            tracing::warn!(
+                                "❌ [SKELETON_LLM_FAIL] cause={:?}, scope={:?}, hint={}",
+                                cause,
+                                scope,
+                                hint
+                            );
+
+                            if attempts >= max_retries {
+                                tracing::error!(
+                                    "🔥 [SKELETON_CRITICAL] Max retries reached: {}",
+                                    e
+                                );
+                                return Err(e);
                             }
-                            
+
                             current_hint = Some(hint.to_string());
                             stage = Stage::Skeleton; // v0.0.28: Consistency
                             attempts += 1;
                             context_size = (context_size as f32 * 1.5) as usize; // Adaptive context expansion
                         }
                     }
-                },
+                }
                 Stage::HeaderGen => {
-                    tracing::info!("📜 [STAGE:HeaderGen] Decomposing & Materializing Headers... (Context: {})", context_size);
+                    tracing::info!(
+                        "📜 [STAGE:HeaderGen] Decomposing & Materializing Headers... (Context: {})",
+                        context_size
+                    );
                     // v0.0.29: Ensure standard directory structure
                     let _ = std::fs::create_dir_all(self.sandbox_root.join("src"));
                     let _ = std::fs::create_dir_all(self.sandbox_root.join("include"));
 
                     if let Some(ref ir) = ir_opt {
                         // v0.0.28: Extract Header-only tasks
-                        let res = architect_runtime.process_bootstrap_step2_with_context(&serde_json::to_string(ir).unwrap(), context_size, Some(daemon.event_bus.clone())).await;
-                        
+                        let res = architect_runtime
+                            .process_bootstrap_step2_with_context(
+                                &serde_json::to_string(ir).unwrap(),
+                                context_size,
+                                Some(daemon.event_bus.clone()),
+                            )
+                            .await;
+
                         match res {
                             Ok(post) => {
                                 let content = extract_json_block(post.content.trim());
-                                
-                                match serde_json::from_str::<Vec<axon_core::DecomposedTask>>(&content) {
+
+                                match serde_json::from_str::<Vec<axon_core::DecomposedTask>>(
+                                    &content,
+                                ) {
                                     Ok(d_tasks) => {
                                         // v0.0.29: Validate tasks have required fields and non-placeholder titles
                                         let valid_tasks: Vec<axon_core::Task> = d_tasks.into_iter()
@@ -1237,61 +1933,105 @@ impl BootstrapManager {
                                                 t
                                             })
                                             .collect();
-                                        
+
                                         if valid_tasks.is_empty() {
-                                            tracing::warn!("⚠️ No valid tasks after filtering empty/placeholder titles.");
+                                            tracing::warn!(
+                                                "⚠️ No valid tasks after filtering empty/placeholder titles."
+                                            );
                                             stage = Stage::ImplGen;
                                         } else {
                                             // Filter for headers (L-DDP Isolation)
-                                            let header_tasks: Vec<axon_core::Task> = valid_tasks.iter()
+                                            let header_tasks: Vec<axon_core::Task> = valid_tasks
+                                                .iter()
                                                 .filter(|t| {
-                                                    let has_h_ext = t.target_file.as_ref().map(|f| f.to_lowercase().contains(".h")).unwrap_or(false);
-                                                    let title_has_h = t.title.to_lowercase().contains(".h");
+                                                    let has_h_ext = t
+                                                        .target_file
+                                                        .as_ref()
+                                                        .map(|f| f.to_lowercase().contains(".h"))
+                                                        .unwrap_or(false);
+                                                    let title_has_h =
+                                                        t.title.to_lowercase().contains(".h");
                                                     has_h_ext || title_has_h
                                                 })
                                                 .cloned()
                                                 .collect();
 
-                                            
                                             if header_tasks.is_empty() {
                                                 // v0.0.29: Strict validation - if IR has components with .h files, HeaderGen MUST NOT be empty
-                                                let ir_has_headers = ir.components.keys().any(|k| k.to_lowercase().contains(".h"));
+                                                let ir_has_headers = ir
+                                                    .components
+                                                    .keys()
+                                                    .any(|k| k.to_lowercase().contains(".h"));
                                                 if ir_has_headers && !ir.components.is_empty() {
-                                                    tracing::error!("❌ [HEADER_INVALID] HeaderGen produced 0 tasks despite IR having {} components (including headers). Total tasks produced: {}", ir.components.len(), valid_tasks.len());
-                                                    if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in HeaderGen validation.")); }
+                                                    tracing::error!(
+                                                        "❌ [HEADER_INVALID] HeaderGen produced 0 tasks despite IR having {} components (including headers). Total tasks produced: {}",
+                                                        ir.components.len(),
+                                                        valid_tasks.len()
+                                                    );
+                                                    if attempts >= max_retries {
+                                                        return Err(anyhow::anyhow!(
+                                                            "Max retries reached in HeaderGen validation."
+                                                        ));
+                                                    }
                                                     stage = Stage::HeaderGen;
                                                     attempts += 1;
-                                                    context_size = (context_size as f32 * 1.5) as usize;
+                                                    context_size =
+                                                        (context_size as f32 * 1.5) as usize;
                                                     continue;
                                                 }
-                                                tracing::warn!("⚠️ No header tasks extracted, skipping to ImplGen.");
+                                                tracing::warn!(
+                                                    "⚠️ No header tasks extracted, skipping to ImplGen."
+                                                );
                                                 stage = Stage::ImplGen;
                                             } else {
-                                                tracing::info!("📥 [STAGE:HeaderGen] Enqueuing {} header declaration tasks...", header_tasks.len());
+                                                tracing::info!(
+                                                    "📥 [STAGE:HeaderGen] Enqueuing {} header declaration tasks...",
+                                                    header_tasks.len()
+                                                );
                                                 // v0.0.29: Forced Debug Dump
-                                                if let Ok(json) = serde_json::to_string_pretty(&header_tasks) {
-                                                    let _ = std::fs::write(self.sandbox_root.join("debug/header_tasks.json"), json);
+                                                if let Ok(json) =
+                                                    serde_json::to_string_pretty(&header_tasks)
+                                                {
+                                                    let _ = std::fs::write(
+                                                        self.sandbox_root
+                                                            .join("debug/header_tasks.json"),
+                                                        json,
+                                                    );
                                                 }
                                                 let expected_h_count = header_tasks.len();
                                                 for mut task in header_tasks {
                                                     // v0.0.29: Prefix IDs to prevent collision
                                                     // v0.0.29: [STABLE_ID] Use deterministic hashing based on target file to prevent duplicates
-                                                    let stable_seed = format!("{}:{}", self.project_id, task.target_file.as_ref().unwrap_or(&task.title));
+                                                    let stable_seed = format!(
+                                                        "{}:{}",
+                                                        self.project_id,
+                                                        task.target_file
+                                                            .as_ref()
+                                                            .unwrap_or(&task.title)
+                                                    );
                                                     let mut hasher = std::collections::hash_map::DefaultHasher::new();
                                                     use std::hash::Hasher;
                                                     hasher.write(stable_seed.as_bytes());
                                                     let stable_hash = hasher.finish();
                                                     task.id = format!("hdr_{:x}", stable_hash);
-                                                    
-                                                    task.task_kind = Some(axon_core::TaskKind::HeaderDecl);
-                                                    
+
+                                                    task.task_kind =
+                                                        Some(axon_core::TaskKind::HeaderDecl);
+
                                                     // v0.0.29: Deduplicate thread creation
-                                                    if daemon.storage.get_thread(&task.id).ok().flatten().is_none() {
+                                                    if daemon
+                                                        .storage
+                                                        .get_thread(&task.id)
+                                                        .ok()
+                                                        .flatten()
+                                                        .is_none()
+                                                    {
                                                         let thread = axon_core::Thread {
                                                             id: task.id.clone(),
                                                             project_id: task.project_id.clone(),
                                                             title: task.title.clone(),
-                                                            status: axon_core::ThreadStatus::Working,
+                                                            status:
+                                                                axon_core::ThreadStatus::Working,
                                                             author: "Architect".to_string(),
                                                             milestone_id: None,
                                                             task_kind: task.task_kind.clone(),
@@ -1299,7 +2039,10 @@ impl BootstrapManager {
                                                             created_at: chrono::Local::now(),
                                                             updated_at: chrono::Local::now(),
                                                         };
-                                                        let _ = daemon.storage.save_thread(thread).await;
+                                                        let _ = daemon
+                                                            .storage
+                                                            .save_thread(thread)
+                                                            .await;
 
                                                         // v0.0.29: Save initial Instruction Post for UI visibility
                                                         let _ = daemon.storage.save_post(axon_core::Post {
@@ -1315,39 +2058,72 @@ impl BootstrapManager {
                                                         }).await;
                                                     }
 
-                                                    let _ = daemon.storage.save_task(task.clone()).await;
+                                                    let _ = daemon
+                                                        .storage
+                                                        .save_task(task.clone())
+                                                        .await;
                                                     // v0.0.29: SUBMIT TO COORDINATOR
                                                     daemon.submit_task(task.clone());
                                                 }
 
                                                 // v0.0.29: Wait for Headers to materialize before ImplGen
-                                                tracing::info!("⏳ [STAGE:HeaderGen] Waiting for {} header tasks to materialize (Project: {})...", expected_h_count, self.project_id);
-                                                
+                                                tracing::info!(
+                                                    "⏳ [STAGE:HeaderGen] Waiting for {} header tasks to materialize (Project: {})...",
+                                                    expected_h_count,
+                                                    self.project_id
+                                                );
+
                                                 // v0.0.28: Robust Synchronization.
                                                 // 1. Wait for DB Persistence (Initial Enqueue Visibility)
                                                 let mut p_wait = 0;
-                                                while daemon.storage.count_tasks_by_project(&self.project_id).unwrap_or(0) < expected_h_count {
-                                                    if p_wait > 10 { break; } // 10s timeout for persistence
-                                                    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+                                                while daemon
+                                                    .storage
+                                                    .count_tasks_by_project(&self.project_id)
+                                                    .unwrap_or(0)
+                                                    < expected_h_count
+                                                {
+                                                    if p_wait > 10 {
+                                                        break;
+                                                    } // 10s timeout for persistence
+                                                    tokio::time::sleep(
+                                                        tokio::time::Duration::from_millis(1000),
+                                                    )
+                                                    .await;
                                                     p_wait += 1;
                                                 }
 
                                                 // 2. Wait for Completion
                                                 let mut h_wait = 0;
                                                 loop {
-                                                    let active_count = daemon.storage.count_active_tasks_by_project(&self.project_id).unwrap_or(0);
+                                                    let active_count = daemon
+                                                        .storage
+                                                        .count_active_tasks_by_project(
+                                                            &self.project_id,
+                                                        )
+                                                        .unwrap_or(0);
                                                     if active_count == 0 {
-                                                        tracing::info!("✅ [STAGE:HeaderGen] All {} header tasks completed.", expected_h_count);
+                                                        tracing::info!(
+                                                            "✅ [STAGE:HeaderGen] All {} header tasks completed.",
+                                                            expected_h_count
+                                                        );
                                                         break;
                                                     }
-                                                    
-                                                    if h_wait > 60 { 
-                                                        tracing::warn!("⚠️ [STAGE:HeaderGen] Wait timeout reached (5 mins). Proceeding with caution.");
-                                                        break; 
+
+                                                    if h_wait > 60 {
+                                                        tracing::warn!(
+                                                            "⚠️ [STAGE:HeaderGen] Wait timeout reached (5 mins). Proceeding with caution."
+                                                        );
+                                                        break;
                                                     }
-                                                    
-                                                    tracing::info!("⏳ [STAGE:HeaderGen] {} tasks still active. Waiting...", active_count);
-                                                    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+                                                    tracing::info!(
+                                                        "⏳ [STAGE:HeaderGen] {} tasks still active. Waiting...",
+                                                        active_count
+                                                    );
+                                                    tokio::time::sleep(
+                                                        tokio::time::Duration::from_secs(5),
+                                                    )
+                                                    .await;
                                                     h_wait += 1;
                                                 }
 
@@ -1356,25 +2132,48 @@ impl BootstrapManager {
                                         }
                                         attempts = 0;
                                         context_size = 8192; // Reset on success
-                                    },
+                                    }
                                     Err(e) => {
-                                        let diag = Diagnostic { code: "HEADER_PARSE_ERR".into(), message: e.to_string() };
+                                        let diag = Diagnostic {
+                                            code: "HEADER_PARSE_ERR".into(),
+                                            message: e.to_string(),
+                                        };
                                         let cause = infer_cause(&diag);
                                         let scope = determine_scope(&cause);
-                                        tracing::warn!("❌ [HEADER_PARSE_FAIL] cause={:?}, scope={:?}, error=\"{}\"", cause, scope, e);
-                                        if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in HeaderGen stage.")); }
+                                        tracing::warn!(
+                                            "❌ [HEADER_PARSE_FAIL] cause={:?}, scope={:?}, error=\"{}\"",
+                                            cause,
+                                            scope,
+                                            e
+                                        );
+                                        if attempts >= max_retries {
+                                            return Err(anyhow::anyhow!(
+                                                "Max retries reached in HeaderGen stage."
+                                            ));
+                                        }
                                         stage = StageRouter::route_retry(&scope, &stage);
                                         attempts += 1;
                                         context_size = (context_size as f32 * 1.5) as usize;
                                     }
                                 }
-                            },
+                            }
                             Err(e) => {
-                                let diag = Diagnostic { code: "HEADER_LLM_ERR".into(), message: e.to_string() };
+                                let diag = Diagnostic {
+                                    code: "HEADER_LLM_ERR".into(),
+                                    message: e.to_string(),
+                                };
                                 let cause = infer_cause(&diag);
                                 let scope = determine_scope(&cause);
-                                tracing::warn!("❌ [HEADER_LLM_FAIL] cause={:?}, scope={:?}", cause, scope);
-                                if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in HeaderGen stage.")); }
+                                tracing::warn!(
+                                    "❌ [HEADER_LLM_FAIL] cause={:?}, scope={:?}",
+                                    cause,
+                                    scope
+                                );
+                                if attempts >= max_retries {
+                                    return Err(anyhow::anyhow!(
+                                        "Max retries reached in HeaderGen stage."
+                                    ));
+                                }
                                 stage = StageRouter::route_retry(&scope, &stage);
                                 attempts += 1;
                                 context_size = (context_size as f32 * 1.5) as usize;
@@ -1383,22 +2182,36 @@ impl BootstrapManager {
                     } else {
                         stage = Stage::Skeleton;
                     }
-                },
+                }
                 Stage::ImplGen => {
-                    tracing::info!("🔨 [STAGE:ImplGen] Materializing Implementation Tasks... (Context: {})", context_size);
+                    tracing::info!(
+                        "🔨 [STAGE:ImplGen] Materializing Implementation Tasks... (Context: {})",
+                        context_size
+                    );
                     if let Some(ref ir) = ir_opt {
                         // v0.0.29: Check for existing implementation tasks only (not header tasks)
-                        let impl_count = daemon.storage.count_impl_tasks_by_project(&self.project_id).unwrap_or(0);
+                        let impl_count = daemon
+                            .storage
+                            .count_impl_tasks_by_project(&self.project_id)
+                            .unwrap_or(0);
                         if impl_count == 0 {
-                            let res = architect_runtime.process_bootstrap_step2_with_context(&serde_json::to_string(ir).unwrap(), context_size, Some(daemon.event_bus.clone())).await;
+                            let res = architect_runtime
+                                .process_bootstrap_step2_with_context(
+                                    &serde_json::to_string(ir).unwrap(),
+                                    context_size,
+                                    Some(daemon.event_bus.clone()),
+                                )
+                                .await;
                             match res {
-                            Ok(post) => {
-                                let content = extract_json_block(post.content.trim());
-                                
-                                match serde_json::from_str::<Vec<axon_core::DecomposedTask>>(&content) {
-                                    Ok(d_tasks) => {
-                                        // v0.0.29: Validate tasks have required fields and non-placeholder titles
-                                        let valid_tasks: Vec<axon_core::Task> = d_tasks.into_iter()
+                                Ok(post) => {
+                                    let content = extract_json_block(post.content.trim());
+
+                                    match serde_json::from_str::<Vec<axon_core::DecomposedTask>>(
+                                        &content,
+                                    ) {
+                                        Ok(d_tasks) => {
+                                            // v0.0.29: Validate tasks have required fields and non-placeholder titles
+                                            let valid_tasks: Vec<axon_core::Task> = d_tasks.into_iter()
                                             .filter(|t| !t.title.is_empty() && t.title != "Untitled")
                                             .map(|dt| {
                                                 let mut t = axon_core::Task::from_decomposed(dt, self.project_id.clone());
@@ -1418,84 +2231,135 @@ impl BootstrapManager {
                                                 t
                                             })
                                             .collect();
-                                        
-                                        // v0.0.28: TOPOLOGICAL FILTER (Exclude Entrypoints and Headers from ImplGen)
-                                        let valid_tasks: Vec<axon_core::Task> = valid_tasks.into_iter()
-                                            .filter(|t| {
-                                                if let Some(ref f) = t.target_file {
-                                                    let is_header = f.to_lowercase().contains(".h");
-                                                    if is_header { return false; }
-                                                    
-                                                    if let Some(comp) = ir.get_component(f) {
-                                                        return !comp.is_entrypoint;
+
+                                            // v0.0.28: TOPOLOGICAL FILTER (Exclude Entrypoints and Headers from ImplGen)
+                                            let valid_tasks: Vec<axon_core::Task> = valid_tasks
+                                                .into_iter()
+                                                .filter(|t| {
+                                                    if let Some(ref f) = t.target_file {
+                                                        let is_header =
+                                                            f.to_lowercase().contains(".h");
+                                                        if is_header {
+                                                            return false;
+                                                        }
+
+                                                        if let Some(comp) = ir.get_component(f) {
+                                                            return !comp.is_entrypoint;
+                                                        }
                                                     }
-                                                }
-                                                true
-                                            })
-                                            .collect();
+                                                    true
+                                                })
+                                                .collect();
 
-                                        // v0.0.29: DEDUPLICATION BY TARGET FILE (Safety Net)
-                                        let mut deduplicated: std::collections::HashMap<String, axon_core::Task> = std::collections::HashMap::new();
-                                        for t in valid_tasks {
-                                            if let Some(ref file) = t.target_file {
-                                                if let Some(existing) = deduplicated.get_mut(file) {
-                                                    existing.description.push_str(&format!("\n\n--- ADDITIONAL CONTEXT ---\n{}", t.description));
+                                            // v0.0.29: DEDUPLICATION BY TARGET FILE (Safety Net)
+                                            let mut deduplicated: std::collections::HashMap<
+                                                String,
+                                                axon_core::Task,
+                                            > = std::collections::HashMap::new();
+                                            for t in valid_tasks {
+                                                if let Some(ref file) = t.target_file {
+                                                    if let Some(existing) =
+                                                        deduplicated.get_mut(file)
+                                                    {
+                                                        existing.description.push_str(&format!(
+                                                            "\n\n--- ADDITIONAL CONTEXT ---\n{}",
+                                                            t.description
+                                                        ));
+                                                    } else {
+                                                        deduplicated.insert(file.clone(), t);
+                                                    }
                                                 } else {
-                                                    deduplicated.insert(file.clone(), t);
+                                                    deduplicated.insert(
+                                                        uuid::Uuid::new_v4().to_string(),
+                                                        t,
+                                                    );
                                                 }
+                                            }
+                                            let valid_tasks: Vec<axon_core::Task> =
+                                                deduplicated.into_values().collect();
+                                            if valid_tasks.is_empty() {
+                                                // v0.0.29: Strict validation
+                                                if !ir.components.is_empty() {
+                                                    tracing::error!(
+                                                        "❌ [IMPL_INVALID] ImplGen produced 0 tasks despite IR having components."
+                                                    );
+                                                    if attempts >= max_retries {
+                                                        return Err(anyhow::anyhow!(
+                                                            "Max retries reached in ImplGen validation."
+                                                        ));
+                                                    }
+                                                    stage = Stage::ImplGen;
+                                                    attempts += 1;
+                                                    context_size =
+                                                        (context_size as f32 * 1.5) as usize;
+                                                    continue;
+                                                }
+                                                tracing::warn!(
+                                                    "⚠️ No valid tasks after filtering empty/placeholder titles."
+                                                );
+                                                stage = StageRouter::next_stage(&stage);
                                             } else {
-                                                deduplicated.insert(uuid::Uuid::new_v4().to_string(), t);
-                                            }
-                                        }
-                                        let valid_tasks: Vec<axon_core::Task> = deduplicated.into_values().collect();
-                                        if valid_tasks.is_empty() {
-                                            // v0.0.29: Strict validation
-                                            if !ir.components.is_empty() {
-                                                tracing::error!("❌ [IMPL_INVALID] ImplGen produced 0 tasks despite IR having components.");
-                                                if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in ImplGen validation.")); }
-                                                stage = Stage::ImplGen;
-                                                attempts += 1;
-                                                context_size = (context_size as f32 * 1.5) as usize;
-                                                continue;
-                                            }
-                                            tracing::warn!("⚠️ No valid tasks after filtering empty/placeholder titles.");
-                                            stage = StageRouter::next_stage(&stage);
-                                        } else {
-                                            tracing::info!("📥 [STAGE:ImplGen] Enqueuing {} source implementation tasks...", valid_tasks.len());
-                                            // v0.0.29: Forced Debug Dump
-                                            if let Ok(json) = serde_json::to_string_pretty(&valid_tasks) {
-                                                let _ = std::fs::write(self.sandbox_root.join("debug/impl_tasks.json"), json);
-                                            }
-                                            for mut task in valid_tasks {
-                                                // v0.0.29: Prefix IDs to prevent collision
-                                                // v0.0.29: [STABLE_ID] Use deterministic hashing based on target file
-                                                let stable_seed = format!("{}:{}", self.project_id, task.target_file.as_ref().unwrap_or(&task.title));
-                                                let mut hasher = std::collections::hash_map::DefaultHasher::new();
-                                                use std::hash::Hasher;
-                                                hasher.write(stable_seed.as_bytes());
-                                                let stable_hash = hasher.finish();
-                                                task.id = format!("impl_{:x}", stable_hash);
-                                                
-                                                task.task_kind = Some(axon_core::TaskKind::SourceImpl);
+                                                tracing::info!(
+                                                    "📥 [STAGE:ImplGen] Enqueuing {} source implementation tasks...",
+                                                    valid_tasks.len()
+                                                );
+                                                // v0.0.29: Forced Debug Dump
+                                                if let Ok(json) =
+                                                    serde_json::to_string_pretty(&valid_tasks)
+                                                {
+                                                    let _ = std::fs::write(
+                                                        self.sandbox_root
+                                                            .join("debug/impl_tasks.json"),
+                                                        json,
+                                                    );
+                                                }
+                                                for mut task in valid_tasks {
+                                                    // v0.0.29: Prefix IDs to prevent collision
+                                                    // v0.0.29: [STABLE_ID] Use deterministic hashing based on target file
+                                                    let stable_seed = format!(
+                                                        "{}:{}",
+                                                        self.project_id,
+                                                        task.target_file
+                                                            .as_ref()
+                                                            .unwrap_or(&task.title)
+                                                    );
+                                                    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                                                    use std::hash::Hasher;
+                                                    hasher.write(stable_seed.as_bytes());
+                                                    let stable_hash = hasher.finish();
+                                                    task.id = format!("impl_{:x}", stable_hash);
 
-                                                // v0.0.29: Deduplicate thread creation
-                                                if daemon.storage.get_thread(&task.id).ok().flatten().is_none() {
-                                                    let thread = axon_core::Thread {
-                                                        id: task.id.clone(),
-                                                        project_id: task.project_id.clone(),
-                                                        title: task.title.clone(),
-                                                        status: axon_core::ThreadStatus::Working,
-                                                        author: "Architect".to_string(),
-                                                        milestone_id: None,
-                                                        task_kind: task.task_kind.clone(),
-                                                        rejection_count: 0,
-                                                        created_at: chrono::Local::now(),
-                                                        updated_at: chrono::Local::now(),
-                                                    };
-                                                    let _ = daemon.storage.save_thread(thread).await;
+                                                    task.task_kind =
+                                                        Some(axon_core::TaskKind::SourceImpl);
 
-                                                    // v0.0.29: Save initial Instruction Post for UI visibility
-                                                    let _ = daemon.storage.save_post(axon_core::Post {
+                                                    // v0.0.29: Deduplicate thread creation
+                                                    if daemon
+                                                        .storage
+                                                        .get_thread(&task.id)
+                                                        .ok()
+                                                        .flatten()
+                                                        .is_none()
+                                                    {
+                                                        let thread = axon_core::Thread {
+                                                            id: task.id.clone(),
+                                                            project_id: task.project_id.clone(),
+                                                            title: task.title.clone(),
+                                                            status:
+                                                                axon_core::ThreadStatus::Working,
+                                                            author: "Architect".to_string(),
+                                                            milestone_id: None,
+                                                            task_kind: task.task_kind.clone(),
+                                                            rejection_count: 0,
+                                                            created_at: chrono::Local::now(),
+                                                            updated_at: chrono::Local::now(),
+                                                        };
+                                                        let _ = daemon
+                                                            .storage
+                                                            .save_thread(thread)
+                                                            .await;
+
+                                                        // v0.0.29: Save initial Instruction Post for UI visibility
+                                                        let _ = daemon.storage.save_post(axon_core::Post {
                                                         id: uuid::Uuid::new_v4().to_string(),
                                                         thread_id: task.id.clone(),
                                                         author_id: "Architect".to_string(),
@@ -1506,63 +2370,98 @@ impl BootstrapManager {
                                                         metrics: None,
                                                         created_at: chrono::Local::now(),
                                                     }).await;
+                                                    }
+                                                    let _ = daemon
+                                                        .storage
+                                                        .save_task(task.clone())
+                                                        .await;
+                                                    daemon.submit_task(task.clone());
                                                 }
-                                                let _ = daemon.storage.save_task(task.clone()).await;
-                                                daemon.submit_task(task.clone());
                                             }
-
-                                            }
-                                        },
+                                        }
                                         Err(e) => {
-                                            let diag = Diagnostic { code: "IMPL_PARSE_ERR".into(), message: e.to_string() };
+                                            let diag = Diagnostic {
+                                                code: "IMPL_PARSE_ERR".into(),
+                                                message: e.to_string(),
+                                            };
                                             let cause = infer_cause(&diag);
                                             let scope = determine_scope(&cause);
-                                            tracing::warn!("❌ [IMPL_PARSE_FAIL] cause={:?}, scope={:?}, error=\"{}\"", cause, scope, e);
-                                            if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in ImplGen stage.")); }
+                                            tracing::warn!(
+                                                "❌ [IMPL_PARSE_FAIL] cause={:?}, scope={:?}, error=\"{}\"",
+                                                cause,
+                                                scope,
+                                                e
+                                            );
+                                            if attempts >= max_retries {
+                                                return Err(anyhow::anyhow!(
+                                                    "Max retries reached in ImplGen stage."
+                                                ));
+                                            }
                                             stage = StageRouter::route_retry(&scope, &stage);
                                             attempts += 1;
                                             context_size = (context_size as f32 * 1.5) as usize;
                                             continue;
                                         }
                                     }
-                                },
+                                }
 
-                            Err(e) => {
-                                let diag = Diagnostic { code: "IMPL_LLM_ERR".into(), message: e.to_string() };
-                                let cause = infer_cause(&diag);
-                                let scope = determine_scope(&cause);
-                                tracing::warn!("❌ [IMPL_LLM_FAIL] cause={:?}, scope={:?}", cause, scope);
-                                if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in ImplGen stage.")); }
-                                stage = StageRouter::route_retry(&scope, &stage);
-                                attempts += 1;
-                                context_size = (context_size as f32 * 1.5) as usize;
-                                continue;
+                                Err(e) => {
+                                    let diag = Diagnostic {
+                                        code: "IMPL_LLM_ERR".into(),
+                                        message: e.to_string(),
+                                    };
+                                    let cause = infer_cause(&diag);
+                                    let scope = determine_scope(&cause);
+                                    tracing::warn!(
+                                        "❌ [IMPL_LLM_FAIL] cause={:?}, scope={:?}",
+                                        cause,
+                                        scope
+                                    );
+                                    if attempts >= max_retries {
+                                        return Err(anyhow::anyhow!(
+                                            "Max retries reached in ImplGen stage."
+                                        ));
+                                    }
+                                    stage = StageRouter::route_retry(&scope, &stage);
+                                    attempts += 1;
+                                    context_size = (context_size as f32 * 1.5) as usize;
+                                    continue;
+                                }
                             }
                         }
-                    }
 
-                    // v0.0.28: Wait for all implementation tasks in THIS project to complete
-                    tracing::info!("⏳ [STAGE:ImplGen] Waiting for source implementation tasks to materialize...");
-                    let mut i_wait = 0;
-                    while daemon.storage.count_active_tasks_by_project(&self.project_id).unwrap_or(0) > 0 {
-                        if i_wait > 60 { 
-                            tracing::warn!("⚠️ [IMPL_WAIT_TIMEOUT] Moving to build anyway.");
-                            break; 
+                        // v0.0.28: Wait for all implementation tasks in THIS project to complete
+                        tracing::info!(
+                            "⏳ [STAGE:ImplGen] Waiting for source implementation tasks to materialize..."
+                        );
+                        let mut i_wait = 0;
+                        while daemon
+                            .storage
+                            .count_active_tasks_by_project(&self.project_id)
+                            .unwrap_or(0)
+                            > 0
+                        {
+                            if i_wait > 60 {
+                                tracing::warn!("⚠️ [IMPL_WAIT_TIMEOUT] Moving to build anyway.");
+                                break;
+                            }
+                            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                            i_wait += 1;
                         }
-                        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-                        i_wait += 1;
-                    }
 
-                    stage = StageRouter::next_stage(&stage);
-                    attempts = 0;
-                    context_size = 8192; // Reset on success
-                } else {
+                        stage = StageRouter::next_stage(&stage);
+                        attempts = 0;
+                        context_size = 8192; // Reset on success
+                    } else {
                         stage = Stage::Skeleton;
                     }
-                },
+                }
                 Stage::IntegratorGen => {
-                    tracing::info!("🔗 [STAGE:IntegratorGen] Finalizing Entry Point Integration... (Context: {})", context_size);
-                    
+                    tracing::info!(
+                        "🔗 [STAGE:IntegratorGen] Finalizing Entry Point Integration... (Context: {})",
+                        context_size
+                    );
+
                     // v0.0.29: Hard Gate - Verify implementation files exist before generating main.c
                     if let Some(ref ir) = ir_opt {
                         let mut missing_impls = Vec::new();
@@ -1572,32 +2471,51 @@ impl BootstrapManager {
                                 if !full_path.exists() {
                                     if comp.is_blocking {
                                         missing_impls.push(path.clone());
-                                        tracing::warn!("⚠️ [INTEGRATOR_GATE] CRITICAL implementation file missing: {}", path);
+                                        tracing::warn!(
+                                            "⚠️ [INTEGRATOR_GATE] CRITICAL implementation file missing: {}",
+                                            path
+                                        );
                                     } else {
-                                        tracing::info!("🕶️ [INTEGRATOR_GATE:PRUNED] Skipping non-blocking optional file: {}", path);
+                                        tracing::info!(
+                                            "🕶️ [INTEGRATOR_GATE:PRUNED] Skipping non-blocking optional file: {}",
+                                            path
+                                        );
                                     }
                                 }
                             }
                         }
                         if !missing_impls.is_empty() {
-                            tracing::error!("❌ [INTEGRATOR_GATE_BLOCKED] Cannot generate main.c - {} implementation files missing. Waiting for ImplGen tasks to complete.", missing_impls.len());
+                            tracing::error!(
+                                "❌ [INTEGRATOR_GATE_BLOCKED] Cannot generate main.c - {} implementation files missing. Waiting for ImplGen tasks to complete.",
+                                missing_impls.len()
+                            );
                             if attempts >= max_retries {
-                                return Err(anyhow::anyhow!("Integrator blocked: implementation files {} not found", missing_impls.join(", ")));
+                                return Err(anyhow::anyhow!(
+                                    "Integrator blocked: implementation files {} not found",
+                                    missing_impls.join(", ")
+                                ));
                             }
                             stage = Stage::ImplGen;
                             attempts += 1;
                             context_size = (context_size as f32 * 1.5) as usize;
                             continue;
                         }
-                        tracing::info!("✅ [INTEGRATOR_GATE] All implementation files verified. Proceeding to main.c generation.");
+                        tracing::info!(
+                            "✅ [INTEGRATOR_GATE] All implementation files verified. Proceeding to main.c generation."
+                        );
                         let mut symbols = Vec::new();
                         for comp in ir.components.values() {
-                            if comp.is_entrypoint { continue; }
-                            
+                            if comp.is_entrypoint {
+                                continue;
+                            }
+
                             // v0.0.29.25: Pruning - Check if non-blocking file actually exists
                             let full_path = self.sandbox_root.join(&comp.file_path);
                             if !comp.is_blocking && !full_path.exists() {
-                                tracing::info!("✂️ [SYMBOL_REGISTRY:PRUNED] Excluding symbols for missing optional component: {}", comp.name);
+                                tracing::info!(
+                                    "✂️ [SYMBOL_REGISTRY:PRUNED] Excluding symbols for missing optional component: {}",
+                                    comp.name
+                                );
                                 continue;
                             }
 
@@ -1606,19 +2524,33 @@ impl BootstrapManager {
                             }
                         }
                         let registry = symbols.join("\n");
-                        
+
                         let mut guide = daemon.architecture_guide.read().unwrap().clone();
-                        guide.push_str("\n\n### 📦 GLOBAL SYMBOL REGISTRY (AVAILABLE FOR INTEGRATION) ###\n");
+                        guide.push_str(
+                            "\n\n### 📦 GLOBAL SYMBOL REGISTRY (AVAILABLE FOR INTEGRATION) ###\n",
+                        );
                         guide.push_str(&registry);
-                        
-                        let res = architect_runtime.process_bootstrap_step2_with_context(&serde_json::to_string(ir).unwrap(), context_size, Some(daemon.event_bus.clone())).await;
+
+                        let res = architect_runtime
+                            .process_bootstrap_step2_with_context(
+                                &serde_json::to_string(ir).unwrap(),
+                                context_size,
+                                Some(daemon.event_bus.clone()),
+                            )
+                            .await;
                         match res {
                             Ok(post) => {
                                 let content = extract_json_block(post.content.trim());
-                                if let Ok(d_tasks) = serde_json::from_str::<Vec<axon_core::DecomposedTask>>(&content) {
-                                    let integrator_tasks: Vec<_> = d_tasks.into_iter()
+                                if let Ok(d_tasks) =
+                                    serde_json::from_str::<Vec<axon_core::DecomposedTask>>(&content)
+                                {
+                                    let integrator_tasks: Vec<_> = d_tasks
+                                        .into_iter()
                                         .map(|dt| {
-                                            let mut t = axon_core::Task::from_decomposed(dt, self.project_id.clone());
+                                            let mut t = axon_core::Task::from_decomposed(
+                                                dt,
+                                                self.project_id.clone(),
+                                            );
                                             if let Some(ref cid) = t.target_file {
                                                 if let Some(comp) = ir.components.get(cid) {
                                                     t.target_file = Some(comp.file_path.clone());
@@ -1635,20 +2567,28 @@ impl BootstrapManager {
                                             false
                                         })
                                         .collect();
-                                    
+
                                     if !integrator_tasks.is_empty() {
-                                        tracing::info!("📥 [STAGE:IntegratorGen] Enqueuing {} integration tasks...", integrator_tasks.len());
+                                        tracing::info!(
+                                            "📥 [STAGE:IntegratorGen] Enqueuing {} integration tasks...",
+                                            integrator_tasks.len()
+                                        );
                                         for mut task in integrator_tasks {
                                             // v0.0.29: [STABLE_ID] Use deterministic hashing based on target file
-                                            let stable_seed = format!("{}:{}", self.project_id, task.target_file.as_ref().unwrap_or(&task.title));
-                                            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                                            let stable_seed = format!(
+                                                "{}:{}",
+                                                self.project_id,
+                                                task.target_file.as_ref().unwrap_or(&task.title)
+                                            );
+                                            let mut hasher =
+                                                std::collections::hash_map::DefaultHasher::new();
                                             use std::hash::Hasher;
                                             hasher.write(stable_seed.as_bytes());
                                             let stable_hash = hasher.finish();
                                             task.id = format!("int_{:x}", stable_hash);
-                                            
+
                                             task.task_kind = Some(axon_core::TaskKind::Integrator);
-                                            
+
                                             let thread = axon_core::Thread {
                                                 id: task.id.clone(),
                                                 project_id: task.project_id.clone(),
@@ -1678,35 +2618,57 @@ impl BootstrapManager {
                                             let _ = daemon.storage.save_task(task.clone()).await;
                                             daemon.submit_task(task.clone());
                                         }
-                                        
-                                        tracing::info!("⏳ [STAGE:IntegratorGen] Waiting for entry point to materialize...");
+
+                                        tracing::info!(
+                                            "⏳ [STAGE:IntegratorGen] Waiting for entry point to materialize..."
+                                        );
                                         let mut int_wait = 0;
-                                        while daemon.storage.count_active_tasks_by_project(&self.project_id).unwrap_or(0) > 0 {
-                                            if int_wait > 60 { break; }
-                                            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                                        while daemon
+                                            .storage
+                                            .count_active_tasks_by_project(&self.project_id)
+                                            .unwrap_or(0)
+                                            > 0
+                                        {
+                                            if int_wait > 60 {
+                                                break;
+                                            }
+                                            tokio::time::sleep(tokio::time::Duration::from_secs(5))
+                                                .await;
                                             int_wait += 1;
                                         }
                                     }
                                 }
                                 stage = StageRouter::next_stage(&stage);
                                 attempts = 0;
-                            },
+                            }
                             Err(_) => {
-                                stage = Stage::Skeleton; 
+                                stage = Stage::Skeleton;
                             }
                         }
                     } else {
                         stage = Stage::Skeleton;
                     }
-                },
-                    // v0.0.29: Wait for Materialization
+                }
+                // v0.0.29: Wait for Materialization
                 Stage::Build => {
-                    tracing::info!("⏳ [STAGE:Build] Waiting for agents to complete materialization tasks...");
+                    tracing::info!(
+                        "⏳ [STAGE:Build] Waiting for agents to complete materialization tasks..."
+                    );
                     let mut wait_attempts = 0;
-                    while daemon.storage.count_active_tasks_by_project(&self.project_id).unwrap_or(0) > 0 {
-                        if wait_attempts > 60 { // 5 mins
-                             tracing::error!("❌ [MATERIALIZATION_TIMEOUT] Agents failed to complete tasks in time.");
-                             return Err(anyhow::anyhow!("Materialization timeout. Check worker logs."));
+                    while daemon
+                        .storage
+                        .count_active_tasks_by_project(&self.project_id)
+                        .unwrap_or(0)
+                        > 0
+                    {
+                        if wait_attempts > 60 {
+                            // 5 mins
+                            tracing::error!(
+                                "❌ [MATERIALIZATION_TIMEOUT] Agents failed to complete tasks in time."
+                            );
+                            return Err(anyhow::anyhow!(
+                                "Materialization timeout. Check worker logs."
+                            ));
                         }
                         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
                         wait_attempts += 1;
@@ -1719,7 +2681,9 @@ impl BootstrapManager {
                         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
                         continue;
                     } else {
-                        tracing::info!("✅ [BUILD_READY] All artifacts materialized. Finalizing project...");
+                        tracing::info!(
+                            "✅ [BUILD_READY] All artifacts materialized. Finalizing project..."
+                        );
                     }
 
                     tracing::info!("📦 [STAGE:Build] Executing CMake Build...");
@@ -1731,9 +2695,10 @@ impl BootstrapManager {
                     // v0.0.28: Save debug artifacts
                     let cmake_path = self.sandbox_root.join("CMakeLists.txt");
                     if cmake_path.exists() {
-                        let _ = std::fs::copy(&cmake_path, debug_dir.join("CMakeLists.generated.txt"));
+                        let _ =
+                            std::fs::copy(&cmake_path, debug_dir.join("CMakeLists.generated.txt"));
                     }
-                    
+
                     // v0.0.28: Dump project tree
                     let tree = dump_project_tree(&self.sandbox_root);
                     let _ = std::fs::write(debug_dir.join("project_tree.txt"), tree);
@@ -1751,16 +2716,25 @@ impl BootstrapManager {
                             tracing::error!("[BUILD_STDOUT:Configure]\n{}", stdout);
                             tracing::error!("[BUILD_STDERR:Configure]\n{}", stderr);
 
-                            let diag = Diagnostic { code: "CMAKE_ERROR".into(), message: stderr };
+                            let diag = Diagnostic {
+                                code: "CMAKE_ERROR".into(),
+                                message: stderr,
+                            };
                             let cause = infer_cause(&diag);
                             let scope = determine_scope(&cause);
-                            tracing::warn!("❌ [BUILD_FAIL:Configure] cause={:?}, scope={:?}", cause, scope);
-                            if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in Build stage.")); }
+                            tracing::warn!(
+                                "❌ [BUILD_FAIL:Configure] cause={:?}, scope={:?}",
+                                cause,
+                                scope
+                            );
+                            if attempts >= max_retries {
+                                return Err(anyhow::anyhow!("Max retries reached in Build stage."));
+                            }
                             stage = StageRouter::route_retry(&scope, &stage);
                             attempts += 1;
                             context_size = (context_size as f32 * 1.5) as usize;
                             continue;
-                        },
+                        }
                         Err(e) => return Err(anyhow::anyhow!("Failed to run cmake: {}", e)),
                         _ => {}
                     }
@@ -1778,16 +2752,25 @@ impl BootstrapManager {
                             tracing::error!("[BUILD_STDOUT:Make]\n{}", stdout);
                             tracing::error!("[BUILD_STDERR:Make]\n{}", stderr);
 
-                            let diag = Diagnostic { code: "BUILD_ERROR".into(), message: stderr };
+                            let diag = Diagnostic {
+                                code: "BUILD_ERROR".into(),
+                                message: stderr,
+                            };
                             let cause = infer_cause(&diag);
                             let scope = determine_scope(&cause);
-                            tracing::warn!("❌ [BUILD_FAIL:Make] cause={:?}, scope={:?}", cause, scope);
-                            if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in Build stage.")); }
+                            tracing::warn!(
+                                "❌ [BUILD_FAIL:Make] cause={:?}, scope={:?}",
+                                cause,
+                                scope
+                            );
+                            if attempts >= max_retries {
+                                return Err(anyhow::anyhow!("Max retries reached in Build stage."));
+                            }
                             stage = StageRouter::route_retry(&scope, &stage);
                             attempts += 1;
                             context_size = (context_size as f32 * 1.5) as usize;
                             continue;
-                        },
+                        }
                         Err(e) => return Err(anyhow::anyhow!("Failed to run build: {}", e)),
                         _ => {
                             // v0.0.28: Build Validation - Ensure executable artifact exists
@@ -1796,14 +2779,21 @@ impl BootstrapManager {
                                 stage = StageRouter::next_stage(&stage);
                                 attempts = 0;
                             } else {
-                                tracing::warn!("⚠️ [BUILD_INVALID] Build reported success but no executable artifact found in {:?}", build_dir);
-                                if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in Build validation.")); }
+                                tracing::warn!(
+                                    "⚠️ [BUILD_INVALID] Build reported success but no executable artifact found in {:?}",
+                                    build_dir
+                                );
+                                if attempts >= max_retries {
+                                    return Err(anyhow::anyhow!(
+                                        "Max retries reached in Build validation."
+                                    ));
+                                }
                                 stage = Stage::BuildRepair;
                                 attempts += 1;
                             }
                         }
                     }
-                },
+                }
                 Stage::BuildRepair => {
                     tracing::info!("🔧 [STAGE:BuildRepair] Analyzing and Repairing Artifacts...");
                     // v0.0.28: For now, simple BuildRepair logic:
@@ -1812,8 +2802,12 @@ impl BootstrapManager {
                     if let Some(ref ir) = ir_opt {
                         let mut graph = crate::dep_graph::DepGraph::new();
                         graph.build_from_ir(&serde_json::to_value(&ir).unwrap_or_default());
-                        let mut cmake_content = graph.generate_cmake(&self.project_id, &daemon.locale, &self.sandbox_root);
-                        
+                        let mut cmake_content = graph.generate_cmake(
+                            &self.project_id,
+                            &daemon.locale,
+                            &self.sandbox_root,
+                        );
+
                         // v0.0.29: Target Verification - Ensure add_executable exists
                         if !cmake_content.contains("add_executable(") {
                             let warn_msg = if daemon.locale == "ko_KR" {
@@ -1824,14 +2818,17 @@ impl BootstrapManager {
                                 "⚠️ BuildRepair detected missing executable target. Searching for best candidate..."
                             };
                             tracing::warn!("{}", warn_msg);
-                            
+
                             // Scan for main.c or any .c file containing 'main'
                             let mut entry_file = "src/main.c".to_string();
                             if let Ok(entries) = std::fs::read_dir(self.sandbox_root.join("src")) {
                                 for entry in entries.flatten() {
                                     if let Ok(content) = std::fs::read_to_string(entry.path()) {
                                         if content.contains("main(") {
-                                            entry_file = format!("src/{}", entry.file_name().to_string_lossy());
+                                            entry_file = format!(
+                                                "src/{}",
+                                                entry.file_name().to_string_lossy()
+                                            );
                                             break;
                                         }
                                     }
@@ -1844,34 +2841,43 @@ impl BootstrapManager {
                             } else {
                                 "# Forced default target"
                             };
-                            cmake_content.push_str(&format!("\n{}\nadd_executable({} {})\n", forced_comment, self.project_id, entry_file));
+                            cmake_content.push_str(&format!(
+                                "\n{}\nadd_executable({} {})\n",
+                                forced_comment, self.project_id, entry_file
+                            ));
                         }
 
-                        let _ = std::fs::write(self.sandbox_root.join("CMakeLists.txt"), cmake_content);
-                        
+                        let _ =
+                            std::fs::write(self.sandbox_root.join("CMakeLists.txt"), cmake_content);
+
                         let build_dir = self.sandbox_root.join("build");
                         if build_dir.exists() {
                             let _ = std::fs::remove_dir_all(&build_dir);
                         }
-                        
+
                         tracing::info!("🛠️ CMakeLists.txt re-generated and build dir cleared.");
                         stage = Stage::Build;
                         attempts += 1;
                     } else {
                         stage = Stage::Skeleton;
                     }
-                },
+                }
                 Stage::Runtime => {
-                    tracing::info!("🏃 [STAGE:Runtime] Executing Binary... (Retry: {})", runtime_retry_count);
+                    tracing::info!(
+                        "🏃 [STAGE:Runtime] Executing Binary... (Retry: {})",
+                        runtime_retry_count
+                    );
                     let build_dir = self.sandbox_root.join("build");
-                    
+
                     // v0.0.28: Dynamic Binary Discovery
                     let bin_path = discover_binary(&build_dir);
-                    
+
                     if bin_path.is_none() {
                         tracing::error!("❌ Binary discovery failed in {:?}", build_dir);
                         if runtime_retry_count >= 3 {
-                            return Err(anyhow::anyhow!("[RUNTIME_ABORT] Binary discovery failed repeatedly. Check CMake generation."));
+                            return Err(anyhow::anyhow!(
+                                "[RUNTIME_ABORT] Binary discovery failed repeatedly. Check CMake generation."
+                            ));
                         }
                         runtime_retry_count += 1;
                         stage = Stage::Build;
@@ -1887,41 +2893,62 @@ impl BootstrapManager {
                         Ok(output) => {
                             let stdout = String::from_utf8_lossy(&output.stdout).to_string();
                             let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                            
+
                             if output.status.success() {
                                 tracing::info!("✅ [RUNTIME_SUCCESS]\nStdout: {}", stdout);
                                 stage = StageRouter::next_stage(&stage);
                                 attempts = 0;
                                 runtime_retry_count = 0; // Reset on success
                             } else {
-                                let diag = Diagnostic { code: "RUNTIME_ERROR".into(), message: format!("Stdout: {}\nStderr: {}", stdout, stderr) };
+                                let diag = Diagnostic {
+                                    code: "RUNTIME_ERROR".into(),
+                                    message: format!("Stdout: {}\nStderr: {}", stdout, stderr),
+                                };
                                 let cause = infer_cause(&diag);
                                 let scope = determine_scope(&cause);
-                                tracing::warn!("❌ [RUNTIME_FAIL] cause={:?}, scope={:?}", cause, scope);
-                                if attempts >= max_retries { return Err(anyhow::anyhow!("Max retries reached in Runtime stage.")); }
+                                tracing::warn!(
+                                    "❌ [RUNTIME_FAIL] cause={:?}, scope={:?}",
+                                    cause,
+                                    scope
+                                );
+                                if attempts >= max_retries {
+                                    return Err(anyhow::anyhow!(
+                                        "Max retries reached in Runtime stage."
+                                    ));
+                                }
                                 stage = StageRouter::route_retry(&scope, &stage);
                                 attempts += 1;
                             }
-                        },
+                        }
                         Err(e) => return Err(anyhow::anyhow!("Failed to execute binary: {}", e)),
                     }
-                },
+                }
                 Stage::Sync => {
-                    tracing::info!("🔄 [STAGE:Sync] Syncing to Architecture.md & CMakeLists.txt...");
+                    tracing::info!(
+                        "🔄 [STAGE:Sync] Syncing to Architecture.md & CMakeLists.txt..."
+                    );
                     if let Some(ref ir) = ir_opt {
-                        let arch_md = architect_runtime.generate_architecture_from_ir(ir, Some(daemon.event_bus.clone())).await?;
+                        let arch_md = architect_runtime
+                            .generate_architecture_from_ir(ir, Some(daemon.event_bus.clone()))
+                            .await?;
                         let _ = std::fs::create_dir_all(&self.sandbox_root);
                         std::fs::write(self.sandbox_root.join("architecture.md"), arch_md)?;
-                        
+
                         let mut graph = crate::dep_graph::DepGraph::new();
                         graph.build_from_ir(&serde_json::to_value(&ir).unwrap_or_default());
-                        let cmake_content = graph.generate_cmake(&self.project_id, &daemon.locale, &self.sandbox_root);
+                        let cmake_content = graph.generate_cmake(
+                            &self.project_id,
+                            &daemon.locale,
+                            &self.sandbox_root,
+                        );
                         std::fs::write(self.sandbox_root.join("CMakeLists.txt"), cmake_content)?;
-                        
+
                         stage = StageRouter::next_stage(&stage);
                         attempts = 0;
-                    } else { stage = Stage::Skeleton; }
-                },
+                    } else {
+                        stage = Stage::Skeleton;
+                    }
+                }
                 Stage::Complete => {
                     tracing::info!("✅ [STAGE:Complete] Factory Pipeline Finished Successfully.");
                     return Ok(());
@@ -1946,8 +2973,7 @@ impl BootstrapManager {
                 "OBJECTIVE: Generate architecture.md for project '{}'.\n\n\
                  --- SPEC CONTENT ---\n\
                  {}",
-                self.project_id,
-                spec_truncated
+                self.project_id, spec_truncated
             ),
             status: axon_core::TaskStatus::Pending,
             dependencies: Vec::new(),
@@ -1973,8 +2999,9 @@ impl BootstrapManager {
             "architect-agent-001".to_string(),
             axon_core::AgentRole::Architect,
             daemon.architect_model_name.clone(),
-            daemon.architect_model.clone()
-        ).with_timeout(600);
+            daemon.architect_model.clone(),
+        )
+        .with_timeout(600);
         architect_runtime.set_locale(&daemon.locale);
 
         let s1_msg = if daemon.locale == "ko_KR" {
@@ -1991,7 +3018,14 @@ impl BootstrapManager {
 
         for attempt in 1..=5 {
             tracing::info!("🔄 Bootstrap Loop Attempt {}/5...", attempt);
-            match architect_runtime.process_bootstrap_step1(&task, error_feedback.clone(), Some(daemon.event_bus.clone())).await {
+            match architect_runtime
+                .process_bootstrap_step1(
+                    &task,
+                    error_feedback.clone(),
+                    Some(daemon.event_bus.clone()),
+                )
+                .await
+            {
                 Ok(arch_proposal) => {
                     let arch_content = &arch_proposal.content;
                     let current_clean_arch = if let Some(start) = arch_content.find("```markdown") {
@@ -2027,27 +3061,45 @@ impl BootstrapManager {
                     match compiler_res {
                         Ok(output) if output.status.success() => {
                             // v0.0.29: Semantic IR Validation (Protocol Enforcement)
-                            let semantic_errors = self.verify_architecture_semantic(&current_clean_arch);
+                            let semantic_errors =
+                                self.verify_architecture_semantic(&current_clean_arch);
                             if semantic_errors.is_empty() {
-                                tracing::info!("✅ [Attempt {}] Convergence reached. IR Constraints compiled & Semantically verified.", attempt);
+                                tracing::info!(
+                                    "✅ [Attempt {}] Convergence reached. IR Constraints compiled & Semantically verified.",
+                                    attempt
+                                );
                                 clean_arch = current_clean_arch;
                                 architecture_ready = true;
                                 let _ = daemon.storage.save_post(arch_proposal).await;
                                 break;
                             } else {
                                 let err_msg = semantic_errors.join("\n");
-                                tracing::warn!("⚠️ [Attempt {}] IR Semantic Validation Failed: {}", attempt, err_msg);
-                                error_feedback = Some(format!("IR Semantic Error (Protocol Violation):\n{}\n\nFIX: Ensure .h files are type='header', entry points are type='entry', and no duplicates exist.", err_msg));
+                                tracing::warn!(
+                                    "⚠️ [Attempt {}] IR Semantic Validation Failed: {}",
+                                    attempt,
+                                    err_msg
+                                );
+                                error_feedback = Some(format!(
+                                    "IR Semantic Error (Protocol Violation):\n{}\n\nFIX: Ensure .h files are type='header', entry points are type='entry', and no duplicates exist.",
+                                    err_msg
+                                ));
                             }
-                        },
+                        }
                         Ok(output) => {
                             let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
-                            tracing::warn!("⚠️ [Attempt {}] IR Validation Failed: {}", attempt, err_msg);
-                            error_feedback = Some(format!("IR Validation Error (SSOT Violation):\n{}", err_msg));
-                        },
+                            tracing::warn!(
+                                "⚠️ [Attempt {}] IR Validation Failed: {}",
+                                attempt,
+                                err_msg
+                            );
+                            error_feedback = Some(format!(
+                                "IR Validation Error (SSOT Violation):\n{}",
+                                err_msg
+                            ));
+                        }
                         Err(e) => return Err(anyhow::anyhow!("IR Compiler not found: {}", e)),
                     }
-                },
+                }
                 Err(e) => {
                     tracing::error!("❌ Architect design failed on attempt {}: {}", attempt, e);
                     error_feedback = Some(e.to_string());
@@ -2068,16 +3120,20 @@ impl BootstrapManager {
             "Stage 2: Extracting implementation tasks from converged architecture..."
         };
         tracing::info!("{}", s2_msg);
-        match architect_runtime.process_bootstrap_step2(&clean_arch, Some(daemon.event_bus.clone())).await {
+        match architect_runtime
+            .process_bootstrap_step2(&clean_arch, Some(daemon.event_bus.clone()))
+            .await
+        {
             Ok(task_proposal) => {
                 let clean_json = self.extract_json(&task_proposal.content);
-                let tasks_raw: Vec<serde_json::Value> = serde_json::from_str(&clean_json).unwrap_or_default();
+                let tasks_raw: Vec<serde_json::Value> =
+                    serde_json::from_str(&clean_json).unwrap_or_default();
 
                 if !tasks_raw.is_empty() {
                     for t in tasks_raw {
                         let task = axon_core::Task {
                             id: uuid::Uuid::new_v4().to_string(),
-                            project_id: self.project_id.clone(), 
+                            project_id: self.project_id.clone(),
                             title: t["title"].as_str().unwrap_or("Untitled").to_string(),
                             description: t["description"].as_str().unwrap_or("").to_string(),
                             status: axon_core::TaskStatus::Pending,
@@ -2092,20 +3148,33 @@ impl BootstrapManager {
                             parent_task: None,
                             reason: None,
                             kind: if let Some(f) = t["target_file"].as_str() {
-                                if f.ends_with(".c") || f.ends_with(".h") { "c".to_string() }
-                                else if f.ends_with(".rs") { "rust".to_string() }
-                                else if f.ends_with(".py") { "python".to_string() }
-                                else { "rust".to_string() }
-                            } else { "rust".to_string() },
+                                if f.ends_with(".c") || f.ends_with(".h") {
+                                    "c".to_string()
+                                } else if f.ends_with(".rs") {
+                                    "rust".to_string()
+                                } else if f.ends_with(".py") {
+                                    "python".to_string()
+                                } else {
+                                    "rust".to_string()
+                                }
+                            } else {
+                                "rust".to_string()
+                            },
                             retries: 0,
                             assigned_worker: None,
                             created_at: chrono::Local::now(),
                             ir_path: None,
                             task_kind: if let Some(f) = t["target_file"].as_str() {
-                                if f.ends_with(".h") { Some(axon_core::TaskKind::HeaderDecl) }
-                                else if f.contains("main") { Some(axon_core::TaskKind::Integrator) }
-                                else { Some(axon_core::TaskKind::SourceImpl) }
-                            } else { None },
+                                if f.ends_with(".h") {
+                                    Some(axon_core::TaskKind::HeaderDecl)
+                                } else if f.contains("main") {
+                                    Some(axon_core::TaskKind::Integrator)
+                                } else {
+                                    Some(axon_core::TaskKind::SourceImpl)
+                                }
+                            } else {
+                                None
+                            },
                             signature: None,
                         };
                         let _ = daemon.storage.save_task(task.clone());
@@ -2113,7 +3182,7 @@ impl BootstrapManager {
                     }
                     tracing::info!("🚀 Bootstrap complete. AXON Factory is now OPERATIONAL.");
                 }
-            },
+            }
             Err(e) => tracing::error!("Stage 2 extraction failed: {}", e),
         }
 
@@ -2122,8 +3191,10 @@ impl BootstrapManager {
 
     fn extract_json(&self, content: &str) -> String {
         if let Some(start) = content.find("```json") {
-            let end = content[start+7..].find("```").unwrap_or(content.len() - start - 7);
-            content[start+7..start+7+end].trim().to_string()
+            let end = content[start + 7..]
+                .find("```")
+                .unwrap_or(content.len() - start - 7);
+            content[start + 7..start + 7 + end].trim().to_string()
         } else {
             content.trim().to_string()
         }
@@ -2134,55 +3205,74 @@ impl BootstrapManager {
         let spec_patterns = [
             "<!-- AXON:SPEC:COMPONENTS",
             "```spec:components",
-            "```json:axon_components"
+            "```json:axon_components",
         ];
-        
+
         let mut json_text = None;
         for p in spec_patterns {
             if let Some(start) = md.find(p) {
                 let start_idx = start + p.len();
                 let end_marker = if p.starts_with("<!--") { "-->" } else { "```" };
                 if let Some(end) = md[start_idx..].find(end_marker) {
-                    json_text = Some(md[start_idx .. start_idx + end].trim());
+                    json_text = Some(md[start_idx..start_idx + end].trim());
                     break;
                 }
             }
         }
 
         if let Some(text) = json_text {
-             if let Ok(v) = serde_json::from_str::<serde_json::Value>(text) {
-                 let mut seen_files = std::collections::HashSet::new();
-                 let comps_opt = v["components"].as_array();
-                 let comps_map_opt = v["components"].as_object();
-                 
-                 let process_comp = |c: &serde_json::Value, seen_files: &mut std::collections::HashSet<String>, errors: &mut Vec<String>| {
-                     let file = c.get("file").or_else(|| c.get("file_path")).and_then(|f| f.as_str()).unwrap_or("").to_lowercase();
-                     let c_type = c.get("type").or_else(|| c.get("role")).and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
-                     
-                     if !file.is_empty() {
-                         if !seen_files.insert(file.clone()) {
-                             errors.push(format!("[SEMANTIC_VIOLATION] Duplicate component file path: {}", file));
-                         }
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(text) {
+                let mut seen_files = std::collections::HashSet::new();
+                let comps_opt = v["components"].as_array();
+                let comps_map_opt = v["components"].as_object();
 
-                         if file.ends_with(".h") && (c_type == "module" || c_type == "pure") {
-                             errors.push(format!("[SEMANTIC_VIOLATION] Header file '{}' must have type='header', not '{}'.", file, c_type));
-                         }
-                         if (file.ends_with("main.c") || file.ends_with("main.rs") || file.ends_with("main.py")) && (c_type == "module" || c_type == "pure") {
-                             errors.push(format!("[SEMANTIC_VIOLATION] Entry point '{}' must have type='entry', not '{}'.", file, c_type));
-                         }
-                     }
-                 };
+                let process_comp = |c: &serde_json::Value,
+                                    seen_files: &mut std::collections::HashSet<String>,
+                                    errors: &mut Vec<String>| {
+                    let file = c
+                        .get("file")
+                        .or_else(|| c.get("file_path"))
+                        .and_then(|f| f.as_str())
+                        .unwrap_or("")
+                        .to_lowercase();
+                    let c_type = c
+                        .get("type")
+                        .or_else(|| c.get("role"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_lowercase();
 
-                 if let Some(components) = comps_opt {
-                     for c in components {
-                         process_comp(c, &mut seen_files, &mut errors);
-                     }
-                 } else if let Some(components) = comps_map_opt {
-                     for c in components.values() {
-                         process_comp(c, &mut seen_files, &mut errors);
-                     }
-                 }
-             }
+                    if !file.is_empty() {
+                        if !seen_files.insert(file.clone()) {
+                            errors.push(format!(
+                                "[SEMANTIC_VIOLATION] Duplicate component file path: {}",
+                                file
+                            ));
+                        }
+
+                        if file.ends_with(".h") && (c_type == "module" || c_type == "pure") {
+                            errors.push(format!("[SEMANTIC_VIOLATION] Header file '{}' must have type='header', not '{}'.", file, c_type));
+                        }
+                        if (file.ends_with("main.c")
+                            || file.ends_with("main.rs")
+                            || file.ends_with("main.py"))
+                            && (c_type == "module" || c_type == "pure")
+                        {
+                            errors.push(format!("[SEMANTIC_VIOLATION] Entry point '{}' must have type='entry', not '{}'.", file, c_type));
+                        }
+                    }
+                };
+
+                if let Some(components) = comps_opt {
+                    for c in components {
+                        process_comp(c, &mut seen_files, &mut errors);
+                    }
+                } else if let Some(components) = comps_map_opt {
+                    for c in components.values() {
+                        process_comp(c, &mut seen_files, &mut errors);
+                    }
+                }
+            }
         }
         errors
     }
@@ -2192,18 +3282,52 @@ impl BootstrapManager {
 #[allow(dead_code)]
 impl Daemon {
     pub fn lock_in_architecture(&self, project_id: &str, thread_title: &str) -> anyhow::Result<()> {
-        let mut arch_path = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let mut arch_path =
+            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
         arch_path.push(project_id);
         arch_path.push("architecture.md");
         if std::path::Path::new(&arch_path).exists() {
             let content = std::fs::read_to_string(&arch_path)?;
             let locked_marker = format!("## {} [✅ Locked]", thread_title);
             let target = format!("## {}", thread_title);
-            
+
             if content.contains(&target) && !content.contains(&locked_marker) {
                 let new_content = content.replace(&target, &locked_marker);
                 std::fs::write(&arch_path, new_content)?;
-                tracing::info!("Locked in architecture section: {} at {}", thread_title, arch_path.display());
+                tracing::info!(
+                    "Locked in architecture section: {} at {}",
+                    thread_title,
+                    arch_path.display()
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// v0.0.30: [UNIFIED_GOVERNANCE] Automatically seals semantic risks in a project
+    pub async fn seal_semantic_risks(&self, project_id: &str) -> anyhow::Result<()> {
+        let root_path = std::env::current_dir().unwrap_or_default();
+        let mut stack = vec![root_path];
+        while let Some(path) = stack.pop() {
+            let approval_file = path.join(".axon_approval_pending");
+            if approval_file.exists() {
+                if let Ok(content) = std::fs::read_to_string(&approval_file) {
+                    if let Ok(mut approval) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if approval["project_id"].as_str() == Some(project_id) {
+                            tracing::info!("⚖️ [UNIFIED_SEAL] Sealing risk in project: {}", project_id);
+                            approval["approved"] = serde_json::json!(true);
+                            approval["opinion"] = serde_json::json!("보스가 스레드 승인을 통해 통합 관리함");
+                            let _ = std::fs::write(&approval_file, serde_json::to_string_pretty(&approval)?);
+                        }
+                    }
+                }
+            }
+            if let Ok(entries) = std::fs::read_dir(&path) {
+                for entry in entries.flatten() {
+                    if entry.path().is_dir() && !entry.file_name().to_string_lossy().starts_with('.') {
+                        stack.push(entry.path());
+                    }
+                }
             }
         }
         Ok(())
@@ -2213,7 +3337,8 @@ impl Daemon {
     /// Tier 1 (Strict) -> Tier 2 (Relaxed) -> Tier 3 (Heuristic) -> Code Validation -> Atomic Commit
     #[allow(dead_code)]
     fn sync_post_to_sandbox(&self, project_id: &str, content: &str) -> anyhow::Result<()> {
-        let mut sandbox_path = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let mut sandbox_path =
+            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
         sandbox_path.push(project_id);
         let _ = std::fs::create_dir_all(&sandbox_path);
 
@@ -2223,7 +3348,7 @@ impl Daemon {
         // Look for [OUTPUT] block
         if let Some(output_start) = content.find("[OUTPUT]") {
             let output_block = if let Some(end) = content[output_start..].find("END_FILE") {
-                &content[output_start..output_start+end]
+                &content[output_start..output_start + end]
             } else {
                 &content[output_start..]
             };
@@ -2232,23 +3357,30 @@ impl Daemon {
             let mut current_pos = 0;
             while let Some(file_start) = output_block[current_pos..].find("FILE:") {
                 let real_start = current_pos + file_start;
-                let line_end = output_block[real_start..].find('\n').unwrap_or(output_block.len() - real_start);
-                let filename = output_block[real_start + 5..real_start + line_end].trim().to_string();
-                
+                let line_end = output_block[real_start..]
+                    .find('\n')
+                    .unwrap_or(output_block.len() - real_start);
+                let filename = output_block[real_start + 5..real_start + line_end]
+                    .trim()
+                    .to_string();
+
                 if filename.is_empty() || filename.contains("..") {
                     current_pos = real_start + line_end;
                     continue;
                 }
 
                 current_pos = real_start + line_end;
-                
+
                 if let Some(code_start) = output_block[current_pos..].find("```") {
                     let real_code_start = current_pos + code_start;
                     let lang_end = output_block[real_code_start + 3..].find('\n').unwrap_or(0);
                     let block_content_start = real_code_start + 3 + lang_end + 1;
-                    
+
                     if let Some(code_end) = output_block[block_content_start..].find("```") {
-                        let code_content = output_block[block_content_start..block_content_start + code_end].trim().to_string();
+                        let code_content = output_block
+                            [block_content_start..block_content_start + code_end]
+                            .trim()
+                            .to_string();
                         if !code_content.is_empty() {
                             files_to_commit.push((filename, code_content));
                         }
@@ -2265,16 +3397,19 @@ impl Daemon {
         // Tier 3: Heuristic Extraction (Fallback)
         if files_to_commit.is_empty() {
             // v0.0.19: Heuristic parse is NOT allowed for commit
-            tracing::error!("❌ Parser Tier 1/2 failed. Heuristic fallback is NOT allowed for commit.");
+            tracing::error!(
+                "❌ Parser Tier 1/2 failed. Heuristic fallback is NOT allowed for commit."
+            );
             return Err(anyhow::anyhow!("Heuristic parse is not allowed for commit"));
         }
-                    
 
         if files_to_commit.is_empty() {
             tracing::warn!("❌ Parser failed completely. No code blocks found.");
             let file_path = sandbox_path.join("README.md");
             let _ = std::fs::write(&file_path, content);
-            return Err(anyhow::anyhow!("FORMAT VIOLATION: No valid code blocks or FILE contract found."));
+            return Err(anyhow::anyhow!(
+                "FORMAT VIOLATION: No valid code blocks or FILE contract found."
+            ));
         }
 
         // v0.0.18: Dependency Intelligence - Filename Inference and Correction
@@ -2283,7 +3418,7 @@ impl Daemon {
         // Hardening Phase 1: 3-Way Merge
         let current_map = Self::load_current_files(&sandbox_path.to_string_lossy());
         let snapshot_map = Self::load_snapshot(&sandbox_path.to_string_lossy());
-        
+
         let mut new_map = std::collections::HashMap::new();
         for (filename, code) in files_to_commit {
             new_map.insert(filename, code);
@@ -2292,9 +3427,11 @@ impl Daemon {
         let merged_map_opt = Self::merge_all(&snapshot_map, &current_map, &new_map);
         if merged_map_opt.is_none() {
             tracing::error!("❌ 3-Way Merge Conflict detected.");
-            return Err(anyhow::anyhow!("MERGE_CONFLICT: Manual resolution or LLM Retry required."));
+            return Err(anyhow::anyhow!(
+                "MERGE_CONFLICT: Manual resolution or LLM Retry required."
+            ));
         }
-        
+
         let merged_map = merged_map_opt.unwrap();
         let merged_files: Vec<(String, String)> = merged_map.into_iter().collect();
 
@@ -2309,7 +3446,11 @@ impl Daemon {
                 let _ = std::fs::create_dir_all(parent);
             }
             if let Err(e) = std::fs::write(&tmp_file_path, code) {
-                tracing::error!("❌ Failed to write temp file {}: {}", tmp_file_path.display(), e);
+                tracing::error!(
+                    "❌ Failed to write temp file {}: {}",
+                    tmp_file_path.display(),
+                    e
+                );
                 validated = false;
                 break;
             }
@@ -2325,7 +3466,7 @@ impl Daemon {
             // Prepare file map for harness
             let mut final_entry_point = "main.py".to_string();
             let mut file_map = std::collections::HashMap::new();
-            
+
             for (filename, code) in &merged_files {
                 file_map.insert(filename, code);
                 let n = filename.to_lowercase();
@@ -2338,8 +3479,11 @@ impl Daemon {
             let tmp_json_path = sandbox_path.join(format!(".files_{}.json", uuid::Uuid::new_v4()));
             let _ = std::fs::write(&tmp_json_path, file_map_json);
 
-            tracing::info!("🚀 [Stage 4] Launching Execution Harness in Sandbox: {}", sandbox_path.display());
-            
+            tracing::info!(
+                "🚀 [Stage 4] Launching Execution Harness in Sandbox: {}",
+                sandbox_path.display()
+            );
+
             let harness_output = std::process::Command::new("python3")
                 .arg(Daemon::resolve_tool_path("axon_execution_harness.py"))
                 .arg("--project-root")
@@ -2372,10 +3516,16 @@ impl Daemon {
             }
 
             // v0.0.18: Incremental Diff Commit
-            if let Err(e) = Self::apply_diff(&sandbox_path.to_string_lossy(), &merged_files, &tmp_dir.to_string_lossy()) {
+            if let Err(e) = Self::apply_diff(
+                &sandbox_path.to_string_lossy(),
+                &merged_files,
+                &tmp_dir.to_string_lossy(),
+            ) {
                 let _ = std::fs::remove_dir_all(&tmp_dir);
                 tracing::error!("❌ Incremental Commit failed: {}", e);
-                return Err(anyhow::anyhow!("COMMIT_FAILED: Error during incremental diff commit."));
+                return Err(anyhow::anyhow!(
+                    "COMMIT_FAILED: Error during incremental diff commit."
+                ));
             }
 
             // v0.0.18: Save Snapshot
@@ -2386,8 +3536,12 @@ impl Daemon {
         } else {
             // Rollback
             let _ = std::fs::remove_dir_all(&tmp_dir);
-            tracing::error!("🔙 Atomic Rollback: Temp directory destroyed due to validation failure.");
-            Err(anyhow::anyhow!("CODE INVALID: Failed syntax validation or I/O error."))
+            tracing::error!(
+                "🔙 Atomic Rollback: Temp directory destroyed due to validation failure."
+            );
+            Err(anyhow::anyhow!(
+                "CODE INVALID: Failed syntax validation or I/O error."
+            ))
         }
     }
 
@@ -2424,15 +3578,15 @@ impl Daemon {
         }
         let mut parts: Vec<&str> = current_path.split('/').collect();
         parts.pop();
-        
+
         let keep_len = parts.len().saturating_sub(level - 1);
         let mut base: Vec<&str> = parts.into_iter().take(keep_len).collect();
-        
+
         if !module.is_empty() {
             let mod_parts: Vec<&str> = module.split('.').collect();
             base.extend(mod_parts);
         }
-        
+
         format!("{}.py", base.join("/"))
     }
 
@@ -2446,15 +3600,14 @@ impl Daemon {
         };
         let class_decl = format!("class {}", cap_module);
         let def_decl = format!("def {}", module);
-        
+
         code.contains(&class_decl) || code.contains(&def_decl)
     }
 
     fn fix_filenames(files: &mut Vec<(String, String)>) {
-        let filenames: std::collections::HashSet<String> = files.iter()
-            .map(|(n, _)| n.clone())
-            .collect();
-            
+        let filenames: std::collections::HashSet<String> =
+            files.iter().map(|(n, _)| n.clone()).collect();
+
         let mut missing = std::collections::HashSet::new();
         for (name, code) in files.iter() {
             let imports = Self::extract_imports(code);
@@ -2468,7 +3621,7 @@ impl Daemon {
                 }
             }
         }
-        
+
         for (name, code) in files.iter_mut() {
             for mod_name in &missing {
                 if Self::match_module_to_code(mod_name, code) {
@@ -2479,9 +3632,8 @@ impl Daemon {
     }
 
     fn _validate_dependencies(files: &[(String, String)]) -> bool {
-        let paths: std::collections::HashSet<String> = files.iter()
-            .map(|(n, _)| n.clone())
-            .collect();
+        let paths: std::collections::HashSet<String> =
+            files.iter().map(|(n, _)| n.clone()).collect();
 
         for (path, code) in files {
             let imports = Self::extract_imports(code);
@@ -2501,28 +3653,32 @@ impl Daemon {
     fn _has_entry_point(files: &[(String, String)]) -> bool {
         let mut has_main_file = false;
         let mut has_entry_code = false;
-        
+
         for (name, code) in files {
             let n = name.to_lowercase();
             if n.ends_with("main.py") || n.ends_with("app.py") || n.ends_with("main.rs") {
                 has_main_file = true;
             }
-            if code.contains("if __name__ == '__main__'") 
-                || code.contains("if __name__ == \"__main__\"") 
-                || code.contains("fn main()") 
-                || code.contains("def main()") 
+            if code.contains("if __name__ == '__main__'")
+                || code.contains("if __name__ == \"__main__\"")
+                || code.contains("fn main()")
+                || code.contains("def main()")
             {
                 has_entry_code = true;
             }
         }
-        
+
         if !has_main_file {
             return true;
         }
         has_entry_code
     }
 
-    fn apply_diff(base_dir: &str, new_files: &[(String, String)], tmp_dir: &str) -> anyhow::Result<()> {
+    fn apply_diff(
+        base_dir: &str,
+        new_files: &[(String, String)],
+        tmp_dir: &str,
+    ) -> anyhow::Result<()> {
         let mut old_files = std::collections::HashMap::new();
         if let Ok(entries) = std::fs::read_dir(base_dir) {
             for entry in entries.flatten() {
@@ -2602,7 +3758,9 @@ impl Daemon {
     }
 
     fn load_snapshot(base_dir: &str) -> std::collections::HashMap<String, String> {
-        let path = std::path::Path::new(base_dir).join(".axon").join("snapshot.json");
+        let path = std::path::Path::new(base_dir)
+            .join(".axon")
+            .join("snapshot.json");
         if let Ok(content) = std::fs::read_to_string(path) {
             if let Ok(map) = serde_json::from_str(&content) {
                 return map;
@@ -2612,16 +3770,18 @@ impl Daemon {
     }
 
     fn save_snapshot(base_dir: &str, files: &[(String, String)]) {
-        let path = std::path::Path::new(base_dir).join(".axon").join("snapshot.json");
+        let path = std::path::Path::new(base_dir)
+            .join(".axon")
+            .join("snapshot.json");
         if let Some(parent) = std::path::Path::new(&path).parent() {
             let _ = std::fs::create_dir_all(parent);
         }
-        
+
         let mut map = std::collections::HashMap::new();
         for (name, code) in files {
             map.insert(name.clone(), code.clone());
         }
-        
+
         if let Ok(json) = serde_json::to_string_pretty(&map) {
             let _ = std::fs::write(path, json);
         }
@@ -2642,9 +3802,12 @@ impl Daemon {
     fn verify_contract(&self, project_id: &str, target_file: &str, code: &str) -> Vec<String> {
         let mut violations = Vec::new();
         let arch_path = std::path::Path::new(project_id).join("architecture.md");
-        
+
         if !arch_path.exists() {
-            tracing::warn!("⚠️ [CONTRACT_SKIP] architecture.md not found in project '{}'. skipping contract verification.", project_id);
+            tracing::warn!(
+                "⚠️ [CONTRACT_SKIP] architecture.md not found in project '{}'. skipping contract verification.",
+                project_id
+            );
             return violations;
         }
 
@@ -2656,13 +3819,17 @@ impl Daemon {
         // Extract JSON block
         let json_start = "<!-- AXON:SPEC:COMPONENTS";
         let json_end = "-->";
-        
+
         let json_str = if let Some(start_idx) = arch_content.find(json_start) {
             let offset = start_idx + json_start.len();
             if let Some(end_idx) = arch_content[offset..].find(json_end) {
                 &arch_content[offset..offset + end_idx]
-            } else { "" }
-        } else { "" };
+            } else {
+                ""
+            }
+        } else {
+            ""
+        };
 
         if json_str.trim().is_empty() {
             tracing::warn!("⚠️ [CONTRACT_SKIP] No AXON:SPEC:COMPONENTS found in architecture.md");
@@ -2672,7 +3839,10 @@ impl Daemon {
         let spec: serde_json::Value = match serde_json::from_str(json_str) {
             Ok(v) => v,
             Err(e) => {
-                tracing::error!("🚨 [CONTRACT_ERROR] Failed to parse architecture JSON: {}", e);
+                tracing::error!(
+                    "🚨 [CONTRACT_ERROR] Failed to parse architecture JSON: {}",
+                    e
+                );
                 return violations;
             }
         };
@@ -2683,14 +3853,18 @@ impl Daemon {
                     if let Some(funcs) = comp.get("functions").and_then(|f| f.as_array()) {
                         for func in funcs {
                             let name = func.get("name").and_then(|n| n.as_str()).unwrap_or("");
-                            let signature = func.get("signature").and_then(|s| s.as_str()).unwrap_or("");
-                            
+                            let signature =
+                                func.get("signature").and_then(|s| s.as_str()).unwrap_or("");
+
                             // 1. Basic Existence Check
                             let pattern_rust = format!("fn {}", name);
                             let pattern_python = format!("def {}", name);
-                            
+
                             if !code.contains(&pattern_rust) && !code.contains(&pattern_python) {
-                                violations.push(format!("[F_SIGNATURE_MISMATCH] Missing required function: {}", name));
+                                violations.push(format!(
+                                    "[F_SIGNATURE_MISMATCH] Missing required function: {}",
+                                    name
+                                ));
                                 continue;
                             }
 
@@ -2710,38 +3884,56 @@ impl Daemon {
                                     let mut found_def = false;
                                     for line in lines {
                                         let t = line.trim();
-                                        if (t.starts_with("pub fn ") || t.starts_with("fn ") || t.starts_with("def ")) && t.contains(&format!("{}(", name)) {
+                                        if (t.starts_with("pub fn ")
+                                            || t.starts_with("fn ")
+                                            || t.starts_with("def "))
+                                            && t.contains(&format!("{}(", name))
+                                        {
                                             found_def = true;
                                             // Check argument count by counting commas in the definition line
                                             // (Caveat: Multi-line definitions or complex types might need a better parser)
                                             if let Some(def_start) = t.find('(') {
                                                 if let Some(def_end) = t.find(')') {
-                                                    let actual_args_str = &t[def_start + 1..def_end];
-                                                    let actual_args: Vec<&str> = if actual_args_str.trim().is_empty() {
-                                                        Vec::new()
-                                                    } else {
-                                                        actual_args_str.split(',').map(|s| s.trim()).collect()
-                                                    };
+                                                    let actual_args_str =
+                                                        &t[def_start + 1..def_end];
+                                                    let actual_args: Vec<&str> =
+                                                        if actual_args_str.trim().is_empty() {
+                                                            Vec::new()
+                                                        } else {
+                                                            actual_args_str
+                                                                .split(',')
+                                                                .map(|s| s.trim())
+                                                                .collect()
+                                                        };
 
                                                     if actual_args.len() != expected_args.len() {
                                                         violations.push(format!("[F_SIGNATURE_MISMATCH] Argument count mismatch for {}. Expected {}, found {}.", name, expected_args.len(), actual_args.len()));
                                                     } else {
                                                         // v0.0.25 [Priority 2]: Strict Type Verification
                                                         let allowed_types = vec![
-                                                            "u8", "u16", "u32", "u64", "u128", "usize",
-                                                            "i8", "i16", "i32", "i64", "i128", "isize",
-                                                            "f32", "f64",
-                                                            "String", "&str", "bool",
-                                                            "Result", "Option", "Vec", "Self"
+                                                            "u8", "u16", "u32", "u64", "u128",
+                                                            "usize", "i8", "i16", "i32", "i64",
+                                                            "i128", "isize", "f32", "f64",
+                                                            "String", "&str", "bool", "Result",
+                                                            "Option", "Vec", "Self",
                                                         ];
 
                                                         for arg_def in &actual_args {
-                                                            if let Some(colon_idx) = arg_def.find(':') {
-                                                                let type_part = arg_def[colon_idx+1..].trim();
+                                                            if let Some(colon_idx) =
+                                                                arg_def.find(':')
+                                                            {
+                                                                let type_part =
+                                                                    arg_def[colon_idx + 1..].trim();
                                                                 // Extract base type (handle Result<T, E> -> Result)
-                                                                let base_type = type_part.split('<').next().unwrap_or(type_part).trim();
-                                                                
-                                                                if !allowed_types.iter().any(|&at| base_type.contains(at)) {
+                                                                let base_type = type_part
+                                                                    .split('<')
+                                                                    .next()
+                                                                    .unwrap_or(type_part)
+                                                                    .trim();
+
+                                                                if !allowed_types.iter().any(
+                                                                    |&at| base_type.contains(at),
+                                                                ) {
                                                                     violations.push(format!("[F_SIGNATURE_MISMATCH] Unauthorized or hallucinated type '{}' detected in function {}.", base_type, name));
                                                                 }
                                                             }
@@ -2749,7 +3941,10 @@ impl Daemon {
 
                                                         // Check if each expected argument name is present in the actual argument
                                                         for expected in &expected_args {
-                                                            if !actual_args.iter().any(|a| a.contains(expected)) {
+                                                            if !actual_args
+                                                                .iter()
+                                                                .any(|a| a.contains(expected))
+                                                            {
                                                                 violations.push(format!("[F_SIGNATURE_MISMATCH] Missing expected argument '{}' in function {}.", expected, name));
                                                             }
                                                         }
@@ -2773,10 +3968,13 @@ impl Daemon {
         violations
     }
 
-    pub fn verify_ir_completeness_static(base_path: &std::path::Path, spec_content: &str) -> Vec<String> {
+    pub fn verify_ir_completeness_static(
+        base_path: &std::path::Path,
+        spec_content: &str,
+    ) -> Vec<String> {
         let mut violations = Vec::new();
         let arch_path = base_path.join("architecture.md");
-        
+
         if !arch_path.exists() {
             return violations;
         }
@@ -2788,15 +3986,26 @@ impl Daemon {
         let mut in_node_table = false;
         for line in spec_content.lines() {
             let t = line.trim();
-            if t.contains("| Node |") || t.contains("|Node|") { in_node_table = true; continue; }
+            if t.contains("| Node |") || t.contains("|Node|") {
+                in_node_table = true;
+                continue;
+            }
             if in_node_table {
                 if t.starts_with('|') {
                     let parts: Vec<&str> = t.split('|').map(|s| s.trim()).collect();
                     if parts.len() > 2 {
                         let node_name = parts[1];
-                        if !node_name.is_empty() && node_name != "Node" && !node_name.starts_with('-') {
+                        if !node_name.is_empty()
+                            && node_name != "Node"
+                            && !node_name.starts_with('-')
+                        {
                             let upper = node_name.to_uppercase();
-                            if upper != "START" && upper != "END" && upper != "BYPASS" && upper != "OUTPUT" && !upper.contains('/') {
+                            if upper != "START"
+                                && upper != "END"
+                                && upper != "BYPASS"
+                                && upper != "OUTPUT"
+                                && !upper.contains('/')
+                            {
                                 expected_nodes.insert(upper);
                             }
                         }
@@ -2811,8 +4020,18 @@ impl Daemon {
             // Fallback: look for lines starting with "- Node:" or similar
             for line in spec_content.lines() {
                 if line.trim().to_uppercase().starts_with("- NODE:") {
-                    let node_name = line.split(':').nth(1).unwrap_or("").trim().split_whitespace().next().unwrap_or("").to_uppercase();
-                    if !node_name.is_empty() { expected_nodes.insert(node_name); }
+                    let node_name = line
+                        .split(':')
+                        .nth(1)
+                        .unwrap_or("")
+                        .trim()
+                        .split_whitespace()
+                        .next()
+                        .unwrap_or("")
+                        .to_uppercase();
+                    if !node_name.is_empty() {
+                        expected_nodes.insert(node_name);
+                    }
                 }
             }
         }
@@ -2828,10 +4047,22 @@ impl Daemon {
             if !arch_upper.contains(&node) {
                 // Special mappings
                 let mut found_alias = false;
-                if node == "DB_CHECK" && (arch_upper.contains("QUERY_DB") || arch_upper.contains("LOAD_FROM_DB") || arch_upper.contains("PERSISTENCE")) { found_alias = true; }
-                if node == "SAVE_DB" && (arch_upper.contains("PERSISTENCE") || arch_upper.contains("SAVE_TO_DB")) { found_alias = true; }
-                if node == "CALCULATE" && arch_upper.contains("COMPUTE") { found_alias = true; }
-                
+                if node == "DB_CHECK"
+                    && (arch_upper.contains("QUERY_DB")
+                        || arch_upper.contains("LOAD_FROM_DB")
+                        || arch_upper.contains("PERSISTENCE"))
+                {
+                    found_alias = true;
+                }
+                if node == "SAVE_DB"
+                    && (arch_upper.contains("PERSISTENCE") || arch_upper.contains("SAVE_TO_DB"))
+                {
+                    found_alias = true;
+                }
+                if node == "CALCULATE" && arch_upper.contains("COMPUTE") {
+                    found_alias = true;
+                }
+
                 if !found_alias {
                     missing_nodes.push(node);
                 }
@@ -2849,24 +4080,35 @@ impl Daemon {
     fn check_ir_completeness(ir: &axon_core::ir::ProjectIR, spec_content: &str) -> Vec<String> {
         // Simplified check first
         if ir.components.is_empty() {
-             return vec!["IR contains no components.".to_string()];
+            return vec!["IR contains no components.".to_string()];
         }
         let mut errors = Vec::new();
-        
+
         // 1. Extract Mandatory Nodes from spec.md content
         let mut expected_nodes = std::collections::HashSet::new();
         let mut in_node_table = false;
         for line in spec_content.lines() {
             let t = line.trim();
-            if t.contains("| Node |") || t.contains("|Node|") { in_node_table = true; continue; }
+            if t.contains("| Node |") || t.contains("|Node|") {
+                in_node_table = true;
+                continue;
+            }
             if in_node_table {
                 if t.starts_with('|') {
                     let parts: Vec<&str> = t.split('|').map(|s| s.trim()).collect();
                     if parts.len() > 2 {
                         let node_name = parts[1];
-                        if !node_name.is_empty() && node_name != "Node" && !node_name.starts_with('-') {
+                        if !node_name.is_empty()
+                            && node_name != "Node"
+                            && !node_name.starts_with('-')
+                        {
                             let upper = node_name.to_uppercase();
-                            if upper != "START" && upper != "END" && upper != "BYPASS" && upper != "OUTPUT" && !upper.contains('/') {
+                            if upper != "START"
+                                && upper != "END"
+                                && upper != "BYPASS"
+                                && upper != "OUTPUT"
+                                && !upper.contains('/')
+                            {
                                 expected_nodes.insert(upper);
                             }
                         }
@@ -2880,8 +4122,18 @@ impl Daemon {
         if expected_nodes.is_empty() {
             for line in spec_content.lines() {
                 if line.trim().to_uppercase().starts_with("- NODE:") {
-                    let node_name = line.split(':').nth(1).unwrap_or("").trim().split_whitespace().next().unwrap_or("").to_uppercase();
-                    if !node_name.is_empty() { expected_nodes.insert(node_name); }
+                    let node_name = line
+                        .split(':')
+                        .nth(1)
+                        .unwrap_or("")
+                        .trim()
+                        .split_whitespace()
+                        .next()
+                        .unwrap_or("")
+                        .to_uppercase();
+                    if !node_name.is_empty() {
+                        expected_nodes.insert(node_name);
+                    }
                 }
             }
         }
@@ -2899,19 +4151,41 @@ impl Daemon {
             let target_node = ir.node_mapping.get(&node).unwrap_or(&node).to_uppercase();
             let mut found = false;
             for mat in &materialized_logic {
-                if mat.contains(&node) || node.contains(mat) || mat.contains(&target_node) || target_node.contains(mat) {
+                if mat.contains(&node)
+                    || node.contains(mat)
+                    || mat.contains(&target_node)
+                    || target_node.contains(mat)
+                {
                     found = true;
                     break;
                 }
             }
             if !found {
                 // Aliases
-                if node == "DB_CHECK" && (materialized_logic.contains("QUERY_DB") || materialized_logic.contains("LOAD_FROM_DB")) { found = true; }
-                if node == "SAVE_DB" && (materialized_logic.contains("SAVE_TO_DB") || materialized_logic.contains("PERSISTENCE")) { found = true; }
-                if node == "CALCULATE" && (materialized_logic.contains("COMPUTE") || materialized_logic.contains("CALCULATE_AGE")) { found = true; }
-                
+                if node == "DB_CHECK"
+                    && (materialized_logic.contains("QUERY_DB")
+                        || materialized_logic.contains("LOAD_FROM_DB"))
+                {
+                    found = true;
+                }
+                if node == "SAVE_DB"
+                    && (materialized_logic.contains("SAVE_TO_DB")
+                        || materialized_logic.contains("PERSISTENCE"))
+                {
+                    found = true;
+                }
+                if node == "CALCULATE"
+                    && (materialized_logic.contains("COMPUTE")
+                        || materialized_logic.contains("CALCULATE_AGE"))
+                {
+                    found = true;
+                }
+
                 if !found {
-                    errors.push(format!("[F_IR_INCOMPLETE] Required Node '{}' is missing from IR.", node));
+                    errors.push(format!(
+                        "[F_IR_INCOMPLETE] Required Node '{}' is missing from IR.",
+                        node
+                    ));
                 }
             }
         }
@@ -2922,7 +4196,7 @@ impl Daemon {
     fn extract_required_functions(description: &str) -> Vec<String> {
         let mut functions = Vec::new();
         let mut in_functions_block = false;
-        
+
         for line in description.lines() {
             let trimmed = line.trim();
             if trimmed.to_uppercase().starts_with("FUNCTIONS:") {
@@ -2930,13 +4204,17 @@ impl Daemon {
                 continue;
             }
             if in_functions_block {
-                if trimmed.is_empty() { continue; }
+                if trimmed.is_empty() {
+                    continue;
+                }
                 if trimmed.starts_with('-') {
                     let func = trimmed[1..].trim();
                     if !func.is_empty() {
                         functions.push(func.to_string());
                     }
-                } else if trimmed.starts_with('#') || (trimmed.contains(':') && !trimmed.starts_with('-')) {
+                } else if trimmed.starts_with('#')
+                    || (trimmed.contains(':') && !trimmed.starts_with('-'))
+                {
                     // Stop if we hit another header or section
                     break;
                 }
@@ -2949,32 +4227,34 @@ impl Daemon {
         let mut funcs = std::collections::HashMap::new();
         let lines: Vec<&str> = code.lines().collect();
         let mut i = 0;
-        
+
         while i < lines.len() {
             let start_idx = i;
-            
+
             // 1. Decorator Handling
             let mut has_decorator = false;
             while i < lines.len() && lines[i].trim().starts_with('@') {
                 has_decorator = true;
                 i += 1;
             }
-            if i >= lines.len() { break; }
-            
+            if i >= lines.len() {
+                break;
+            }
+
             let line = lines[i];
             let trimmed = line.trim();
-            
+
             // 2. Function / Class Detection
             if trimmed.starts_with("def ") || trimmed.starts_with("class ") {
                 let is_class = trimmed.starts_with("class ");
                 let prefix_len = if is_class { 6 } else { 4 };
-                
+
                 if let Some(name_part) = trimmed[prefix_len..].split('(').next() {
                     let name = name_part.split(':').next().unwrap_or("").trim().to_string();
                     let base_indent = line.len() - line.trim_start().len();
-                    
+
                     i += 1; // Move past the def/class line
-                    
+
                     // 3. Indent Check (Find End)
                     while i < lines.len() {
                         let l = lines[i];
@@ -2989,7 +4269,7 @@ impl Daemon {
                         }
                         i += 1;
                     }
-                    
+
                     // 4. Trailing Comment Exclusion
                     let mut end_idx = i;
                     while end_idx > start_idx {
@@ -3000,11 +4280,15 @@ impl Daemon {
                             break;
                         }
                     }
-                    
+
                     let body = lines[start_idx..end_idx].join("\n");
-                    let key = if is_class { format!("class:{}", name) } else { name };
+                    let key = if is_class {
+                        format!("class:{}", name)
+                    } else {
+                        name
+                    };
                     funcs.insert(key, (start_idx, end_idx, body));
-                    
+
                     // Continue from end_idx to avoid inner nested overlaps
                     i = end_idx;
                     continue;
@@ -3021,30 +4305,44 @@ impl Daemon {
 
     fn merge_semantic(base: &str, current: &str, new: &str) -> Option<String> {
         // If the task didn't touch this file, preserve the current state.
-        if new.is_empty() { return Some(current.to_string()); }
-        
-        if current == base { return Some(new.to_string()); }
-        if new == base { return Some(current.to_string()); }
-        if current == new { return Some(current.to_string()); }
+        if new.is_empty() {
+            return Some(current.to_string());
+        }
+
+        if current == base {
+            return Some(new.to_string());
+        }
+        if new == base {
+            return Some(current.to_string());
+        }
+        if current == new {
+            return Some(current.to_string());
+        }
 
         let base_funcs = Self::extract_functions(base);
         let current_funcs = Self::extract_functions(current);
         let new_funcs = Self::extract_functions(new);
 
         let mut merged_code = current.to_string();
-        
+
         for (name, (_, _, new_body)) in &new_funcs {
-            let base_body = base_funcs.get(name).map(|(_, _, b)| b.as_str()).unwrap_or("");
-            let current_body = current_funcs.get(name).map(|(_, _, b)| b.as_str()).unwrap_or("");
-            
+            let base_body = base_funcs
+                .get(name)
+                .map(|(_, _, b)| b.as_str())
+                .unwrap_or("");
+            let current_body = current_funcs
+                .get(name)
+                .map(|(_, _, b)| b.as_str())
+                .unwrap_or("");
+
             if new_body == base_body {
                 continue;
             }
-            
+
             if current_body != base_body && current_body != new_body {
                 return None; // CONFLICT at function level
             }
-            
+
             if let Some((_, _, c_body)) = current_funcs.get(name) {
                 merged_code = merged_code.replace(c_body, new_body);
             } else {
@@ -3052,21 +4350,27 @@ impl Daemon {
                 merged_code.push_str(new_body);
             }
         }
-        
+
         Some(merged_code)
     }
 
     fn merge_all(
         base_map: &std::collections::HashMap<String, String>,
         current_map: &std::collections::HashMap<String, String>,
-        new_map: &std::collections::HashMap<String, String>
+        new_map: &std::collections::HashMap<String, String>,
     ) -> Option<std::collections::HashMap<String, String>> {
         let mut merged = std::collections::HashMap::new();
         let mut all_files = std::collections::HashSet::new();
 
-        for k in base_map.keys() { all_files.insert(k.clone()); }
-        for k in current_map.keys() { all_files.insert(k.clone()); }
-        for k in new_map.keys() { all_files.insert(k.clone()); }
+        for k in base_map.keys() {
+            all_files.insert(k.clone());
+        }
+        for k in current_map.keys() {
+            all_files.insert(k.clone());
+        }
+        for k in new_map.keys() {
+            all_files.insert(k.clone());
+        }
 
         for f in all_files {
             let base = base_map.get(&f).map(|s| s.as_str()).unwrap_or("");
@@ -3083,32 +4387,57 @@ impl Daemon {
         }
         Some(merged)
     }
-    
-    fn select_best_agent(&self, role: axon_core::AgentRole, kind: &str) -> (Arc<dyn axon_model::ModelDriver + Send + Sync>, String, String) {
+
+    fn select_best_agent(
+        &self,
+        role: axon_core::AgentRole,
+        kind: &str,
+    ) -> (
+        Arc<dyn axon_model::ModelDriver + Send + Sync>,
+        String,
+        String,
+    ) {
         let (models, names) = match role {
             axon_core::AgentRole::Junior => (&self.junior_models, &self.junior_model_names),
             axon_core::AgentRole::Senior => (&self.senior_models, &self.senior_model_names),
-            axon_core::AgentRole::Architect => return (self.architect_model.clone(), format!("architect-agent-1({})", self.architect_model_name), self.architect_model_name.clone()),
+            axon_core::AgentRole::Architect => {
+                return (
+                    self.architect_model.clone(),
+                    format!("architect-agent-1({})", self.architect_model_name),
+                    self.architect_model_name.clone(),
+                );
+            }
         };
 
         if models.is_empty() {
-            return (self.architect_model.clone(), "unknown".to_string(), self.architect_model_name.clone());
+            return (
+                self.architect_model.clone(),
+                "unknown".to_string(),
+                self.architect_model_name.clone(),
+            );
         }
 
         // v0.0.25: [ALR] Step 2 - Adaptive Routing based on DB Stats (Refined Formula)
         let db_stats = self.storage.get_worker_stats().unwrap_or_default();
-        
+
         let mut best_idx = 0;
-        let mut best_score = -100.0; 
+        let mut best_score = -100.0;
 
         for i in 0..models.len() {
-            let id = format!("{}-agent-{}({})", match role {
-                axon_core::AgentRole::Junior => "junior",
-                axon_core::AgentRole::Senior => "senior",
-                _ => "agent"
-            }, i + 1, &names[i]);
+            let id = format!(
+                "{}-agent-{}({})",
+                match role {
+                    axon_core::AgentRole::Junior => "junior",
+                    axon_core::AgentRole::Senior => "senior",
+                    _ => "agent",
+                },
+                i + 1,
+                &names[i]
+            );
 
-            let score = if let Some((success_rate, avg_retries, samples, specialization)) = db_stats.get(&id) {
+            let score = if let Some((success_rate, avg_retries, samples, specialization)) =
+                db_stats.get(&id)
+            {
                 if *samples < 5 {
                     // Cold start fallback: random exploration
                     use rand::Rng;
@@ -3117,7 +4446,7 @@ impl Daemon {
                     let skill = specialization.get(kind).cloned().unwrap_or(0.5);
                     let success = *success_rate as f32;
                     let retries = (*avg_retries as f32 / 3.0).min(1.0);
-                    
+
                     // User Formula: skill * 0.5 + success * 0.4 - retries * 0.1
                     (skill * 0.5 + success * 0.4 - retries * 0.1) as f64
                 }
@@ -3131,19 +4460,39 @@ impl Daemon {
             }
         }
 
-        (models[best_idx].clone(), format!("{}-agent-{}({})", match role {
-            axon_core::AgentRole::Junior => "junior",
-            axon_core::AgentRole::Senior => "senior",
-            _ => "agent"
-        }, best_idx + 1, &names[best_idx]), names[best_idx].clone())
+        (
+            models[best_idx].clone(),
+            format!(
+                "{}-agent-{}({})",
+                match role {
+                    axon_core::AgentRole::Junior => "junior",
+                    axon_core::AgentRole::Senior => "senior",
+                    _ => "agent",
+                },
+                best_idx + 1,
+                &names[best_idx]
+            ),
+            names[best_idx].clone(),
+        )
     }
-    
-    async fn abort_with_failure(&self, task: &mut axon_core::Task, failures: Vec<String>, path: Vec<(String, String)>, metrics_list: Vec<axon_core::RuntimeMetrics>, agent_metrics: Vec<axon_core::AgentMetric>, start_total: std::time::Instant, worker_id: usize) -> anyhow::Result<()> {
+
+    async fn abort_with_failure(
+        &self,
+        task: &mut axon_core::Task,
+        failures: Vec<String>,
+        path: Vec<(String, String)>,
+        metrics_list: Vec<axon_core::RuntimeMetrics>,
+        agent_metrics: Vec<axon_core::AgentMetric>,
+        start_total: std::time::Instant,
+        worker_id: usize,
+    ) -> anyhow::Result<()> {
         // v0.0.25: [ALR] Capture Failure Metrics (Step 1)
         if let Some(w_id) = &task.assigned_worker {
-            let _ = self.storage.update_worker_stats(w_id, false, task.rework_count, &task.kind);
+            let _ = self
+                .storage
+                .update_worker_stats(w_id, false, task.rework_count, &task.kind);
         }
-        
+
         // v0.0.25: [ALR] Update Hotspot Priority and Release Queue lock
         {
             let mut coord = self.coordinator.lock().unwrap();
@@ -3158,7 +4507,7 @@ impl Daemon {
         task.result = Some(failure_reason.clone());
         task.error_feedback = Some(failure_reason);
         let _ = self.storage.save_task(task.clone()).await;
-        
+
         // v0.0.25: Release all locks on failure
         let _ = self.storage.release_all_locks_for_task(&task.id);
 
@@ -3166,26 +4515,32 @@ impl Daemon {
         if let Ok(Some(mut thread)) = self.storage.get_thread(&task.id) {
             thread.status = axon_core::ThreadStatus::Draft;
             let _ = self.storage.save_thread(thread).await;
-            
+
             // v0.0.23: Record failure reason as a Post for UI visibility
             let failure_msg = format!("### ❌ [PIPELINE_FAILED]\n\n{}", failures.join("\n"));
-            let _ = self.storage.save_post(axon_core::Post {
-                id: uuid::Uuid::new_v4().to_string(),
-                thread_id: task.id.clone(),
-                author_id: "system-harness".to_string(),
-                content: failure_msg,
-                thought: None,
-                full_code: None,
-                post_type: axon_core::PostType::System,
-                metrics: None,
-                created_at: chrono::Local::now(),
-            }).await;
+            let _ = self
+                .storage
+                .save_post(axon_core::Post {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    thread_id: task.id.clone(),
+                    author_id: "system-harness".to_string(),
+                    content: failure_msg,
+                    thought: None,
+                    full_code: None,
+                    post_type: axon_core::PostType::System,
+                    metrics: None,
+                    created_at: chrono::Local::now(),
+                })
+                .await;
 
             // v0.0.23: Auto-Requeue (Self-Correction Loop)
             // Put the task back into the dispatcher so a worker can try again with the new feedback
             task.status = axon_core::TaskStatus::Pending; // Set back to pending for retry
             let _ = self.submit_task(task.clone());
-            tracing::info!("♻️ [AUTO_REQUEUE] Task {} sent back to dispatcher for self-correction retry.", task.id);
+            tracing::info!(
+                "♻️ [AUTO_REQUEUE] Task {} sent back to dispatcher for self-correction retry.",
+                task.id
+            );
         }
 
         let last_metrics = metrics_list.last().cloned().unwrap_or_default();
@@ -3214,7 +4569,7 @@ impl Daemon {
             thread_id: Some(task.id.clone()),
             agent_id: None,
             event_type: axon_core::EventType::SystemLog,
-                    level: axon_core::EventLevel::Info,
+            level: axon_core::EventLevel::Info,
             source: "pipeline_failure".to_string(),
             content: serde_json::to_string(&report).unwrap_or_default(),
             payload: None,
@@ -3225,12 +4580,21 @@ impl Daemon {
         Ok(())
     }
 
-    pub async fn execute_junior_task(&self, task: &axon_core::Task) -> anyhow::Result<(String, axon_core::RuntimeMetrics)> {
+    pub async fn execute_junior_task(
+        &self,
+        task: &axon_core::Task,
+    ) -> anyhow::Result<(String, axon_core::RuntimeMetrics)> {
         // v0.0.29: [TERMINATION_SIGNAL] Check DB status to prevent "Missing Termination Signal" loop
         if let Ok(Some(db_task)) = self.storage.get_task(&task.id) {
             if db_task.status == axon_core::TaskStatus::Completed {
-                tracing::info!("✅ [TERMINATION_SIGNAL] Task {} is already COMPLETED. Aborting redundant execution.", task.id);
-                return Ok(("ALREADY_COMPLETED".to_string(), axon_core::RuntimeMetrics::default()));
+                tracing::info!(
+                    "✅ [TERMINATION_SIGNAL] Task {} is already COMPLETED. Aborting redundant execution.",
+                    task.id
+                );
+                return Ok((
+                    "ALREADY_COMPLETED".to_string(),
+                    axon_core::RuntimeMetrics::default(),
+                ));
             }
         }
 
@@ -3241,7 +4605,7 @@ impl Daemon {
 
         // v0.0.26: Stage 2 - Context Intelligence (Header-first)
         let mut existing_code = String::new();
-        
+
         // 1. Gather code from dependencies (e.g., .h contents for a .c task)
         for dep_name in &task.dependencies {
             match self.storage.get_task_by_title(&task.project_id, dep_name) {
@@ -3249,42 +4613,61 @@ impl Daemon {
                     if let Some(fname) = &dep_task.target_file {
                         let fpath = std::path::Path::new(&task.project_id).join(fname);
                         if let Ok(content) = std::fs::read_to_string(&fpath) {
-                            existing_code.push_str(&format!("### DEPENDENCY: {} ({}) ###\n{}\n\n", dep_name, fname, content));
+                            existing_code.push_str(&format!(
+                                "### DEPENDENCY: {} ({}) ###\n{}\n\n",
+                                dep_name, fname, content
+                            ));
                         }
                     }
-                },
-                _ => tracing::warn!("⚠️ [CONTEXT_FAIL] Could not find dependency task {} for task {}", dep_name, task.id),
+                }
+                _ => tracing::warn!(
+                    "⚠️ [CONTEXT_FAIL] Could not find dependency task {} for task {}",
+                    dep_name,
+                    task.id
+                ),
             }
         }
 
         // 2. Initialize Junior Runtime (v0.0.26 Pattern)
-        let junior_name = task.assigned_worker.as_deref().unwrap_or("junior-agent-001");
+        let junior_name = task
+            .assigned_worker
+            .as_deref()
+            .unwrap_or("junior-agent-001");
         let mut junior_runtime = axon_agent::AgentRuntime::new(
             junior_name.to_string(),
             axon_core::AgentRole::Junior,
             self.junior_model_names[0].clone(),
-            self.junior_models[0].clone()
-        ).with_project(task.project_id.clone());
+            self.junior_models[0].clone(),
+        )
+        .with_project(task.project_id.clone());
         junior_runtime.set_locale(&self.locale);
 
         // 3. Execute implementation through axon-agent (Enforcing Stage 1 Policy)
         let guide = self.architecture_guide.read().unwrap().clone();
-        let post = junior_runtime.run_implementation_task(
-            task,
-            self.event_bus.clone(),
-            &task.kind, // lang_name
-            "",         // lang_instruction (legacy, handled by system prompt)
-            &guide,
-            &existing_code
-        ).await?;
+        let mut instruction = String::new();
+        instruction.push_str("CRITICAL: If you use sqlite3 functions, you MUST #include <sqlite3.h>. If you use time functions, you MUST #include <time.h>.\n");
+
+        let post = junior_runtime
+            .run_implementation_task(
+                task,
+                self.event_bus.clone(),
+                &task.kind,
+                &instruction,
+                &guide,
+                &existing_code,
+            )
+            .await?;
 
         let full_code = post.full_code.unwrap_or_default();
         let thought_opt = post.thought;
         let parsed_success = !full_code.is_empty();
-        let metrics = post.metrics.unwrap_or(axon_core::RuntimeMetrics { total_duration: Some(0), eval_count: Some(0), eval_duration: Some(0) });
+        let metrics = post.metrics.unwrap_or(axon_core::RuntimeMetrics {
+            total_duration: Some(0),
+            eval_count: Some(0),
+            eval_duration: Some(0),
+        });
 
         // v0.0.25: Post the Junior's thought to the Lounge BEFORE parser checks
-        // Even if they failed to write valid code, their attempt/excuse should be logged!
         if let Some(ref thought) = thought_opt {
             tracing::info!("🍻 [LOUNGE_POST] Saving Nogari from {} to lounge...", junior_name);
             let _ = self.storage.save_post(axon_core::Post {
@@ -3299,20 +4682,18 @@ impl Daemon {
                 created_at: chrono::Local::now(),
             }).await;
 
-            // Broadcast to Lounge UI
-            let event = axon_core::Event {
+            self.publish_event(axon_core::Event {
                 id: uuid::Uuid::new_v4().to_string(),
-                project_id: task.project_id.clone(), // v0.0.25: Use actual project_id for visibility
+                project_id: task.project_id.clone(),
                 thread_id: Some("lounge".to_string()),
                 agent_id: task.assigned_worker.clone(),
                 event_type: axon_core::EventType::MessagePosted,
-                    level: axon_core::EventLevel::Info,
+                level: axon_core::EventLevel::Info,
                 source: format!("JUNIOR-{}", task.assigned_worker.as_deref().unwrap_or("unknown")),
                 content: format!("💬 {}: {}", task.assigned_worker.as_deref().unwrap_or("Junior"), thought),
                 payload: None,
                 timestamp: chrono::Local::now(),
-            };
-            self.publish_event(event);
+            });
         }
 
         if !parsed_success {
@@ -3322,15 +4703,15 @@ impl Daemon {
 
         // v0.0.29: [SOVEREIGN_GATE] Physical validation for Header Freeze (C-specific)
         if task.kind == "c" && task.target_file.as_deref().unwrap_or("").ends_with(".h") {
-            let body_detected = full_code.contains('{') && (full_code.contains("if ") || full_code.contains("while ") || full_code.contains("return ") || full_code.contains("for "));
+            let body_detected = full_code.contains('{')
+                && (full_code.contains("if ") || full_code.contains("while ") || full_code.contains("return ") || full_code.contains("for "));
             if body_detected {
                 tracing::error!("❌ [SOVEREIGN_GATE] Header Freeze Violation detected in {}. Function bodies are forbidden in headers.", task.target_file.as_deref().unwrap_or("unknown"));
-                anyhow::bail!("HEADER_FREEZE_VIOLATION: You included function implementations in a header file. Only declarations, macros, and types are allowed. Remove all function bodies.");
+                anyhow::bail!("HEADER_FREEZE_VIOLATION: Implementation in header forbidden.");
             }
         }
 
-        // v0.0.29: Post clean code block to the Task Thread (No thought text here to avoid duplication with Lounge)
-        let content_with_code = format!("### 🧪 [JUNIOR_PROPOSAL]\n\n```{}\n{}\n```", task.kind, full_code);
+        let content_with_code = format!("### 🧪 [JUNIOR_PROPOSAL]\n\n```{} \n{}\n```", task.kind, full_code);
         let _ = self.storage.save_post(axon_core::Post {
             id: uuid::Uuid::new_v4().to_string(),
             thread_id: task.id.clone(),
@@ -3342,15 +4723,17 @@ impl Daemon {
             metrics: Some(metrics.clone()),
             created_at: chrono::Local::now(),
         }).await;
-        
+
         Ok((full_code, metrics))
     }
-
-    /// v0.0.29: AI Failure Diagnosis Agent
     /// Analyzes raw compiler/agent logs to produce human-readable summaries for the Boss Board.
-    pub async fn diagnose_failure(&self, task: &axon_core::Task, error_log: &str) -> anyhow::Result<String> {
+    pub async fn diagnose_failure(
+        &self,
+        task: &axon_core::Task,
+        error_log: &str,
+    ) -> anyhow::Result<String> {
         let senior = self.senior_models[0].clone();
-        
+
         let prompt = format!(
             "As a Senior Architect, analyze the following error log for the task '{}'.
              Provide a concise summary for the 'Human Boss' in the following EXACT format:
@@ -3365,37 +4748,57 @@ impl Daemon {
             task.title, error_log
         );
 
-        let response = senior.generate(prompt).await.map_err(|e| anyhow::anyhow!("Diagnosis generation failed: {}", e))?;
+        let response = senior
+            .generate(prompt)
+            .await
+            .map_err(|e| anyhow::anyhow!("Diagnosis generation failed: {}", e))?;
         Ok(response.text)
     }
 
     /// v0.0.29: Code Peek Snippet Extraction
     /// Reads source file and extracts context around the error line.
-    pub async fn get_code_snippet(&self, project_id: &str, loc: &execution_validator::ErrorLocation) -> anyhow::Result<String> {
+    pub async fn get_code_snippet(
+        &self,
+        project_id: &str,
+        loc: &execution_validator::ErrorLocation,
+    ) -> anyhow::Result<String> {
         let path = std::path::Path::new(project_id).join(&loc.file);
         let content = std::fs::read_to_string(path)?;
         let lines: Vec<&str> = content.lines().collect();
-        
+
         let start = loc.line.saturating_sub(3).max(1);
         let end = (loc.line + 3).min(lines.len());
-        
+
         let mut snippet = String::new();
         for i in start..=end {
             let prefix = if i == loc.line { ">>" } else { "  " };
-            snippet.push_str(&format!("{} {:3} | {}\n", prefix, i, lines[i-1]));
+            snippet.push_str(&format!("{} {:3} | {}\n", prefix, i, lines[i - 1]));
         }
-        
+
         Ok(snippet)
     }
 
-    pub async fn verify_with_senior(&self, task: &axon_core::Task, patch: &str) -> anyhow::Result<String> {
+    pub async fn verify_with_senior(
+        &self,
+        task: &axon_core::Task,
+        patch: &str,
+    ) -> anyhow::Result<String> {
         let senior = self.senior_models[0].clone();
         let (lang_name, lang_instruction) = if self.locale == "ko_KR" {
-            ("한국어 (Korean)", "당신은 시니어 개발자입니다. 반드시 '한국어(Korean)'로 리뷰를 작성하십시오.")
+            (
+                "한국어 (Korean)",
+                "당신은 시니어 개발자입니다. 반드시 '한국어(Korean)'로 리뷰를 작성하십시오.",
+            )
         } else if self.locale == "ja_JP" {
-            ("日本語 (Japanese)", "あなたはシニア開発者です。レビューは必ず「日本語(Japanese)」で記述してください。")
+            (
+                "日本語 (Japanese)",
+                "あなたはシニア開発者です。レビューは必ず「日本語(Japanese)」で記述してください。",
+            )
         } else {
-            ("English", "You are a Senior Developer. You MUST write your review in English.")
+            (
+                "English",
+                "You are a Senior Developer. You MUST write your review in English.",
+            )
         };
 
         let guide = self.architecture_guide.read().unwrap().clone();
@@ -3406,9 +4809,16 @@ impl Daemon {
         let mut required_interface = "No specific interface found in IR for this file.".to_string();
         if let Some(ref project_ir) = ir {
             if let Some(comp) = project_ir.get_component(target_file) {
-                let syms: Vec<String> = comp.functions.values().map(|f| f.signature.clone()).collect();
+                let syms: Vec<String> = comp
+                    .functions
+                    .values()
+                    .map(|f| f.signature.clone())
+                    .collect();
                 if !syms.is_empty() {
-                    required_interface = format!("The following functions MUST exist exactly as defined:\n- {}", syms.join("\n- "));
+                    required_interface = format!(
+                        "The following functions MUST exist exactly as defined:\n- {}",
+                        syms.join("\n- ")
+                    );
                 }
             }
         }
@@ -3416,52 +4826,62 @@ impl Daemon {
         let is_header = target_file.to_lowercase().ends_with(".h");
         let header_warning = if is_header {
             "\n**NOTICE**: This is a HEADER (.h) file. Focus ONLY on signatures, macros, and definitions. Ignore implementation-level quality like strcpy/malloc unless they appear in macros.\n"
-        } else { "" };
+        } else {
+            ""
+        };
 
         // v0.0.29: [DETERMINISTIC_GATE] Header-Body Protection
         if is_header {
-             let mut body_found = false;
-             let lines: Vec<&str> = patch.lines().collect();
-             for (i, line) in lines.iter().enumerate() {
-                 let trimmed = line.trim();
-                 
-                 // Pattern 1: func() {
-                 if trimmed.contains(')') && trimmed.contains('{') {
-                     // Exclude common header-safe blocks
-                     let upper = trimmed.to_uppercase();
-                     if !upper.starts_with("STRUCT") && 
-                        !upper.starts_with("ENUM") && 
-                        !upper.starts_with("TYPEDEF") && 
-                        !upper.contains("EXTERN") &&
-                        !upper.contains("STATIC INLINE") // Allow static inline if we wanted, but let's be strict for now
-                     {
-                         // Check if it's likely a function body (contains logic or is just a block)
-                         body_found = true;
-                         break;
-                     }
-                 }
-                 
-                 // Pattern 2: func()\n{
-                 if (trimmed.ends_with(')') || (trimmed.contains(')') && trimmed.contains("/*"))) && i + 1 < lines.len() {
-                      let next_line = lines[i+1].trim();
-                      if next_line.starts_with('{') {
-                          let upper = trimmed.to_uppercase();
-                          if !upper.starts_with("STRUCT") && 
-                             !upper.starts_with("ENUM") && 
-                             !upper.starts_with("TYPEDEF") && 
-                             !upper.contains("EXTERN") 
-                          {
-                              body_found = true;
-                              break;
-                          }
-                      }
-                 }
-             }
-             
-             if body_found {
-                 tracing::error!("🛑 [DETERMINISTIC_GATE] Function body detected in header file {}. Fast-rejecting.", target_file);
-                 return Err(anyhow::anyhow!("FUNCTION_BODY_IN_HEADER: You included a function body {{ ... }} in a .h file. Headers MUST be declaration-only. Signatures must end with a semicolon (;) and have NO body. Move implementation to the corresponding .c file."));
-             }
+            let mut body_found = false;
+            let lines: Vec<&str> = patch.lines().collect();
+            for (i, line) in lines.iter().enumerate() {
+                let trimmed = line.trim();
+
+                // Pattern 1: func() {
+                if trimmed.contains(')') && trimmed.contains('{') {
+                    // Exclude common header-safe blocks
+                    let upper = trimmed.to_uppercase();
+                    if !upper.starts_with("STRUCT")
+                        && !upper.starts_with("ENUM")
+                        && !upper.starts_with("TYPEDEF")
+                        && !upper.contains("EXTERN")
+                        && !upper.contains("STATIC INLINE")
+                    // Allow static inline if we wanted, but let's be strict for now
+                    {
+                        // Check if it's likely a function body (contains logic or is just a block)
+                        body_found = true;
+                        break;
+                    }
+                }
+
+                // Pattern 2: func()\n{
+                if (trimmed.ends_with(')') || (trimmed.contains(')') && trimmed.contains("/*")))
+                    && i + 1 < lines.len()
+                {
+                    let next_line = lines[i + 1].trim();
+                    if next_line.starts_with('{') {
+                        let upper = trimmed.to_uppercase();
+                        if !upper.starts_with("STRUCT")
+                            && !upper.starts_with("ENUM")
+                            && !upper.starts_with("TYPEDEF")
+                            && !upper.contains("EXTERN")
+                        {
+                            body_found = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if body_found {
+                tracing::error!(
+                    "🛑 [DETERMINISTIC_GATE] Function body detected in header file {}. Fast-rejecting.",
+                    target_file
+                );
+                return Err(anyhow::anyhow!(
+                    "FUNCTION_BODY_IN_HEADER: You included a function body {{ ... }} in a .h file. Headers MUST be declaration-only. Signatures must end with a semicolon (;) and have NO body. Move implementation to the corresponding .c file."
+                ));
+            }
         }
 
         let mut current_prompt = format!(
@@ -3501,7 +4921,8 @@ impl Daemon {
                 - Return types are mismatched.\n\
              4. **C SECURITY**: REJECT if 'strcpy' is used. REQUIRE 'strncpy'.\n\
              5. **INCLUDES**: REJECT if required headers are missing. You MUST explicitly name the missing header (e.g., <time.h> for struct tm, <stdlib.h> for malloc).\n\
-             6. **EXTERNAL API**: Standard C headers (<time.h>, <math.h>) are available but MUST be explicitly included.\n\n\
+             6. **PHYSICAL INTEGRITY PROBE**: Mentally simulate a 'Dry Run Compilation'. If a symbol (struct, function, variable, or header) is used but not defined in the code OR in the provided IR contract, you MUST REJECT. NO hollow implementations allowed.\n\
+             7. **EXTERNAL API**: Standard C headers (<time.h>, <math.h>) are available but MUST be explicitly included.\n\n\
              ### OUTPUT FORMAT (JSON ONLY)\n\
              {{\n\
                \"status\": \"APPROVED\" | \"REJECTED\" | \"WARNING\",\n\
@@ -3510,7 +4931,13 @@ impl Daemon {
                \"issues\": [\"List ONLY contract violations here\"]\n\
              }}\n\n\
              YOUR JSON AUDIT:",
-            lang_name, lang_instruction, header_warning, target_file, required_interface, task.kind, patch
+            lang_name,
+            lang_instruction,
+            header_warning,
+            target_file,
+            required_interface,
+            task.kind,
+            patch
         );
 
         let mut attempts = 0;
@@ -3518,21 +4945,31 @@ impl Daemon {
 
         loop {
             attempts += 1;
-            tracing::info!("🔍 [SENIOR_REVIEW] Attempt {}/{} for task {} (Model: {})...", attempts, max_attempts, task.id, senior.id());
-            
+            tracing::info!(
+                "🔍 [SENIOR_REVIEW] Attempt {}/{} for task {} (Model: {})...",
+                attempts,
+                max_attempts,
+                task.id,
+                senior.id()
+            );
+
             let resp = tokio::time::timeout(
                 tokio::time::Duration::from_secs(120),
-                senior.generate(current_prompt.clone())
-            ).await.map_err(|_| anyhow::anyhow!("Senior review timed out after 120s"))?
+                senior.generate(current_prompt.clone()),
+            )
+            .await
+            .map_err(|_| anyhow::anyhow!("Senior review timed out after 120s"))?
             .map_err(|e| anyhow::anyhow!(e))?;
 
             let json_block = extract_json_block(resp.text.trim());
-            
+
             #[derive(serde::Deserialize)]
             struct SeniorReview {
                 status: String,
                 reason: String,
+                #[serde(default)]
                 thought: Option<String>,
+                #[serde(default)]
                 issues: Vec<String>,
             }
 
@@ -3541,22 +4978,29 @@ impl Daemon {
                     let cleaned_text = if review.issues.is_empty() {
                         review.reason
                     } else {
-                        format!("{}\n\nIssues:\n- {}", review.reason, review.issues.join("\n- "))
+                        format!(
+                            "{}\n\nIssues:\n- {}",
+                            review.reason,
+                            review.issues.join("\n- ")
+                        )
                     };
 
                     if let Some(thought) = review.thought {
                         tracing::info!("🧠 [SENIOR_THOUGHT]: {}", thought);
-                        let _ = self.storage.save_post(axon_core::Post {
-                            id: uuid::Uuid::new_v4().to_string(),
-                            thread_id: "lounge".to_string(),
-                            author_id: "Senior".to_string(),
-                            content: format!("**[Review: {}]**\n{}", task.title, thought),
-                            post_type: axon_core::PostType::Nogari,
-                            thought: None,
-                            full_code: None,
-                            metrics: None,
-                            created_at: chrono::Local::now(),
-                        }).await;
+                        let _ = self
+                            .storage
+                            .save_post(axon_core::Post {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                thread_id: "lounge".to_string(),
+                                author_id: "Senior".to_string(),
+                                content: format!("**[Review: {}]**\n{}", task.title, thought),
+                                post_type: axon_core::PostType::Nogari,
+                                thought: None,
+                                full_code: None,
+                                metrics: None,
+                                created_at: chrono::Local::now(),
+                            })
+                            .await;
 
                         // v0.0.28: Real-time Senior Nogari broadcasting
                         self.publish_event(axon_core::Event {
@@ -3565,7 +5009,7 @@ impl Daemon {
                             thread_id: Some("lounge".to_string()),
                             agent_id: Some("Senior".to_string()),
                             event_type: axon_core::EventType::MessagePosted,
-                    level: axon_core::EventLevel::Info,
+                            level: axon_core::EventLevel::Info,
                             source: "SENIOR-AUDITOR".to_string(),
                             content: format!("👴 Senior: {}", thought),
                             payload: None,
@@ -3576,36 +5020,49 @@ impl Daemon {
                     let status_upper = review.status.to_uppercase();
                     if status_upper == "APPROVED" || status_upper == "WARNING" {
                         if status_upper == "WARNING" {
-                            tracing::warn!("⚠️ [SENIOR_WARNING] Task {} passed with warnings: {}", task.id, cleaned_text);
+                            tracing::warn!(
+                                "⚠️ [SENIOR_WARNING] Task {} passed with warnings: {}",
+                                task.id,
+                                cleaned_text
+                            );
                         }
                         return Ok(cleaned_text);
                     } else {
                         return Err(anyhow::anyhow!(cleaned_text));
                     }
-                },
+                }
                 Err(e) => {
                     if attempts >= max_attempts {
-                        tracing::error!("❌ [SENIOR_FATAL] Failed to get valid JSON review after {} attempts. Error: {}", max_attempts, e);
+                        tracing::error!(
+                            "❌ [SENIOR_FATAL] Failed to get valid JSON review after {} attempts. Error: {}",
+                            max_attempts,
+                            e
+                        );
                         // Final fallback: If it contains 'approve' in prose, we might let it slide to avoid deadlock
                         let text_lower = resp.text.to_lowercase();
                         if text_lower.contains("approve") || text_lower.contains("looks good") {
                             return Ok(resp.text);
                         }
-                        anyhow::bail!("Senior review failed (Invalid JSON Protocol): {}", resp.text);
+                        anyhow::bail!(
+                            "Senior review failed (Invalid JSON Protocol): {}",
+                            resp.text
+                        );
                     }
-                    tracing::warn!("⚠️ [SENIOR_RETRY] Invalid JSON response. Re-prompting... Error: {}", e);
+                    tracing::warn!(
+                        "⚠️ [SENIOR_RETRY] Invalid JSON response. Re-prompting... Error: {}",
+                        e
+                    );
                     current_prompt = format!(
                         "YOUR PREVIOUS RESPONSE WAS NOT VALID JSON. YOU MUST RESPOND ONLY WITH THE JSON OBJECT.\n\n\
                          ERROR: {}\n\n\
                          PREVIOUS RESPONSE: {}\n\n\
-                         FIX AND RESPOND WITH JSON NOW:", 
+                         FIX AND RESPOND WITH JSON NOW:",
                         e, resp.text
                     );
                 }
             }
         }
     }
-
 
     /// v0.0.25: Phase 0 - Function Signature Extraction (Rust/Python)
     fn extract_actual_functions(content: &str) -> Vec<String> {
@@ -3625,9 +5082,13 @@ impl Daemon {
     }
 
     /// v0.0.25: Dependency-Aware Impact Analysis
-    pub async fn analyze_impact_and_schedule_rework(&self, project_id: &str, changed_file: &str) -> anyhow::Result<Vec<String>> {
+    pub async fn analyze_impact_and_schedule_rework(
+        &self,
+        project_id: &str,
+        changed_file: &str,
+    ) -> anyhow::Result<Vec<String>> {
         let mut graph = dep_graph::DepGraph::new();
-        
+
         // 1. Build from Architecture IR
         let arch_path = std::path::Path::new(project_id).join("architecture.md");
         if let Ok(arch_content) = std::fs::read_to_string(&arch_path) {
@@ -3661,18 +5122,25 @@ impl Daemon {
         // 3. Compute Impact
         let changed_node = format!("file:{}", changed_file);
         let impact_set = graph.compute_impact(vec![changed_node]);
-        
+
         let mut scheduled_files = Vec::new();
         for node_id in impact_set {
             if node_id.starts_with("file:") && !node_id.contains(changed_file) {
                 let impacted_file = node_id.replace("file:", "");
-                
+
                 // Create a Rework Task
                 let rework_task = axon_core::Task {
-                    id: format!("rework-{}-{}", impacted_file.replace(".", "-"), uuid::Uuid::new_v4().to_string()[..8].to_string()),
+                    id: format!(
+                        "rework-{}-{}",
+                        impacted_file.replace(".", "-"),
+                        uuid::Uuid::new_v4().to_string()[..8].to_string()
+                    ),
                     project_id: project_id.to_string(),
                     title: format!("Dependency Rework: {}", impacted_file),
-                    description: format!("Upstream dependency '{}' changed. Verify and update this file to maintain consistency.", changed_file),
+                    description: format!(
+                        "Upstream dependency '{}' changed. Verify and update this file to maintain consistency.",
+                        changed_file
+                    ),
                     status: axon_core::TaskStatus::Pending,
                     dependencies: Vec::new(),
                     result: None,
@@ -3692,7 +5160,7 @@ impl Daemon {
                     task_kind: None,
                     signature: None,
                 };
-                
+
                 let _ = self.submit_task(rework_task);
                 scheduled_files.push(impacted_file);
             }
@@ -3701,11 +5169,14 @@ impl Daemon {
         Ok(scheduled_files)
     }
 
-
-    async fn analyze_conflicts_and_propose_rules(&self, _task_id: &str, file_path: &str) -> anyhow::Result<()> {
+    async fn analyze_conflicts_and_propose_rules(
+        &self,
+        _task_id: &str,
+        file_path: &str,
+    ) -> anyhow::Result<()> {
         // v0.0.25: [ALR] Step 3 - Rule Candidate Generation (Sandbox)
         let _db_stats = self.storage.get_worker_stats().unwrap_or_default(); // Not needed here, but for future logic
-        
+
         // Count recent conflicts for this file/pattern
         let conn = self.storage.conn.lock().unwrap();
         let occurrences: i64 = conn.query_row(
@@ -3715,11 +5186,21 @@ impl Daemon {
         ).unwrap_or(0);
 
         if occurrences >= 3 {
-            tracing::warn!("🔥 [RULE_PROPOSAL] Recurring conflict detected for {}. Proposing rule candidate.", file_path);
-            let rule_id = format!("rule-{}", uuid::Uuid::new_v4().to_string().chars().take(8).collect::<String>());
+            tracing::warn!(
+                "🔥 [RULE_PROPOSAL] Recurring conflict detected for {}. Proposing rule candidate.",
+                file_path
+            );
+            let rule_id = format!(
+                "rule-{}",
+                uuid::Uuid::new_v4()
+                    .to_string()
+                    .chars()
+                    .take(8)
+                    .collect::<String>()
+            );
             let pattern = format!("Recurring conflict on {}", file_path);
             let fix = "Enforce strict dependency sync or increase lease duration".to_string();
-            
+
             let _ = conn.execute(
                 "INSERT OR IGNORE INTO rule_candidates (id, pattern, fix_strategy, confidence, occurrences, state, created_at)
                  VALUES (?1, ?2, ?3, 0.5, ?4, 'Candidate', ?5)",
@@ -3729,12 +5210,23 @@ impl Daemon {
         Ok(())
     }
 
-    async fn spawn_rework_task(&self, original_task: &axon_core::Task, reason: &str, lock_files: &Vec<String>) -> anyhow::Result<()> {
+    async fn spawn_rework_task(
+        &self,
+        original_task: &axon_core::Task,
+        reason: &str,
+        lock_files: &Vec<String>,
+    ) -> anyhow::Result<()> {
         if original_task.rework_count >= 3 {
-            tracing::error!("🛑 [REWORK_LIMIT] Task {} reached max retries. Escalating to human.", original_task.id);
+            tracing::error!(
+                "🛑 [REWORK_LIMIT] Task {} reached max retries. Escalating to human.",
+                original_task.id
+            );
             let mut failed_task = original_task.clone();
             failed_task.status = axon_core::TaskStatus::Failed;
-            failed_task.error_feedback = Some(format!("REWORK_LIMIT: Escalated to human after 3 failures. Last error: {}", reason));
+            failed_task.error_feedback = Some(format!(
+                "REWORK_LIMIT: Escalated to human after 3 failures. Last error: {}",
+                reason
+            ));
             let _ = self.storage.save_task(failed_task).await;
             return Ok(());
         }
@@ -3749,14 +5241,20 @@ impl Daemon {
                 impacted_ids.insert(d);
             }
         }
-        
+
         // Convert node IDs (file:...) back to file paths
-        let final_lock_set: Vec<String> = impacted_ids.into_iter()
+        let final_lock_set: Vec<String> = impacted_ids
+            .into_iter()
             .filter(|id| id.starts_with("file:"))
             .map(|id| id.replace("file:", ""))
             .collect();
 
-        tracing::info!("♻️ [REWORK_EXPANSION] Expanding rework for {} due to {}. Impacted: {:?}", original_task.id, reason, final_lock_set);
+        tracing::info!(
+            "♻️ [REWORK_EXPANSION] Expanding rework for {} due to {}. Impacted: {:?}",
+            original_task.id,
+            reason,
+            final_lock_set
+        );
 
         let mut rework_task = original_task.clone();
         // v0.0.29: [STABLE_ID] DO NOT change ID for the same task, just increment rework_count
@@ -3766,7 +5264,7 @@ impl Daemon {
         rework_task.error_feedback = Some(reason.to_string());
         rework_task.lock_files = final_lock_set;
         rework_task.reason = Some(reason.to_string());
-        
+
         // v0.0.29: Sync thread rejection count for UI visibility
         if let Ok(Some(mut thread)) = self.storage.get_thread(&original_task.id) {
             thread.rejection_count = rework_task.rework_count;
@@ -3774,16 +5272,26 @@ impl Daemon {
         }
 
         rework_task.lock_files = lock_files.clone();
-        rework_task.description = format!("{} (Original failed due to: {})", original_task.description, reason);
+        rework_task.description = format!(
+            "{} (Original failed due to: {})",
+            original_task.description, reason
+        );
         rework_task.created_at = chrono::Local::now();
 
         // v0.0.25: [C2R] Explicit instruction for LLM
-        let rework_instruction = format!("\n\n[REWORK CONTEXT]\nPrevious attempt failed due to {}. You MUST use the latest version of all affected files and perform a FULL rewrite if necessary to ensure consistency.", reason);
+        let rework_instruction = format!(
+            "\n\n[REWORK CONTEXT]\nPrevious attempt failed due to {}. You MUST use the latest version of all affected files and perform a FULL rewrite if necessary to ensure consistency.",
+            reason
+        );
         rework_task.description.push_str(&rework_instruction);
 
         let _ = self.storage.save_task(rework_task.clone()).await;
-        
-        tracing::info!("🔄 [C2R_SPAWNED] Rework task {} created for original {}", rework_task.id, original_task.id);
+
+        tracing::info!(
+            "🔄 [C2R_SPAWNED] Rework task {} created for original {}",
+            rework_task.id,
+            original_task.id
+        );
 
         // v0.0.25: [ALR] Update Hotspot Priority for Rework
         {
@@ -3797,7 +5305,11 @@ impl Daemon {
         Ok(())
     }
 
-    fn compute_hash_map(&self, project_id: &str, files: &Vec<String>) -> std::collections::HashMap<String, String> {
+    fn compute_hash_map(
+        &self,
+        project_id: &str,
+        files: &Vec<String>,
+    ) -> std::collections::HashMap<String, String> {
         let mut map = std::collections::HashMap::new();
         for f in files {
             let path = std::path::Path::new(project_id).join(f);
@@ -3811,10 +5323,16 @@ impl Daemon {
     /// v0.0.25: Version Gate - Calculate file hash for optimistic concurrency control
     fn calculate_file_hash(path: &std::path::Path) -> Option<String> {
         if let Ok(content) = std::fs::read(&path) {
-            use sha2::{Sha256, Digest};
+            use sha2::{Digest, Sha256};
             let mut hasher = Sha256::new();
             hasher.update(content);
-            Some(hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect())
+            Some(
+                hasher
+                    .finalize()
+                    .iter()
+                    .map(|b| format!("{:02x}", b))
+                    .collect(),
+            )
         } else {
             None
         }
@@ -3841,7 +5359,10 @@ impl Daemon {
 pub async fn validate_agent(driver: &dyn axon_model::ModelDriver, model_name: &str) -> String {
     if let Ok(models) = driver.list_available_models().await {
         // Partial match for flexibility (e.g., "gemini-2.5-flash" vs "models/gemini-2.5-flash")
-        if models.iter().any(|m| m.contains(model_name) || model_name.contains(m)) {
+        if models
+            .iter()
+            .any(|m| m.contains(model_name) || model_name.contains(m))
+        {
             return "OK".to_string();
         }
     }
@@ -3872,7 +5393,7 @@ def my_func2():
         let (_, _, b) = funcs.get("my_func").unwrap();
         assert!(b.contains("@cache"));
         assert!(!b.contains("# comment"));
-        
+
         let (_, _, b2) = funcs.get("my_func2").unwrap();
         assert!(!b2.contains("# trailing"));
     }
@@ -3880,7 +5401,10 @@ def my_func2():
     #[test]
     fn test_resolve_import() {
         let path = "src/services/user.py";
-        assert_eq!(Daemon::resolve_import("database", 1, path), "src/services/database.py");
+        assert_eq!(
+            Daemon::resolve_import("database", 1, path),
+            "src/services/database.py"
+        );
         assert_eq!(Daemon::resolve_import("utils", 2, path), "src/utils.py");
         assert_eq!(Daemon::resolve_import("os", 0, path), "os.py");
     }
@@ -3954,10 +5478,22 @@ pub fn get_year() -> i32 { 2025 }
 
         println!("[TC1] Violations: {:?}", violations);
 
-        assert!(!violations.is_empty(), "TC1 FAILED: Partial rewrite was not rejected!");
-        assert!(violations.iter().any(|v| v.contains("get_name")), "TC1: get_name not flagged");
-        assert!(violations.iter().any(|v| v.contains("get_month")), "TC1: get_month not flagged");
-        assert!(violations.iter().any(|v| v.contains("get_day")), "TC1: get_day not flagged");
+        assert!(
+            !violations.is_empty(),
+            "TC1 FAILED: Partial rewrite was not rejected!"
+        );
+        assert!(
+            violations.iter().any(|v| v.contains("get_name")),
+            "TC1: get_name not flagged"
+        );
+        assert!(
+            violations.iter().any(|v| v.contains("get_month")),
+            "TC1: get_month not flagged"
+        );
+        assert!(
+            violations.iter().any(|v| v.contains("get_day")),
+            "TC1: get_day not flagged"
+        );
         println!("✅ TC1 PASSED: Partial rewrite correctly REJECTED.");
     }
 
@@ -3983,7 +5519,11 @@ pub fn get_day() -> u8 { 1 }
 
         println!("[TC2] Violations: {:?}", violations);
 
-        assert!(violations.is_empty(), "TC2 FAILED: Valid full rewrite was incorrectly rejected! Violations: {:?}", violations);
+        assert!(
+            violations.is_empty(),
+            "TC2 FAILED: Valid full rewrite was incorrectly rejected! Violations: {:?}",
+            violations
+        );
         println!("✅ TC2 PASSED: Full rewrite correctly ACCEPTED.");
     }
 
@@ -4008,14 +5548,33 @@ pub fn get_month() -> u8 { 1 }
 
         println!("[TC3] Violations: {:?}", violations);
 
-        assert!(!violations.is_empty(), "TC3 FAILED: Missing get_day was not detected!");
-        assert!(violations.iter().any(|v| v.contains("get_day")), "TC3: get_day not flagged");
-        assert!(!violations.iter().any(|v| v.contains("get_year")), "TC3: get_year should NOT be flagged");
-        assert!(!violations.iter().any(|v| v.contains("get_name")), "TC3: get_name should NOT be flagged");
-        assert!(!violations.iter().any(|v| v.contains("get_month")), "TC3: get_month should NOT be flagged");
+        assert!(
+            !violations.is_empty(),
+            "TC3 FAILED: Missing get_day was not detected!"
+        );
+        assert!(
+            violations.iter().any(|v| v.contains("get_day")),
+            "TC3: get_day not flagged"
+        );
+        assert!(
+            !violations.iter().any(|v| v.contains("get_year")),
+            "TC3: get_year should NOT be flagged"
+        );
+        assert!(
+            !violations.iter().any(|v| v.contains("get_name")),
+            "TC3: get_name should NOT be flagged"
+        );
+        assert!(
+            !violations.iter().any(|v| v.contains("get_month")),
+            "TC3: get_month should NOT be flagged"
+        );
         println!("✅ TC3 PASSED: Missing function correctly REJECTED.");
     }
-    pub fn simulate_write_gate_check(target_path: &str, state_map: &std::collections::HashMap<String, String>, initial_state_map: &std::collections::HashMap<String, String>) -> Vec<String> {
+    pub fn simulate_write_gate_check(
+        target_path: &str,
+        state_map: &std::collections::HashMap<String, String>,
+        initial_state_map: &std::collections::HashMap<String, String>,
+    ) -> Vec<String> {
         let mut violations = Vec::new();
         for (fname, new_content) in state_map {
             let is_modified = if let Some(old_content) = initial_state_map.get(fname) {
@@ -4037,14 +5596,20 @@ pub fn get_month() -> u8 { 1 }
         let mut state_map = std::collections::HashMap::new();
         state_map.insert("target.rs".to_string(), "pub fn main() {}".to_string());
         state_map.insert("malicious.rs".to_string(), "hack()".to_string());
-        
+
         let initial_state_map = std::collections::HashMap::new();
-        
+
         let violations = simulate_write_gate_check(target_path, &state_map, &initial_state_map);
-        
+
         println!("[TC4] Violations: {:?}", violations);
-        assert!(!violations.is_empty(), "TC4 FAILED: Unauthorized write was not rejected!");
-        assert!(violations.iter().any(|v| v.contains("malicious.rs")), "TC4: malicious.rs not flagged");
+        assert!(
+            !violations.is_empty(),
+            "TC4 FAILED: Unauthorized write was not rejected!"
+        );
+        assert!(
+            violations.iter().any(|v| v.contains("malicious.rs")),
+            "TC4: malicious.rs not flagged"
+        );
         println!("✅ TC4 PASSED: Unauthorized write correctly REJECTED.");
     }
 
@@ -4053,13 +5618,17 @@ pub fn get_month() -> u8 { 1 }
         let target_path = "target.rs";
         let mut state_map = std::collections::HashMap::new();
         state_map.insert("target.rs".to_string(), "pub fn main() {}".to_string());
-        
+
         let initial_state_map = std::collections::HashMap::new();
-        
+
         let violations = simulate_write_gate_check(target_path, &state_map, &initial_state_map);
-        
+
         println!("[TC5] Violations: {:?}", violations);
-        assert!(violations.is_empty(), "TC5 FAILED: Authorized write was incorrectly rejected! {:?}", violations);
+        assert!(
+            violations.is_empty(),
+            "TC5 FAILED: Authorized write was incorrectly rejected! {:?}",
+            violations
+        );
         println!("✅ TC5 PASSED: Authorized write correctly ACCEPTED.");
     }
 
@@ -4176,7 +5745,11 @@ fn extract_json_block(raw: &str) -> String {
         (None, None) => None,
     };
     if let Some(start_idx) = start {
-        let end_char = if cleaned.as_bytes()[start_idx] == b'{' { '}' } else { ']' };
+        let end_char = if cleaned.as_bytes()[start_idx] == b'{' {
+            '}'
+        } else {
+            ']'
+        };
         if let Some(end_idx) = cleaned.rfind(end_char) {
             return cleaned[start_idx..=end_idx].to_string();
         }
@@ -4185,11 +5758,14 @@ fn extract_json_block(raw: &str) -> String {
     cleaned.trim().to_string()
 }
 
-fn validate_stage_outputs(root: &std::path::Path, ir: Option<&axon_core::ir::ProjectIR>) -> anyhow::Result<()> {
+fn validate_stage_outputs(
+    root: &std::path::Path,
+    ir: Option<&axon_core::ir::ProjectIR>,
+) -> anyhow::Result<()> {
     // v0.0.29: Recursive discovery to support src/ and include/ separation
     let mut entries = Vec::new();
     let mut stack = vec![root.to_path_buf()];
-    
+
     while let Some(dir) = stack.pop() {
         if let Ok(dir_entries) = std::fs::read_dir(dir) {
             for entry in dir_entries.flatten() {
@@ -4207,7 +5783,9 @@ fn validate_stage_outputs(root: &std::path::Path, ir: Option<&axon_core::ir::Pro
     }
 
     if entries.is_empty() {
-        return Err(anyhow::anyhow!("No files found in project root. No materialization happened."));
+        return Err(anyhow::anyhow!(
+            "No files found in project root. No materialization happened."
+        ));
     }
 
     // 1. IR-based Deterministic Check
@@ -4215,24 +5793,45 @@ fn validate_stage_outputs(root: &std::path::Path, ir: Option<&axon_core::ir::Pro
         for component in ir.components.values() {
             let target_path = root.join(&component.file_path);
             if !target_path.exists() {
-                return Err(anyhow::anyhow!("Missing artifact: {} (Wait for materialization)", component.file_path));
+                return Err(anyhow::anyhow!(
+                    "Missing artifact: {} (Wait for materialization)",
+                    component.file_path
+                ));
             }
         }
-        tracing::info!("✅ [INTEGRITY_CHECK] All {} components found on disk.", ir.components.len());
+        tracing::info!(
+            "✅ [INTEGRITY_CHECK] All {} components found on disk.",
+            ir.components.len()
+        );
         return Ok(());
     }
 
     // 2. Fallback Heuristic Check (if IR is missing)
-    let has_headers = entries.iter().any(|p| p.extension().map(|s| s == "h").unwrap_or(false));
-    let has_sources = entries.iter().any(|p| p.extension().map(|s| s == "c" || s == "cpp").unwrap_or(false));
+    let has_headers = entries
+        .iter()
+        .any(|p| p.extension().map(|s| s == "h").unwrap_or(false));
+    let has_sources = entries.iter().any(|p| {
+        p.extension()
+            .map(|s| s == "c" || s == "cpp")
+            .unwrap_or(false)
+    });
 
-    tracing::info!("🔍 [FILE_DISCOVERY] Found {} artifacts (headers={}, sources={})", entries.len(), has_headers, has_sources);
+    tracing::info!(
+        "🔍 [FILE_DISCOVERY] Found {} artifacts (headers={}, sources={})",
+        entries.len(),
+        has_headers,
+        has_sources
+    );
 
     if !has_headers {
-        return Err(anyhow::anyhow!("Missing .h header files in project (check 'include/')."));
+        return Err(anyhow::anyhow!(
+            "Missing .h header files in project (check 'include/')."
+        ));
     }
     if !has_sources {
-        return Err(anyhow::anyhow!("Missing .c/.cpp source files in project (check 'src/')."));
+        return Err(anyhow::anyhow!(
+            "Missing .c/.cpp source files in project (check 'src/')."
+        ));
     }
 
     Ok(())
@@ -4248,7 +5847,9 @@ fn dump_project_tree(root: &std::path::Path) -> String {
                 tree.push_str(&format!("{}\n", relative.display()));
             } else if path.is_dir() {
                 let dirname = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                if dirname == "build" || dirname == ".git" || dirname == "debug" { continue; }
+                if dirname == "build" || dirname == ".git" || dirname == "debug" {
+                    continue;
+                }
                 tree.push_str(&format!("{}/ (dir)\n", relative.display()));
                 // Simple one-level recursion for now
                 if let Ok(sub) = std::fs::read_dir(&path) {
@@ -4272,7 +5873,7 @@ fn discover_binary(build_dir: &std::path::Path) -> Option<std::path::PathBuf> {
         build_dir.join("spec"),
         build_dir.join("main"),
     ];
-    
+
     // v0.0.29: Add common subdirectories
     for sub in ["bin", "Debug", "Release"] {
         let sd = build_dir.join(sub);
@@ -4288,7 +5889,7 @@ fn discover_binary(build_dir: &std::path::Path) -> Option<std::path::PathBuf> {
             return Some(candidate);
         }
     }
-    
+
     // fallback: recursive executable scan
     scan_for_executables(build_dir)
 }
@@ -4299,7 +5900,9 @@ fn scan_for_executables(dir: &std::path::Path) -> Option<std::path::PathBuf> {
             let path = entry.path();
             if path.is_dir() {
                 let dirname = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                if dirname == "CMakeFiles" || dirname == ".git" { continue; }
+                if dirname == "CMakeFiles" || dirname == ".git" {
+                    continue;
+                }
                 if let Some(found) = scan_for_executables(&path) {
                     return Some(found);
                 }
@@ -4311,7 +5914,10 @@ fn scan_for_executables(dir: &std::path::Path) -> Option<std::path::PathBuf> {
                         if meta.permissions().mode() & 0o111 != 0 {
                             let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
                             // Strict filtering: no extension, not starting with cmake, not a common build tool
-                            if !filename.contains('.') && !filename.starts_with("cmake") && !filename.starts_with("Makefile") {
+                            if !filename.contains('.')
+                                && !filename.starts_with("cmake")
+                                && !filename.starts_with("Makefile")
+                            {
                                 return Some(path);
                             }
                         }
@@ -4327,7 +5933,7 @@ fn load_project_ir(project_root: &str) -> Option<axon_ir::ProjectIR> {
     if !arch_path.exists() {
         return None;
     }
-    
+
     if let Ok(content) = std::fs::read_to_string(arch_path) {
         let json_str = extract_json_block(&content);
         if let Ok(ir) = serde_json::from_str::<axon_ir::ProjectIR>(&json_str) {
@@ -4336,4 +5942,3 @@ fn load_project_ir(project_root: &str) -> Option<axon_ir::ProjectIR> {
     }
     None
 }
-

@@ -181,6 +181,7 @@ mod tests {
             forbidden_symbols: std::collections::BTreeSet::new(),
             tier: crate::schema::ComponentTier::Core,
             is_blocking: true,
+            locked: false,
         });
 
         let result = validate_ir(&ir);
@@ -204,6 +205,7 @@ mod tests {
             forbidden_symbols: std::collections::BTreeSet::new(),
             tier: crate::schema::ComponentTier::Core,
             is_blocking: true,
+            locked: false,
         });
 
         let result = validate_ir(&ir);

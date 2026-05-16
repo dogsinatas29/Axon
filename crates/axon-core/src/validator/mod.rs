@@ -4,7 +4,7 @@ pub mod analysis;
 pub mod debug;
 pub mod integration;
 pub mod semantic;
-pub use semantic::{SemanticRisk, SemanticRiskLevel, SemanticRiskKind, SemanticClosure, SemanticDecision};
+pub use semantic::{SemanticRisk, SemanticRiskLevel, SemanticRiskKind, SemanticClosure, SemanticDecision, DecisionAction, JurisprudenceDB, DecisionPrecedent, PrecedentTrustLevel, BlastRadius, SemanticRole, SemanticFingerprint};
 
 use rustpython_parser::Parse;
 use rustpython_ast::Suite;

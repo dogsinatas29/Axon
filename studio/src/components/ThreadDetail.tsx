@@ -33,7 +33,7 @@ const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, onApprove,
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`http://localhost:8080/api/threads/${thread.id}/posts`)
+    fetch(`http://localhost:${window.location.port}/api/threads/${thread.id}/posts`)
       .then(res => res.json())
       .then(data => {
         setPosts(data);
@@ -132,7 +132,7 @@ const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, onApprove,
         </button>
       </div>
 
-      <div className="posts-container">
+      <div className="posts-container" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {loading ? (
           <div className="loading">{t.analyzingHistory}</div>
         ) : (

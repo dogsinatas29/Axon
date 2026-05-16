@@ -21,8 +21,8 @@ test_run_full.py
 
 # Test Sandboxes
 /TEST1
-/TEST2
 /TEST3
+spec_original.md
 /system/
 /GEMINI/
 

@@ -36,6 +36,9 @@ pub struct ImmutableConstraints {
     pub project_id: String,
     pub components: Vec<ComponentConstraint>,
     pub forbidden_patterns: Vec<String>,
+    pub ambiguity_detected: bool,
+    pub ambiguity_details: Vec<String>,
+    pub recommended_action: String,
 }
 
 impl ImmutableConstraints {
@@ -44,6 +47,9 @@ impl ImmutableConstraints {
             project_id,
             components: Vec::new(),
             forbidden_patterns: Vec::new(),
+            ambiguity_detected: false,
+            ambiguity_details: Vec::new(),
+            recommended_action: "PROCEED".to_string(),
         }
     }
 }

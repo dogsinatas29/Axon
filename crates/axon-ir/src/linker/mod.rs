@@ -171,6 +171,7 @@ mod tests {
             forbidden_symbols: std::collections::BTreeSet::new(),
             tier: crate::schema::ComponentTier::Core,
             is_blocking: true,
+            locked: false,
         });
         ir.components.insert("b.c".to_string(), Component {
             name: "B".to_string(),
@@ -186,6 +187,7 @@ mod tests {
             forbidden_symbols: std::collections::BTreeSet::new(),
             tier: crate::schema::ComponentTier::Core,
             is_blocking: true,
+            locked: false,
         });
 
         let graph = DependencyGraph::from_ir(&ir);

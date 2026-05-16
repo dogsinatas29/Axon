@@ -57,6 +57,7 @@ mod tests {
             forbidden_symbols: std::collections::BTreeSet::new(),
             tier: crate::schema::ComponentTier::Core,
             is_blocking: true,
+            locked: false,
         });
 
         let path = Path::new("/tmp/test_ir.json");

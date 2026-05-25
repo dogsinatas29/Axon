@@ -63,6 +63,31 @@
 3. **관제 (Monitor)**: `localhost:9000`에서 에이전트들 간의 논쟁, 코딩, 라운지 잡담을 실시간으로 지켜봅니다.
 4. **확정 (Finalize)**: 보스가 직접 결과물을 검토하고 **[Lock-in]**을 클릭 → 설계도에 `[✅ Locked]` 인장이 찍히며 물리적으로 봉인됩니다.
 
+### ⚖️ LSP Semantic Gate & Auto-Repair Loop (v0.0.31+)
+
+LLM 에이전트 간의 자연어 검증 루프가 초래하는 자기모순(소형 모델이 다국어 컴파일 시 뇌절 및 오염 코드를 승인하는 현상)을 해결하기 위해, AXON v0.0.31는 컴파일러 및 LSP를 언어 합법성의 절대적인 판사로 전면 도입하는 **LSP Semantic Gate**를 통제 축으로 삼습니다.
+
+<p align="center">
+  <img src="./asset/axon_lsp.png" alt="AXON LSP Pipeline Diagram" width="800">
+</p>
+
+*   **탈중앙화된 거버넌스(Decoupled Governance)**: 물리적 구문/타입 정밀 검증을 에이전트의 자연어 추론으로부터 완전히 격리합니다. 컴파일 전 정적 단계에서 LSP 서버(Rust: `rust-analyzer`, Python: `pyright/ruff`, C: `clangd`)가 신택스, 타입, 소유권에 대해 결정론적 판결을 내립니다.
+*   **새로운 파이프라인 흐름**:
+    `주니어 생성 ➔ LSP Diagnostic Pass [신설] ➔ 자동 수리 루프 [신설] ➔ 컴파일 검증 ➔ 시니어 아키텍처 비평 ➔ 최종 빌드`
+*   **시니어 본연의 역할 환원**: 시니어 에이전트는 피곤한 미시적 문법 체크 부담에서 해방되어, 보스의 설계 명세(Specification) 및 컴포넌트 토폴로지 적합성만을 감독하는 고위 레벨 **아키텍처 비평가(Architectural Reviewer)**로 화려하게 귀환합니다.
+
+### 🔌 IDE 독립적 LSP 오케스트레이션 및 무설정(Zero-Config) 가동
+AXON은 특정 IDE(Neovim, VSCode 등)에 한정되지 않고, 시스템 공통인 LSP 에코시스템과 직접 통신하는 범용 지능형 검증 프레임워크입니다.
+*   **설치 및 기동 흐름**:
+    1.  **언어 선택**: 기동 시 로컬 및 대상 프로젝트 언어 고정.
+    2.  **LSP 바이너리 자동 스캔 (LSP Discovery)**: `rust-analyzer`, `clangd`, `pyright-langserver`를 감지하여 `axon_lsp.json` 제어 파일로 보존.
+    3.  **의미론적 실시간 통제**: LSP 진단을 에이전트의 구문 수리 루프(`repair_ir_pass`)에 직접 전달.
+    4.  **LLM 모델 설정**: 클라우드 API 및 로컬 Ollama 모델 연결.
+    5.  **작업 공간 자동 조율 (Workspace Manager)**:
+        *   **C 언어**: CMake에 `set(CMAKE_EXPORT_COMPILE_COMMANDS ON)`을 동적으로 주입하여 `clangd`가 `compile_commands.json` 빌드 정보를 기반으로 헤더 및 종속성을 100% 무설정 감시하게 합니다.
+        *   **Rust**: 가상 공정 내 `Cargo.toml` 모듈 트리를 선제 구조화하여 `rust-analyzer` 기동 에러를 사전 방지합니다.
+        *   **Python**: 로컬 환경에 맞춰 `npx pyright-langserver --stdio`로 Fallback하여 무설정 진단을 완성합니다.
+
 ## 📋 릴리즈 노트 (Release Notes)
 
 ### v0.0.30 - 거버넌스 하드닝 및 생산성 무결성 (FINAL)

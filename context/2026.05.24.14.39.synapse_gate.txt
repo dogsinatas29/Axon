@@ -1,0 +1,12 @@
+[Core CoT]
+1. 사용자 지시에 따라 "Tree-sitter 쿼리 고도화보다 실제 붕괴 데이터 확보"의 방향을 확고히 함.
+2. 우선순위 1에 따라 `campaign_runner.rs`에 폐루프(closed-loop) 실행 구조인 `CampaignRunner::execute_closed_loop`를 작성. 단순 성공/실패가 아닌 계측 가능한 `CampaignResult` 도출.
+3. 우선순위 2에 따라 `failure_classifier.rs` 신설, 무수한 실패 로그를 `CatastropheKind` (예: `FormatterLocalityCollapse`)라는 근본 유형으로 압축하는 `FailureClassification::classify` 구현.
+4. 우선순위 3에 따라 기존 `catastrophe_archive.rs`를 단순 로그 저장소가 아닌 `PredictiveImmuneLayer`로 승격, 과거 붕괴 패턴과 대조하여 `is_predictable_catastrophe`를 판단하도록 설계 변경.
+5. 오직 `SAFE_SUBSET_V1` 변이만을 주입하여 "실제 레거시 환경에서 안전한 변이 집합을 실측"한다는 POC의 토대를 구축 완료.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/corpus/failure_classifier.rs
++ crates/axon-daemon/src/intelligence/corpus/campaign_runner.rs
+* crates/axon-daemon/src/intelligence/corpus/catastrophe_archive.rs
+* crates/axon-daemon/src/intelligence/corpus/mod.rs

@@ -1,0 +1,11 @@
+[Core CoT]
+1. 사용자 피드백 수용. AXON은 이제 "실제 병변 절개"를 목표로 하는 "Runtime Forensic Instrumentation Framework"로 정의됨.
+2. 관측 가능한 모든 Raw 데이터를 저장하려는 유혹(Lineage Explosion 유발)을 차단.
+3. 런타임 비결정성(ASLR, Scheduling Jitter)을 제거하고, 압축된 "정규화된 병리(Canonical Pathology)"만 추출하기 위해 `Runtime Causality Compressor` 모듈 신설.
+   - Raw Stream -> Canonical Runtime Event -> Collapse Family -> Lineage 로 이어지는 4단계 압축 파이프라인 확립.
+4. XChat과 같은 거대 코퍼스 대신, 센서 표류(Sensor Drift) 여부를 순수하게 검증하기 위한 초소형 C 코드 표본(`tiny_gtk_crash.c`) 생성. 
+   - 목표: 1,000회 라이브 어태치 시 동일한 Canonical Pathology Event(`DeferredOrphanDispatch`, `DestroyWithoutStabilization`)로 수렴하는가?
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/telemetry/causality_compressor.rs (신설)
++ tiny_gtk_crash.c (신설 - 센서 검증용 코퍼스)

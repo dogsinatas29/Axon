@@ -1,0 +1,15 @@
+[Core CoT]
+1. `MODULE_STATE_SNAPSHOT` 작성을 완료하고 레거시 `lib.rs`, `server.rs`, `main.rs`를 `quarantine/`로 이동시켰음.
+2. 새롭게 작성된 `lib.rs`와 `main.rs`는 오직 `DeterministicKernel`과 `KernelConfig`만 소유하도록 명시적 부트스트랩으로 환원함.
+3. 55개의 컴파일 에러를 모두 제거하고 `cargo check` 100% Green을 달성. 
+4. 이 최초의 "Kernel Boot Certificate"로서 `BASELINE_MANIFEST.json`을 발급함.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/quarantine/legacy_daemon.rs
++ crates/axon-daemon/src/quarantine/legacy_server.rs
++ crates/axon-daemon/src/quarantine/legacy_daemon_snapshot.json
++ crates/axon-daemon/src/quarantine/legacy_server_snapshot.json
+* crates/axon-daemon/src/lib.rs (Daemon 삭제, DeterministicKernel 추가)
+* crates/axon-daemon/src/main.rs (명시적 부트스트랩으로 축소)
+* crates/axon-daemon/src/server.rs (HTTP Ingress만 남기고 삭제)
++ crates/axon-daemon/BASELINE_MANIFEST.json

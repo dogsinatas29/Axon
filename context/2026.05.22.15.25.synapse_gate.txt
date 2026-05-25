@@ -1,0 +1,19 @@
+1. 추론 과정 요약 (Core CoT)
+- 문제: 비동기 UI 이벤트 루프, LSP 지연 분석 응답, 그리고 비결정적 파일 I/O 간의 시간적 불일치로 인해 상태 드리프트 및 중복 태스크 스케줄링 레이스 컨디션 발생.
+- 해결책:
+  - 2-Phase Commit을 축약한 `Committing` 상태를 `DaemonState`에 추가하여, 물리적 디스크 쓰기 완료 및 LSP 검증 전까지의 상태를 성역화함.
+  - `can_schedule_next_task` 가드를 도입하여 태스크 실행/스케줄링 예약을 엄격하게 제한함.
+  - 단회성 토큰(`token`) 유효성 검사 및 사용 후 무효화(nullify)를 통해 리플레이 공격과 중복 승인 요청을 차단함.
+  - 원자적 파일 I/O(임시 파일 쓰기 -> `fsync_all` -> `rename`) 파이프라인을 구축하여 물리적 디스크 정합성 보장.
+  - `LspSupervisor::semantic_gate`를 트랜잭션 내에서 동기식으로 await 호출하여 LSP 검사 결과를 런타임에 결합하고, 검증 실패 시 즉시 롤백 처리 구현.
+  - 15초 타임아웃 Watchdog을 적용하여 LSP 파싱 교착 상태 발생 시 자동 실패 복구 지원.
+  - UI(`BossBoard.tsx`)에 승인 시 토큰 실어보내기 및 버튼 비활성화 가드 구현.
+- 결과: 컴파일 및 빌드 검증(Zero-warning) 완료.
+
+2. 변경 파일 목록 (Affected Files Diff)
+- crates/axon-daemon/src/lib.rs (DaemonState 정의, can_schedule_next_task 스케줄러 가드, token 발급 및 WaitingApproval 상태 처리)
+- crates/axon-daemon/src/main.rs (SandboxContext pre-load 초기화 필드 수정)
+- crates/axon-daemon/src/server.rs (submit_semantic_decision에 2-phase 트랜잭션 커밋/롤백/타임아웃 파이프라인 적용)
+- studio/src/components/BossBoard.tsx (API 요청에 token 주입 및 isSubmitting 디바운스 버튼 잠금 구현)
+- release_note/v0.0.31_release_notes.md (v0.0.31.31 릴리즈 로그 추가)
+- mile_stone/v0.0.31.md (작업 결과 갱신 및 TODO 리스트 완료 체크)

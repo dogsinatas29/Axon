@@ -273,7 +273,7 @@ impl OllamaDriver {
             base_url: base_url.trim_end_matches('/').to_string(),
             model_name,
             client: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(310)) // v0.0.29: Increased for complex reasoning/Skeleton
+                .timeout(std::time::Duration::from_secs(610)) // v0.0.29: Increased for complex reasoning/Skeleton (610s for CPU)
                 .build()
                 .unwrap_or_default(),
         }
@@ -341,19 +341,27 @@ impl OllamaDriver {
                 format!("### INSTRUCTIONS ###\n{}\n\n### INPUT ###\n{}", system, current_user_prompt)
             };
 
-            let body = serde_json::json!({
+            let is_json = current_user_prompt.contains("JSON") || current_user_prompt.contains("json") || system.contains("JSON") || system.contains("json");
+
+            let mut body = serde_json::json!({
                 "model": self.model_name,
                 "prompt": full_prompt,
                 "stream": false,
                 "options": {
                     "num_ctx": current_ctx,
-                    "num_predict": 4096,
+                    "num_predict": 16384,
                     "stop": [],
                     "keep_alive": "30m",
                     "temperature": 0.1,
                     "top_p": 0.8
                 }
             });
+
+            if is_json {
+                if let Some(obj) = body.as_object_mut() {
+                    obj.insert("format".to_string(), serde_json::Value::String("json".to_string()));
+                }
+            }
 
             tracing::info!("📡 [VRAM_SAFE] Ollama Request: Model={}, Context={}, Attempt={}/3", 
                 self.model_name, current_ctx, attempts);
@@ -362,7 +370,7 @@ impl OllamaDriver {
                 .json(&body)
                 .send();
             
-            let response = tokio::time::timeout(std::time::Duration::from_secs(300), response_future).await;
+            let response = tokio::time::timeout(std::time::Duration::from_secs(600), response_future).await;
 
             match response {
                 Ok(Ok(res)) => {

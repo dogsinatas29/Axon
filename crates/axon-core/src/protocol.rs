@@ -138,7 +138,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_invalid_magic() {
-        let mut invalid_buffer = vec![0u8; 12];
+        let invalid_buffer = vec![0u8; 12];
         let mut reader = Cursor::new(invalid_buffer);
         let result = AxonPacket::read_from(&mut reader).await;
         assert!(result.is_err());

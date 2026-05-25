@@ -1,0 +1,179 @@
+이하 작업 중 정지 다시 작업 진행할 것. 
+
+다시 작업 내용을 v0.0.23.md 파일에 기록해줘
+architecture.md에 constraint 자동 쓰기 (generator 수정)
+RuleEngine → IR 반영 코드
+constraint versioning (충돌 방지)
+
+이 3가지 작업을 한다. 이 부분은 잘 터진다. 공통 원인은 하나다:
+
+동시에 상태를 바꾸려 해서 충돌이 난다.
+
+해법은 단순하다. 세 기능을 분리하고, 단일 커밋 경로로만 합치게 만든다.
+
+0. 해결 전략 (핵심)
+RuleEngine (제안만)
+   ↓
+Constraint Staging (임시 큐)
+   ↓
+IR Commit (단일 쓰기)
+   ↓
+architecture.md Generator
+
+👉 “여러 곳에서 직접 IR 수정” 금지
+
+1. architecture.md에 constraint 자동 쓰기 (generator 수정)
+문제
+
+지금 방식:
+
+여러 모듈 → 직접 markdown 수정
+
+→ 충돌, 깨짐, 순서 꼬임
+
+해결
+
+generator만 markdown을 쓴다
+
+구조
+// generator/architecture_writer.rs
+
+pub fn generate(ir: &IR) -> String {
+    let mut out = String::new();
+
+    // 기존 spec 출력
+    out.push_str(&render_functions(&ir.functions));
+
+    // ★ constraints는 항상 마지막
+    if !ir.constraints.is_empty() {
+        out.push_str("\n## AXON:CONSTRAINTS\n\n```json\n");
+        out.push_str(&serde_json::to_string_pretty(&ir.constraints).unwrap());
+        out.push_str("\n```\n");
+    }
+
+    out
+}
+중요한 규칙
+markdown 직접 수정하는 코드 = 전부 삭제
+2. RuleEngine → IR 반영 코드
+문제
+
+현재 구조:
+
+RuleEngine → 바로 IR 수정
+
+→ race condition
+
+해결
+
+RuleEngine은 IR을 건드리지 않는다
+
+구조
+// intelligence/staging.rs
+
+pub struct ConstraintProposal {
+    pub constraint: Constraint,
+    pub source_rule: String,
+}
+RuleEngine 출력
+pub fn produce_constraints(rules: &[RuleState]) -> Vec<ConstraintProposal> {
+    rules.iter()
+        .filter(|r| should_promote(r))
+        .map(|r| ConstraintProposal {
+            constraint: to_constraint(r),
+            source_rule: r.text.clone(),
+        })
+        .collect()
+}
+IR 반영 (단일 진입점)
+// daemon/ir_commit.rs
+
+pub fn apply_proposals(ir: &mut IR, proposals: Vec<ConstraintProposal>) {
+    for p in proposals {
+        if !ir.constraints.contains(&p.constraint) {
+            ir.constraints.push(p.constraint);
+        }
+    }
+}
+핵심
+RuleEngine → proposal만 생성
+IR 변경 → 오직 여기서만
+3. Constraint Versioning (충돌 방지)
+문제
+같은 constraint 중복
+다른 형태로 표현된 동일 의미
+오래된 constraint 유지
+해결 전략
+1. Constraint ID 도입
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct ConstraintId(u64);
+2. 생성 방식
+pub fn constraint_id(c: &Constraint) -> ConstraintId {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    c.hash(&mut h);
+    ConstraintId(h.finish())
+}
+3. IR 구조 변경
+pub struct IR {
+    pub functions: Vec<FunctionSpec>,
+    pub constraints: Vec<Constraint>,
+    pub constraint_ids: HashSet<ConstraintId>, // ★ 추가
+}
+4. 삽입 시 중복 방지
+pub fn add_constraint(ir: &mut IR, c: Constraint) {
+    let id = constraint_id(&c);
+
+    if !ir.constraint_ids.contains(&id) {
+        ir.constraint_ids.insert(id);
+        ir.constraints.push(c);
+    }
+}
+5. Version (선택)
+pub struct VersionedConstraint {
+    pub constraint: Constraint,
+    pub version: u32,
+}
+최소 전략 (추천)
+ID 기반 dedup만 먼저
+versioning은 나중
+4. 세 문제의 공통 원인
+여러 레이어가 동시에 IR 수정
+5. 반드시 지켜야 할 규칙
+1. IR write는 단일 함수
+apply_proposals() ONLY
+2. generator는 읽기 전용
+IR → markdown
+역방향 없음
+3. RuleEngine은 side-effect 없음
+input → proposal
+끝
+6. 안정화 순서 (중요)
+
+지금 바로 할 순서:
+
+generator 단일화 (markdown write 제거)
+IR commit 함수 분리
+constraint dedup (ID)
+
+👉 이 3개 먼저
+
+7. 한 줄 결론
+
+문제는 로직이 아니라 “쓰기 경로가 여러 개”인 것
+→ 하나로 모으면 안정된다
+
+8. 다음 단계
+
+여기까지 안정화되면:
+
+constraint pruning (낡은 것 제거)
+constraint priority
+IR diff 기반 업데이트
+
+“constraint priority 시스템”
+“IR diff 기반 학습”
+“완전 자동 진화 파이프라인”
+
+엔터프라이즈급 작업 내용같다 
+

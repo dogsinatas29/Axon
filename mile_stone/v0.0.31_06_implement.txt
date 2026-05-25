@@ -1,0 +1,540 @@
+# AXON v0.0.31 Implementation Plan
+
+# 1. 핵심 원칙
+
+v0.0.31 구현의 핵심은:
+
+```text
+semantic authority를 시스템 초반부에 고정
+```
+
+하는 것이다.
+
+즉:
+
+```text
+IR
+→ Language Binding
+→ Semantic Contract
+→ Decomposition
+→ Emission
+→ Validation
+```
+
+순으로 semantic pipeline을 재구성해야 한다.
+
+절대로:
+
+```text
+generic runtime + language exceptions
+```
+
+구조로 가면 안 된다.
+
+---
+
+# 2. 구현 순서
+
+반드시 다음 순서를 유지해야 한다.
+
+```text
+Semantic Root
+→ Profile System
+→ Semantic Firewall
+→ Decomposer Separation
+→ Topology Formalization
+```
+
+특히:
+
+```text
+Rust emitter 먼저 구현
+```
+
+같은 접근은 다시 contamination을 발생시킨다.
+
+---
+
+# Phase 1 — Semantic Root 고정
+
+가장 먼저 해야 하는 작업.
+
+현재:
+
+```rust
+kind: String
+```
+
+혹은:
+
+```text
+확장자 기반 language inference
+```
+
+구조를 제거해야 한다.
+
+---
+
+## 2.1 Language enum 도입
+
+예:
+
+```rust
+pub enum Language {
+    C,
+    Cpp,
+    Rust,
+    Python,
+}
+```
+
+이 enum을:
+
+* schema
+* ProjectIR
+* task metadata
+* runtime pipeline
+
+전체의 root invariant로 승격해야 한다.
+
+핵심:
+
+```text
+언어는 추론되는 것이 아니라 선언되는 것
+```
+
+이다.
+
+---
+
+## 2.2 ProjectIR.language 추가
+
+현재:
+
+```rust
+pub struct ProjectIR
+```
+
+에:
+
+```rust
+pub language: Language
+```
+
+추가.
+
+이 값이 semantic authority root가 된다.
+
+---
+
+## 2.3 extension inference 제거
+
+현재 validator/mod.rs의:
+
+```rust
+.rs → rust
+.c → c
+```
+
+같은 구조 제거.
+
+반드시:
+
+```rust
+match ir.language
+```
+
+기반으로 validator를 선택해야 한다.
+
+이 단계는 v0.0.31에서 가장 중요하다.
+
+---
+
+# Phase 2 — LanguageProfile 시스템 구축
+
+다음 단계는 semantic authority를:
+
+```text
+LanguageProfile
+```
+
+로 이동시키는 것이다.
+
+---
+
+## 3.1 LanguageProfile trait 정의
+
+예:
+
+```rust
+pub trait LanguageProfile {
+    fn validator(&self) -> ...
+    fn decomposer(&self) -> ...
+    fn emitter(&self) -> ...
+}
+```
+
+중요:
+
+```text
+if language == Rust
+```
+
+같은 runtime branching을 만들지 말아야 한다.
+
+필수 방향:
+
+```text
+polymorphic dispatch
+```
+
+구조.
+
+---
+
+## 3.2 profile registry 작성
+
+예:
+
+```rust
+get_profile(Language::Rust)
+```
+
+lib.rs는:
+
+```text
+semantic registry
+```
+
+역할만 수행해야 한다.
+
+주의:
+
+```text
+God Object lib.rs
+```
+
+가 되면 안 된다.
+
+---
+
+## 3.3 CProfile / RustProfile 동시 구현
+
+중요:
+
+Rust만 구현하면 안 된다.
+
+반드시:
+
+* CProfile
+* RustProfile
+
+동시에 구현.
+
+이유:
+
+```text
+Rust patch architecture
+```
+
+로 흐르는 것을 막기 위함.
+
+---
+
+# Phase 3 — Semantic Closure 구축
+
+이 단계에서 cross-language contamination을 차단한다.
+
+---
+
+## 4.1 artifact legality 정의
+
+예:
+
+### RustProfile
+
+```text
+allow:
+- .rs
+- Cargo.toml
+
+forbid:
+- .h
+- .c
+- CMakeLists.txt
+```
+
+### CProfile
+
+```text
+allow:
+- .c
+- .h
+- CMakeLists.txt
+```
+
+즉 language별 semantic closure를 정의해야 한다.
+
+---
+
+## 4.2 generation-time validation 추가
+
+현재:
+
+```text
+Generator first
+→ Validator later
+```
+
+구조.
+
+반드시:
+
+```text
+generation-time invariant enforcement
+```
+
+로 변경.
+
+즉 artifact emit 이전에 semantic legality를 검사해야 한다.
+
+---
+
+## 4.3 semantic firewall 추가
+
+예:
+
+```rust
+if !profile.allows(path) {
+    reject();
+}
+```
+
+중요:
+
+```text
+validator reject
+```
+
+가 아니라:
+
+```text
+construction impossible
+```
+
+상태를 목표로 해야 한다.
+
+즉 semantic invalid artifact는 생성 자체가 불가능해야 한다.
+
+---
+
+# Phase 4 — Decomposition 분리
+
+이 단계에서 실제 contamination root를 제거한다.
+
+현재 contamination root는:
+
+```text
+generic decomposition
+```
+
+이다.
+
+---
+
+## 5.1 universal TaskKind 제거
+
+현재:
+
+```rust
+HeaderDecl
+SourceImpl
+Integrator
+```
+
+이 구조는 이미:
+
+```text
+C compilation semantics
+```
+
+를 내장하고 있다.
+
+즉 universal task model이 아니다.
+
+---
+
+## 5.2 language-aware decomposition 도입
+
+예:
+
+```rust
+enum LanguageTaskKind {
+    C(CTaskKind),
+    Rust(RustTaskKind),
+}
+```
+
+혹은 language-specific decomposition registry.
+
+---
+
+## 5.3 decomposer 분리
+
+예:
+
+```rust
+RustDecomposer
+CDecomposer
+```
+
+반드시 독립 구조로 분리.
+
+---
+
+## 5.4 vocabulary contamination 제거
+
+Rust pipeline에서:
+
+```text
+HeaderDecl
+```
+
+같은 vocabulary 자체가 등장하면 안 된다.
+
+즉 language별 semantic vocabulary isolation이 필요하다.
+
+---
+
+# Phase 5 — Topology Formalization
+
+이 단계부터 semantic graph 방향으로 확장.
+
+주의:
+
+```text
+full compiler IR
+```
+
+수준으로 급격히 확장하면 안 된다.
+
+현재 AXON의 목적은:
+
+```text
+runtime orchestration system
+```
+
+이지 compiler implementation이 아니다.
+
+---
+
+## 6.1 topology model 추가
+
+예:
+
+```rust
+ProjectTopology
+ModuleTopology
+```
+
+도입.
+
+---
+
+## 6.2 Rust topology formalization
+
+최소:
+
+* Cargo topology
+* mod tree
+* crate entry
+* module legality
+
+수준까지 모델링.
+
+아직:
+
+* borrow graph
+* ownership graph
+* MIR-level semantics
+
+까지 갈 필요는 없다.
+
+---
+
+## 6.3 C topology formalization
+
+동시에:
+
+* translation unit
+* header ownership
+* compile unit graph
+
+등도 formalization 시작.
+
+즉:
+
+```text
+Rust만 semantic graph가 필요한 것이 아님
+```
+
+이다.
+
+---
+
+# 7. 가장 중요한 구현 원칙
+
+반드시:
+
+```text
+semantic contract first
+```
+
+구조를 유지해야 한다.
+
+즉:
+
+```text
+언어가 전체 semantic pipeline을 결정
+```
+
+해야 한다.
+
+절대로:
+
+```text
+generic runtime + language exceptions
+```
+
+구조로 회귀하면 안 된다.
+
+---
+
+# 8. v0.0.31의 진짜 본질
+
+v0.0.31은:
+
+```text
+Rust 지원 추가
+```
+
+작업이 아니다.
+
+실제 본질은:
+
+```text
+AXON 전체를 language-aware semantic runtime으로 승격
+```
+
+시키는 작업이다.
+
+즉:
+
+* semantic authority
+* semantic isolation
+* semantic ownership
+* semantic closure
+* language-pluggable runtime
+
+전체를 시스템 수준에서 재정립하는 것이 이번 작업의 핵심이다.
+

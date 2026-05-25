@@ -1,0 +1,340 @@
+v0.0.31.01 이후 필요한 실제 작업 구조
+
+지금부터 필요한 건 단순 validator 추가가 아니다.
+
+핵심은:
+
+Spec → Semantic Universe Binding
+
+을 시스템의 최상단으로 끌어올리는 것이다.
+
+즉:
+
+IR 생성 이전
+
+에 semantic authority를 완성해야 한다.
+
+1. 가장 먼저 해야 하는 작업
+SemanticOntology를 먼저 formalize
+
+이게 루트다.
+
+현재는:
+
+LanguageProfile
+
+만 존재한다.
+
+하지만 필요한 건:
+
+언어별 semantic law definition
+
+이다.
+
+2. 새 디렉토리 필요
+
+예상 구조:
+
+crates/axon-ir/src/semantic/
+3. SemanticOntology 정의
+
+핵심 타입.
+
+예:
+
+pub trait SemanticOntology {
+    fn allowed_artifacts(&self) -> &[ArtifactKind];
+
+    fn forbidden_vocabulary(&self) -> &[&str];
+
+    fn allowed_task_kinds(&self) -> &[LanguageTaskKind];
+
+    fn allowed_build_systems(&self) -> &[BuildSystem];
+
+    fn topology_rules(&self) -> TopologyRules;
+}
+4. 언어별 Ontology 구현
+
+필수:
+
+RustOntology
+COntology
+PythonOntology
+5. 여기서 중요한 점
+
+지금의:
+
+allows_artifact()
+
+는 너무 약하다.
+
+왜냐면 현재는:
+
+physical artifact legality
+
+만 보기 때문이다.
+
+하지만 ontology는:
+
+semantic worldview legality
+
+를 정의해야 한다.
+
+6. 그 다음 작업
+SpecSemanticValidator 도입
+
+새 구조:
+
+semantic/spec_validator.rs
+7. SpecSemanticValidator 역할
+
+이 계층은:
+
+LLM output meaning inspection
+
+을 담당한다.
+
+즉:
+
+vocabulary legality
+topology intent
+decomposition legality
+build ontology legality
+
+검사한다.
+
+8. 여기서 가장 중요한 점
+
+현재 validator는:
+
+IR structural validation
+
+이다.
+
+SpecSemanticValidator는:
+
+pre-IR semantic intent validation
+
+이다.
+
+완전히 다른 계층이다.
+
+9. 새 Validation 계층 구조 필요
+
+최종적으로:
+
+SpecSemanticValidator
+↓
+IRValidator
+↓
+ArtifactFirewall
+
+3단계가 된다.
+
+10. RawIR 이전 rejection 작업
+
+핵심 작업.
+
+현재:
+
+serde_json -> RawIR
+
+직행한다.
+
+이걸 바꿔야 한다.
+
+11. 새로운 흐름
+
+현재:
+
+JSON
+↓
+RawIR
+↓
+Validation
+
+목표:
+
+JSON
+↓
+SemanticSpec
+↓
+SpecSemanticValidator
+↓
+RawIR
+12. SemanticSpec 타입 필요
+
+예:
+
+pub struct SemanticSpec {
+    pub language: Language,
+    pub raw_json: serde_json::Value,
+    pub extracted_terms: Vec<String>,
+    pub inferred_build_systems: Vec<String>,
+}
+13. extracted_terms 중요
+
+왜냐면 contamination은:
+
+semantic vocabulary
+
+에서 발생하기 때문이다.
+
+예:
+
+HeaderDecl
+CMakeLists.txt
+translation unit
+
+같은 단어.
+
+14. SemanticViolation hierarchy 필요
+
+현재 ValidationError는 너무 generic하다.
+
+새 계층:
+
+pub enum SemanticViolation {
+    ForbiddenVocabulary,
+    CrossLanguageContamination,
+    InvalidTopologyIntent,
+    InvalidBuildSystem,
+    InvalidTaskVocabulary,
+}
+15. 그리고 매우 중요한 작업
+Semantic Repair Loop
+
+현재 repair는:
+
+syntax repair
+artifact repair
+
+위주다.
+
+필요한 건:
+
+semantic worldview correction
+
+이다.
+
+16. Repair Prompt도 달라져야 한다
+
+예:
+
+Rust semantic universe forbids:
+- HeaderDecl
+- .h files
+- CMakeLists.txt
+
+Regenerate using Rust module topology.
+17. contamination test suite 필요
+
+이거 매우 중요하다.
+
+새 디렉토리 필요:
+
+tests/semantic/
+18. 테스트 종류
+Rust contamination
+
+입력:
+
+Rust + HeaderDecl
+
+기대:
+
+SpecSemanticViolation
+Python contamination
+
+입력:
+
+Python + Cargo.toml
+
+기대:
+
+pre-IR rejection
+C preservation
+
+입력:
+
+legacy C project
+
+기대:
+
+NO behavior change
+
+매우 중요.
+
+19. 가장 위험한 부분
+
+주의점:
+
+generic semantic validator
+
+를 만들면 안 된다.
+
+그 순간 다시:
+
+hidden C-centric runtime
+
+로 회귀한다.
+
+20. 따라서 최종 구조는
+Language
+↓
+Ontology
+↓
+SpecSemanticValidator
+↓
+SemanticRepairLoop
+↓
+RawIR
+↓
+IRValidator
+↓
+ArtifactFirewall
+
+이다.
+
+21. 실제 우선순위
+
+반드시 이 순서로.
+
+Phase A
+SemanticOntology
+
+먼저.
+
+Phase B
+SpecSemanticValidator
+Phase C
+RawIR 이전 rejection
+Phase D
+SemanticViolation hierarchy
+Phase E
+Semantic repair loop
+Phase F
+Semantic contamination tests
+22. 핵심 결론
+
+지금부터의 작업은:
+
+validator 강화
+
+가 아니다.
+
+진짜 목적은:
+
+semantic authority를 IR 이전으로 이동
+
+시키는 것이다.
+
+즉 AXON을:
+
+post-validation architecture
+
+에서:
+
+preemptive semantic runtime
+
+으로 승격시키는 작업이다.

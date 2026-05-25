@@ -1,0 +1,13 @@
+[Core CoT]
+1. 분석 목표: UI 상에서 SQLite3 미사용으로 인한 3회 리젝트 연쇄 발생의 근본 원인 규명.
+2. 데이터 분석:
+   - `spec.md` 및 `TEST4_GTK/immutable_constraints.json`에 의하면 `sqlite3`는 오히려 금지 패턴(`forbidden_patterns`)에 속함.
+   - 그러나 백엔드 `crates/axon-daemon/src/lib.rs` (5672~5678라인)의 시니어 에이전트 C/C++ 검증 프롬프트 템플릿(Global Constraints)에 `MUST use SQLite3`, `MUST include <sqlite3.h>` 룰이 완전히 하드코딩되어 있음.
+   - 또한, 프론트엔드 UI `studio/src/components/BossBoard.tsx` (333라인) 및 `ThreadCard.tsx` (310라인)에서도 에러 로그 자리에 `sqlite3 usage [L12]`, `Missing Header [L1]` 텍스트가 하드코딩되어 고정 표출되고 있음.
+3. 결론:
+   - 이는 스펙(`spec.md`)이나 IR 계약 자체의 문제가 아니며, 검증 시스템(Validator/Daemon의 시니어 에이전트 프롬프트 템플릿) 및 UI의 하드코딩된 규제 정책이 빚어낸 **Validator의 설계 오류**임.
+4. 해결 방안:
+   - `crates/axon-daemon/src/lib.rs` 내의 하드코딩된 SQLite3 헌법을 프로젝트의 IR 제약조건(`forbidden_patterns` 및 `required` 메타)을 바탕으로 동적 구성되도록 수정하고, 프론트엔드 UI의 하드코딩 에러 출력을 실제 백엔드 진단 피드백으로 대체해야 함.
+
+[Affected Files Diff]
+- None (This is a verification synapse gate log)

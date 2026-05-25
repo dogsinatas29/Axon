@@ -1,0 +1,7 @@
+1. 추론 과정 요약 (Core CoT)
+- 사용자가 TEST4, TEST5가 없다는 점이 핵심이라며 이를 살려내고 싶어 함.
+- 일반적인 Git 히스토리에는 보이지 않았으나, reflog, stash, 혹은 git fsck 등의 특수 명령을 통해 혹시 잃어버린(lost-found) 개체나 커밋되지 않은 인덱스 정보가 남아있는지 확인하기로 함.
+- 또한 이전 대화 로그나 아티팩트 보관함에서 TEST4_GTK, TEST5_win32 폴더 하위에 존재했을 만한 정보나 사양이 있는지 조사하기 위해 run_command를 제안함.
+
+2. 변경 파일 목록 (Affected Files Diff)
+- /home/dogsinatas/rust_project/axon/context/2026.05.22.14.21.synapse_gate.txt (생성)

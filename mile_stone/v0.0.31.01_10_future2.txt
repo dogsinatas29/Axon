@@ -1,0 +1,583 @@
+# v0.0.31.01 — Semantic Governance Layer 구현 준비 정리
+
+현재 AXON은:
+
+```text id="m4r8tx"
+language-aware runtime
+```
+
+까지는 도달했다.
+
+하지만 아직:
+
+```text id="u7m2pk"
+semantic authority
+```
+
+가 IR 이후에 존재한다.
+
+v0.0.31.01의 목표는 이것을:
+
+```text id="x1v6qs"
+IR 이전(pre-IR)
+```
+
+으로 끌어올리는 것이다.
+
+---
+
+# 1. 현재 미구현 핵심 계층
+
+남은 핵심 작업:
+
+| 영역                                | 목적                            |
+| --------------------------------- | ----------------------------- |
+| Spec Semantic Authority           | spec 자체 semantic legality 검증  |
+| Pre-IR Semantic Rejection         | invalid semantic intent 조기 차단 |
+| Ontology-driven Validation        | validator를 ontology 기반으로 승격   |
+| Semantic Contamination Preemption | contamination 자체를 발생 이전에 제거   |
+
+---
+
+# 2. 지금 필요한 아키텍처 변화
+
+현재:
+
+```text id="p8r3vx"
+Spec
+↓
+RawIR
+↓
+IR Validation
+↓
+Artifact Firewall
+```
+
+목표:
+
+```text id="f5m9pk"
+Spec
+↓
+Language Resolution
+↓
+Semantic Ontology Binding
+↓
+Spec Semantic Validation
+↓
+Pre-IR Rejection
+↓
+RawIR Projection
+↓
+IR Validation
+↓
+Artifact Firewall
+```
+
+---
+
+# 3. 가장 먼저 해야 하는 것
+
+# Phase A — SemanticOntology Formalization
+
+최우선.
+
+현재는:
+
+```text id="y2m7tx"
+LanguageProfile
+```
+
+만 존재한다.
+
+하지만 필요한 건:
+
+```text id="v6r1qs"
+언어 semantic law 자체
+```
+
+다.
+
+---
+
+# 4. SemanticOntology의 역할
+
+SemanticOntology는:
+
+```text id="k9m4pk"
+언어 세계의 헌법
+```
+
+이다.
+
+즉:
+
+* 허용 vocabulary
+* 금지 vocabulary
+* topology law
+* build law
+* decomposition law
+* runtime law
+
+전체를 정의한다.
+
+---
+
+# 5. 새 디렉토리 구조 필요
+
+예상:
+
+```text id="u3v8tx"
+crates/axon-ir/src/semantic/
+```
+
+---
+
+# 6. 필요한 핵심 타입
+
+## SemanticOntology trait
+
+예상:
+
+```rust id="q1m5rs"
+pub trait SemanticOntology {
+    fn language(&self) -> Language;
+
+    fn forbidden_terms(&self) -> &[&str];
+
+    fn allowed_artifacts(&self) -> &[ArtifactKind];
+
+    fn allowed_task_kinds(&self) -> &[LanguageTaskKind];
+
+    fn allowed_build_systems(&self) -> &[BuildSystem];
+
+    fn topology_rules(&self) -> TopologyRules;
+}
+```
+
+---
+
+# 7. 언어별 Ontology 필요
+
+필수:
+
+```text id="n7r2pk"
+COntology
+RustOntology
+PythonOntology
+```
+
+---
+
+# 8. 매우 중요한 점
+
+현재:
+
+```text id="c4m9vx"
+artifact legality
+```
+
+만 존재한다.
+
+하지만 ontology는:
+
+```text id="p2r6qs"
+semantic worldview legality
+```
+
+를 정의해야 한다.
+
+---
+
+# 9. 다음 핵심 작업
+
+# Phase B — SpecSemanticValidator
+
+새 계층 필요.
+
+예상:
+
+```text id="t8m1pk"
+semantic/spec_validator.rs
+```
+
+---
+
+# 10. 역할
+
+SpecSemanticValidator는:
+
+```text id="f3v7tx"
+LLM semantic intent inspection
+```
+
+을 담당한다.
+
+즉:
+
+* forbidden vocabulary
+* invalid topology intent
+* cross-language contamination
+* invalid build semantics
+
+검사.
+
+---
+
+# 11. 중요한 차이
+
+현재 validator:
+
+```text id="w5m2qs"
+IR structure validation
+```
+
+새 validator:
+
+```text id="x9r4pk"
+semantic intent validation
+```
+
+완전히 다른 계층이다.
+
+---
+
+# 12. SemanticSpec 필요
+
+현재:
+
+```text id="u1m8vx"
+JSON → RawIR
+```
+
+직행한다.
+
+바뀌어야 한다.
+
+---
+
+# 13. 새로운 구조
+
+```text id="r6v3tx"
+JSON
+↓
+SemanticSpec
+↓
+SpecSemanticValidator
+↓
+RawIR
+```
+
+---
+
+# 14. SemanticSpec 역할
+
+예상 타입:
+
+```rust id="m4r9qs"
+pub struct SemanticSpec {
+    pub language: Language,
+    pub raw_json: serde_json::Value,
+    pub extracted_terms: Vec<String>,
+    pub inferred_build_systems: Vec<String>,
+}
+```
+
+---
+
+# 15. extracted_terms가 중요한 이유
+
+Contamination은 대부분:
+
+```text id="p7m1pk"
+semantic vocabulary leakage
+```
+
+로 발생한다.
+
+예:
+
+```text id="k2v6tx"
+HeaderDecl
+translation unit
+Cargo.toml
+CMakeLists.txt
+```
+
+---
+
+# 16. 다음 작업
+
+# Phase C — Pre-IR Semantic Rejection
+
+핵심.
+
+현재:
+
+```text id="g8r2qs"
+semantic rejection too late
+```
+
+상태다.
+
+---
+
+# 17. 목표
+
+현재:
+
+```text id="u5m9vx"
+RawIR 생성 후 reject
+```
+
+목표:
+
+```text id="n1r4pk"
+RawIR 생성 자체 차단
+```
+
+---
+
+# 18. 필요한 구조
+
+예:
+
+```rust id="v3m7rs"
+validate_semantic_spec(&spec, ontology)?;
+```
+
+이게:
+
+```text id="y6r8tx"
+serde_json → RawIR
+```
+
+이전 단계에 와야 한다.
+
+---
+
+# 19. 다음 작업
+
+# Phase D — SemanticViolation Hierarchy
+
+현재 ValidationError는 너무 generic하다.
+
+---
+
+# 20. 필요한 타입
+
+예:
+
+```rust id="f2m5qs"
+pub enum SemanticViolation {
+    ForbiddenVocabulary,
+    CrossLanguageContamination,
+    InvalidBuildOntology,
+    InvalidTaskVocabulary,
+    InvalidTopologyIntent,
+}
+```
+
+---
+
+# 21. 왜 필요한가
+
+현재는:
+
+```text id="t9r3pk"
+semantic failure reason
+```
+
+가 너무 흐리다.
+
+하지만 repair loop를 위해서는:
+
+```text id="m7v1tx"
+정확한 semantic failure classification
+```
+
+이 필요하다.
+
+---
+
+# 22. 다음 작업
+
+# Phase E — Semantic Repair Loop
+
+현재 repair는:
+
+```text id="x4m8qs"
+syntax repair
+artifact repair
+```
+
+위주다.
+
+---
+
+# 23. 필요한 repair
+
+목표:
+
+```text id="q2r6pk"
+semantic worldview correction
+```
+
+---
+
+# 24. 예시
+
+```text id="u8m3vx"
+Rust ontology forbids:
+- HeaderDecl
+- .h
+- CMakeLists.txt
+
+Regenerate using module-oriented topology.
+```
+
+---
+
+# 25. 마지막 핵심 작업
+
+# Phase F — Semantic Contamination Test Suite
+
+반드시 필요.
+
+---
+
+# 26. 새 테스트 구조
+
+```text id="w1r7tx"
+tests/semantic/
+```
+
+---
+
+# 27. 필수 테스트
+
+## Rust contamination
+
+입력:
+
+```text id="n5m2pk"
+Rust + HeaderDecl
+```
+
+기대:
+
+```text id="p9r4qs"
+Pre-IR semantic rejection
+```
+
+---
+
+## Python contamination
+
+입력:
+
+```text id="g3v8tx"
+Python + Cargo.toml
+```
+
+기대:
+
+```text id="f6m1pk"
+SpecSemanticViolation
+```
+
+---
+
+## C preservation
+
+입력:
+
+```text id="u2r7vx"
+legacy C project
+```
+
+기대:
+
+```text id="y8m5qs"
+NO regression
+```
+
+매우 중요.
+
+---
+
+# 28. 절대 하면 안 되는 것
+
+금지:
+
+```text id="t4r9pk"
+generic semantic validator
+```
+
+그 순간 다시:
+
+```text id="m1v6tx"
+implicit C ontology
+```
+
+로 회귀한다.
+
+---
+
+# 29. 최종 목표 상태
+
+최종적으로:
+
+```text id="x7m3qs"
+Spec
+↓
+Language Resolution
+↓
+Ontology Binding
+↓
+Spec Semantic Validation
+↓
+Pre-IR Rejection
+↓
+RawIR
+↓
+IR Validation
+↓
+Artifact Firewall
+```
+
+이 구조가 되어야 한다.
+
+---
+
+# 30. 최종 정리
+
+지금부터 필요한 작업의 본질은:
+
+```text id="p5r8tx"
+validator 추가
+```
+
+가 아니다.
+
+진짜 목표는:
+
+```text id="u9m2pk"
+semantic authority를 IR 이전으로 이동
+```
+
+시키는 것이다.
+
+즉 AXON을:
+
+```text id="v4r7qs"
+post-validation runtime
+```
+
+에서:
+
+```text id="n6m1tx"
+preemptive semantic operating system
+```
+
+으로 승격시키는 작업이다.
+

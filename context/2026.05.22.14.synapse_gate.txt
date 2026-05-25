@@ -1,0 +1,82 @@
+# encoding: utf-8
+[Core CoT]
+1. 사용자 요구사항 파악:
+   - 사용자는 Axon 프로젝트 내에서 고립 또는 유실된 `TEST4` (TEST4_GTK) 및 `TEST5` (TEST5_win32) 테스트 샌드박스 폴더를 핵심 모듈로서 온전하게 복구해줄 것을 요구함.
+2. 이전 로그 및 명세 분석:
+   - `mile_stone/v0.0.31.md` 에 기록된 세션 로그와 역사적 컨텍스트를 분석하여, `TEST4_GTK` 가 GTK4 기반의 C++ 라이트 IDE(MyLightIDE) 프로젝트를 위한 9대 핵심 컴포넌트(MainApp, ActivityBar, Sidebar, FileExplorer, GitManager, MainEditorCanvas, LuaRuntime, LuaViewport, KeybindingRouter)와 4분할 시맨틱 명세(constitution, architecture_seed, implementation_rules, hardening)를 가지고 있음을 파악함.
+   - `crates/axon-platform-win32` 및 `runtime_contracts/` 디렉토리를 참조하여, `TEST5_win32` 가 Win32 SDK native API(wWinMain, GetMessage non-blocking loop, WndProc callback, DefWindowProc, WM_PAINT rendering)를 준수하는 C++ Windows GUI 프로젝트 명세를 다루고 있음을 파악함.
+3. 복구 작업 수행:
+   - `TEST4_GTK/` 에 `axon_config.json`, `spec.md`, `immutable_constraints.json` 및 `spec/` 폴더 산하 4분할 md 파일(constitution.md, architecture_seed.md, implementation_rules.md, hardening.md, immutable_constraints.json)들을 생성하여 복원함.
+   - `TEST5_win32/` 에 `axon_config.json`, `spec.md`, `immutable_constraints.json` 및 `spec/` 폴더 산하 4분할 md 파일(constitution.md, architecture_seed.md, implementation_rules.md, hardening.md, immutable_constraints.json)들을 생성하여 복원함.
+4. 강제 파일 투사 규칙 준수:
+   - 로컬 타임 `2026.05.22.14` 에 대응하여 `context/2026.05.22.14.synapse_gate.txt` 평문 파일을 생성하고 작업 이력을 기록함.
+5. LSP(Language Server Protocol) 지원 질의 대응:
+   - 사용자의 'LSD' 질문이 'LSP'의 오타임을 판단하고, Axon 데몬 메인 런타임 내 `deep_discover_lsp` 탐색 및 `axon_lsp.json` 생성 메커니즘을 상세히 점검 및 안내함.
+6. 데몬 실행 중 블로킹 상태 원인 분석:
+   - 사용자가 `cargo run`을 수행했을 때 CLI 내부 of 대화형(Interactive) 입출력 루틴(언어 감지 및 사양서 설정 입력 요구)에 의해 터미널이 대기 상태에 머물러 있는 원인을 분석하고, 이에 따른 해결 방안(터미널 입력 또는 `--spec` 명시)을 안내함.
+7. 컴파일 경고 메시지 대량 발생 대응 및 해결:
+   - `axon-agent`, `axon-daemon` 및 `lsp/session.rs` 에서 발생하는 중복 바인딩(`processed_spec`), 미사용 변수(`score`, `barrier_regex`, `last_error`, `current_start`, `caps`), 미사용 임포트 및 미사용 필드(`request_id`, `workspace_root`) 경고들을 정확히 정밀 타격하여 제거하고 `cargo check`를 수행하여 무결함을 최종 검증함.
+8. 명세 파일 형식(Markdown vs TXT)에 대한 기술적 질의 대응:
+   - Axon 소스코드 내 `extract_sections_with_authority` 등의 정규식 구문 분석 로직이 `#` 및 `##` 마크다운 신택스에 강력하게 결합되어 있음을 분석하고, 일반 txt를 사용할 경우 명세 단락 경계 파싱이 깨져서 정상 동작하기 어려움을 논리적으로 설명함.
+9. 데몬 AUTO_PURIFY 단계의 부트스트랩 오류 분석 및 패치:
+   - `spec/architecture_seed.md` 가 존재하지 않을 때 실행되는 `AUTO_PURIFY` 단계에서 로컬 7B LLM의 출력을 파싱하기 위한 문자열 다듬기(`trim_start_matches`) 로직의 취약성을 식별함.
+   - 마크다운 백틱 및 `<think>` 태그 등을 완벽하게 정리해 주는 강력한 `extract_json_block` 파서 유틸리티를 적용하여 7B LLM 응답에서의 JSON 추출 복원력을 대폭 강화함.
+10. TEST4_GTK 샌드박스의 spec 폴더 복원:
+    - `TEST4_GTK/spec` 폴더가 비어 있음을 감지하여, 정상적인 부트스트랩이 가능하도록 `constitution.md`, `architecture_seed.md`, `implementation_rules.md`, `hardening.md`, `immutable_constraints.json`을 GTK4 C++ 환경 명세에 맞추어 완전히 새롭게 다시 작성 및 배치함. 이로써 `TEST4_GTK` 샌드박스는 LLM 분할 없이 부트스트랩을 즉시 진행할 수 있는 준비가 완료됨.
+11. 에이전트와 AXON 공장 데몬 간의 아키텍처적 관계 및 존재 의의에 대한 철학적/기술적 질의 대응:
+    - 단발성 패치(에이전트의 역할)와 지속적인 공정 관제 및 다단계 교차 검증(AXON의 역할)을 대조하여, 데몬의 오류를 수리한 것이 시스템의 필요성을 대체하는 것이 아님을 명확히 규명함.
+12. LLM 명세 분할 실패 원인 관찰을 위한 로그 구체화:
+    - `AUTO_PURIFY` 단계에서 `serde_json::from_str` 이 실패했을 때, LLM이 반환한 `clean_json` 원본 텍스트 내용과 구체적인 JSON 구문 분석 에러를 로그에 상세히 기록하도록 변경함. 이로써 로컬 LLM의 출력이 규격을 어기거나 깨질 때의 세부 원인을 100% 특정할 수 있도록 함.
+13. Ollama 호출 시 JSON 모드 강제 적용을 통한 출력 안정성 확보:
+    - 사용자 로그 분석 결과, 로컬 7B LLM이 JSON을 요구하는 프롬프트(예: AUTO_PURIFY)에 대해 일반 마크다운 요약글이나 C++ 주석이 포함된 깨진 코드를 출력하고 있음을 파악함.
+    - 이를 원천 방지하기 위해 `crates/axon-model/src/lib.rs` 의 `generate_internal` 내에서 사용자 프롬프트에 `JSON` 또는 `json`이 포함된 경우 Ollama API 요청 페이로드에 `"format": "json"` 옵션을 동적으로 주입하도록 개선함. 이로써 로컬 LLM이 무조건 유효한 JSON을 생성하도록 샘플러 수준에서 완벽하게 강제함.
+14. LLM 아키텍트 키 환각(Key Hallucination) 제어 및 폴백 매핑 보강:
+    - 로컬 LLM이 JSON 포맷으로 강제되었음에도 불구하고 `specifications` 라는 부모 키 아래에 4대 사양을 감싸는 스키마 환각 현상(Key Hallucination)을 발견함.
+    - 프롬프트를 영문 기반의 극도로 명료하고 정돈된 JSON 스키마 형식으로 전면 최적화하여 7B 모델의 주의 분산을 억제함.
+    - 파싱 로직에 폴백(Fallback) 매핑 분기를 탑재하여, 만약 LLM이 `specifications` 라는 루트 객체 내에 사양서 내용을 감싸서 반환하더라도 이를 자동으로 추적 및 가로채어 복원할 수 있도록 설계하고, 실패 시의 JSON 본문 로그 출력 범위를 강화함.
+15. PurifiedSpec 탈마크다운 강제 탈출 역직렬화 구축:
+    - 사용자 피드백을 철저히 반영하여, 모델이 키 값 내부나 파일명 바인딩에 점(`.`) 기호를 포함할 때 JSON 파싱 및 생성 오류를 내는 취약성을 인지함.
+    - `crates/axon-daemon/src/lib.rs`에 `PurifiedSpec` 전용 직렬화 구조체를 선언하고, 키 값을 탈마크다운 및 탈도트(`_md` 접미사)인 `constitution_md`, `architecture_seed_md`, `implementation_rules_md`, `hardening_md`로 안전하게 치환함.
+    - 프롬프트에 `INVALID OUTPUT EXAMPLE` SECTION을 삽입하여 Qwen 모델이 `specifications` 또는 `files`와 같은 부모 래퍼를 생성하지 못하도록 경고를 심었으며, 만약 오작동하여 래퍼를 씌웠을 때를 대비해 다중 키(`specifications`, `files`, `layers`) 폴백 서치 로직을 통합 가동함. 
+    - 또한 파싱 실패 시의 상세 분석을 위해 가공된 JSON의 실시간 로깅을 `Raw LLM Output (Cleaned)` 헤더와 함께 완벽하게 터미널로 방출하게 함.
+16. 7B 모델의 원시 배열 명세 리스트 출력에 대응하는 키워드 매핑/합성(Synthesizer) 폴백 가동:
+    - 로컬 7B 모델이 4개로 통합된 단일 객체가 아닌, 입력 spec.md 전체를 다차원 배열 `[{"title": "...", "content": "..."}]` 형태로 분해해서 뱉는 고유한 지시어 우회 현상을 확인 및 방어함.
+    - `crates/axon-daemon/src/lib.rs` 에 7B 특화형 `Array Fallback Synthesizer` 알고리즘을 빌드함.
+    - LLM이 루트 레벨 또는 특정 객체 내에 배열 형태로 파편화된 사양서 목록을 반환할 시, 각 요소의 `title`에 명시된 핵심 어휘들("constitution/rules/제약", "architecture/구조/탐색", "implementation/api/shortcut/menu", "hardening/보안")을 감지/매핑하여 4대 레이어에 자동으로 누적 축적하고 온전한 마크다운을 합성하는 완전 무결한 데이터 복구 메커니즘을 완성함.
+17. specifications 내부 세부 배열(details array) 필드 취합 지원을 통한 합성 견고성 강화:
+    - 7B 모델이 배열 요소를 반환할 때 단일 문자열 `content` 대신 여러 개의 문자열 목록인 `details` 배열 필드로 상세 규격을 쪼개어 전달하는 변칙 출력 동작을 추가 포착함.
+    - `Array Fallback Synthesizer` 내부 로직을 보완하여, `content`뿐만 아니라 `details` 라는 배열 필드가 존재할 때도 이들을 순회하여 모든 상세 항목 텍스트를 줄바꿈(`\n`)으로 취합 및 누적하여 마크다운 단락으로 완벽하게 조인 및 합성할 수 있도록 구조적으로 마감함.
+18. TEST4_GTK spec 디렉토리 내 4대 레이어 문서의 수동 구체화(Materialization) 및 터미널 노이즈 배제:
+    - `TEST4_GTK/spec.md` 내부의 ANSI renderer, stdout flush, stdin, termios, ncurses 등의 터미널 전용 시맨틱들이 GTK4 GUI 사양과 혼재하여 7B 모델의 인식을 교란하고 `[ARCHITECTURE_EMPTY]`를 유발하는 현상을 해결하기 위해 터미널 노이즈를 완전히 제거함.
+    - 오직 순수 GTK4 데스크톱 IDE 구조만을 핵심으로 정제한 `constitution.md` (헌법 및 금지 사항), `architecture_seed.md` (CMakeLists, 위젯 트리, 디렉토리 구조), `implementation_rules.md` (C++-Lua 바인딩 테이블, GtkEventController), `hardening.md` (IME filtering, IBus, lua_pcall 격리) 파일들을 물리적으로 직접 구체화 작성 완료함.
+19. SpecAnalysis 단계의 아키텍처 Extractor 입력 필터링 구현:
+    - 7B 소형 모델의 어텐션 분산 및 정보 오염을 차단하기 위해, `Stage::SpecAnalysis`에서 LLM 에이전트에게 전체 spec 내용이 아닌 오직 `spec/constitution.md` 와 `spec/architecture_seed.md` 만을 가공하여 주입하도록 입력 제한 파이프라인(`spec_analysis_input`)을 적용함.
+20. AUTO_PURIFY 결과 검증 엄격화 (Schema Hardening):
+    - LLM이 반환한 `PurifiedSpec` 파싱 데이터에 대해, 필수 핵심 레이어 파일 내용이 비어 있거나 디폴트 플레이스홀더(`No constitution...`) 텍스트가 섞여 있는지 물리적으로 확인하여, 누락 발견 시 즉시 거부(`continue`)하고 재시도를 강제하는 검증 로직을 구축함.
+21. TEST4_GTK/spec.md 단일 진실 공급원(SSOT) 명세의 전면 정밀 개정 (Terminal Semantics 배제):
+    - 단순히 분할 폴더(`spec/`) 아래의 파일들만 고치는 것을 넘어, 시스템의 단일 진실 공급원인 `TEST4_GTK/spec.md` 명세서 자체에서 터미널 기반 입출력(termios, ncurses, ANSI, stdin) 사양을 완전히 제거하고, 순수 GTK4 DrawingArea 및 Cairo 렌더링 파이프라인으로 일관성 있게 전면 개정 및 덮어쓰기 완료함. 이로써 `spec.md` 와 `spec/` 하위 파일들이 완벽하게 정교한 정렬 상태를 유지하도록 마감함.
+22. LLM의 임의 JSON 키 생성에 대응하는 2중 안전 장치(Fail-Safe) 구축:
+    - 로컬 7B 모델이 AUTO_PURIFY 시 `specifications_md` 또는 `security_and_hardening_md` 등 임의의 키/배열/구조를 생성하여 JSON 역직렬화에 실패하는 현상에 대응함.
+    - `specifications_md` 등의 래퍼 키를 감지 목록에 추가하고, 루트 객체 레벨에서 4대 분류 키워드를 동적으로 식별하여 취합해내는 강력한 `Object Key Fallback Synthesizer`를 Rust 파서에 최종 빌드하고, LLM 프롬프트에 불허 키워드 리스트를 더욱 엄격히 명시하여 강제력을 높임.
+
+[Affected Files Diff]
+- Created: TEST4_GTK/axon_config.json
+- Modified: TEST4_GTK/spec.md
+- Created: TEST4_GTK/immutable_constraints.json
+- Created: TEST4_GTK/spec/immutable_constraints.json
+- Modified: TEST4_GTK/spec/constitution.md
+- Modified: TEST4_GTK/spec/architecture_seed.md
+- Modified: TEST4_GTK/spec/implementation_rules.md
+- Modified: TEST4_GTK/spec/hardening.md
+- Created: TEST5_win32/axon_config.json
+- Created: TEST5_win32/spec.md
+- Created: TEST5_win32/immutable_constraints.json
+- Created: TEST5_win32/spec/immutable_constraints.json
+- Created: TEST5_win32/spec/constitution.md
+- Created: TEST5_win32/spec/architecture_seed.md
+- Created: TEST5_win32/spec/implementation_rules.md
+- Created: TEST5_win32/spec/hardening.md
+- Modified: crates/axon-agent/src/lib.rs
+- Modified: crates/axon-daemon/src/lib.rs
+- Modified: crates/axon-daemon/src/intelligence/lsp/session.rs
+- Modified: crates/axon-model/src/lib.rs

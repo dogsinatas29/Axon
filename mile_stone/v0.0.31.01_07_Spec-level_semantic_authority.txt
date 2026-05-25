@@ -1,0 +1,293 @@
+1. 현재 구현된 것
+
+현재 v0.0.31 상태:
+
+계층	상태
+Language enum	✅
+LanguageProfile	✅
+Runtime semantic firewall	✅
+Artifact legality	✅
+Build/runtime separation	✅
+Language-aware decomposition	✅
+Topology formalization	✅
+
+즉:
+
+IR 이후 semantic contamination
+
+은 상당 부분 방어 가능하다.
+
+2. 아직 비어 있는 핵심 계층
+
+아직 없는 것:
+
+Spec Semantic Validation Layer
+
+이게 핵심이다.
+
+현재는:
+
+spec 자체의 semantic worldview
+
+를 검증하지 않는다.
+
+3. 지금 구조의 실제 문제
+
+현재 흐름:
+
+Spec
+↓
+LLM JSON
+↓
+RawIR
+↓
+Semantic Firewall
+
+문제:
+
+RawIR projection 자체가 이미 semantic contamination 가능
+
+이라는 점이다.
+
+즉:
+
+semantic firewall은 너무 늦다
+4. 실제로 지금 못 막는 것
+
+예:
+
+{
+  "language": "rust",
+  "components": [
+    {
+      "name": "header",
+      "kind": "HeaderDecl"
+    }
+  ]
+}
+
+현재 구조에서는:
+
+JSON parse 성공
+RawIR projection 시도
+이후 artifact legality 검사
+
+즉:
+
+semantic intent contamination
+
+자체는 이미 발생한다.
+
+5. 추가로 반드시 필요한 작업
+(1) SpecSemanticValidator 계층
+
+필수.
+
+새 구조:
+
+spec_semantic/
+
+도입 필요.
+
+(2) SemanticOntology 계층
+
+현재는 artifact legality만 있다.
+
+하지만 필요한 건:
+
+semantic worldview legality
+
+다.
+
+즉:
+
+vocabulary legality
+decomposition legality
+topology legality
+build-system legality
+
+검사해야 한다.
+
+(3) RawIR 이전 validation
+
+핵심.
+
+현재:
+
+RawIR 생성 후 reject
+
+목표:
+
+RawIR 생성 전 reject
+6. 가장 중요한 추가 작업
+Language Resolution 선행
+
+현재:
+
+component extension 기반 infer
+
+흔적이 일부 남아 있다.
+
+완전히:
+
+language declared first
+
+구조로 고정해야 한다.
+
+즉:
+
+let language = resolve_language(spec)?;
+
+가 제일 먼저 와야 한다.
+
+7. 가장 중요한 누락
+
+현재는:
+
+semantic ontology
+
+가 formalize되지 않았다.
+
+즉 아직도 일부는:
+
+implicit semantic assumptions
+
+에 의존한다.
+
+8. 추가로 필요한 핵심 계층
+SpecSemanticViolation
+
+IR ValidationError와 분리 필요.
+
+예:
+
+pub enum SpecSemanticViolation {
+    ForbiddenVocabulary,
+    CrossLanguageContamination,
+    InvalidBuildOntology,
+    InvalidTopologyIntent,
+}
+9. Self-Repair Layer도 추가 필요
+
+현재 repair loop는:
+
+artifact repair
+
+중심이다.
+
+하지만 필요해지는 건:
+
+semantic ontology repair
+
+이다.
+
+예:
+
+Rust projects cannot use HeaderDecl terminology.
+Use module-oriented decomposition.
+10. 테스트 계층도 추가 필요
+
+현재 topology/build 테스트는 있어도:
+
+semantic contamination rejection tests
+
+는 부족하다.
+
+반드시 추가해야 한다.
+
+11. 꼭 필요한 테스트들
+Rust contamination test
+
+입력:
+
+Rust project with HeaderDecl + CMake
+
+기대:
+
+SpecSemanticValidationError
+Python contamination test
+
+입력:
+
+Python project using Cargo.toml
+
+기대:
+
+reject before RawIR projection
+C preservation test
+
+입력:
+
+legacy C project
+
+기대:
+
+behavior unchanged
+
+이거 매우 중요하다.
+
+12. 아직 구현 안 된 중요한 개념
+
+현재는:
+
+artifact legality
+
+위주다.
+
+하지만 진짜 필요한 건:
+
+semantic intent legality
+
+다.
+
+이 둘은 다르다.
+
+13. 최종적으로 필요한 구조
+
+최종 구조는:
+
+Spec
+↓
+Language Resolution
+↓
+Semantic Ontology Binding
+↓
+Spec Semantic Validation
+↓
+RawIR Projection
+↓
+IR Validation
+↓
+Artifact Firewall
+↓
+Build Runtime
+14. 결론
+
+따라서 현재 v0.0.31 상태는:
+
+language-aware runtime foundation
+
+까지는 성공했다.
+
+하지만 아직:
+
+spec-level semantic authority completion
+
+은 미완성이다.
+
+즉 추가로 반드시 필요한 것은:
+
+SpecSemanticValidator
+SemanticOntology
+RawIR 이전 semantic rejection
+SemanticViolation hierarchy
+Semantic repair loop
+Semantic contamination test suite
+
+이다.
+
+이 계층들이 들어와야 비로소:
+
+semantic contamination preemption
+
+이 완성된다.

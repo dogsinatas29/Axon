@@ -1,0 +1,56 @@
+=== Synapse Gate Log: 2026.05.25.01 ===
+
+[Core CoT]
+1. 사용자의 문제 진단 분석 결과, StatusResponse의 nogari_count/bootstrap_stage는 이미 v0.0.31 Post-Work Log에서 구현 완료된 상태였음.
+2. 실제 미해결 문제:
+   - A: active_threads가 list_all_threads().len()을 사용하여 완료된 스레드까지 포함 → 의미 없는 값
+   - B: TOTAL SIGNALS = 0 → list_events(200)이 SQLite에서 O(N) 쿼리, 이벤트가 많을수록 병목
+   - C: 초기 부트스트랩 시 모델명/워커 수 로깅 부재
+   - D: UI에 워커 수/부트스트랩 단계 표시 부재
+3. 매니저 시니어의 결정: 1번(Approve 먼저)이 우선이지만, StatusResponse 확장/웹소켓 연동 전에 worker 카운팅 로직과 로깅 개선을 먼저 수행.
+
+[Affected Files Diff]
+1. crates/axon-core/src/lib.rs (+14 lines)
+   - events 모듈: EventBus에 AtomicUsize counter 추가
+   - publish() 시 fetch_add(1), get_count() 메서드 추가
+   - total_signals O(N) → O(1) 전환
+
+2. crates/axon-daemon/src/lib.rs (+17 lines)
+   - run() 로깅 확장: 모델명/워커 수 상세 출력
+   - start_with_spec() 로깅 확장: 동일한 상세 출력 추가
+
+3. crates/axon-daemon/src/server.rs (+3 lines, -6 lines)
+   - get_status(): active_threads를 InProgress 태스크 카운트로 변경
+   - total_signals: storage.list_events(200) → event_bus.get_count()로 대체
+
+4. studio/src/App.tsx (+32 lines)
+   - activeWorkers, bootstrapStage state 변수 추가
+   - fetchStatus()에서 data.active_threads, data.bootstrap_stage 읽음
+   - Dashboard 4열: ACTIVE THREADS, TOTAL SIGNALS, WORKERS, NOGARI
+   - 헤더: Workers 인디케이터 + Bootstrap Stage 배지 추가
+
+5. studio/src/i18n.ts (+3 lines)
+   - ko_KR/en_US/ja_JP 언어팩에 workers 키 추가
+
+6. mile_stone/v0.0.31.md (+58 lines)
+   - Post-Work Log 추가: Phase 1: Runtime Observability & Worker Visibility Enhancement
+
+=== Session 02: WAL Flush Barrier ===
+
+[Changed Files]
+1. crates/axon-storage/src/lib.rs (+35 lines)
+   - Storage.flush_tx: mpsc::UnboundedSender<oneshot::Sender<()>> 필드 추가
+   - durable_worker: flush_rx.recv() select branch 신설
+   - flush(): 명시적 WAL 동기화 메서드 신설
+2. crates/axon-daemon/src/lib.rs (+4 lines)
+   - start_with_spec(): run_v3() 후 storage.flush().await
+3. crates/axon-daemon/src/server.rs (+12 lines)
+   - submit_spec(): bootstrap 성공 후 pipeline_storage.flush().await
+4. mile_stone/v0.0.31.md (+36 lines)
+   - Post-Work Log: Phase 2 WAL Flush Barrier 추가
+
+=== Session 03: Startup Log Consolidation ===
+1. crates/axon-daemon/src/main.rs: println!() 블록 제거 (-12 lines)
+2. crates/axon-daemon/src/server.rs: println!() Boss Board URL 제거
+3. crates/axon-daemon/src/lib.rs: run()/start_with_spec()에 📡 Boss Board URL 통합
+4. mile_stone/v0.0.31.md: Post-Work Log Phase 3 추가

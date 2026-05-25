@@ -1,0 +1,92 @@
+{
+  "project_id": "default-project",
+  "components": [
+    {
+      "name": "text_buffer.cpp",
+      "status": "Core",
+      "file_path": "src/text_buffer.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": false,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "lua_runtime.cpp",
+      "status": "Core",
+      "file_path": "src/lua_runtime.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": false,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "gtk_app.cpp",
+      "status": "Core",
+      "file_path": "src/gtk_app.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": false,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "main.cpp",
+      "status": "Core",
+      "file_path": "src/main.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": false,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "input.cpp",
+      "status": "Core",
+      "file_path": "src/input.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": false,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "terminal_renderer.cpp",
+      "status": "Core",
+      "file_path": "src/terminal_renderer.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": false,
+      "criticality": "CORE",
+      "failure_allowed": false
+    }
+  ],
+  "forbidden_patterns": [
+    "libpq",
+    "WinMain",
+    "HWND",
+    "ncurses",
+    "sqlite3",
+    "mysqlclient"
+  ],
+  "ambiguity_detected": false,
+  "ambiguity_details": [],
+  "recommended_action": "PROCEED",
+  "dependencies": null,
+  "transitions": null,
+  "language": "c",
+  "language_family": "systems",
+  "build_system": "cmake",
+  "module_system": "c_header",
+  "human_locked_ranges": null,
+  "dynamic_locked_ranges": null,
+  "platform": "linux",
+  "runtime_model": "gtk4",
+  "runtime_core": [
+    "cairo",
+    "lua_runtime",
+    "gtk4"
+  ],
+  "contract_tier": "Core"
+}

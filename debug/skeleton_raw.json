@@ -1,1 +1,0 @@
-{ "schema_version": "axon.skeleton.v3", "components": [{ "name": "Main", "path": "src/main.c", "functions": [{ "name": "main", "signature": "int main()", "description": "EntryPoint" }] }] }

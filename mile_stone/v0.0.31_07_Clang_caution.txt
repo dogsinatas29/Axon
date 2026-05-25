@@ -1,0 +1,403 @@
+# AXON v0.0.31 C Language Preservation Caution
+
+# 1. 핵심 결론
+
+현재 v0.0.31 방향은:
+
+```text
+기존 C 작업을 깨는 방향
+```
+
+이 아니라:
+
+```text
+C를 explicit semantic system으로 승격
+```
+
+시키는 방향이다.
+
+즉:
+
+* Rust contamination 제거
+* semantic isolation 구축
+* language-aware runtime 구축
+
+과 동시에:
+
+```text
+기존 C semantic pipeline 안정화
+```
+
+까지 수행하는 작업이다.
+
+---
+
+# 2. 현재 AXON의 실제 상태
+
+현재 AXON은 표면적으로는:
+
+```text
+Universal IR
+```
+
+구조처럼 보인다.
+
+하지만 실제로는:
+
+```text
+C semantics disguised as generic runtime
+```
+
+상태에 가깝다.
+
+즉:
+
+* generic decomposition
+* generic artifact generation
+* generic topology
+
+전체에:
+
+```text
+C compilation semantics
+```
+
+가 암묵적으로 스며들어 있다.
+
+예:
+
+```text
+HeaderDecl
+SourceImpl
+Integrator
+```
+
+같은 vocabulary 자체가 이미:
+
+```text
+C-centric decomposition model
+```
+
+이다.
+
+---
+
+# 3. 중요한 인식
+
+현재 C가 동작하는 이유는:
+
+```text
+현재 runtime이 실제로 C-compatible 구조
+```
+
+이기 때문이다.
+
+즉:
+
+```text
+C-native architecture
+```
+
+가 아니라:
+
+```text
+C-compatible accidental architecture
+```
+
+에 가깝다.
+
+즉 현재 C stability는:
+
+```text
+명시적 semantic contract
+```
+
+기반이 아니라:
+
+```text
+암묵적 구조적 우연
+```
+
+에 더 가깝다.
+
+---
+
+# 4. 왜 v0.0.31이 오히려 C를 보호하는가
+
+현재 구조를 유지하면 이후:
+
+* Rust contamination
+* Python contamination
+* TypeScript contamination
+
+전체가 generic layer를 통해:
+
+```text
+C runtime 쪽으로 역류
+```
+
+하게 된다.
+
+즉 generic runtime이 유지될수록:
+
+```text
+cross-language contamination
+```
+
+은 계속 심해진다.
+
+반면 v0.0.31 방향은:
+
+```text
+Language::C
+    ↓
+CProfile
+    ↓
+C-only topology
+```
+
+같은:
+
+```text
+language-locked execution path
+```
+
+를 만든다.
+
+즉:
+
+* translation unit semantics
+* header semantics
+* linker semantics
+* Make/CMake topology
+
+전체를:
+
+```text
+명시적 semantic contract
+```
+
+로 승격시킨다.
+
+이것은 사실상:
+
+```text
+C semantic formalization
+```
+
+이다.
+
+---
+
+# 5. 가장 중요한 위험
+
+## 절대로 C를 implicit default로 두면 안 된다
+
+현재 AXON은 사실상:
+
+```text
+implicit C baseline
+```
+
+구조다.
+
+예:
+
+```rust
+default => CProfile
+```
+
+같은 구조를 만들면:
+
+```text
+implicit C contamination
+```
+
+이 다시 시작된다.
+
+즉 이후:
+
+* Rust
+* Python
+* TS
+
+전체가 다시 C semantics 위에서 왜곡된다.
+
+따라서:
+
+```text
+C도 explicit semantic profile
+```
+
+로 다뤄야 한다.
+
+C는:
+
+```text
+기본값(default)
+```
+
+이 아니라:
+
+```text
+독립 semantic universe
+```
+
+여야 한다.
+
+---
+
+# 6. Generic vocabulary 유지 위험
+
+현재:
+
+```text
+SourceImpl
+Integrator
+```
+
+같은 vocabulary를 universal task model로 유지하면:
+
+결국 다시:
+
+```text
+C semantics leakage
+```
+
+가 발생한다.
+
+즉:
+
+```text
+Universal task model
+```
+
+은 실제로 존재하지 않는다.
+
+반드시:
+
+```text
+language-aware decomposition
+```
+
+구조로 가야 한다.
+
+---
+
+# 7. Rust normalization 위험
+
+Rust contamination 해결 과정에서:
+
+* header emission 제거
+* translation unit semantics 제거
+* linker assumptions 제거
+
+같이:
+
+```text
+C semantics 자체를 generic runtime에서 제거
+```
+
+하는 방향으로 가면 안 된다.
+
+그건:
+
+```text
+semantic isolation
+```
+
+이 아니라:
+
+```text
+Rust normalization
+```
+
+이다.
+
+반드시:
+
+```text
+Language::C → CProfile
+Language::Rust → RustProfile
+```
+
+처럼:
+
+```text
+parallel semantic ownership
+```
+
+구조로 가야 한다.
+
+---
+
+# 8. 오히려 강화될 수 있는 영역
+
+v0.0.31 이후 C는 오히려:
+
+* ABI boundary modeling
+* compile unit graph
+* linker visibility
+* header ownership
+* dependency legality
+
+같은 semantic formalization이 가능해진다.
+
+즉:
+
+```text
+현재보다 훨씬 deterministic한 C runtime
+```
+
+구축 가능성이 생긴다.
+
+---
+
+# 9. 최종 결론
+
+v0.0.31은:
+
+```text
+Rust 지원 추가 작업
+```
+
+이 아니다.
+
+실제 본질은:
+
+```text
+언어 시스템 전체 재정립
+```
+
+이다.
+
+그리고 그 과정에서:
+
+```text
+C를 implicit baseline에서 explicit semantic profile로 승격
+```
+
+시키는 것이 매우 중요하다.
+
+즉 목표는:
+
+```text
+Rust 우선 구조
+```
+
+가 아니라:
+
+```text
+language-pluggable semantic runtime
+```
+
+이다.
+
+C 역시:
+
+```text
+독립 semantic authority
+```
+
+를 가진 하나의 language universe로 재정의되어야 한다.
+

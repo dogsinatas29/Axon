@@ -9,7 +9,8 @@
 
 #![deprecated(since = "0.0.30", note = "Use axon_ir crate instead")]
 
-pub use axon_ir::schema::{ProjectIR, Component, Function};
+pub use axon_ir::schema::{ProjectIR, Component, Function, Platform};
+pub use axon_ir::schema::{FileAuthority, PatchRegion, OwnershipMetadata};
 pub use axon_ir::{
     canonicalize_path,
     canonical_ir_name,
@@ -25,11 +26,11 @@ pub use axon_ir::{
 };
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
 
     #[test]
-    #[allow(deprecated)]
     fn test_deprecated_re_exports() {
         assert_eq!(canonicalize_path("/main.c"), "main.c");
         assert_eq!(canonical_ir_name("database.c"), "database");

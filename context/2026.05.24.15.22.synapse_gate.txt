@@ -1,0 +1,9 @@
+[Core CoT]
+1. 사용자 지침 "Trace Canonicalization" (시간, UUID, Temp Path 등 모든 엔트로피 소스 제거) 완벽 동의.
+2. 각 이벤트에는 `EVENT_SEQUENCE_NUMBER` (logical_step_counter)가 강제 부여되며, 순서나 중복이 발생하는 즉시 `TRACE_CORRUPTION_PANIC`을 발생시킴.
+3. 컴파일러나 런타임의 환경적 노이즈를 제거하기 위해 Raw Failure를 Canonical Failure(`MissingSymbol` 등)로 변환하는 계층 구축.
+4. `crates/axon-daemon/src/intelligence/replay/closed_loop_harness.rs`를 구현하여, 1000회 싱글스레드 반복 테스트를 수행하고 `REPLAY_CERTIFICATE.json`을 발급하도록 함.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/replay/closed_loop_harness.rs (신설)
++ crates/axon-daemon/src/intelligence/replay/mod.rs (harness 모듈 추가)

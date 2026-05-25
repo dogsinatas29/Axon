@@ -1,0 +1,18 @@
+{
+  "module": "legacy_daemon.rs",
+  "reason": "implicit async runtime divergence, massive constructors, fallback generation",
+  "removed_symbols": [
+    "Daemon",
+    "worker_loop",
+    "submit_spec_internal",
+    "BootstrapManager"
+  ],
+  "hidden_state_sources": [
+    "global task registry",
+    "implicit bootstrap",
+    "background spawn via worker_loop",
+    "timing dependency in task selection"
+  ],
+  "replay_risk": "HIGH",
+  "migration_target": "DeterministicKernel"
+}

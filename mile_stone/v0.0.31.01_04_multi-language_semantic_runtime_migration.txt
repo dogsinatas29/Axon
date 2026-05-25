@@ -1,0 +1,281 @@
+지금 진행하는 건:
+
+Rust semantic isolation
+
+이 아니라,
+
+multi-language semantic runtime migration
+
+이다.
+
+즉:
+
+기존 C semantic runtime을 절대 깨뜨리지 않으면서
+semantic authority만 상위 계층으로 이동
+
+해야 한다.
+
+이게 핵심이다.
+
+1. 절대 깨지면 안 되는 것
+
+현재 C 파이프라인은 이미:
+
+decomposition
+header/source 분리
+build pipeline
+task generation
+topology
+validator
+integrator
+
+등이 실제로 동작 중이다.
+
+따라서 v0.0.31.01의 목표는:
+
+C runtime replacement
+
+가 아니다.
+
+정확히는:
+
+C runtime preservation
++
+semantic root elevation
+
+이다.
+
+2. 따라서 migration 방식이어야 한다
+
+하면 안 되는 방식:
+
+generic validator 제거
+→ 새 validator 재작성
+
+이건 위험하다.
+
+반드시:
+
+incremental migration
+
+방식으로 가야 한다.
+
+3. 가장 중요한 원칙
+
+새 semantic layer는:
+
+C semantic runtime 위에 덧씌워지는 것
+
+이지,
+
+기존 runtime replacement
+
+가 아니다.
+
+즉:
+
+legacy C behavior preservation
+
+이 최우선이다.
+
+4. 실제로 유지해야 하는 것
+
+반드시 보존:
+
+기존 기능	유지 여부
+CValidator	유지
+HeaderDecl workflow	유지
+SourceImpl workflow	유지
+CMake build	유지
+main.c integrator	유지
+topology behavior	유지
+기존 decomposition	유지
+5. 새 작업의 진짜 역할
+
+새 semantic validator는:
+
+기존 C semantic world를 explicit formalization
+
+하는 역할이다.
+
+즉:
+
+기존에는 암묵적으로:
+
+C가 default worldview
+
+였는데,
+
+이제는:
+
+C semantic ontology를 명시적으로 선언
+
+하는 것이다.
+
+6. 따라서 C는 “deprecated”가 아니다
+
+매우 중요한 부분.
+
+C는:
+
+legacy compatibility mode
+
+가 아니다.
+
+오히려:
+
+first-class semantic runtime
+
+다.
+
+즉 Rust/Python이:
+
+C 수준 semantic formalization
+
+을 갖게 되는 것이다.
+
+7. 가장 위험한 실패 패턴
+
+가장 위험한 상황:
+
+Rust semantic isolation 구현하다가
+기존 C decomposition 깨짐
+
+이다.
+
+예:
+
+HeaderDecl 제거
+generic task 제거
+build flow 변경
+CMake 제거
+integrator 흐름 변경
+
+이런 식이면 안 된다.
+
+8. 따라서 필요한 전략
+
+정확한 전략:
+
+먼저 C를 formalize
+
+즉:
+
+현재 동작 중인 C runtime을 ontology로 승격
+
+해야 한다.
+
+그 다음:
+
+Rust/Python semantic runtime 추가
+
+해야 한다.
+
+9. 구현 순서도 C-first여야 한다
+
+권장 순서:
+
+STEP 1
+COntology 작성
+
+현재 C runtime behavior를 그대로 모델링.
+
+STEP 2
+CSpecValidator 작성
+
+현재 behavior preservation 확인.
+
+STEP 3
+기존 C integration test 통과 확인
+
+여기 중요.
+
+STEP 4
+Rust semantic isolation 추가
+10. 가장 중요한 설계 철학
+
+이번 작업은:
+
+C 제거 프로젝트
+
+가 아니다.
+
+진짜 목표는:
+
+C semantic assumptions를 explicit semantic model로 승격
+
+하는 것이다.
+
+즉:
+
+기존 implicit C runtime
+→ explicit C semantic runtime
+
+변환 작업이다.
+
+11. 최종적으로 얻어야 하는 상태
+
+최종 상태:
+
+Language::C
+↓
+CProfile
+↓
+COntology
+↓
+CSpecValidator
+↓
+기존 C decomposition/runtime 그대로 유지
+
+그리고 동시에:
+
+Language::Rust
+↓
+Rust-only semantic universe
+
+가 분리되어야 한다.
+
+12. 핵심 검증 기준
+
+이번 작업 성공 기준:
+
+C 프로젝트
+
+기존과:
+
+동일하게 동작
+
+해야 한다.
+
+Rust 프로젝트
+
+기존 contamination:
+
+HeaderDecl
+CMakeLists.txt
+translation unit
+
+등이:
+
+Spec 단계에서 reject
+
+되어야 한다.
+
+13. 결론
+
+이번 작업의 본질은:
+
+기존 C semantic runtime 보존
++
+semantic authority 계층 승격
++
+multi-language semantic isolation 추가
+
+이다.
+
+즉:
+
+C를 제거하는 게 아니라
+C를 공식 semantic civilization으로 승격시키는 작업
+
+이라고 보는 게 정확하다.

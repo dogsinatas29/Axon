@@ -1,0 +1,8 @@
+[Core CoT]
+1. 사용자의 요청에 따라 Tier 1 최우선 과제인 "Rust Skeleton Constitution"의 1~2단계를 구현함.
+2. Step 1 (Prompt Constitution): `crates/axon-daemon/src/intelligence/language_contract/rust.rs` 파일의 `base_prompt` 함수에 `Stage::Skeleton` 분기를 신설하여, 구현 금지 및 `todo!()` 강제를 물리적 제약으로 주입.
+3. Step 2 (Skeleton Validator): `rust.rs` 하단에 `validate_skeleton` 함수를 신설하여 Phase 1 도중 LLM이 내뱉는 루프, 분기(`if`, `match`), 메모리 할당(`Box`, `vec!`), 런타임 제어(`tokio`) 등 구체적 구현 흔적을 Regex 수준의 문자열 필터로 차단하고 에러를 리턴하도록 구현.
+4. 구현 이후 Step 3 (Ownership Freeze)와 Step 4 (Deterministic Replay)로의 로직 전개를 준비함.
+
+[Affected Files Diff]
+* crates/axon-daemon/src/intelligence/language_contract/rust.rs (+ Stage::Skeleton prompt, + validate_skeleton)

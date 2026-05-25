@@ -1,0 +1,10 @@
+Core CoT:
+- Created strongly-typed `AxonConfig` structs in `lib.rs` for `axon_config.json`.
+- Deserialized `axon_config.json` via `serde_json` and injected into `KernelConfig`.
+- Updated `server::setup_ingress` to bind an `axum` HTTP server to `0.0.0.0:8080` keeping the daemon alive.
+- Wired the ingress server into `DeterministicKernel::run()`.
+
+Affected Files Diff:
+- `crates/axon-daemon/src/lib.rs`
+- `crates/axon-daemon/src/server.rs`
+- `crates/axon-daemon/src/main.rs`

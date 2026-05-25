@@ -19,14 +19,20 @@ pub mod linker;
 pub mod canonicalizer;
 pub mod emitter;
 pub mod spec_extractor;
+pub mod semantic;
+pub mod spec_ir;
+pub mod spec_parser;
 
-pub use schema::{ProjectIR, Component, Function, Constraint, ComponentTier, default_true};
+pub use schema::{Language, Platform, Subsystem, EntrypointType, RuntimeModel, Win32ComponentType, ProjectIR, Component, Function, Constraint, ComponentTier, ComponentType, default_true};
+pub use schema::{ProjectTopology, ModuleTopology, TopologyMeta};
+pub use schema::{FileAuthority, PatchRegion, OwnershipMetadata};
 pub use parser::{parse, InputFormat, detect_format};
 pub use validator::{validate_ir, validate_runtime_contract, validate_language_capability, ValidationError, ValidationKind};
 pub use linker::{link_dependencies, DependencyGraph};
 pub use canonicalizer::{canonicalize_path, canonical_ir_name, normalize_paths, is_compound_path, sanitize_llm_output};
 pub use emitter::{save_ir, load_ir, load_ir_from_path};
 pub use spec_extractor::{SpecExtractor, SpecKind, ExtractedSpec};
+pub use semantic::{SemanticViolation, SemanticDiagnostic, DiagnosticSeverity, DiagnosticCategory, CapabilityLock};
 
 pub const IR_VERSION: &str = "0.0.28";
 pub const MIN_IR_VERSION: &str = "0.0.28";
@@ -67,5 +73,13 @@ mod tests {
         let input = "# Architecture\n## Components\n- File: test.c";
         let spec = extract_spec(input);
         assert!(spec.is_some());
+    }
+
+    #[test]
+    fn test_from_md_language_extraction() {
+        let md = "<!-- AXON:SPEC:COMPONENTS\n{\n  \"components\": []\n}\n-->\nlanguage: rust";
+        let ir = ProjectIR::from_md(md);
+        assert!(ir.is_some());
+        assert_eq!(ir.unwrap().language, Language::Rust);
     }
 }

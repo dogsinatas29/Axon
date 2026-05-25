@@ -7,7 +7,9 @@ members = [
     "crates/axon-dispatcher",
     "crates/axon-agent",
     "crates/axon-model",
-    "crates/axon-storage"
+    "crates/axon-storage",
+    "crates/axon-platform-win32",
+    "crates/axon-ir-validator"
 ]
 
 [workspace.dependencies]

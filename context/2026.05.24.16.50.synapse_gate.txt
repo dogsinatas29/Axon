@@ -1,0 +1,13 @@
+[Core CoT]
+1. 사용자 지침 수용: AI 코딩 어시스턴트(AI coding assistant) 수준을 넘어, "결정론적인 런타임 안전 소프트웨어 진화 시스템(Deterministic Runtime-safe Software Evolution System)"으로 본질적 전환 실시.
+2. Controlled Software Evolution(통제된 소프트웨어 진화) 파이프라인(Evolution Workflow Layer) 구축. 
+   - LLM이 코드를 짜고 기도하는(Pray) 방식 탈피.
+   - 의도(Intent) -> 락(Boundary Lock) 검증 -> 안전 봉투(Safe Envelope) 발급 -> 제한된 변이(Constrained Mutation) -> 리플레이 및 관측(Replay Validation) -> 승인(Merge)이라는 6단계 루프 구축.
+3. GTK Timeout Attachment Evolution 데모 실행.
+   - 기능 추가 데모(`test_e2e_safe_timeout_evolution`): 기존 Topology에 드리프트(Drift)를 유발하지 않는 안전한 콜백 추가 증명.
+   - 변이 거부 데모(`test_e2e_unsafe_mutation_rejection`): 위젯 파괴 이후 호출되는 `DeferredOrphanDispatch` 병리를 유발하는 위험한 변이를 AXON 커널이 무자비하게 거절(TopologyDriftRejected)함을 증명.
+4. "잘 만드는 능력"보다 "위험한 진화를 거부하는 능력"이 브라운필드(Brownfield) 유지보수의 핵심임을 완벽하게 시스템으로 구현.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/evolution/mod.rs (신설)
++ crates/axon-daemon/src/intelligence/evolution/workflow.rs (신설)

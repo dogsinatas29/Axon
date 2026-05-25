@@ -1,0 +1,428 @@
+# AXON v0.0.31.01 — Required Work Breakdown
+
+현재 필요한 것은 “validator 추가”가 아니다.
+
+진짜 작업은:
+
+```text id="i1c4vp"
+semantic authority elevation
+```
+
+이다.
+
+즉 semantic validation을:
+
+```text id="d8q2km"
+late-stage validator
+```
+
+에서:
+
+```text id="n4v7rs"
+pipeline root authority
+```
+
+로 승격시키는 작업이다.
+
+---
+
+# 1. 가장 먼저 해야 하는 작업
+
+## Spec Semantic Layer 분리
+
+새 구조:
+
+```text id="z3p8mx"
+crates/axon-ir/src/spec_semantic/
+ ├── mod.rs
+ ├── validator.rs
+ ├── ontology.rs
+ ├── rust.rs
+ ├── c.rs
+ └── python.rs
+```
+
+핵심:
+
+```text id="u5r9wy"
+IR validator와 완전히 분리
+```
+
+해야 한다.
+
+절대:
+
+```text id="m2x6cb"
+validator/mod.rs 안에 spec validator 추가
+```
+
+같이 가면 안 된다.
+
+그건 다시 generic validator contamination이 된다.
+
+---
+
+# 2. SpecSemanticValidator Trait 구축
+
+첫 번째 핵심 구현:
+
+```rust id="h9t4vn"
+pub trait SpecSemanticValidator {
+    fn validate_spec(
+        &self,
+        spec: &str,
+    ) -> Vec<SemanticViolation>;
+}
+```
+
+여기서 중요한 건:
+
+```text id="y6k1ps"
+검사 대상은 IR이 아니라 raw semantic intent
+```
+
+라는 점이다.
+
+---
+
+# 3. SemanticViolation 구조 정의
+
+예:
+
+```rust id="v7d3qx"
+pub struct SemanticViolation {
+    pub severity: ViolationSeverity,
+    pub category: SemanticCategory,
+    pub message: String,
+}
+```
+
+필수 category:
+
+* ForbiddenVocabulary
+* InvalidTopology
+* InvalidBuildSystem
+* CrossLanguageContamination
+* MissingRequiredSemantic
+
+---
+
+# 4. Semantic Ontology 구축
+
+핵심 작업 중 하나.
+
+예:
+
+```rust id="s2f8kl"
+pub struct SemanticOntology {
+    pub forbidden_terms: Vec<String>,
+    pub required_terms: Vec<String>,
+    pub forbidden_artifacts: Vec<String>,
+    pub required_artifacts: Vec<String>,
+}
+```
+
+그리고:
+
+```rust id="e5n9rw"
+RustOntology
+COntology
+PythonOntology
+```
+
+를 분리한다.
+
+---
+
+# 5. Rust Semantic Ontology 구축
+
+예:
+
+## Forbidden
+
+```text id="f8c3jp"
+.h
+.hpp
+CMakeLists.txt
+translation unit
+HeaderDecl
+```
+
+## Required
+
+```text id="g2w7mn"
+Cargo.toml
+crate
+mod
+fn main
+```
+
+중요:
+
+```text id="a9k4tz"
+semantic worldview 자체를 모델링
+```
+
+해야 한다.
+
+---
+
+# 6. C Semantic Ontology 구축
+
+반대로 C에서는:
+
+## Forbidden
+
+```text id="j5r8xu"
+Cargo.toml
+crate
+mod.rs
+```
+
+## Required
+
+```text id="t1p6vy"
+header
+translation unit
+main.c
+```
+
+---
+
+# 7. LanguageProfile 연결
+
+기존:
+
+```rust id="x6m2qp"
+profile.validator()
+```
+
+확장:
+
+```rust id="r4d9kw"
+profile.spec_validator()
+profile.semantic_ontology()
+```
+
+즉:
+
+```text id="p8v1nc"
+LanguageProfile이 semantic authority root
+```
+
+가 되어야 한다.
+
+---
+
+# 8. 가장 중요한 작업
+
+## Spec Parsing 이전 Language Resolution
+
+현재 문제:
+
+```text id="m7c3rt"
+언어가 너무 늦게 결정됨
+```
+
+따라서:
+
+```text id="y4f8kn"
+spec ingestion 시점에 language resolve
+```
+
+해야 한다.
+
+예:
+
+```rust id="q9s5vx"
+let language = resolve_language(spec)?;
+let profile = get_profile(language);
+```
+
+이게 먼저 와야 한다.
+
+---
+
+# 9. Pipeline 재구성
+
+현재:
+
+```text id="w2r6mb"
+Spec
+→ RawIR
+→ Validation
+```
+
+목표:
+
+```text id="p5n1jy"
+Spec
+↓
+Language Resolution
+↓
+Spec Semantic Validation
+↓
+Semantic Contract Bind
+↓
+RawIR Projection
+↓
+IR Validation
+```
+
+---
+
+# 10. 가장 중요한 Runtime 변경
+
+현재:
+
+```text id="d7m3qx"
+invalid semantic intent
+→ RawIR 생성
+→ later reject
+```
+
+목표:
+
+```text id="f1v8rs"
+invalid semantic intent
+→ immediate reject
+```
+
+즉:
+
+```text id="u4p9kc"
+IR 세계에 contamination 진입 자체 금지
+```
+
+다.
+
+---
+
+# 11. Self-Repair Loop 변경
+
+현재 repair loop는:
+
+```text id="z8n2wy"
+artifact legality repair
+```
+
+수준이다.
+
+하지만 새 구조에서는:
+
+```text id="a3f7mx"
+semantic ontology repair
+```
+
+가 가능해야 한다.
+
+예:
+
+```text id="e6r1tp"
+Rust project cannot use HeaderDecl terminology.
+Use Rust module semantics instead.
+```
+
+같은 피드백이 생성되어야 한다.
+
+---
+
+# 12. 테스트 체계 구축
+
+반드시 필요한 작업.
+
+## Rust contamination test
+
+입력:
+
+```text id="r9c5vx"
+Rust calculator using CMakeLists.txt
+```
+
+결과:
+
+```text id="w4k2ps"
+reject before IR generation
+```
+
+---
+
+## C contamination test
+
+입력:
+
+```text id="t8v6qm"
+C project with Cargo.toml
+```
+
+결과:
+
+```text id="n5r1zy"
+reject before IR generation
+```
+
+---
+
+# 13. 절대 하면 안 되는 것
+
+## (1) Generic blacklist
+
+이렇게 가면 실패:
+
+```rust id="k2m7pw"
+if spec.contains("CMake")
+```
+
+핵심은:
+
+```text id="x7n4rs"
+language semantic ontology
+```
+
+다.
+
+---
+
+## (2) NLP 과설계
+
+지금 목표는:
+
+```text id="v3c9tx"
+deterministic semantic firewall
+```
+
+이다.
+
+LLM semantic reasoning engine 만들 단계 아니다.
+
+---
+
+# 14. 최종 구현 목표
+
+최종 상태:
+
+```text id="y1m8vk"
+Language::Rust
+↓
+RustProfile
+↓
+RustOntology
+↓
+RustSpecValidator
+↓
+Rust-only semantic projection
+↓
+Rust-only IR
+↓
+Rust-only artifacts
+```
+
+즉:
+
+```text id="h6r2qp"
+language semantic universe isolation
+```
+
+을 시스템 전체에 강제하는 것이
+v0.0.31.01의 진짜 구현 목표다.
+

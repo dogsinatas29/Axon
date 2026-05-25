@@ -1,0 +1,10 @@
+Core CoT:
+- Acknowledged that legacy UI routes were deleted by a previous AI session violating GEMINI.md rules.
+- Restored Boss Board UI `studio/dist` static serving in `server.rs`.
+- Fixed `RUST_LOG=info` setting in `main.rs` so terminal logging works again.
+- Fixed `AxonConfig` deserialization mismatch (`language` -> `locale`).
+
+Affected Files Diff:
+- `crates/axon-daemon/src/server.rs`
+- `crates/axon-daemon/src/main.rs`
+- `crates/axon-daemon/src/lib.rs`

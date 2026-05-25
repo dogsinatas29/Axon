@@ -1,0 +1,12 @@
+[Core CoT]
+1. Checked `spec.md` and `architecture_seed.md` in `TEST4_GTK`.
+2. Verified the active SQLite `tasks` table and discovered it was completely empty on fresh launch, but previously contained only `gtk_app.cpp`.
+3. Traced the source of task decomposition inside `axon-daemon`'s `Stage::HeaderGen` and `Stage::ImplGen`.
+4. Discovered that `.h` files are processed in `HeaderGen` and entrypoints are processed in `IntegratorGen`.
+5. For the remaining source files, only `gtk_app.cpp` was generated.
+6. Identified a critical mismatch/bug in `crates/axon-daemon/src/lib.rs` (line 2272) inside the `[CONSTRAINT_SEED]` recovery logic:
+   - `comp.name.to_lowercase().contains(...)` is too loose and skips seeding missing core files if there is a partial name match in the IR.
+7. Also noted that the Lead Architect LLM failed to extract the rest of the 5 files (`text_buffer.cpp`, `lua_runtime.cpp`, `input.cpp`, `terminal_renderer.cpp`) during `Stage::Skeleton` IR generation.
+
+[Affected Files Diff]
+None so far (analysis phase).

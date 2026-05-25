@@ -1,0 +1,4 @@
+# Win32 Message Loop Contract
+REQUIRED_CALLS: GetMessage, TranslateMessage, DispatchMessage
+FORBIDDEN_CALLS: polling_loop, busy_renderer, frame_scheduler
+DESCRIPTION: Every Win32 GUI app must implement a standard GetMessage-based non-blocking message pump to avoid CPU starvation.

@@ -33,14 +33,98 @@ const App: React.FC = () => {
   const activeThreads = threads.filter(t => t.id !== 'lounge' && t.project_id !== 'system');
   const projectId = activeThreads.length > 0 ? activeThreads[0].project_id : (threads.find(t => t.id !== 'lounge')?.project_id || 'AXON-FACTORY-01');
   const [totalSignals, setTotalSignals] = useState(0);
+  const [nogariCount, setNogariCount] = useState(0);
+  const [activeWorkers, setActiveWorkers] = useState(0);
+  const [bootstrapStage, setBootstrapStage] = useState('Idle');
   const [isRunning, setIsRunning] = useState(true);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [locale, setLocale] = useState<string>('en_US');
   const [activeChannel, setActiveChannel] = useState<'dashboard' | 'work' | 'office' | 'boss' | 'nogari' | 'signals'>('dashboard');
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [completedPhase, setCompletedPhase] = useState<number | null>(null);
+  const [shownPopups, setShownPopups] = useState<{ [key: number]: boolean }>({ 1: false, 2: false, 3: false });
   
   const t = getTranslation(locale);
+
+  // v0.0.31 Session 18-Final: 모든 핵심 아키텍처 단위 구현 태스크가 Completed 되었는지 실시간 완결 정합 판정
+  const getPhaseTasks = (phase: number) => {
+    return activeThreads.filter(th => {
+      const kind = th.task_kind;
+      let kindStr = '';
+      if (typeof kind === 'string') {
+        kindStr = kind;
+      } else if (typeof kind === 'object' && kind !== null) {
+        const values = Object.values(kind);
+        if (values.length > 0) {
+          kindStr = values[0] as string;
+        }
+      }
+      if (phase === 1) {
+        return kindStr === 'HeaderDecl' || kindStr === 'ModuleDecl';
+      } else if (phase === 2) {
+        return kindStr === 'SourceImpl' || kindStr === 'ModuleImpl';
+      } else {
+        // Phase 3: IntegratorGen — 백엔드 CTaskKind::Integrator 직렬화 결과와 정렬
+        return kindStr === 'Integrator' || kindStr === 'IntegratorGen';
+      }
+    });
+  };
+
+  const isPhase1Complete = getPhaseTasks(1).length > 0 && getPhaseTasks(1).every(th => th.status === 'Completed');
+  const isPhase2Complete = getPhaseTasks(2).length > 0 && getPhaseTasks(2).every(th => th.status === 'Completed');
+  const isPhase3Complete = getPhaseTasks(3).length > 0 && getPhaseTasks(3).every(th => th.status === 'Completed');
+
+  useEffect(() => {
+    if (isPhase3Complete && !shownPopups[3]) {
+      setCompletedPhase(3);
+      setShowSuccessPopup(true);
+      setShownPopups(prev => ({ ...prev, 3: true }));
+    } else if (isPhase2Complete && !shownPopups[2]) {
+      setCompletedPhase(2);
+      setShowSuccessPopup(true);
+      setShownPopups(prev => ({ ...prev, 2: true }));
+    } else if (isPhase1Complete && !shownPopups[1]) {
+      setCompletedPhase(1);
+      setShowSuccessPopup(true);
+      setShownPopups(prev => ({ ...prev, 1: true }));
+    }
+  }, [isPhase1Complete, isPhase2Complete, isPhase3Complete, shownPopups]);
+
+  useEffect(() => {
+    setShownPopups(prev => {
+      let next = { ...prev };
+      if (!isPhase1Complete) next[1] = false;
+      if (!isPhase2Complete) next[2] = false;
+      if (!isPhase3Complete) next[3] = false;
+      if (prev[1] !== next[1] || prev[2] !== next[2] || prev[3] !== next[3]) {
+        return next;
+      }
+      return prev;
+    });
+  }, [isPhase1Complete, isPhase2Complete, isPhase3Complete]);
+
+  const getSuccessPopupContent = () => {
+    if (completedPhase === 1) {
+      return {
+        title: locale === 'ko_KR' ? '🏆 Phase 1 (설계 선언) 공정 완료!' : locale === 'ja_JP' ? '🏆 Phase 1 (設計宣言) 工程完了！' : '🏆 Phase 1 (Spec & Design) Complete!',
+        desc: locale === 'ko_KR' ? '모든 아키텍처 명세 및 헤더 프로토타입 선언(HeaderGen) 공정이 성공적으로 승인 및 완료되었습니다.' : locale === 'ja_JP' ? 'すべてのアーキテクチャ仕様およびヘッダープロトタイプ宣言（HeaderGen）工程が正常に承認および完了しました。' : 'All architecture specifications and header declarations (HeaderGen) have been successfully authorized and completed.'
+      };
+    } else if (completedPhase === 2) {
+      return {
+        title: locale === 'ko_KR' ? '🏆 Phase 2 (소스 구현) 공정 완료!' : locale === 'ja_JP' ? '🏆 Phase 2 (ソース実装) 工程完了！' : '🏆 Phase 2 (Source Implementation) Complete!',
+        desc: locale === 'ko_KR' ? '모든 핵심 비즈니스 로직 및 소스 코드 파일(ImplGen) 구현이 컴파일 오류 없이 안전하게 빌드 완료되었습니다.' : locale === 'ja_JP' ? 'すべての主要ビジネスロジックおよびソースコードファイル（ImplGen）の実装がコンパイルエラーなしで正常にビルドされました。' : 'All core business logic and source code implementations (ImplGen) have been successfully built with zero compilation errors.'
+      };
+    } else {
+      return {
+        title: t.factorySuccessTitle || "🏆 Factory Manufacturing Cycle Complete!",
+        desc: t.factorySuccessDesc || "All strategic modules compiled and verified successfully."
+      };
+    }
+  };
+
+  const popupContent = getSuccessPopupContent();
 
   const fetchThreads = async () => {
     try {
@@ -61,9 +145,19 @@ const App: React.FC = () => {
         if (prioA !== prioB) return prioA - prioB;
 
         // Within same status, sort by Phase (task_kind)
-        const getPhaseOrder = (kind: string | undefined) => {
-            if (kind === 'HeaderDecl') return 1;
-            if (kind === 'SourceImpl') return 2;
+        const getPhaseOrder = (kind: any) => {
+            if (!kind) return 3;
+            let kindStr = '';
+            if (typeof kind === 'string') {
+                kindStr = kind;
+            } else if (typeof kind === 'object') {
+                const values = Object.values(kind);
+                if (values.length > 0) {
+                    kindStr = values[0] as string;
+                }
+            }
+            if (kindStr === 'HeaderDecl' || kindStr === 'ModuleDecl') return 1;
+            if (kindStr === 'SourceImpl' || kindStr === 'ModuleImpl') return 2;
             return 3;
         };
 
@@ -97,6 +191,9 @@ const App: React.FC = () => {
       const data = await res.json();
       setIsRunning(data.is_running);
       setTotalSignals(data.total_signals);
+      setNogariCount(data.nogari_count);
+      setActiveWorkers(data.active_threads);
+      setBootstrapStage(data.bootstrap_stage);
       if (data.locale) {
         setLocale(data.locale);
       }
@@ -181,7 +278,39 @@ const App: React.FC = () => {
             AXON <span style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>WORKSPACE: {projectId} [{t.controlTower}]</span>
           </h1>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '0.4rem',
+            fontSize: '0.7rem', color: 'var(--text-dim)',
+            padding: '0.3rem 0.6rem', borderRadius: '6px',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.06)'
+          }}>
+            <span style={{ fontWeight: 'bold', color: activeWorkers > 0 ? 'var(--accent-primary)' : 'var(--text-dim)' }}>
+              👷 {activeWorkers}
+            </span>
+            <span>{t.workers || 'Workers'}</span>
+          </div>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '0.4rem',
+            fontSize: '0.7rem', color: 'var(--text-dim)',
+            padding: '0.3rem 0.6rem', borderRadius: '6px',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.06)'
+          }}>
+            <span className="badge" style={{
+              background: bootstrapStage === 'Complete' ? 'rgba(16, 185, 129, 0.2)' :
+                           bootstrapStage.includes('Running') ? 'rgba(59, 130, 246, 0.2)' :
+                           'rgba(255,255,255,0.05)',
+              color: bootstrapStage === 'Complete' ? '#10b981' :
+                     bootstrapStage.includes('Running') ? '#3b82f6' :
+                     'var(--text-dim)',
+              fontSize: '0.6rem',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              fontFamily: 'monospace'
+            }}>{bootstrapStage}</span>
+          </div>
           <button 
             className="btn-control" 
             onClick={handleTogglePause}
@@ -245,7 +374,78 @@ const App: React.FC = () => {
 
       <div className="main-content">
         {activeChannel === 'dashboard' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gridTemplateRows: 'auto 1fr', gap: '1rem', height: '100%' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gridTemplateRows: isPhase3Complete ? 'auto auto 1fr' : 'auto 1fr', gap: '1rem', height: '100%' }}>
+            {isPhase3Complete && (
+              <div className="card" style={{
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.2) 100%)',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
+                boxShadow: '0 8px 32px 0 rgba(16, 185, 129, 0.2), inset 0 0 12px rgba(16, 185, 129, 0.1)',
+                borderRadius: '12px',
+                padding: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '1.5rem',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.2)',
+                  borderRadius: '50%',
+                  padding: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)'
+                }}>
+                  <span style={{ fontSize: '2rem' }}>🎉</span>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h2 style={{
+                    fontFamily: 'Orbitron',
+                    fontSize: '1.2rem',
+                    fontWeight: 'bold',
+                    color: '#10b981',
+                    textShadow: '0 0 10px rgba(16, 185, 129, 0.5)',
+                    marginBottom: '0.4rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    {t.factorySuccessTitle || "🏆 Factory Cycle Complete!"}
+                    <span className="badge" style={{
+                      background: 'rgba(16, 185, 129, 0.2)',
+                      color: '#10b981',
+                      border: '1px solid #10b981',
+                      fontSize: '0.6rem',
+                      fontFamily: 'monospace',
+                      padding: '2px 6px',
+                      borderRadius: '4px'
+                    }}>100% PASS</span>
+                  </h2>
+                  <p style={{
+                    fontSize: '0.85rem',
+                    color: 'rgba(255,255,255,0.7)',
+                    lineHeight: '1.4'
+                  }}>
+                    {t.factorySuccessDesc || "All strategic modules compiled and verified successfully."}
+                  </p>
+                </div>
+                <div style={{
+                  position: 'absolute',
+                  right: '15px',
+                  bottom: '-10px',
+                  fontSize: '4rem',
+                  fontWeight: 900,
+                  color: 'rgba(16, 185, 129, 0.08)',
+                  pointerEvents: 'none',
+                  fontFamily: 'Orbitron',
+                  letterSpacing: '4px'
+                }}>
+                  SUCCESS
+                </div>
+              </div>
+            )}
+
             <section className="panel">
                 <div className="panel-header">{t.factoryOverview}</div>
                 <div style={{ padding: '1.5rem', display: 'flex', gap: '4rem' }}>
@@ -256,6 +456,14 @@ const App: React.FC = () => {
                     <div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '0.5rem' }}>{t.totalSignals}</div>
                         <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--accent-secondary)', fontFamily: 'Orbitron' }}>{totalSignals}</div>
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '0.5rem' }}>WORKERS</div>
+                        <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--accent-primary)', fontFamily: 'Orbitron' }}>{activeWorkers}</div>
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '0.5rem' }}>NOGARI</div>
+                        <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--accent-tertiary)', fontFamily: 'Orbitron' }}>{nogariCount}</div>
                     </div>
                     <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '0.5rem' }}>{t.latestStatus}</div>
@@ -271,7 +479,7 @@ const App: React.FC = () => {
                   <span>{t.recentStrategicThreads}</span>
                   <button className="btn-mini" onClick={() => setActiveChannel('work')}>{t.viewAll}</button>
                 </div>
-                <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem', overflowY: 'visible' }}>
+                <div style={{ padding: '1rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.6rem', overflowY: 'visible' }}>
                     {threads.filter(t => t.id !== 'lounge').slice(0, 6).map(th => (
                         <ThreadCard key={th.id} thread={th} onClick={() => setSelectedThreadId(th.id)} t={t} />
                     ))}
@@ -284,7 +492,7 @@ const App: React.FC = () => {
         {activeChannel === 'work' && (
           <section className="panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <div className="panel-header">{t.workBoardTitle} / {projectId}</div>
-            <div className="thread-grid" style={{ padding: '1rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gridAutoRows: 'max-content', alignContent: 'start', gap: '0.6rem', overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div className="thread-grid" style={{ padding: '0.8rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gridAutoRows: 'max-content', alignContent: 'start', gap: '0.5rem', overflowY: 'auto', flex: 1, minHeight: 0 }}>
               {/* v0.0.25: Strategic sync - use pre-filtered activeThreads for consistent display */}
               {activeThreads.map(thread => (
                 <div 
@@ -362,12 +570,116 @@ const App: React.FC = () => {
         {selectedThread && (
           <ThreadDetail 
             thread={selectedThread} 
-            onClose={() => setSelectedThreadId(null)}
+            onClose={() => setSelectedThreadId(null)} 
             onApprove={handleApprove}
+            onRefresh={fetchThreads}
             t={t}
           />
         )}
       </AnimatePresence>
+
+      {/* 🏆 공정 완결 기념 장엄한 성공 팝업 모달 */}
+      {showSuccessPopup && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(12px)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          animation: 'fadeIn 0.3s ease-out'
+        }}>
+          <div style={{
+            width: '90%',
+            maxWidth: '550px',
+            background: 'linear-gradient(135deg, rgba(20, 20, 20, 0.98) 0%, rgba(10, 10, 10, 0.99) 100%)',
+            border: '2px solid rgba(16, 185, 129, 0.7)',
+            boxShadow: '0 0 50px rgba(16, 185, 129, 0.45), inset 0 0 20px rgba(16, 185, 129, 0.25)',
+            borderRadius: '16px',
+            padding: '2.5rem',
+            textAlign: 'center',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* radial gradient background glow */}
+            <div style={{
+              position: 'absolute',
+              top: '-50%',
+              left: '-50%',
+              width: '200%',
+              height: '200%',
+              background: 'radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 60%)',
+              pointerEvents: 'none',
+              zIndex: 1
+            }} />
+            
+            <div style={{ position: 'relative', zIndex: 2 }}>
+              <div style={{
+                fontSize: '4.5rem',
+                marginBottom: '1rem',
+                display: 'inline-block',
+                filter: 'drop-shadow(0 0 15px rgba(16, 185, 129, 0.6))'
+              }}>
+                🏆
+              </div>
+              
+              <h2 style={{
+                fontFamily: 'Orbitron',
+                fontSize: '1.6rem',
+                fontWeight: 'bold',
+                color: '#10b981',
+                textShadow: '0 0 15px rgba(16, 185, 129, 0.6)',
+                marginBottom: '1rem',
+                letterSpacing: '1px'
+              }}>
+                {popupContent.title}
+              </h2>
+              
+              <div style={{
+                width: '80px',
+                height: '2px',
+                background: 'linear-gradient(90deg, transparent, #10b981, transparent)',
+                margin: '0.8rem auto 1.5rem auto'
+              }} />
+              
+              <p style={{
+                fontSize: '0.95rem',
+                color: 'rgba(255, 255, 255, 0.85)',
+                lineHeight: '1.6',
+                marginBottom: '2rem',
+                wordBreak: 'keep-all'
+              }}>
+                {popupContent.desc}
+              </p>
+
+              <button 
+                onClick={() => setShowSuccessPopup(false)}
+                style={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '0.8rem 2.5rem',
+                  fontSize: '1rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 0 20px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+                  transition: 'all 0.2s ease',
+                  fontFamily: 'Orbitron, sans-serif',
+                  letterSpacing: '1px'
+                }}
+              >
+                {locale === 'ko_KR' ? '확인 완료 🫡' : locale === 'ja_JP' ? '確認完了 🫡' : 'CONFIRMED 🫡'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

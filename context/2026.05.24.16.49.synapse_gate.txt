@@ -1,0 +1,14 @@
+[Core CoT]
+1. 사용자 요구 수용: "안 죽이고 어떻게 진화시키는가?"라는 AXON vNext의 목표를 달성하기 위해 `Safe Mutation Layer` 본격 구현.
+2. 모든 코드 변경을 텍스트 수정이 아닌 **"위상 변이 트랜잭션(Topology Mutation Transaction)"**으로 취급.
+3. 4단계 Mutation Governance 구조 확립:
+   - 1. Mutation Intent Layer (`intent_dsl.rs`): `ADD_IDLE_CALLBACK`, `ATTACH_SIGNAL` 등 위상 변화 의도만 선언적으로 명시.
+   - 2. Mutation Boundary Lock (`boundary_lock.rs` 기반): 의도가 기존 소유권(Ownership)이나 큐(Queue) 경계를 침범하는지 검증.
+   - 3. Safe Mutation Envelope (`safe_envelope.rs`): 검증 통과 시 발급. LLM이나 인간은 오직 이 봉투(Envelope) 내부의 제한된 스코프 안에서만 코드를 작성할 수 있음.
+   - 4. Replay-backed Validation (`mutation_transaction.rs`): 변이 후 런타임 리플레이를 실행하여, 이전의 `compressed_lineage`와 동일한지(Drift가 없는지) 확인.
+4. 핵심 통찰: 지금까지 구축한 방대한 Observability Stack은 버려지는 것이 아니라, 이 **Mutation Engine이 코드를 배포해도 되는지를 심판하는 'Safety Oracle'**로 격상됨. (관측 -> 수술 통제탑으로 진화)
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/mutation/intent_dsl.rs (신설)
++ crates/axon-daemon/src/intelligence/mutation/safe_envelope.rs (신설)
++ crates/axon-daemon/src/intelligence/mutation/mutation_transaction.rs (신설)

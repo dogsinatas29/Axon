@@ -1,9 +1,18 @@
-use chrono::Local;
-use std::fs::OpenOptions;
+use chrono::{Local, TimeZone};
+use std::fs::{self, OpenOptions};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use axon_core::{Agent, AgentRole, Event, EventType};
 use std::sync::Arc;
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct NogariPersona {
+    pub agent_id: String,
+    pub nickname: String,
+    pub conversation_style: String,
+    pub custom_emojis: Vec<String>,
+}
+
 
 pub enum Vibe {
     Excited,
@@ -29,15 +38,17 @@ impl Vibe {
 }
 
 pub struct LoungeManager {
-    file_path: String,
+    lounge_dir: PathBuf,
     event_bus: Option<Arc<axon_core::events::EventBus>>,
 }
 
 impl LoungeManager {
     pub fn new(project_root: &str) -> Self {
-        let path = Path::new(project_root).join("Nogari.md");
+        let lounge_dir = Path::new(project_root).join("lounge");
+        let _ = fs::create_dir_all(&lounge_dir);
+        let _ = fs::create_dir_all(lounge_dir.join("reflections"));
         Self {
-            file_path: path.to_string_lossy().to_string(),
+            lounge_dir,
             event_bus: None,
         }
     }
@@ -57,20 +68,17 @@ impl LoungeManager {
 
         let message = vibe.to_korean_text(&agent.role);
         let log_entry = format!(
-            "**[{}] {} {}:**\n> \"{}\"\n\n",
+            "[{}] {} {}: {}\n",
             timestamp, role_tag, agent.name, message
         );
 
+        let file_name = format!("agent_{}.log", agent.id);
+        let file_path = self.lounge_dir.join(file_name);
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
-            .open(&self.file_path)?;
+            .open(file_path)?;
 
-        // If file is new, add header
-        if file.metadata()?.len() == 0 {
-            writeln!(file, "# 🗨️ AXON Lounge (실시간 노가리)\n")?;
-            writeln!(file, "이곳은 에이전트들이 작업 중간중간 속마음을 털어놓는 비밀 공간입니다.\n")?;
-        }
         file.write_all(log_entry.as_bytes())?;
 
         // v0.0.28: Broadcast to Studio UI via EventBus
@@ -81,7 +89,7 @@ impl LoungeManager {
                 thread_id: None,
                 agent_id: Some(agent.id.clone()),
                 event_type: EventType::SystemLog,
-                    level: axon_core::EventLevel::Info,
+                level: axon_core::EventLevel::Info,
                 source: agent.name.clone(),
                 content: format!("💬 {}: {}", agent.name, message),
                 payload: None,
@@ -101,14 +109,16 @@ impl LoungeManager {
         };
 
         let log_entry = format!(
-            "**[{}] {} {}:**\n> \"{}\"\n\n",
+            "[{}] {} {}: {}\n",
             timestamp, role_tag, agent_name, message
         );
 
+        let file_name = format!("agent_{}.log", agent_name);
+        let file_path = self.lounge_dir.join(file_name);
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
-            .open(&self.file_path)?;
+            .open(file_path)?;
 
         file.write_all(log_entry.as_bytes())?;
 
@@ -120,13 +130,247 @@ impl LoungeManager {
                 thread_id: None,
                 agent_id: None,
                 event_type: EventType::SystemLog,
-                    level: axon_core::EventLevel::Info,
+                level: axon_core::EventLevel::Info,
                 source: agent_name.to_string(),
                 content: format!("💬 {}: {}", agent_name, message),
                 payload: None,
                 timestamp: Local::now(),
             });
         }
+
+        Ok(())
+    }
+
+    pub fn log_task_thought(&self, task_id: &str, agent_name: &str, role: AgentRole, thought: &str) -> std::io::Result<()> {
+        let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        let role_tag = match role {
+            AgentRole::Architect => "[ARC] 🏛️",
+            AgentRole::Senior => "[SNR] 👴",
+            AgentRole::Junior => "[JNR] 🐣",
+        };
+
+        let log_entry = format!(
+            "### [{}] {} {}'s Reflection:\n{}\n\n",
+            timestamp, role_tag, agent_name, thought
+        );
+
+        let file_name = format!("task_{}.md", task_id);
+        let file_path = self.lounge_dir.join(file_name);
+
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(file_path)?;
+
+        if file.metadata()?.len() == 0 {
+            writeln!(file, "# 📝 Task {} - Agent Nogari & Reflections\n", task_id)?;
+        }
+        file.write_all(log_entry.as_bytes())?;
+
+        // Broadcast to Studio UI via EventBus
+        if let Some(bus) = &self.event_bus {
+            bus.publish(Event {
+                id: uuid::Uuid::new_v4().to_string(),
+                project_id: "system".to_string(),
+                thread_id: Some(task_id.to_string()),
+                agent_id: None,
+                event_type: EventType::SystemLog,
+                level: axon_core::EventLevel::Info,
+                source: agent_name.to_string(),
+                content: format!("💬 [Thought] {}: {}", agent_name, thought),
+                payload: None,
+                timestamp: Local::now(),
+            });
+        }
+
+        Ok(())
+    }
+
+    pub fn log_reflection(&self, agent_name: &str, role: AgentRole, reflection: &str) -> std::io::Result<()> {
+        let timestamp = Local::now().format("%Y%m%d_%H%M%S").to_string();
+        let file_name = format!("{}_{}.md", timestamp, agent_name);
+        let file_path = self.lounge_dir.join("reflections").join(file_name);
+
+        let role_tag = match role {
+            AgentRole::Architect => "[ARC] 🏛️",
+            AgentRole::Senior => "[SNR] 👴",
+            AgentRole::Junior => "[JNR] 🐣",
+        };
+
+        let mut file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(file_path)?;
+
+        let content = format!(
+            "# Agent Reflection - {}\nRole: {}\nTime: {}\n\n## Content\n{}\n",
+            agent_name, role_tag, Local::now().to_rfc3339(), reflection
+        );
+        file.write_all(content.as_bytes())?;
+        Ok(())
+    }
+
+    pub fn read_all_lounge_posts(&self) -> std::io::Result<Vec<axon_core::Post>> {
+        let mut posts = Vec::new();
+
+        // 1. Read agent log files (agent_*.log)
+        if let Ok(entries) = fs::read_dir(&self.lounge_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("log") {
+                    let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                    if file_name.starts_with("agent_") {
+                        if let Ok(content) = fs::read_to_string(&path) {
+                            for line in content.lines() {
+                                if line.starts_with('[') && line.contains("] ") {
+                                    if let Some(close_bracket_idx) = line.find(']') {
+                                        let timestamp_str = &line[1..close_bracket_idx];
+                                        let rest = &line[close_bracket_idx + 2..];
+                                        let parts: Vec<&str> = rest.splitn(2, ':').collect();
+                                        if parts.len() == 2 {
+                                            let author_info = parts[0].trim();
+                                            let message = parts[1].trim();
+
+                                            let author_name = if let Some(last_space_idx) = author_info.rfind(' ') {
+                                                author_info[last_space_idx + 1..].to_string()
+                                            } else {
+                                                author_info.to_string()
+                                            };
+
+                                            let created_at = chrono::NaiveDateTime::parse_from_str(timestamp_str, "%Y-%m-%d %H:%M:%S")
+                                                .map(|dt| chrono::Local.from_local_datetime(&dt).unwrap())
+                                                .unwrap_or_else(|_| chrono::Local::now());
+
+                                            posts.push(axon_core::Post {
+                                                id: uuid::Uuid::new_v4().to_string(),
+                                                thread_id: "lounge".to_string(),
+                                                author_id: author_name,
+                                                content: message.to_string(),
+                                                thought: None,
+                                                full_code: None,
+                                                post_type: axon_core::PostType::Nogari,
+                                                metrics: None,
+                                                created_at,
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Read task md files (task_*.md)
+        if let Ok(entries) = fs::read_dir(&self.lounge_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
+                    let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                    if file_name.starts_with("task_") {
+                        if let Ok(content) = fs::read_to_string(&path) {
+                            let mut lines = content.lines();
+                            let mut current_post: Option<axon_core::Post> = None;
+                            let mut current_body = String::new();
+
+                            while let Some(line) = lines.next() {
+                                if line.starts_with("### [") {
+                                    if let Some(post) = current_post.take() {
+                                        let mut finalized_post = post;
+                                        finalized_post.content = current_body.trim().to_string();
+                                        posts.push(finalized_post);
+                                        current_body.clear();
+                                    }
+
+                                    if let Some(end_time_idx) = line.find(']') {
+                                        let timestamp_str = &line[5..end_time_idx];
+                                        let rest = &line[end_time_idx + 2..];
+                                        let author_name = if let Some(reflection_idx) = rest.find("'s Reflection:") {
+                                            let author_info = &rest[..reflection_idx];
+                                            if let Some(last_space_idx) = author_info.rfind(' ') {
+                                                author_info[last_space_idx + 1..].to_string()
+                                            } else {
+                                                author_info.to_string()
+                                            }
+                                        } else {
+                                            "Agent".to_string()
+                                        };
+
+                                        let created_at = chrono::NaiveDateTime::parse_from_str(timestamp_str, "%Y-%m-%d %H:%M:%S")
+                                            .map(|dt| chrono::Local.from_local_datetime(&dt).unwrap())
+                                            .unwrap_or_else(|_| chrono::Local::now());
+
+                                        current_post = Some(axon_core::Post {
+                                            id: uuid::Uuid::new_v4().to_string(),
+                                            thread_id: "lounge".to_string(),
+                                            author_id: author_name,
+                                            content: String::new(),
+                                            thought: None,
+                                            full_code: None,
+                                            post_type: axon_core::PostType::Nogari,
+                                            metrics: None,
+                                            created_at,
+                                        });
+                                    }
+                                } else if current_post.is_some() {
+                                    current_body.push_str(line);
+                                    current_body.push('\n');
+                                }
+                            }
+                            if let Some(post) = current_post.take() {
+                                let mut finalized_post = post;
+                                finalized_post.content = current_body.trim().to_string();
+                                posts.push(finalized_post);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        posts.sort_by_key(|p| p.created_at);
+        Ok(posts)
+    }
+
+    pub fn compile_to_nogari_md(&self) -> std::io::Result<()> {
+        let posts = self.read_all_lounge_posts().unwrap_or_default();
+        let nogari_path = self.lounge_dir.parent().unwrap_or(&self.lounge_dir).join("Nogari.md");
+        
+        let mut content = String::new();
+        content.push_str("# 🍻 AXON Lounge - Nogari History (Decoupled System)\n");
+        content.push_str("*본 파일은 에이전트들의 잡담 페르소나에 의해 백그라운드로 안전하게 생성되었습니다.*\n\n---\n\n");
+        
+        for post in posts {
+            let role_emoji = if post.author_id.contains("Senior") || post.author_id.contains("Claude") {
+                "👴"
+            } else if post.author_id.contains("Architect") {
+                "🏛️"
+            } else {
+                "🐣"
+            };
+            
+            content.push_str(&format!(
+                "**[{}] {} {}:**\n> {}\n\n",
+                post.created_at.format("%Y-%m-%d %H:%M:%S"),
+                role_emoji,
+                post.author_id,
+                post.content
+            ));
+        }
+
+        // Atomic write via temp file
+        let tmp_path = nogari_path.with_extension("tmp");
+        {
+            let mut tmp_file = OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(&tmp_path)?;
+            tmp_file.write_all(content.as_bytes())?;
+            tmp_file.sync_all()?;
+        }
+        fs::rename(&tmp_path, &nogari_path)?;
 
         Ok(())
     }
@@ -163,6 +407,12 @@ mod tests {
         // 2. Log gossiping vibe
         manager.log_vibe(&agent, Vibe::Gossiping).unwrap();
 
+        assert!(Path::new("lounge").exists());
+        assert!(Path::new("lounge/agent_test-junior.log").exists());
+
+        // 3. Compile to Nogari.md
+        manager.compile_to_nogari_md().unwrap();
         assert!(Path::new("Nogari.md").exists());
+        let _ = fs::remove_file("Nogari.md");
     }
 }

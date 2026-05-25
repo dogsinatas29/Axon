@@ -1,0 +1,14 @@
+[Core CoT]
+1. 사용자 피드백 수용. AXON은 Topology Theory Kernel을 넘어 "Runtime Surgery Instrumentation Layer(런타임 수술 계측 계층)"로 확고히 전환됨.
+2. AI 수리 엔진(AI Repair Engine)의 환상을 버리고, Human-guided Surgery(인간 주도형 수술) 워크플로우를 채택. (인간이 핫스팟 지정 -> AXON이 런타임 붕괴를 결정론적으로 캡처하고 증명)
+3. 런타임 추상화(Topology abstraction)를 늘리지 않고 실제 GTK 메모리와 큐에서 발생하는 "실측 바이트(Actual runtime bytes)"를 잡기 위한 4대 신규 센서 부착:
+   - Signal Nesting Depth Tracker: 재귀적 시그널 재진입(`Signal A -> emit(A) -> emit(A)`)의 스택 깊이 추적.
+   - Refcount Transition Logger: `ref`, `unref`, `floating_sink`, 특히 가장 위험한 `destroy without ref stabilization` 추적.
+   - Deferred Callback Lineage: `scheduled_by_seq`를 통해 `A -> g_idle_add(B)` 형태의 지연 콜백 족보 추적.
+   - Widget Tree Snapshot Diff: 트리의 물리적 변경(orphan subtree, detached renderer)을 Diff 형태로 추적.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/telemetry/signal_nesting.rs (신설)
++ crates/axon-daemon/src/intelligence/telemetry/refcount_logger.rs (신설)
++ crates/axon-daemon/src/intelligence/telemetry/deferred_lineage.rs (신설)
++ crates/axon-daemon/src/intelligence/telemetry/widget_snapshot.rs (신설)

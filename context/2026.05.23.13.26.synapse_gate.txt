@@ -1,0 +1,11 @@
+1. 이번 프롬프트로 인해 수행한 추론 과정 요약 (Core CoT)
+- 요구사항: GEMINI.md의 원칙과 v0.0.31.md 마일스톤을 읽고 분석 완료.
+- 원칙 대응: 마일스톤 문서를 읽어들인 경우 즉시 해당 버전에 대한 작업 계획(Implementation Plan)과 TODO 리스트를 작성해야 함.
+- 방향 설계: 다음 단계인 v0.0.31.32 마일스톤(Lounge System 및 Nogari.md 통합 고도화)에 대한 Implementation Plan 수립.
+- 구현 내용 기획: 
+  - `Nogari.md` 통합 아카이빙 로직 설계
+  - `server.rs`에 `/api/lounge/posts` API 제공 계획 수립
+  - 프론트엔드 `Lounge.tsx`에 전체 노가리 히스토리 및 UI 고도화 계획 수립
+
+2. 수정 및 생성된 변경 파일 목록 (Affected Files Diff)
+- artifacts/v0.0.31.32_implementation_plan.md (신규 작성 예정)

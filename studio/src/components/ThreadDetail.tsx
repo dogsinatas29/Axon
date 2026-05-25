@@ -18,7 +18,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Check, Shield, Clock } from 'lucide-react';
+import { X, Check, Shield, Clock, RotateCcw, ThumbsDown } from 'lucide-react';
 import type { Thread, Post } from '../types';
 
 interface ThreadDetailProps {
@@ -26,20 +26,27 @@ interface ThreadDetailProps {
   onClose: () => void;
   onApprove: (id: string) => void;
   t: any;
+  onRefresh?: () => void;
 }
 
-const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, onApprove, t }) => {
+const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, onApprove, t, onRefresh }) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [retryFeedback, setRetryFeedback] = useState('');
 
   useEffect(() => {
-    fetch(`http://localhost:${window.location.port}/api/threads/${thread.id}/posts`)
-      .then(res => res.json())
-      .then(data => {
-        setPosts(data);
-        setLoading(false);
-      })
-      .catch(err => console.error('Failed to fetch posts', err));
+    const fetchPosts = () => {
+      fetch(`http://localhost:${window.location.port}/api/threads/${thread.id}/posts`)
+        .then(res => res.json())
+        .then(data => {
+          setPosts(data);
+          setLoading(false);
+        })
+        .catch(err => console.error('Failed to fetch posts', err));
+    };
+    fetchPosts();
+    const interval = setInterval(fetchPosts, 2000);
+    return () => clearInterval(interval);
   }, [thread.id]);
 
   const formatContent = (content: string) => {
@@ -150,14 +157,67 @@ const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, onApprove,
         )}
       </div>
 
-      <div className="detail-footer">
+      <div className="detail-footer" style={{ flexDirection: 'column', gap: '0.5rem' }}>
         {thread.status === 'BossApproval' && (
-          <button 
-            className="btn-approve"
-            onClick={() => onApprove(thread.id)}
-          >
-            <Check size={18} /> {t.approveLock}
-          </button>
+          <>
+            <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+              <button
+                className="btn-approve"
+                style={{ flex: 1 }}
+                onClick={async () => {
+                  try {
+                    await fetch(`/api/threads/${thread.id}/approve`, { method: 'POST' });
+                    onRefresh?.();
+                    onClose();
+                  } catch (err) {
+                    console.error('Approve failed', err);
+                  }
+                }}
+              >
+                <Check size={18} /> {t.approveLock || 'Approve'}
+              </button>
+              <button
+                style={{ flex: 1, background: 'rgba(255,68,68,0.1)', color: '#ff4444', border: '1px solid rgba(255,68,68,0.3)', padding: '0.6rem 1rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+                onClick={async () => {
+                  try {
+                    await fetch(`/api/threads/${thread.id}/reject`, { method: 'POST' });
+                    onRefresh?.();
+                    onClose();
+                  } catch (err) {
+                    console.error('Reject failed', err);
+                  }
+                }}
+              >
+                <ThumbsDown size={18} /> {t.reject || 'Reject'}
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+              <input
+                value={retryFeedback}
+                onChange={(e) => setRetryFeedback(e.target.value)}
+                placeholder="Retry feedback (optional)..."
+                style={{ flex: 1, background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '0.5rem', color: 'white', fontSize: '0.8rem' }}
+              />
+              <button
+                style={{ background: 'rgba(0, 242, 255, 0.1)', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)', padding: '0.5rem 1rem', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}
+                onClick={async () => {
+                  try {
+                    await fetch(`/api/threads/${thread.id}/retry`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ feedback: retryFeedback || null }),
+                    });
+                    onRefresh?.();
+                    onClose();
+                  } catch (err) {
+                    console.error('Retry failed', err);
+                  }
+                }}
+              >
+                <RotateCcw size={18} /> Retry
+              </button>
+            </div>
+          </>
         )}
         <button className="btn-secondary" onClick={onClose}>{t.standBy}</button>
       </div>

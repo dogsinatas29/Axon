@@ -1,0 +1,9 @@
+[Core CoT]
+1. 사용자 동의 간주: "관측된 위상 안에서만 안전한 변이를 허용한다(Topology-preserving mutation)"는 진화 철학을 바탕으로 `Safe Mutation Layer` 아키텍처 설계 진입.
+2. `Mutation Boundary Lock`(변이 경계 락) 메커니즘 구축 시작.
+   - 새로운 기능이나 콜백을 추가할 때, 기존의 위상 경계(소유권, 큐 인접성, 시그널 재진입 한계)를 침범하지 못하도록 강제하는 잠금 장치.
+3. AXON의 가치 증명: "어떻게 시스템을 죽이지 않으면서 레거시를 안전하게 진화시키는가?"에 대한 첫 번째 해답.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/mutation/mod.rs (신설)
++ crates/axon-daemon/src/intelligence/mutation/boundary_lock.rs (신설)

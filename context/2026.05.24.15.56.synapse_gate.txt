@@ -1,0 +1,8 @@
+[Core CoT]
+1. 사용자 지침 완벽 수용. "기능 성공률"이 아니라 "붕괴의 재현성(Replay Variance = 0)" 검증 유지.
+2. 단일 스레드의 텍스트 위상을 넘어, GTK/Win32의 진정한 붕괴 지점인 "Runtime Event Ordering Topology"를 통제하는 PHASE E로 진입.
+3. Callback Reentry, Deferred Event Queue (Idle callbacks, PostMessage), Queued Destruction Ordering, Ownership Handoff Race 등의 런타임 이벤트 순서를 캐노니컬 트레이스(Canonical Trace)로 봉인하고 `runtime_lifecycle_hash`를 도입.
+4. 이벤트 큐의 실행 순서나 비동기 소멸(Destruction) 순서가 단 한 틱이라도 어긋나면 즉각 `EVENT_ORDERING_DRIFT` 패닉을 발생시켜 런타임 위상 변형을 원천 차단하는 하네스 구축.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/replay/runtime_event_topology.rs (신설)

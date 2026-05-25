@@ -1,0 +1,9 @@
+[Core CoT]
+1. 사용자 지침 수용: "Runtime determinism under hostile execution"을 증명. GTK 앱을 잘 돌리는 것이 아니라 "압축된 정규 병리 이벤트(Canonical Pathology Event)가 표류(Drift) 없이 수렴하는가"가 유일한 목표임.
+2. STEP A (Tiny GTK Crash Target 1000x Replay): ASLR, 할당자 Jitter, 커널 스케줄링 등 극심한 노이즈가 낀 Raw Telemetry 스트림을 시뮬레이션 및 수집하되, `RuntimeCausalityCompressor`를 통과한 결과물이 1,000번 모두 동일한 `compressed_lineage_identity == 1.0`을 달성하는지 증명하기 위한 `live_attach_harness.rs` 구축.
+3. STEP C (Crash Artifact Minimalism & Ceiling): `causality_compressor` 내부에 `MAX_LINEAGE_EVENTS = 100` 하드 리미트를 걸어, 렌더링 스톰이나 무한 재귀 시 Lineage Memory가 폭발하여 관측소가 죽는 것을 방지.
+4. 더 큰 목표 확립: "실제 포인터가 일치하는가?"(❌) -> "Causal ordering lineage(인과적 순서 혈통)가 일치하는가?"(✅). AXON은 AI Coding Assistant가 아니라 rr, valgrind, ASAN 수준의 "Forensic Lineage Extractor"로 진화함.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/telemetry/live_attach_harness.rs (신설)
+M crates/axon-daemon/src/intelligence/telemetry/causality_compressor.rs

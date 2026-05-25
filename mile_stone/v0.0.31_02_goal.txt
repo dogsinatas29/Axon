@@ -1,0 +1,321 @@
+# AXON v0.0.31 목표 정리
+
+## 1. 핵심 목표
+
+v0.0.31의 핵심 목표는 단순한 IR 분리가 아니다.
+
+진짜 목표는:
+
+```text
+언어 semantic authority를 시스템 초반부에 고정
+```
+
+하는 것이다.
+
+즉 language가 단순 metadata가 아니라:
+
+```text
+entire semantic universe
+```
+
+로 동작하도록 시스템 전체를 재구성해야 한다.
+
+---
+
+# 2. 현재 구조의 문제
+
+현재 구조:
+
+```text
+IR
+ ↓
+generic decomposition
+ ↓
+generic task emission
+ ↓
+later validator
+```
+
+문제:
+
+* generator는 언어를 제대로 모른다
+* validator는 너무 늦게 동작한다
+* decomposition이 C 중심 vocabulary를 사용한다
+* artifact emission이 unrestricted 상태다
+
+결과적으로:
+
+```text
+Rust validator
++
+C scaffold generator
+```
+
+상태가 발생한다.
+
+즉 semantic authority가 validator에조차 없다.
+
+---
+
+# 3. 최종적으로 필요한 구조
+
+목표 구조:
+
+```text
+IR
+ ↓
+Language Resolution
+ ↓
+Language Profile Binding
+ ↓
+Language-specific Decomposition
+ ↓
+Artifact Emission
+ ↓
+Validation
+```
+
+즉 language가 결정되는 순간:
+
+* allowed artifacts
+* decomposition model
+* task vocabulary
+* module topology
+* build system
+* entry semantics
+
+전체가 lock되어야 한다.
+
+---
+
+# 4. lib.rs의 새로운 역할
+
+현재 lib.rs:
+
+```rust
+pub mod validator;
+pub mod parser;
+pub mod emitter;
+```
+
+단순 export hub 수준이다.
+
+하지만 v0.0.31 목표는:
+
+```text
+language orchestration kernel
+```
+
+로 승격하는 것이다.
+
+즉 lib.rs가:
+
+```text
+language resolve
+→ semantic contract bind
+→ validator/decomposer/emitter topology 선택
+```
+
+까지 담당해야 한다.
+
+---
+
+# 5. 필요한 핵심 구조
+
+## (1) Language enum 도입
+
+현재:
+
+```rust
+pub kind: String
+```
+
+목표:
+
+```rust
+pub enum Language {
+    C,
+    Cpp,
+    Rust,
+    Python,
+}
+```
+
+언어를 free-form string이 아니라 compile-time semantic entity로 승격.
+
+---
+
+## (2) LanguageProfile 도입
+
+예:
+
+```rust
+pub struct LanguageProfile {
+    validator: Box<dyn LanguageValidator>,
+    decomposer: Box<dyn TaskDecomposer>,
+    emitter: Box<dyn ArtifactEmitter>,
+    topology: ProjectTopology,
+}
+```
+
+즉 language별:
+
+* validator
+* decomposer
+* emitter
+* topology
+
+전체를 고정한다.
+
+---
+
+## (3) Language-specific decomposition
+
+현재:
+
+```text
+universal task kinds
+```
+
+목표:
+
+```text
+language-aware task decomposition
+```
+
+예:
+
+```rust
+LanguageTaskKind::C(CTaskKind)
+LanguageTaskKind::Rust(RustTaskKind)
+```
+
+Rust에서:
+
+```text
+HeaderDecl
+```
+
+같은 C-centric vocabulary가 나오지 못하게 해야 한다.
+
+---
+
+## (4) Semantic Closure
+
+language 선택 순간:
+
+### Rust
+
+```text
+.h forbidden
+CMakeLists.txt forbidden
+Cargo.toml mandatory
+mod system mandatory
+fn main() required
+```
+
+### C
+
+```text
+.h allowed
+CMake allowed
+main.c allowed
+int main() allowed
+```
+
+즉 generator 자체가 semantic contract 내부에서만 동작해야 한다.
+
+---
+
+# 6. Generation-time Validation
+
+현재:
+
+```text
+Generator first
+→ Validator later
+```
+
+목표:
+
+```text
+generation-time invariant enforcement
+```
+
+즉 artifact emit 이전에 semantic contract 검증이 이루어져야 한다.
+
+예:
+
+```rust
+if language == Rust && path.ends_with(".h") {
+    reject();
+}
+```
+
+```rust
+if language == Rust && file == "CMakeLists.txt" {
+    reject();
+}
+```
+
+---
+
+# 7. 최종 목표 상태
+
+최종적으로는:
+
+```text
+Language::Rust
+    ↓
+RustProfile
+    ↓
+RustTaskKinds only
+    ↓
+RustEmitter only
+    ↓
+Cargo topology only
+```
+
+같은:
+
+```text
+language-locked execution path
+```
+
+가 시스템 전체에 적용되어야 한다.
+
+즉 중간 어디에서도:
+
+```text
+HeaderDecl
+module.h
+CMakeLists.txt
+```
+
+같은 contamination이 발생할 수 없어야 한다.
+
+---
+
+# 8. 최종 진단
+
+v0.0.31의 핵심은 단순 validator 강화가 아니다.
+
+핵심 목표는:
+
+```text
+언어별 semantic closure를 시스템 전체에 강제
+```
+
+하는 것이다.
+
+즉:
+
+* validator
+* decomposer
+* emitter
+* artifact topology
+* build system
+* task vocabulary
+
+전체를 language profile 기반으로 봉쇄(lock)하는 것이 v0.0.31의 본질이다.
+

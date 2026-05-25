@@ -1,0 +1,11 @@
+[Core CoT]
+1. 사용자 피드백 수용. AXON의 품질은 수리 성공률(Repair quality)이 아니라 "원격 계측 충실도(Telemetry fidelity)"로 결정됨을 재확인. 실제 런타임은 비결정적이므로(Nondeterministic), 동일한 포인터를 기대하는 것이 아니라 "정규화된 큐 순서 혈통(Canonical ordering lineage)"을 확보하는 것이 핵심.
+2. STEP 3 (Queue Drift Detector): `queue_drift.rs` 신설. GTK/Win32 붕괴의 주범인 이벤트 큐 순서 붕괴를 탐지. `enqueue(A) -> enqueue(B) -> dispatch(B) -> dispatch(A)` 같은 순서 역전(Inversion) 발생 시 `QUEUE_ORDERING_DRIFT`로 탐지.
+3. STEP 4 (Sandbox Hardening): `crash_sandbox.rs` 고도화. 실제 GTK/Win32 런타임 지옥(Infinite redraw, Deadlock, Recursion storm)에서 AXON을 보호. `Event Loop Stall Detector`, `Hard Kill Watchdog`, `Memory Guard` 구현.
+4. Crash Artifact Capture: 붕괴 발생 시 `runtime_object_hash`, `queue_snapshot`, `last_signal_edge` 등 핵심 물리 데이터를 추출하는 `crash_artifact.rs` 구축. 
+5. 관점 확립: AXON은 더 이상 Topology Abstraction을 늘리지 않음. 오직 실제 런타임 바이트(Actual runtime bytes - queue depth, callback latency, refcount) 계측에만 집중함.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/telemetry/queue_drift.rs (신설)
+M crates/axon-daemon/src/intelligence/telemetry/crash_sandbox.rs
++ crates/axon-daemon/src/intelligence/telemetry/crash_artifact.rs (신설)

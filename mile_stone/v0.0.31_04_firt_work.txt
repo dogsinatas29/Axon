@@ -1,0 +1,387 @@
+# AXON v0.0.31 First Work
+
+## 1. 핵심 방향
+
+v0.0.31의 작업은:
+
+```text
+Rust 지원 추가
+```
+
+가 아니다.
+
+진짜 목표는:
+
+```text
+AXON 전체를 language-aware runtime으로 재정립
+```
+
+하는 것이다.
+
+즉:
+
+* validator
+* decomposer
+* emitter
+* topology
+* task vocabulary
+* artifact generation
+* runtime execution path
+
+전체를:
+
+```text
+language semantic contract
+```
+
+기반으로 재설계해야 한다.
+
+---
+
+# 2. 가장 중요한 인식
+
+현재 Rust contamination은:
+
+```text
+Rust 문제
+```
+
+가 아니다.
+
+실제로는:
+
+```text
+현재 AXON 구조 전체가 C-centric semantics에 오염
+```
+
+되어 있다는 신호다.
+
+즉:
+
+```text
+HeaderDecl
+module.h
+CMakeLists.txt
+```
+
+같은 artifact는 hallucination이 아니라:
+
+```text
+generic decomposition 내부에 숨어 있던 C compilation semantics
+```
+
+가 드러난 것이다.
+
+---
+
+# 3. 중요한 점
+
+이 작업은:
+
+```text
+Rust 전용 patch 작업
+```
+
+이 되어선 안 된다.
+
+잘못된 방향:
+
+```text
+if rust {
+    special handling
+}
+```
+
+이 구조는 결국:
+
+```text
+if rust
+if c
+if python
+if ts
+```
+
+같은 분기 지옥(branch explosion)으로 붕괴한다.
+
+---
+
+# 4. 진짜 목표
+
+필요한 것은:
+
+```text
+언어별 semantic isolation
+```
+
+과:
+
+```text
+언어별 semantic ownership
+```
+
+이다.
+
+즉 모든 언어가:
+
+```text
+독립 semantic universe
+```
+
+를 가져야 한다.
+
+---
+
+# 5. 중요한 사실
+
+현재 Rust가 먼저 붕괴했을 뿐,
+
+실제로는:
+
+```text
+C 역시 semantic formalization 필요
+```
+
+하다.
+
+현재 C가 상대적으로 덜 터진 이유는:
+
+```text
+C의 semantic freedom이 매우 높기 때문
+```
+
+이다.
+
+즉 현재 AXON 구조가:
+
+```text
+우연히 C와 호환
+```
+
+되는 상태에 가깝다.
+
+현재 AXON은:
+
+```text
+C-native architecture
+```
+
+가 아니라:
+
+```text
+C-compatible accidental architecture
+```
+
+에 가깝다.
+
+---
+
+# 6. 앞으로 C도 필요해질 semantic model
+
+향후 C 역시:
+
+* C99/C11 semantic profile
+* header ownership
+* translation unit boundary
+* linker visibility
+* ABI constraints
+* compile unit graph
+
+같은 semantic formalization이 필요해진다.
+
+즉:
+
+```text
+Rust만 semantic graph가 필요한 것이 아님
+```
+
+이다.
+
+단지 Rust가 먼저 semantic inconsistency를 드러냈을 뿐이다.
+
+---
+
+# 7. 목표 구조
+
+잘못된 방향:
+
+```text
+generic IR
+ + rust special case
+```
+
+올바른 방향:
+
+```text
+LanguageProfile<C>
+LanguageProfile<Rust>
+LanguageProfile<Python>
+```
+
+같은:
+
+```text
+uniform semantic framework
+```
+
+구조다.
+
+즉 language-specific hardcoding이 아니라:
+
+```text
+language-pluggable architecture
+```
+
+를 목표로 해야 한다.
+
+---
+
+# 8. 필요한 핵심 구조
+
+예:
+
+```rust
+trait LanguageProfile {
+    fn validator(&self) -> ...
+    fn decomposer(&self) -> ...
+    fn emitter(&self) -> ...
+}
+```
+
+즉:
+
+* validator
+* decomposer
+* emitter
+* topology
+
+전체를 language profile 기반으로 선택해야 한다.
+
+현재처럼:
+
+```text
+validator가 language를 찾는 구조
+```
+
+가 아니라:
+
+```text
+language가 semantic pipeline 전체를 결정
+```
+
+하는 구조로 가야 한다.
+
+---
+
+# 9. 핵심 구조 변화
+
+현재:
+
+```text
+Component → infer language
+```
+
+목표:
+
+```text
+Project → declare language
+```
+
+즉:
+
+```rust
+pub enum Language {
+    C,
+    Cpp,
+    Rust,
+    Python,
+}
+```
+
+그리고:
+
+```rust
+pub struct ProjectIR {
+    pub language: Language,
+}
+```
+
+같은 구조가 semantic root invariant가 되어야 한다.
+
+---
+
+# 10. 최종 목표 상태
+
+최종적으로는:
+
+```text
+Language::Rust
+    ↓
+RustProfile
+    ↓
+RustTaskKinds only
+    ↓
+RustEmitter only
+    ↓
+Cargo topology only
+```
+
+```text
+Language::C
+    ↓
+CProfile
+    ↓
+CTaskKinds only
+    ↓
+CEmitter only
+    ↓
+CMake/Make topology only
+```
+
+같은:
+
+```text
+language-locked execution path
+```
+
+가 시스템 전체에 적용되어야 한다.
+
+즉 중간 어디에서도:
+
+```text
+HeaderDecl
+module.h
+CMakeLists.txt
+Cargo.toml contamination
+```
+
+같은 cross-language contamination이 발생할 수 없어야 한다.
+
+---
+
+# 11. 최종 결론
+
+v0.0.31은:
+
+```text
+Rust 지원 추가 작업
+```
+
+이 아니다.
+
+실제 본질은:
+
+```text
+AXON 전체를 language-aware semantic runtime으로 승격
+```
+
+시키는 작업이다.
+
+즉:
+
+* semantic isolation
+* semantic ownership
+* semantic closure
+* language-pluggable runtime
+
+전체를 시스템 수준에서 재정립하는 것이 이번 작업의 핵심이다.
+

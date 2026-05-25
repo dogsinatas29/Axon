@@ -1,0 +1,8 @@
+Reasoning Summary:
+- Compared the Boss Approval (SEAL) to task generation pipeline against the logs.
+- Identified that database recovery of unfinished tasks (`gtk_app.cpp`) without `architecture.md` caused a state desynchronization.
+- Patched `crates/axon-daemon/src/lib.rs` to purge coordinator tasks if `architecture.md` is missing at pipeline boot (`run_v3`).
+- Documented findings in the pipeline analysis artifact.
+
+Affected Files:
+- crates/axon-daemon/src/lib.rs

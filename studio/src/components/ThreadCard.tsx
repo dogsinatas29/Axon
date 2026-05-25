@@ -14,6 +14,20 @@ interface ThreadCardProps {
   t: any;
 }
 
+const parseTaskKindStr = (taskKind: any): string | undefined => {
+  if (!taskKind) return undefined;
+  if (typeof taskKind === 'string') {
+    return taskKind;
+  }
+  if (typeof taskKind === 'object') {
+    const values = Object.values(taskKind);
+    if (values.length > 0) {
+      return values[0] as string;
+    }
+  }
+  return undefined;
+};
+
 const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onClick, t }) => {
   const { id, title, status, updated_at, rejection_count } = thread;
 
@@ -27,12 +41,15 @@ const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onClick, t }) => {
         return { color: '#ff4444', icon: <AlertCircle size={18} />, glow: '0 0 20px rgba(255, 68, 68, 0.4)' };
       case 'Working':
         return { color: '#ffd700', icon: <Zap size={18} className="animate-pulse" />, glow: '0 0 15px rgba(255, 215, 0, 0.3)' };
+      case 'AwaitDependency':
+        return { color: '#38bdf8', icon: <Clock size={18} className="animate-spin" style={{ animationDuration: '3s' }} />, glow: '0 0 20px rgba(56, 189, 248, 0.3)' };
       default:
         return { color: '#888', icon: <Clock size={18} />, glow: 'none' };
     }
   };
 
   const config = getStatusConfig(status);
+  const kindStr = parseTaskKindStr(thread.task_kind);
 
   return (
     <div 
@@ -40,16 +57,16 @@ const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onClick, t }) => {
       style={{
         backgroundColor: '#111',
         borderRadius: '16px',
-        padding: '24px',
+        padding: '16px 20px',
         cursor: 'pointer',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        border: rejection_count && rejection_count >= 3 ? '4px solid #ff0000' : `1px solid ${config.color}`,
-        boxShadow: rejection_count && rejection_count >= 3 ? '0 0 30px rgba(255, 0, 0, 0.4)' : config.glow,
+        border: rejection_count && rejection_count >= 3 ? '3px solid #ff0000' : `1px solid ${config.color}`,
+        boxShadow: rejection_count && rejection_count >= 3 ? '0 0 25px rgba(255, 0, 0, 0.3)' : config.glow,
         position: 'relative',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px'
+        gap: '8px'
       }}
     >
       {/* Header: ID & Status */}
@@ -69,7 +86,7 @@ const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onClick, t }) => {
           border: `1px solid ${config.color}33`
         }}>
           {config.icon}
-          {status === 'Working' ? 'WORKING' : status.toUpperCase()}
+          {status === 'Working' ? 'WORKING' : status === 'AwaitDependency' ? 'AWAIT DEP' : status.toUpperCase()}
         </div>
       </div>
 
@@ -89,7 +106,7 @@ const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onClick, t }) => {
           }}>
             <div style={{ opacity: 0.6, fontSize: '0.5rem', marginBottom: '2px' }}>PHASE</div>
             <div style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>
-              {thread.task_kind === 'HeaderDecl' ? '01' : thread.task_kind === 'SourceImpl' ? '02' : '03'}
+              {kindStr === 'HeaderDecl' || kindStr === 'ModuleDecl' ? '01' : kindStr === 'SourceImpl' || kindStr === 'ModuleImpl' ? '02' : '03'}
             </div>
           </div>
         )}
@@ -113,41 +130,188 @@ const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onClick, t }) => {
 
       {/* Granular Reject Matrix */}
       <div style={{ 
-        marginTop: '8px', 
-        display: 'grid', 
-        gridTemplateColumns: '1fr 1fr', 
-        gap: '8px',
-        padding: '12px',
-        background: 'rgba(0,0,0,0.3)',
+        marginTop: '4px', 
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px',
+        padding: '10px 14px',
+        background: 'rgba(0,0,0,0.4)',
         borderRadius: '12px',
-        border: '1px solid rgba(255,255,255,0.05)'
+        border: '1px solid rgba(255,255,255,0.06)'
       }}>
+        {/* Validator */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}>VALIDATOR</span>
-          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: (thread as any).validator_rejections > 0 ? '#ff4444' : '#666' }}>
-            {(thread as any).validator_rejections || 0}
+          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: thread.validator_rejections && thread.validator_rejections > 0 ? '#ff4444' : '#888' }}>
+            Validator
+          </span>
+          <span style={{ 
+            fontSize: '0.7rem', 
+            fontWeight: '900', 
+            color: thread.validator_rejections && thread.validator_rejections > 0 ? '#ff4444' : '#555',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            {thread.validator_rejections && thread.validator_rejections > 0 ? (
+              <>🚨 ALERT!!! <span style={{ textDecoration: 'underline' }}>{thread.validator_rejections} 회 반려됨</span></>
+            ) : (
+              '0 회'
+            )}
           </span>
         </div>
+
+        {/* SENIOR */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}>SENIOR</span>
-          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: (thread as any).senior_rejections > 0 ? '#ff4444' : '#666' }}>
-            {(thread as any).senior_rejections || 0}
+          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: thread.senior_rejections && thread.senior_rejections > 0 ? '#ff4444' : '#888' }}>
+            SENIOR
+          </span>
+          <span style={{ 
+            fontSize: '0.7rem', 
+            fontWeight: '900', 
+            color: thread.senior_rejections && thread.senior_rejections > 0 ? '#ff4444' : '#555',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            {thread.senior_rejections && thread.senior_rejections > 0 ? (
+              <>🚨 ALERT!!! <span style={{ textDecoration: 'underline' }}>{thread.senior_rejections} 회 반려됨</span></>
+            ) : (
+              '0 회'
+            )}
           </span>
         </div>
+
+        {/* Architecture */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}>ARCHITECT</span>
-          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: (thread as any).architect_rejections > 0 ? '#ff4444' : '#666' }}>
-            {(thread as any).architect_rejections || 0}
+          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: thread.architecture_rejections && thread.architecture_rejections > 0 ? '#ff4444' : '#888' }}>
+            Architecture
+          </span>
+          <span style={{ 
+            fontSize: '0.7rem', 
+            fontWeight: '900', 
+            color: thread.architecture_rejections && thread.architecture_rejections > 0 ? '#ff4444' : '#555',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            {thread.architecture_rejections && thread.architecture_rejections > 0 ? (
+              <>🚨 ALERT!!! <span style={{ textDecoration: 'underline' }}>{thread.architecture_rejections} 회 반려됨</span></>
+            ) : (
+              '0 회'
+            )}
           </span>
         </div>
+
+        {/* CMake / Cargo */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}>CMAKE</span>
-          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: (thread as any).cmake_rejections > 0 ? '#ff4444' : '#666' }}>
-            {(thread as any).cmake_rejections || 0}
+          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: thread.cargo_rejections && thread.cargo_rejections > 0 ? '#ff4444' : '#888' }}>
+            CMake / Cargo
+          </span>
+          <span style={{ 
+            fontSize: '0.7rem', 
+            fontWeight: '900', 
+            color: thread.cargo_rejections && thread.cargo_rejections > 0 ? '#ff4444' : '#555',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            {thread.cargo_rejections && thread.cargo_rejections > 0 ? (
+              <>🚨 ALERT!!! <span style={{ textDecoration: 'underline' }}>{thread.cargo_rejections} 회 반려됨</span></>
+            ) : (
+              '0 회'
+            )}
+          </span>
+        </div>
+
+        {/* LSP */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: thread.lsp_rejections && thread.lsp_rejections > 0 ? '#ff4444' : '#888' }}>
+            LSP
+          </span>
+          <span style={{ 
+            fontSize: '0.7rem', 
+            fontWeight: '900', 
+            color: thread.lsp_rejections && thread.lsp_rejections > 0 ? '#ff4444' : '#555',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            {thread.lsp_rejections && thread.lsp_rejections > 0 ? (
+              <>🚨 ALERT!!! <span style={{ textDecoration: 'underline' }}>{thread.lsp_rejections} 회 반려됨</span></>
+            ) : (
+              '0 회'
+            )}
+          </span>
+        </div>
+
+        {/* 사장 복구 (Sovereign Interventions) */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          marginTop: '6px',
+          paddingTop: '6px',
+          borderTop: '1px dashed rgba(255,255,255,0.08)'
+        }}>
+          <span style={{ 
+            fontSize: '0.75rem', 
+            fontWeight: '900', 
+            color: thread.boss_interventions && thread.boss_interventions > 0 ? '#d8b4fe' : '#888',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            👑 사장 복구
+          </span>
+          <span style={{ 
+            fontSize: '0.7rem', 
+            fontWeight: '900', 
+            color: thread.boss_interventions && thread.boss_interventions > 0 ? '#c084fc' : '#555',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            {thread.boss_interventions && thread.boss_interventions > 0 ? (
+              <span style={{
+                background: 'rgba(168, 85, 247, 0.2)',
+                color: '#e9d5ff',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                border: '1px solid rgba(168, 85, 247, 0.4)',
+                boxShadow: '0 0 8px rgba(168, 85, 247, 0.3)'
+              }}>
+                {thread.boss_interventions} 회 복구됨
+              </span>
+            ) : (
+              '0 회'
+            )}
           </span>
         </div>
       </div>
       
+      {/* Orchestration Freeze Alert Badge */}
+      {status === 'AwaitDependency' && (
+        <div style={{ 
+          fontSize: '0.75rem', 
+          color: '#38bdf8', 
+          backgroundColor: 'rgba(56, 189, 248, 0.1)',
+          padding: '10px',
+          borderRadius: '8px',
+          border: '1px solid rgba(56, 189, 248, 0.4)',
+          textAlign: 'center',
+          fontWeight: '900',
+          letterSpacing: '0.02rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px'
+        }}>
+          <div>❄️ AWAITING DEPENDENCIES - SYSTEM FROZEN</div>
+          <div style={{ fontSize: '0.65rem', opacity: 0.8, fontWeight: 'normal', textDecoration: 'underline' }}>
+            {thread.reason || "unresolved dependencies / awaiting predecessor task"}
+          </div>
+        </div>
+      )}
+
       {/* Total Warning Label */}
       {rejection_count !== undefined && rejection_count >= 3 && (
         <div style={{ 

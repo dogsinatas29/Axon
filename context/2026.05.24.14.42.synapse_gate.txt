@@ -1,0 +1,8 @@
+[Core CoT]
+1. AXON의 정체성이 "범용 코더"가 아닌 "외부 장기 기억 기반의 결정론적 수술 거버넌스 커널"임을 명확히 인지.
+2. 이전 역할극(Senior/Junior) 모델을 거버넌스 레이어(면역 감사자/변이 수행기/의도 헌법)로 의미적 재정의.
+3. AXON IMMUNE LAB v0 (POC) 계획에 따라, 더러운(dirty) 레거시 코퍼스 15종에 대한 SAFE_SUBSET_V1 주입 및 실측 실험 설계 문서를 mile_stone/v0.0.33.md로 생성.
+4. 출력 자산(Catastrophe Atlas, Heatmap, Determinism Report, Failure Museum)을 목표로 POC 추진 준비.
+
+[Affected Files Diff]
++ mile_stone/v0.0.33.md

@@ -1,0 +1,721 @@
+# AXON v0.0.31 Bootstrap Runtime
+
+## 0. Purpose
+
+이 문서는 AXON v0.0.31 전체 작업의:
+
+```text
+bootstrap semantic harness
+```
+
+역할을 수행한다.
+
+즉:
+
+* 설계 기준
+* 구현 순서
+* semantic invariants
+* contamination 방지 원칙
+* 검증 기준
+
+전체를 통합하는:
+
+```text
+single source of truth
+```
+
+이다.
+
+v0.0.31 작업 중:
+
+* architecture 변경
+* IR 변경
+* validator 변경
+* decomposition 변경
+* emitter 변경
+
+전체는 반드시 이 문서를 기준으로 검증되어야 한다.
+
+---
+
+# 1. Runtime Core Objective
+
+v0.0.31의 진짜 목표는:
+
+```text
+Rust 지원 추가
+```
+
+가 아니다.
+
+진짜 목표는:
+
+```text
+language-pluggable semantic runtime
+```
+
+구축이다.
+
+즉:
+
+* semantic authority
+* semantic ownership
+* semantic closure
+* semantic isolation
+
+전체를:
+
+```text
+language profile
+```
+
+기반으로 시스템 전체에 강제하는 것이 목표다.
+
+---
+
+# 2. Global Semantic Principle
+
+반드시:
+
+```text
+semantic contract first
+```
+
+구조를 유지한다.
+
+즉:
+
+```text
+Language
+→ Semantic Contract
+→ Decomposition
+→ Artifact Emission
+→ Validation
+```
+
+순으로 semantic pipeline이 결정되어야 한다.
+
+절대로:
+
+```text
+generic runtime + language exceptions
+```
+
+구조로 회귀하면 안 된다.
+
+---
+
+# 3. LLM Coding Principles (Global Harness)
+
+v0.0.31 전체 작업은 아래 원칙을:
+
+```text
+global execution harness
+```
+
+로 사용한다.
+
+---
+
+## 3.1 Think Before Coding
+
+추측하지 마라.
+
+요구사항이 모호하면 즉시 질문한다.
+
+항상:
+
+* 접근 방식
+* 트레이드오프
+* 가장 단순한 해결책
+
+부터 제시한다.
+
+---
+
+## 3.2 Simplicity First
+
+코드는 최소한으로 작성한다.
+
+불필요한:
+
+* abstraction
+* over-engineering
+* speculative architecture
+
+추가 금지.
+
+---
+
+## 3.3 Minimal Changes
+
+정밀 수정만 수행한다.
+
+전체 rewrite 금지.
+
+기존 스타일 유지.
+
+이미 검증된 코드 보호.
+
+---
+
+## 3.4 Goal-Oriented Execution
+
+반드시:
+
+```text
+Goal
+→ Plan
+→ Implementation
+→ Validation
+```
+
+순서를 유지한다.
+
+모든 작업은:
+
+* 검증 가능한 목표
+* 성공 기준
+* invariant
+
+를 먼저 정의해야 한다.
+
+---
+
+## 3.5 No Hallucinated APIs
+
+존재하지 않는:
+
+* API
+* crate
+* 함수
+* runtime abstraction
+
+생성 금지.
+
+불확실하면 반드시 질문.
+
+---
+
+## 3.6 Stable Code Protection
+
+검증된 코드 보호.
+
+직접 요청된 영역만 수정.
+
+가능하면:
+
+```diff
+diff format
+```
+
+우선 사용.
+
+---
+
+## 3.7 Context Confirmation
+
+맥락 없이 추측 금지.
+
+누락된:
+
+* 파일
+* module
+* runtime structure
+
+가 있으면 반드시 요청.
+
+---
+
+## 3.8 Language Consistency
+
+모든:
+
+* 응답
+* 피드백
+* 문서
+* 설명
+
+은 기본적으로 한국어 사용.
+
+---
+
+# 4. v0.0.31 Semantic Objectives
+
+v0.0.31의 핵심 목표:
+
+```text
+언어 semantic authority를 runtime 초반부에 고정
+```
+
+하는 것이다.
+
+즉 language는 단순 metadata가 아니라:
+
+```text
+entire semantic universe
+```
+
+로 동작해야 한다.
+
+---
+
+# 5. Current Failure Diagnosis
+
+현재 AXON 문제:
+
+```text
+IR
+↓
+generic decomposition
+↓
+generic artifact emission
+↓
+late validator
+```
+
+구조라는 점이다.
+
+즉 validator는:
+
+```text
+postmortem inspector
+```
+
+역할만 수행 중이다.
+
+결과적으로:
+
+```text
+Rust validator
++
+C scaffold generator
+```
+
+같은 contamination이 발생한다.
+
+---
+
+# 6. Required Runtime Structure
+
+목표 구조:
+
+```text
+IR
+↓
+Language Resolution
+↓
+Language Profile Binding
+↓
+Language-specific Decomposition
+↓
+Artifact Emission
+↓
+Validation
+```
+
+즉 language 결정 순간:
+
+* allowed artifacts
+* decomposition model
+* task vocabulary
+* module topology
+* build system
+* entry semantics
+
+전체가 lock되어야 한다.
+
+---
+
+# 7. Mandatory Semantic Rules
+
+## 7.1 Language is Declared
+
+언어는:
+
+```text
+추론되는 것이 아니라 선언되는 것
+```
+
+이어야 한다.
+
+즉:
+
+```rust
+pub language: Language
+```
+
+가 root invariant가 되어야 한다.
+
+---
+
+## 7.2 Extension Inference Forbidden
+
+다음 구조 제거:
+
+```text
+.rs → rust
+.c → c
+```
+
+같은 extension inference architecture.
+
+---
+
+## 7.3 No Generic Runtime
+
+다음 구조 금지:
+
+```rust
+if language == Rust
+```
+
+runtime branching.
+
+필수 방향:
+
+```text
+language-pluggable architecture
+```
+
+---
+
+## 7.4 No Universal Task Model
+
+다음 개념 금지:
+
+```text
+Universal TaskKind
+```
+
+예:
+
+```text
+HeaderDecl
+SourceImpl
+Integrator
+```
+
+는 이미:
+
+```text
+C semantics
+```
+
+다.
+
+---
+
+## 7.5 Generation-Time Enforcement
+
+반드시:
+
+```text
+generation-time semantic enforcement
+```
+
+구조로 이동.
+
+즉:
+
+```text
+invalid artifact는 생성 자체가 불가능
+```
+
+해야 한다.
+
+---
+
+# 8. Language Profile Architecture
+
+반드시:
+
+```rust
+Language::C
+Language::Rust
+Language::Python
+```
+
+기반 구조 사용.
+
+---
+
+## 8.1 Mandatory Profiles
+
+최소:
+
+* CProfile
+* RustProfile
+* PythonProfile (placeholder)
+
+구조 필요.
+
+---
+
+## 8.2 Semantic Isolation
+
+각 profile은 독립 semantic universe다.
+
+예:
+
+### Rust
+
+허용:
+
+* .rs
+* Cargo.toml
+
+금지:
+
+* .h
+* .c
+* CMakeLists.txt
+
+---
+
+### C
+
+허용:
+
+* .c
+* .h
+* CMakeLists.txt
+
+---
+
+### Python
+
+future placeholder semantic profile.
+
+---
+
+# 9. C Preservation Rule
+
+중요:
+
+```text
+C는 default language가 아니다
+```
+
+반드시:
+
+```text
+explicit semantic profile
+```
+
+로 처리해야 한다.
+
+즉:
+
+```rust
+default => CProfile
+```
+
+같은 구조 금지.
+
+---
+
+# 10. Python Pressure Rule
+
+Python은 현재:
+
+```text
+implementation target
+```
+
+이 아니라:
+
+```text
+semantic pressure test
+```
+
+역할이다.
+
+즉:
+
+```text
+Python이 들어와도 구조가 붕괴하지 않는가
+```
+
+를 검증하는 용도.
+
+---
+
+# 11. Scope Protection
+
+현재 AXON 목표는:
+
+```text
+runtime orchestration system
+```
+
+이다.
+
+즉:
+
+```text
+full compiler implementation
+```
+
+이 목표가 아니다.
+
+따라서 지금 단계에서:
+
+* borrow checker
+* MIR-level IR
+* ownership graph
+* full trait resolution
+
+같은 방향으로 과도 확장 금지.
+
+---
+
+# 12. Required Implementation Order
+
+반드시 다음 순서 유지:
+
+```text
+Semantic Root
+→ Profile System
+→ Semantic Firewall
+→ Decomposer Separation
+→ Topology Formalization
+```
+
+절대로:
+
+```text
+Rust emitter first
+```
+
+접근 금지.
+
+---
+
+# 13. Bootstrap Validation Checklist
+
+모든 작업은 아래 기준으로 검증한다.
+
+---
+
+## Validation 1 — Semantic Root
+
+* [ ] ProjectIR.language 존재
+* [ ] Language enum 존재
+* [ ] extension inference 제거 완료
+
+---
+
+## Validation 2 — Profile Binding
+
+* [ ] LanguageProfile 존재
+* [ ] get_profile() registry 존재
+* [ ] runtime branching 제거
+
+---
+
+## Validation 3 — Semantic Closure
+
+* [ ] forbidden artifact firewall 존재
+* [ ] generation-time validation 존재
+* [ ] invalid artifact emission 불가능
+
+---
+
+## Validation 4 — Decomposition Isolation
+
+* [ ] generic TaskKind 제거
+* [ ] language-aware decomposition 존재
+* [ ] vocabulary contamination 제거
+
+---
+
+## Validation 5 — Multi-language Stability
+
+* [ ] C semantic preservation
+* [ ] Rust semantic isolation
+* [ ] Python compatibility pressure 대응 가능
+
+---
+
+# 14. Required Reading Order
+
+v0.0.31 작업 전 반드시 아래 문서들을 순서대로 검토:
+
+1.
+
+```text
+v0.0.31_01_problem.txt
+```
+
+2.
+
+```text
+v0.0.31_02_goal.txt
+```
+
+3.
+
+```text
+v0.0.31_03_base_thought.txt
+```
+
+4.
+
+```text
+v0.0.31_04_first_work.txt
+```
+
+5.
+
+```text
+v0.0.31_05_caution_point.txt
+```
+
+6.
+
+```text
+v0.0.31_06_Implement.txt
+```
+
+7.
+
+```text
+v0.0.31_07_Clang_caution.txt
+```
+
+8.
+
+```text
+v0.0.31_08_python_caution.txt
+```
+
+---
+
+# 15. Final Runtime Identity
+
+v0.0.31의 최종 목표는:
+
+```text
+language-aware semantic runtime
+```
+
+구축이다.
+
+즉:
+
+* validator
+* decomposer
+* emitter
+* topology
+* artifact legality
+* task vocabulary
+
+전체를:
+
+```text
+language profile 기반 semantic ownership
+```
+
+으로 재구성하는 것이 이번 버전의 본질이다.
+

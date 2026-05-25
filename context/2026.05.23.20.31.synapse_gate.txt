@@ -1,0 +1,7 @@
+[Core CoT]
+사용자의 지시에 따라 `GEMINI.md`와 `mile_stone/v0.0.31.md` 파일을 리딩하여 컨텍스트를 파악하였습니다.
+문서 하단의 "전체 Pipeline 7단계 Logic Audit (v0.0.31.30 기준)" 내용과 "발견된 이슈" 목록을 바탕으로,
+추후 작업해야 할 Implementation Plan과 TODO 리스트를 생성하기 위해 분석을 진행했습니다.
+
+[Affected Files Diff]
+* 변경된 파일 없음 (Read-only 작업 수행)

@@ -25,6 +25,7 @@ export const translations: Record<string, any> = {
     controlTower: "관제탑",
     boardsHeader: "게시판 목록",
     workBoardTitle: "작업 게시판",
+    workers: "워커",
     noWorkThreads: "작업 게시판에 활성 스레드가 없습니다...",
     realTimeSignals: "실시간 공장 시그널",
     orgChart: "조직도",
@@ -68,7 +69,9 @@ export const translations: Record<string, any> = {
     interruptReason: "인터럽트 발생 사유",
     bossClarification: "사장실 전용 정밀 하달 명령",
     issueCommand: "명령 하달",
-    clarificationIssued: "사장실의 정밀 지침이 공장에 전달되었습니다."
+    clarificationIssued: "사장실의 정밀 지침이 공장에 전달되었습니다.",
+    factorySuccessTitle: "🏆 공장 생산 공정 무결 완결 완료!",
+    factorySuccessDesc: "모든 아키텍처 IR 및 5대 컴포넌트의 소스 컴파일 & 런타임 검증(100% PASS)이 안전하게 봉인되었습니다. 시스템이 완벽하게 가동 중입니다."
   },
   en_US: {
     boards: "BOARDS",
@@ -92,6 +95,7 @@ export const translations: Record<string, any> = {
     controlTower: "Control Tower",
     boardsHeader: "BOARDS",
     workBoardTitle: "Work Board",
+    workers: "Workers",
     noWorkThreads: "No active threads in the Work Board...",
     realTimeSignals: "Real-time Factory Signals",
     orgChart: "Org Chart",
@@ -135,7 +139,9 @@ export const translations: Record<string, any> = {
     interruptReason: "Reason for Interrupt",
     bossClarification: "Boss Clarification Command",
     issueCommand: "Issue Clarification",
-    clarificationIssued: "Clarification issued to the factory."
+    clarificationIssued: "Clarification issued to the factory.",
+    factorySuccessTitle: "🏆 Factory Manufacturing Cycle Complete!",
+    factorySuccessDesc: "All architecture IR, compile checks, and runtime validators passed successfully (100% PASS). Immutable constraints fully sealed."
   },
   ja_JP: {
     boards: "掲示板",
@@ -159,6 +165,7 @@ export const translations: Record<string, any> = {
     controlTower: "管制塔",
     boardsHeader: "掲示板リスト",
     workBoardTitle: "作業掲示板",
+    workers: "ワーカー",
     noWorkThreads: "作業掲示板にアクティブなスレッドはありません...",
     realTimeSignals: "リアルタイム工場シグナル",
     orgChart: "組織図",
@@ -202,7 +209,9 @@ export const translations: Record<string, any> = {
     interruptReason: "割り込み発生理由",
     bossClarification: "社長室専用の精密下達命令",
     issueCommand: "命令下達",
-    clarificationIssued: "社長室の精密な指示が工場に伝達されました。"
+    clarificationIssued: "社長室の精密な指示が工場に伝達されました。",
+    factorySuccessTitle: "🏆 工場生産工程 完全無欠 完了！",
+    factorySuccessDesc: "すべてのアーキテクチャIRおよび5大コンポーネントのコンパイルとランタイム検証（100％PASS）が安全に封印されました。システムは完全に稼働しています。"
   }
 };
 

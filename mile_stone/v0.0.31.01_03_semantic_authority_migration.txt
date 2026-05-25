@@ -1,0 +1,371 @@
+다음 작업은 “기능 추가” 방식으로 진행하면 안 된다.
+
+지금부터는:
+
+```text id="v4n2pk"
+semantic authority migration
+```
+
+작업이다.
+
+즉 기존 generic pipeline을 하나씩 해체하면서:
+
+```text id="x7m5rs"
+language-rooted pipeline
+```
+
+으로 이관해야 한다.
+
+---
+
+# 1. 다음 작업의 핵심 목표
+
+가장 먼저 달성해야 하는 상태:
+
+```text id="r8c1vy"
+Spec 단계에서 language semantic legality 결정
+```
+
+이다.
+
+즉:
+
+```text id="p3k7tm"
+IR 생성 이전 reject 가능
+```
+
+상태를 만드는 것이 첫 번째 목표다.
+
+---
+
+# 2. 실제 첫 구현 순서
+
+정확한 순서는 이렇다.
+
+---
+
+# STEP 1 — spec_semantic 모듈 생성
+
+새 디렉토리:
+
+```text id="s2f9wr"
+crates/axon-ir/src/spec_semantic/
+```
+
+구성:
+
+```text id="y5q1mx"
+mod.rs
+validator.rs
+ontology.rs
+rust.rs
+c.rs
+python.rs
+```
+
+여기서 중요한 건:
+
+```text id="n6v3kp"
+IR validator와 완전 분리
+```
+
+다.
+
+---
+
+# STEP 2 — SemanticOntology 구축
+
+먼저 ontology부터 만든다.
+
+이유:
+
+```text id="f8r2tw"
+validator보다 ontology가 semantic authority source
+```
+
+이기 때문이다.
+
+예:
+
+```rust id="d4m7vx"
+pub struct SemanticOntology {
+    pub forbidden_terms: &'static [&'static str],
+    pub required_terms: &'static [&'static str],
+}
+```
+
+초기에는 단순해야 한다.
+
+---
+
+# STEP 3 — RustOntology 작성
+
+가장 먼저 Rust부터 만든다.
+
+예:
+
+```rust id="m1q9zc"
+pub const RUST_FORBIDDEN: &[&str] = &[
+    ".h",
+    ".hpp",
+    "CMakeLists.txt",
+    "HeaderDecl",
+    "translation unit",
+];
+```
+
+```rust id="k7v2rs"
+pub const RUST_REQUIRED: &[&str] = &[
+    "Cargo.toml",
+    "crate",
+    "mod",
+];
+```
+
+핵심:
+
+```text id="u3n8px"
+semantic worldview baseline 구축
+```
+
+이다.
+
+---
+
+# STEP 4 — SpecSemanticValidator Trait 생성
+
+그 다음 validator trait.
+
+```rust id="w5r1tk"
+pub trait SpecSemanticValidator {
+    fn validate_spec(
+        &self,
+        spec: &str,
+    ) -> Vec<SemanticViolation>;
+}
+```
+
+---
+
+# STEP 5 — RustSpecValidator 구현
+
+여기서 처음으로 ontology 사용.
+
+예:
+
+```rust id="q8m4vy"
+for forbidden in ontology.forbidden_terms {
+    if spec.contains(forbidden) {
+        ...
+    }
+}
+```
+
+하지만 중요한 건:
+
+```text id="h1c7rs"
+validator가 ontology 기반이어야 함
+```
+
+이다.
+
+직접 하드코딩 금지.
+
+---
+
+# STEP 6 — LanguageProfile 연결
+
+기존:
+
+```rust id="n2v6pk"
+profile.validator()
+```
+
+확장:
+
+```rust id="c5m8tw"
+profile.spec_validator()
+profile.semantic_ontology()
+```
+
+이 단계에서:
+
+```text id="z4r9qx"
+LanguageProfile = semantic authority root
+```
+
+가 완성된다.
+
+---
+
+# STEP 7 — 가장 중요한 Runtime Hook
+
+이게 핵심이다.
+
+현재:
+
+```text id="f7k3mv"
+Spec
+→ RawIR projection
+→ Validation
+```
+
+다음 작업:
+
+```text id="y9t1rs"
+Spec
+→ Language Resolve
+→ Spec Semantic Validation
+→ ONLY THEN RawIR projection
+```
+
+즉:
+
+```text id="j6p4wx"
+RawIR 생성 이전 reject
+```
+
+가 가능해야 한다.
+
+---
+
+# 3. 여기서 중요한 전략
+
+## 지금은 “완벽한 semantic analysis” 만들면 안 된다
+
+현재 목표는:
+
+```text id="x2n7vy"
+baseline semantic contamination firewall
+```
+
+이다.
+
+즉:
+
+* deterministic
+* explicit
+* explainable
+
+해야 한다.
+
+---
+
+# 4. 지금 단계에서 필요한 것
+
+필수만 구현:
+
+| 항목                                  | 목표 |
+| ----------------------------------- | -- |
+| forbidden vocabulary                | 구현 |
+| required vocabulary                 | 구현 |
+| artifact terminology validation     | 구현 |
+| build-system terminology validation | 구현 |
+
+---
+
+# 5. 아직 하지 말아야 할 것
+
+금지:
+
+## 자연어 의미 추론
+
+예:
+
+```text id="s8r5mq"
+"이 문장이 사실상 C semantic인가?"
+```
+
+이런 수준 가면 안 된다.
+
+---
+
+## embedding/vector search
+
+불필요.
+
+---
+
+## LLM semantic scoring
+
+지금은 오버엔지니어링이다.
+
+---
+
+# 6. 가장 중요한 구현 철학
+
+지금부터 validator는:
+
+```text id="t3m8kp"
+error checker
+```
+
+가 아니다.
+
+이제 validator는:
+
+```text id="p6v1rx"
+semantic border control
+```
+
+이다.
+
+즉:
+
+```text id="k9w4tn"
+invalid semantic universe entry denied
+```
+
+를 수행해야 한다.
+
+---
+
+# 7. 다음 단계 완료 기준
+
+다음 작업이 끝났다고 판단 가능한 상태:
+
+## Rust spec
+
+입력:
+
+```text id="j5n2vx"
+Rust project using HeaderDecl and CMake
+```
+
+결과:
+
+```text id="u8r6pm"
+SpecSemanticValidationError
+```
+
+발생.
+
+그리고:
+
+```text id="d1c7tw"
+RawIR 생성 자체 실패
+```
+
+해야 한다.
+
+---
+
+# 8. 최종적으로 얻는 것
+
+이 단계가 끝나면 AXON은 처음으로:
+
+```text id="f4m9vk"
+semantic contamination preemption
+```
+
+능력을 갖는다.
+
+즉:
+
+```text id="h7p3rs"
+잘못된 semantic intent가
+IR 세계에 진입 자체를 못 하는 구조
+```
+
+가 완성되기 시작한다.
+

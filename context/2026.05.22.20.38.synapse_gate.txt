@@ -1,0 +1,165 @@
+### 1. 추론 과정 요약 (Core CoT)
+- **이슈 분석**:
+  1. `HeaderGen` 스테이지에서 LLM(qwen2.5:7b)의 아키텍처 태스크 분해 결과가 JSON 배열(`[...]`)이 아닌 단일 JSON 객체(`{...}`) 형태로 1개만 반환됨. 이로 인해 역직렬화기(`serde_json::from_str::<Vec<DecomposedTask>>`)가 `invalid type: map, expected a sequence` 에러를 뱉으며 루프가 터지고 뒤로 롤백함.
+  2. 롤백 시 `SpecAnalysis`와 승인 단계(`.axon_approval_pending`)로 되돌아가면서 사용자에게 중복 승인을 반복해서 물어보는 Governance Stall(되돌이표)이 발생함.
+  3. REST API를 통해 승인을 완료하여 파일 내부가 `approved: true`로 갱신되었음에도 불구하고, 워커 스레드는 `check_generation_permission` 내에서 단순히 `.axon_approval_pending` 파일의 '존재 여부(exists())'만 검사했기 때문에 `GENERATION_LOCKED` 권한 오류가 발생해 코드 실체화(Materialize)가 금지됨.
+  4. 추가로, 승인 완료 후에도 사장 게시판(SEMANTIC GOVERNANCE CONSOLE)에 `Factory Gateway` 카드가 계속 잔존하는 버그 식별. 원인은 `get_semantic_risks` API 핸들러에서 `.axon_approval_pending` 파일 내부의 `approved` 플래그가 `true`인지 검증하지 않고, 단순 파일 존재 여부만으로 risks 리스트에 강제 삽입하고 있었음.
+
+- **해결 설계 (v0.0.31.92)**:
+  1. **Canonicalizer 보강 (HeaderGen & ImplGen)**:
+     - LLM 응답이 단일 JSON 객체일 때, 이 객체가 태스크 구조(`title` 또는 `component_id` 존재)를 갖췄다면 단일 요소를 가진 JSON 배열(`[object]`)로 강제 포장(Wrapping)해주는 canonicalizer 2차 구제 규칙 적용.
+     - `HeaderGen`과 `ImplGen` 스테이지 모두에 대칭적으로 이식하여 JSON sequence 파싱 미스매치 차단.
+  2. **Worker Permission Semaphore 수정 (`check_generation_permission`)**:
+     - `.axon_approval_pending` 파일이 존재하더라도, 파일 내 `approved` 플래그를 읽어서 `true`인 경우 락을 해제하고 워커의 코드 생성 및 빌드 작업을 전면 허용.
+  3. **Governance Risks API 패치 (`get_semantic_risks`)**:
+     - `.axon_approval_pending` 파일 내부의 `approved` 플래그가 `true`일 경우, `pending_approval` 리스크(Factory Gateway 카드)가 UI에 다시 노출되지 않도록 필터링 로직 보강.
+
+- **검증 결과**:
+  - `cargo check` 결과 구문 및 괄호 에러 없이 빌드 정상 완료.
+  - 통합 테스트 결과, 승인 완료 후 락이 즉각 풀려 `Worker 0`이 정상 배치되어 코드를 생성하고, 사장 게시판에서 중복 `Factory Gateway` 카드가 사라짐을 최종 보장함.
+
+### 2. 변경 파일 목록 (Affected Files Diff)
+```diff
+diff --git a/crates/axon-daemon/src/lib.rs b/crates/axon-daemon/src/lib.rs
+index e06f238..a14d5e8 100644
+--- a/crates/axon-daemon/src/lib.rs
++++ b/crates/axon-daemon/src/lib.rs
+@@ -478,12 +478,24 @@ impl Daemon {
+     pub async fn check_generation_permission(&self, project_id: &str) -> anyhow::Result<()> {
+         let project_root = format!("./{}", project_id);
++        let approval_file = std::path::Path::new(&project_root).join(".axon_approval_pending");
+         // Rule 1: Global State Lock (The Semaphore)
+         if approval_file.exists() {
+-            tracing::warn!("🛑 [GENERATION_LOCKED] Pending boss approval found for project '{}'. Dispatching is forbidden.", project_id);
+-            return Err(anyhow::anyhow!("GENERATION_LOCKED: Boss approval is pending for project '{}'. Please resolve the .axon_approval_pending gate first.", project_id));
++            let is_pending = if let Ok(content) = std::fs::read_to_string(&approval_file) {
++                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
++                    val["approved"].as_bool() == Some(false)
++                } else {
++                    true
++                }
++            } else {
++                true
++            };
++
++            if is_pending {
++                tracing::warn!("🛑 [GENERATION_LOCKED] Pending boss approval found for project '{}'. Dispatching is forbidden.", project_id);
++                return Err(anyhow::anyhow!("GENERATION_LOCKED: Boss approval is pending for project '{}'. Please resolve the .axon_approval_pending gate first.", project_id));
++            } else {
++                tracing::info!("🔓 [GENERATION_UNLOCKED] Boss approval verified (approved: true) for project '{}'. Proceeding.", project_id);
++            }
+         }
+ 
+         // Rule 2: Semantic Closure Check
+@@ -2313,8 +2313,14 @@ impl Daemon {
+                                                 tracing::info!("🔧 [HEADER_CANONICAL] Unwrapped LLM map wrapper → array ({} items)", arr.as_array().map(|a| a.len()).unwrap_or(0));
+                                                 arr.to_string()
+                                             } else {
+-                                                tracing::warn!("⚠️ [HEADER_CANONICAL] Map has no recognizable array field. Attempting raw parse.");
+-                                                content.clone()
++                                                // v0.0.31.92: Wrap single task object in an array
++                                                if raw_val.get("title").is_some() || raw_val.get("component_id").is_some() {
++                                                    tracing::info!("🔧 [HEADER_CANONICAL] Detected single task object. Wrapping in a sequence array.");
++                                                    serde_json::Value::Array(vec![raw_val.clone()]).to_string()
++                                                } else {
++                                                    tracing::warn!("⚠️ [HEADER_CANONICAL] Map has no recognizable array field or task signature. Attempting raw parse.");
++                                                    content.clone()
++                                                }
+                                             }
+                                         } else {
+                                             content.clone()
+@@ -2656,10 +2656,60 @@ impl Daemon {
+                                 .await;
+                             match res {
+                                 Ok(post) => {
++                                    let raw_llm_post = post.content.clone();
+                                     let content = extract_json_block(post.content.trim());
+ 
++                                    // v0.0.31.92: [IMPL_CANONICALIZER]
++                                    // Mirror the robust array unwrapping/wrapping logic from HeaderGen
++                                    let canonical_content: String = {
++                                        if let Ok(raw_val) = serde_json::from_str::<serde_json::Value>(&content) {
++                                            if raw_val.is_array() {
++                                                content.clone()
++                                            } else if raw_val.is_object() {
++                                                let candidate = raw_val.get("tasks")
++                                                    .or_else(|| raw_val.get("headers"))
++                                                    .or_else(|| raw_val.get("components"))
++                                                    .or_else(|| raw_val.get("items"))
++                                                    .or_else(|| raw_val.get("decomposed_tasks"))
++                                                    .or_else(|| {
++                                                        raw_val.as_object()
++                                                            .and_then(|m| m.values().find(|v| v.is_array()))
++                                                    });
++                                                if let Some(arr) = candidate {
++                                                    tracing::info!("🔧 [IMPL_CANONICAL] Unwrapped LLM map wrapper → array ({} items)", arr.as_array().map(|a| a.len()).unwrap_or(0));
++                                                    arr.to_string()
++                                                } else {
++                                                    if raw_val.get("title").is_some() || raw_val.get("component_id").is_some() {
++                                                        tracing::info!("🔧 [IMPL_CANONICAL] Detected single task object. Wrapping in a sequence array.");
++                                                        serde_json::Value::Array(vec![raw_val.clone()]).to_string()
++                                                    } else {
++                                                        tracing::warn!("⚠️ [IMPL_CANONICAL] Map has no recognizable array field or task signature. Attempting raw parse.");
++                                                        content.clone()
++                                                    }
++                                                }
++                                            } else {
++                                                content.clone()
++                                            }
++                                        } else {
++                                            content.clone()
++                                        }
++                                    };
++
++                                    tracing::info!(
++                                        "🔍 [IMPL_DEBUG] Raw LLM Post (first 300 chars): {:?}",
++                                        if raw_llm_post.len() > 300 { &raw_llm_post[..300] } else { &raw_llm_post }
++                                    );
++                                    tracing::info!(
++                                        "🔍 [IMPL_DEBUG] Cleaned Content (first 300 chars): {:?}",
++                                        if content.len() > 300 { &content[..300] } else { &content }
++                                    );
++                                    tracing::info!(
++                                        "🔍 [IMPL_DEBUG] Canonical Content: {:?}",
++                                        if canonical_content.len() > 300 { &canonical_content[..300] } else { &canonical_content }
++                                    );
++
+                                     match serde_json::from_str::<Vec<axon_core::DecomposedTask>>(
+-                                        &content,
++                                        &canonical_content,
+                                     ) {
+
+diff --git a/crates/axon-daemon/src/server.rs b/crates/axon-daemon/src/server.rs
+index f1c2d9a..a2d48bb 100644
+--- a/crates/axon-daemon/src/server.rs
++++ b/crates/axon-daemon/src/server.rs
+@@ -671,9 +671,13 @@ async fn get_semantic_risks(State(daemon): State<Arc<Daemon>>) -> Json<serde_jso
+         if visited_count > 100 { break; }
+         let approval_file = path.join(".axon_approval_pending");
+         if approval_file.exists() {
++             let mut is_pending = true;
+              let mut summary_evidence = None;
+              if let Ok(content) = std::fs::read_to_string(&approval_file) {
+                  if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
++                     if val["approved"].as_bool() == Some(true) {
++                         is_pending = false;
++                     }
+                      if let Some(summary) = val.pointer("/semantic_contract/human_summary").and_then(|v| v.as_str()) {
+                          summary_evidence = Some(summary.to_string());
+                      }
+@@ -680,6 +680,7 @@ async fn get_semantic_risks(State(daemon): State<Arc<Daemon>>) -> Json<serde_jso
+              }
+ 
+-             if summary_evidence.is_none() {
++             if is_pending {
++                 if summary_evidence.is_none() {
+                  let spec_md_local = path.join("spec.md");
+                  let spec_md_parent = path.parent().map(|p| p.join("spec.md")).unwrap_or_default();
+                  let arch_md_parent = path.parent().map(|p| p.join("architecture.md")).unwrap_or_default();
+@@ -748,6 +748,7 @@ async fn get_semantic_risks(State(daemon): State<Arc<Daemon>>) -> Json<serde_jso
+                  "component": "GATEWAY",
+                  "full_code": summary_evidence
+              }));
++             }
+         }
+```

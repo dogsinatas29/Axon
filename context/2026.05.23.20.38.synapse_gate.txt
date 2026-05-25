@@ -1,0 +1,7 @@
+[Core CoT]
+사용자의 질문: "SymbolOwnershipRegistry를 메모리(샌드박스 상태)에서 관리하는 것이 나은가, 아니면 물리 파일로 관리하는 것이 나은가?"
+분석: AXON의 핵심 철학은 SSOT(Single Source of Truth) 기반의 투명한 거버넌스임. 메모리 상태로만 관리하면 데몬 재시작 시 State Collapse가 발생할 수 있으며, Agent(LLM)가 권한 지도를 스스로 읽고 판단하기 어려움.
+결론: 물리 파일(예: `debug/symbol_registry.json` 또는 `architecture.md` 내의 권한 섹션)로 영속화(Materialization)하는 것이 오작동과 권한 충돌 확률을 획기적으로 낮출 수 있음. 물리 파일이 있으면 에이전트와 데몬 양쪽 모두에서 결정론적 검증이 가능함.
+
+[Affected Files Diff]
+* 변경 파일 없음.

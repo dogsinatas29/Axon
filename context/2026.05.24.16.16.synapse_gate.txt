@@ -1,0 +1,9 @@
+[Core CoT]
+1. 사용자 지침 수용. 기능 테스트(Feature testing)의 관점을 완전히 버리고, AXON을 "결정론적 런타임 위상 관측소(Deterministic Runtime Topology Observatory)"로 정의함.
+2. PHASE I-1 — Corpus Sovereignty Freeze: 레거시 코퍼스의 일부분(Subsystem)을 마운트할 때, 코퍼스 자체를 불변의 아티팩트로 봉인하는 `CORPUS_SEAL.json` 체계 도입. (repo_commit, subtree_digest, parser_version 등 보존)
+3. 텍스트 변이(AST Fuzzing)에서 런타임 위상 압박(Runtime Callback Pressure Map)으로 관측 대상을 전환.
+4. XChat 핫스팟 공격 시나리오 구체화: `Plugin unload during reconnect`를 최우선 공격 벡터로 삼고, 이로 인해 파생되는 `RuntimeAdjacencyGraph` (Signal lineage, deferred ownership)를 캡처하는 로직 반영.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/corpus/corpus_seal.rs (신설)
+M crates/axon-daemon/src/intelligence/corpus/xchat_hotspot.rs

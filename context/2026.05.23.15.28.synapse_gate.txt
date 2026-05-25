@@ -1,0 +1,20 @@
+# 🧠 Synapse Gate Log - 2026.05.23.15.28
+
+## 1. Core CoT (추론 과정 요약)
+- **증상:** `BOSS_APPROVAL_GATE` 대기 중임에도 BossBoard UI에 결제 서류(approval card)가 표시되지 않음.
+- **로그 단서:** `Total tasks found: 0` + `.axon_approval_pending` 파일이 존재함에도 레지스트리에서 감지 안 됨.
+- **Root Cause:** `sandbox_registry`가 `Daemon::new()` 시 `HashMap::new()`로 빈 채로 초기화되고,
+  이후 어떤 코드도 여기에 프로젝트 컨텍스트를 등록하지 않음.
+  `get_semantic_risks()`는 이 레지스트리를 순회하므로 `.axon_approval_pending` 스캔 자체가 발생하지 않음.
+- **수정 방향:**
+  1. `Daemon::run()` 시작 시 파일시스템의 하위 디렉토리를 스캔해 `sandbox_registry`에 자동 등록 (씨딩 로직).
+  2. `server.rs`의 `get_semantic_risks`에 레지스트리가 비어 있을 때 파일시스템을 직접 스캔하는 폴백 경로 추가.
+
+## 2. Affected Files Diff
+- **`crates/axon-daemon/src/lib.rs`**:
+  - `Daemon::run()` 최초 실행 시 CWD 하위 디렉토리를 재귀적으로 스캔해 `sandbox_registry`에 `SandboxContext` 삽입.
+  - 2 depth(최상위 + 1단계 하위) 스캔으로 `TEST4_GTK/architecture/` 같은 경로도 포함.
+
+- **`crates/axon-daemon/src/server.rs`**:
+  - `get_semantic_risks()`에서 레지스트리가 비었을 때 `fallback_paths`를 생성해 파일시스템 직접 스캔.
+  - `all_paths` 변수로 레지스트리 경로와 폴백 경로를 통합 처리.

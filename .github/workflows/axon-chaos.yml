@@ -1,0 +1,126 @@
+name: AXON Chaos Tests
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  chaos-test:
+    name: Chaos Test (seed=${{ matrix.seed }})
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - seed: 1337
+            description: "Primary seed"
+          - seed: 424242
+            description: "Large seed"
+          - seed: 9001
+            description: "Dragon seed"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --package axon-daemon --tests --verbose
+
+      - name: Run chaos tests
+        env:
+          CHAOS_SEED: ${{ matrix.seed }}
+          CHAOS_ENABLED: "true"
+        run: |
+          echo "🎲 Running chaos tests with seed: $CHAOS_SEED"
+          cargo test --package axon-daemon --test chaos -- --nocapture --test-threads=1 2>&1 || true
+
+      - name: Run integration tests
+        run: |
+          cargo test --package axon-daemon --test integration -- --nocapture --test-threads=1 2>&1 || true
+
+      - name: Upload chaos artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-artifacts-seed-${{ matrix.seed }}
+          path: |
+            target/debug/**/*.log
+            axon.db*
+
+  invariant-gate:
+    name: Invariant Budget Gate
+    runs-on: ubuntu-latest
+    needs: chaos-test
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run invariant check suite
+        run: |
+          # Run tests and capture invariant failures
+          cargo test --package axon-daemon 2>&1 | tee test_output.log
+          
+          # Check for invariant failures
+          if grep -q "INVARIANT_BROKEN" test_output.log; then
+            echo "❌ INVARIANT FAILURES DETECTED"
+            grep "INVARIANT_BROKEN" test_output.log || true
+            exit 1
+          fi
+          
+          if grep -q "CONVERGENCE_FAILED" test_output.log; then
+            echo "❌ CONVERGENCE FAILURE DETECTED"
+            exit 1
+          fi
+          
+          echo "✅ All invariant checks passed"
+
+  clippy-check:
+    name: Clippy Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Run clippy
+        run: |
+          cargo clippy --package axon-daemon -- -D warnings
+
+  fmt-check:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check

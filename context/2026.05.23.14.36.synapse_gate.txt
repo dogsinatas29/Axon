@@ -1,0 +1,8 @@
+Reasoning Summary:
+- Analysed the frontend "Invalid or missing approval token" popup error.
+- Verified that the backend `/api/semantics/risks` (`get_semantic_risks`) was not outputting the "token" field.
+- Patched `crates/axon-daemon/src/server.rs` to extract and propagate the token parameter to the frontend.
+- Cleaned up syntax overlaps and verified successful compile via cargo build.
+
+Affected Files:
+- crates/axon-daemon/src/server.rs

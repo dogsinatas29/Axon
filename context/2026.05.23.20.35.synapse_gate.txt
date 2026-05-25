@@ -1,0 +1,8 @@
+[Core CoT]
+P1 (process::exit 제거) 구현 완료 및 컴파일 성공(Zero Error).
+사용자의 요청에 따라 전체 파이프라인 7단계를 재검수(Audit) 진행함.
+기존 v0.0.31.md에 적혔던 이슈 1번(Approval Gate Path)과 2번(Fatal Exit)이 해결되었음을 검증.
+
+[Affected Files Diff]
+* crates/axon-core/src/lib.rs (TaskLifecycleState::Fatal 추가)
+* crates/axon-daemon/src/lib.rs (std::process::exit(1) 제거 및 Failed/Fatal 로직 격리 구현)

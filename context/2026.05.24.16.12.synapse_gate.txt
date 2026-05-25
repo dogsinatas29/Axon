@@ -1,0 +1,9 @@
+[Core CoT]
+1. 사용자 지침 수용. AXON의 목표를 Copilot/Cursor 류의 "수리 품질(Repair Quality)"에서 완전히 이탈시켜, "붕괴 관측(Collapse Observability)" 및 "위상 통제(Topology Governance)"를 핵심 KPI로 삼는 고유한 생태계로 구축함.
+2. 코퍼스 선정 기준(Corpus Selection Criteria) 전환: 현대적이고 깔끔한 코드가 아니라 `Entropy-dense topology` (방치된 GTK2 IRC, 커스텀 시그널, 혼합 인코딩 등)를 1순위로 확보.
+3. `CORPUS_FINGERPRINT` 모듈 도입: 각 코퍼스가 어떤 위상 붕괴를 잘 유발하는지 증명하기 위해 `topology_density`, `macro_entropy`, `ownership_ambiguity` 등의 지표 측정 수단 마련.
+4. PHASE H - Catastrophe Pressure Testing 개시: 무작위 위상 압박(Fuzzing, Callback storm)을 가하더라도, 결과로 도출되는 붕괴의 궤적(Trace)과 혈통(Lineage)은 100% 동일하게 수렴(Deterministic)해야 한다는 극한의 커널 검증 하네스 설계.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/corpus/corpus_fingerprint.rs (신설)
++ crates/axon-daemon/src/intelligence/replay/catastrophe_pressure.rs (신설)

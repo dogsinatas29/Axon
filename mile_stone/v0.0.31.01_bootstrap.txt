@@ -1,0 +1,433 @@
+AXON v0.0.31.01 Bootstrap Harness
+목적
+
+이 문서는:
+
+v0.0.31.01_00_problem.txt
+~
+v0.0.31.01_11_future3.txt
+
+까지의 전체 문서를 기반으로 AXON v0.0.31.01 작업을 단계적으로 수행하기 위한:
+
+Semantic Bootstrap Execution Harness
+
+이다.
+
+이 문서는:
+
+semantic drift 방지
+hidden C-centric regression 차단
+ontology contamination preemption
+semantic sovereignty enforcement
+deterministic milestone execution
+
+을 위한 작업 실행 기준 문서다.
+
+1. 문서 실행 순서 (강제)
+
+반드시 아래 순서대로 읽고 작업한다.
+
+순서	문서명	목적
+00	v0.0.31.01_00_problem.txt	현재 구조적 문제 정의
+01	v0.0.31.01_01_goal.txt	v0.0.31.01의 최종 목표 정의
+02	v0.0.31.01_02_first.txt	첫 번째 semantic migration 작업
+03	v0.0.31.01_03_semantic_authority_migration.txt	semantic authority 이동 전략
+04	v0.0.31.01_04_multi_language_runtime_migration.txt	multi-language runtime migration
+05	v0.0.31.01_05_rust_first_class_semantic_runtime.txt	Rust semantic runtime 승격
+06	v0.0.31.01_06_language_semantic_runtime_architecture.txt	language semantic runtime architecture
+07	v0.0.31.01_07_spec_level_semantic_authority.txt	spec-level semantic authority 구축
+08	v0.0.31.01_08_beforeIR_semantic_binding.txt	pre-IR semantic binding
+09	v0.0.31.01_09_future.txt	future semantic runtime direction
+10	v0.0.31.01_10_future2.txt	extended semantic governance
+11	v0.0.31.01_11_future3.txt	semantic operating system 종착점
+
+순서 변경 금지.
+
+2. 작업 핵심 목표
+
+현재 AXON은:
+
+post-validation runtime
+
+이다.
+
+즉:
+
+생성
+→ IR
+→ validator
+→ reject
+
+구조다.
+
+하지만 목표는:
+
+preemptive semantic operating system
+
+이다.
+
+즉:
+
+semantic contamination 자체를 생성 전에 차단
+
+하는 구조를 만드는 것이다.
+
+3. 현재 구조의 핵심 문제
+
+현재 구조는 사실상:
+
+generic runtime disguised as universal architecture
+
+이다.
+
+하지만 실제 내부 ontology는:
+
+hidden C-centric architecture
+
+에 가깝다.
+
+대표 증상:
+
+Rust인데 HeaderDecl 생성
+Rust인데 CMakeLists.txt 생성
+validator 이전 generic decomposition
+language inferred from artifact extension
+post-generation rejection reliance
+4. 최종 목표 구조
+
+최종 구조는:
+
+Spec
+↓
+Language Resolution
+↓
+Semantic Ontology Binding
+↓
+Spec-level Semantic Validation
+↓
+Pre-IR Semantic Rejection
+↓
+RawIR Projection
+↓
+IR Validation
+↓
+Artifact Firewall
+↓
+Topology Runtime
+↓
+Execution Runtime
+
+이다.
+
+5. 핵심 승격 목표
+목표 1 — Semantic Authority 승격
+
+현재:
+
+language inferred from files
+
+목표:
+
+language defines semantic universe
+목표 2 — Semantic Closure
+
+언어가 결정되는 순간:
+
+task vocabulary
+artifact legality
+topology
+build system
+decomposition
+validator
+repair loop
+
+전체가 lock되어야 한다.
+
+목표 3 — Preemptive Rejection
+
+목표는:
+
+생성 후 reject
+
+가 아니다.
+
+목표는:
+
+생성 자체 불가능
+
+구조다.
+
+6. 작업 중 절대 원칙
+Principles
+
+🚀 [LLM 코딩 원칙]
+
+1. Think Before Coding
+
+항상 먼저 수행:
+
+Goal
+→ Existing Structure
+→ Dependency Impact
+→ Simplest Safe Path
+→ Validation Strategy
+
+추측 구현 금지.
+
+2. Simplicity First
+
+절대 금지:
+
+speculative abstraction
+universal ontology
+over-engineering
+fake generalization
+
+항상:
+
+minimal semantic-safe implementation
+
+우선.
+
+3. Minimal Changes
+
+원칙:
+
+surgical migration only
+
+전체 rewrite 금지.
+
+4. Goal-Oriented Execution
+
+반드시:
+
+Goal
+→ Plan
+→ Implementation
+→ Validation
+→ Regression Check
+
+순서 유지.
+
+5. No Hallucinated APIs
+
+존재하지 않는:
+
+semantic API
+ontology system
+runtime hooks
+
+추정 금지.
+
+반드시 실제 코드 확인.
+
+6. Stable Code Protection
+
+특히 중요.
+
+현재 C runtime은:
+
+production semantic baseline
+
+이다.
+
+따라서:
+
+Rust/Python 승격
+≠
+C destruction
+
+이다.
+
+7. Context Confirmation
+
+수정 전 반드시 확인:
+
+ownership
+dependency direction
+semantic source of truth
+existing runtime flow
+8. Language Consistency
+
+모든:
+
+설계
+문서
+reasoning
+validation
+
+은 한국어 기준 유지.
+
+7. 작업 단계별 핵심 체크포인트
+Step 1 — Semantic Goal Extraction
+
+현재 문서의:
+
+semantic invariant
+
+를 먼저 추출.
+
+예:
+
+Rust ontology forbids HeaderDecl
+Step 2 — Existing Runtime Audit
+
+현재 코드에서:
+
+generic layer
+semantic leak
+hidden C assumptions
+artifact inference
+
+위치를 먼저 확인.
+
+Step 3 — Minimal Safe Patch
+
+절대:
+
+full rewrite
+
+하지 않는다.
+
+Step 4 — Validation
+
+반드시 수행:
+
+검증	목적
+cargo check	compile stability
+semantic contamination test	ontology purity
+runtime regression	기존 C 보존
+topology validation	dependency safety
+Step 5 — Regression Protection
+
+매 단계마다 반드시 확인:
+
+대상	확인
+C runtime	유지
+Rust runtime	contamination 없음
+Python runtime	contamination 없음
+topology	invariant 유지
+validator	generic fallback 제거
+8. 핵심 구현 대상
+SemanticOntology
+
+언어별 semantic civilization formalization.
+
+SpecSemanticValidator
+
+spec 자체 semantic worldview legality 검사.
+
+Pre-IR Semantic Binding
+
+RawIR 생성 이전 semantic contract binding.
+
+SemanticViolation Hierarchy
+
+semantic failure formalization.
+
+Semantic Repair Loop
+
+semantic worldview correction.
+
+Semantic Contamination Tests
+
+semantic regression impossible runtime 구축.
+
+9. 반드시 보존해야 하는 것
+C Semantic Runtime
+
+절대 파괴 금지.
+
+현재 C runtime은:
+
+semantic baseline
+
+이다.
+
+모든 migration은:
+
+C preservation first
+
+원칙으로 진행.
+
+10. Rust 승격 목표
+
+Rust는 단순 backend가 아니다.
+
+목표:
+
+first-class semantic civilization
+
+승격.
+
+즉:
+
+Cargo topology
+crate ontology
+mod legality
+Rust-only decomposition
+Rust semantic repair
+
+전부 독립 유지.
+
+11. Python 승격 목표
+
+Python 역시:
+
+fallback runtime
+
+가 아니다.
+
+목표:
+
+독립 semantic runtime
+
+이다.
+
+즉:
+
+package ontology
+import graph
+requirements semantics
+Python artifact legality
+
+를 독립적으로 유지.
+
+12. 최종 완료 조건
+
+v0.0.31.01 완료 기준:
+
+항목	상태
+Spec semantic authority	완료
+Semantic ontology	완료
+Pre-IR rejection	완료
+Semantic repair loop	완료
+Contamination tests	완료
+C preservation	보장
+Rust sovereignty	보장
+Python sovereignty	보장
+Hidden C ontology 제거	완료
+Generic semantic leakage 제거	완료
+13. 최종 선언
+
+v0.0.31.01의 진짜 목표는:
+
+validator 추가
+
+가 아니다.
+
+진짜 목표는:
+
+semantic contamination impossible architecture
+
+를 구축하는 것이다.
+
+즉 AXON을:
+
+generic pipeline runtime
+
+에서:
+
+semantic governance operating system
+
+으로 승격시키는 작업이다.

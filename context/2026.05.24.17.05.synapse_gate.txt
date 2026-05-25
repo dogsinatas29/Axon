@@ -1,0 +1,14 @@
+[Core CoT]
+1. 사용자 지침 수용: AXON의 핵심 산출물은 "코드(Code)"가 아니라 "진화 증명 패키지(Proof Artifact)"임. 단순 로깅이 아니라, 기계가 나중에 다시 검증(Machine Replayable Verification)할 수 있는 표준 규격화.
+2. 관점의 완벽한 전이: CI/CD의 패러다임이 `compile -> test -> deploy`에서 AXON의 `mutate -> replay -> prove -> govern -> merge`로 진화.
+3. Proof Bundle Schema (.axon-proof/):
+   - `proof.verdict.json` (가장 핵심. 버전 정보 `schema_version` 포함)
+   - `mutation.intent.json`
+   - `lineage.delta.json`
+   - `queue.diff.json`
+   - `ownership.diff.json`
+   - `replay.trace.bin` (원시 로그가 아닌 압축된 캐노니컬 리플레이 트레이스)
+4. 향후 장기 비전: `axon verify proof.axon` 같은 독립적 검증 도구(Verification Tooling)를 위한 이식성(Portability) 확보.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/evolution/proof_artifact.rs (신설)

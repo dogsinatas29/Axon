@@ -1,0 +1,11 @@
+[Core CoT]
+1. 사용자의 피드백을 수용하여, Win32 코퍼스 테스트(PHASE D) 이전에 시스템의 결정론(PHASE C)을 먼저 증명하기 위한 Replay Harness 인프라를 구축함.
+2. `crates/axon-daemon/src/intelligence/replay/harness.rs` 파일 신설.
+3. 가장 중요한 `HashMap`의 비결정성(iteration order randomness) 문제를 해결하기 위해, 모든 상태 관리를 `BTreeMap`과 `Vec`으로 교체.
+4. `SystemState`에 `compute_hash()`를 추가하여, AXON의 커널 패닉 감지기(Kernel Panic Detector) 역할을 수행할 `SYSTEM_STATE_HASH` 로직 구현.
+5. 100회 연속 리플레이를 수행하며 추적 로그(Replay Trace)와 State Hash가 단 1비트도 틀어지지 않음을 강제하는 유닛 테스트(성공 기준) 구현.
+6. 컴파일 에러 복구를 위한 python 스크립트 작성 시 일부 에러가 증폭된 부분을 `git checkout`으로 원상복구하고 기능 확장(Baseline)에 먼저 초점을 맞춤.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/replay/harness.rs (신설)
+* crates/axon-daemon/src/intelligence/replay/mod.rs (harness 모듈 추가)

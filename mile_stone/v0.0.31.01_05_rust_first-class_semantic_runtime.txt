@@ -1,0 +1,261 @@
+Rust는:
+
+C contamination 방지용 예외 처리
+
+수준으로 들어가면 실패한다.
+
+그렇게 구현하면 결국:
+
+generic core
++
+Rust special-case patch
+
+구조가 되어 다시 붕괴한다.
+
+1. Rust는 “지원 언어”가 아니다
+
+v0.0.31.01 이후 Rust는:
+
+first-class semantic runtime
+
+가 되어야 한다.
+
+즉 C와 동등한 수준으로:
+
+decomposition authority
+topology authority
+artifact authority
+build authority
+semantic ontology
+runtime contract
+
+를 가져야 한다.
+
+2. 지금까지의 문제
+
+현재 구조는 사실상:
+
+implicit C runtime
++
+Rust compatibility layer
+
+였다.
+
+예:
+
+HeaderDecl vocabulary
+translation unit worldview
+CMake assumption
+source/header split
+integrator semantics
+
+전부 C semantic universe 기반이었다.
+
+Rust는 그 위에 얹힌 상태였다.
+
+3. 이제 필요한 구조
+
+목표는:
+
+multi-civilization runtime
+
+이다.
+
+즉:
+
+C civilization
+Rust civilization
+Python civilization
+
+이 서로 독립 semantic universe를 가져야 한다.
+
+4. Rust가 반드시 가져야 하는 것
+
+Rust는 최소한 다음 authority를 독립적으로 가져야 한다.
+
+(1) Rust Ontology
+
+예:
+
+crate
+module
+Cargo.toml
+mod.rs
+lib.rs
+main.rs
+ownership
+trait
+
+같은 semantic vocabulary.
+
+(2) Rust Topology
+
+C와 완전히 다르다.
+
+C:
+
+header
+translation unit
+link stage
+
+Rust:
+
+crate graph
+module tree
+Cargo workspace
+(3) Rust Build Authority
+
+절대:
+
+CMake abstraction wrapper
+
+가 되면 안 된다.
+
+Rust는:
+
+cargo semantic authority
+
+를 가져야 한다.
+
+(4) Rust Task Vocabulary
+
+Rust에선:
+
+HeaderDecl
+
+같은 vocabulary 자체가 존재하면 안 된다.
+
+대신:
+
+ModuleImpl
+CrateEntry
+TraitImpl
+
+등 Rust semantic decomposition이 와야 한다.
+
+(5) Rust Artifact Authority
+
+Rust semantic universe에서는:
+
+.h
+.cpp
+CMakeLists.txt
+
+가 illegal artifact다.
+
+5. 가장 중요한 것
+
+Rust를:
+
+C generic pipeline에서 예외처리
+
+하면 안 된다.
+
+반드시:
+
+Rust semantic runtime
+
+을 독립적으로 formalize 해야 한다.
+
+6. 따라서 구조는 이렇게 가야 한다
+잘못된 구조
+GenericRuntime
+ ├── C special handling
+ └── Rust special handling
+
+이건 결국 C-centric runtime이다.
+
+목표 구조
+LanguageRuntime
+ ├── CRuntime
+ ├── RustRuntime
+ └── PythonRuntime
+
+즉:
+
+runtime 자체가 language-pluggable
+
+해야 한다.
+
+7. Rust가 가져야 할 독립 권한
+
+최종적으로 Rust는:
+
+영역	Rust 독립 권한 필요
+Validator	필요
+Spec Validator	필요
+Ontology	필요
+Decomposer	필요
+Artifact Emitter	필요
+Build Runtime	필요
+Module Topology	필요
+Integrator Logic	필요
+8. 중요한 구현 철학
+
+Rust는:
+
+anti-C mode
+
+가 아니다.
+
+Rust는:
+
+positive semantic civilization
+
+이어야 한다.
+
+즉:
+
+Rust semantic truth를 기준으로 세계를 구성
+
+해야 한다.
+
+9. 결국 AXON의 최종 구조는
+
+최종적으로는:
+
+Language
+↓
+LanguageProfile
+↓
+SemanticOntology
+↓
+SpecValidator
+↓
+IRValidator
+↓
+TopologyBuilder
+↓
+TaskDecomposer
+↓
+ArtifactEmitter
+↓
+BuildRuntime
+
+전체가:
+
+language-owned
+
+상태가 되어야 한다.
+
+10. 핵심 결론
+
+이번 작업의 목표는:
+
+Rust contamination 방지
+
+가 아니다.
+
+진짜 목표는:
+
+Rust semantic civilization 승격
+
+이다.
+
+즉:
+
+C implicit empire 해체
++
+Rust semantic sovereignty 확립
+
+이 이번 아키텍처 개편의 본질이다.

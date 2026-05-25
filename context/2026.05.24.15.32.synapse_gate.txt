@@ -1,0 +1,9 @@
+[Core CoT]
+1. 사용자 피드백 "PHASE D-4: Parser / Grammar / Version Freeze" 완벽 수용. 현재 가장 위험한 적은 Toolchain Entropy (AST Node Reinterpretation, Byte Range Shift)임.
+2. 파서(Tree-sitter)를 업데이트 대상이 아닌 "Regulated Scientific Instrument" (통제된 과학 관측 장비)로 취급. Parser Upgrade는 Historical Corruption Event의 원인이 될 수 있음.
+3. Grammar Hash Sovereignty, Range Canonicalization (Byte Offset 기준), Trivia Neutralization Policy 등을 강제하는 `ParserFreezeManifest` 도입.
+4. 신규 파서 도입 시 `Boundary Variance %`를 10k Replay로 검증하는 `ParserDivergenceHarness` 구축.
+5. 신규 KPI 도입: `parser_boundary_variance`, `grammar_replay_identity`, `normalization_entropy_density`, `topology_anchor_drift`, `parser_upgrade_divergence`.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/replay/parser_freeze.rs (신설 예정)

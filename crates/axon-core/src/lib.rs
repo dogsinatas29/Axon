@@ -15,8 +15,15 @@ pub struct Thread {
     pub status: ThreadStatus,
     pub author: String,
     pub milestone_id: Option<String>,
-    pub task_kind: Option<TaskKind>,
+    pub task_kind: Option<LanguageTaskKind>,
     pub rejection_count: u32,
+    pub validator_rejections: u32,
+    pub senior_rejections: u32,
+    pub architecture_rejections: u32,
+    pub cargo_rejections: u32,
+    pub lsp_rejections: u32,
+    pub error_feedback: Option<String>,
+    pub reason: Option<String>,
     pub created_at: DateTime<Local>,
     pub updated_at: DateTime<Local>,
 }
@@ -31,6 +38,150 @@ pub enum ThreadStatus {
     BossApproval,
     Completed,
     Paused,
+    AwaitDependency,
+}
+
+/// v0.0.31.xx: Lifecycle state for scheduler semantics (orchestration concern)
+/// This separates scheduler concerns from business semantics (TaskStatus)
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum TaskLifecycleState {
+    Queued,     // 대기 중 - awaiting dispatch
+    Running,    // 실행 중 - currently being processed
+    Completed,  // 정상 완료
+    Rejected,   // validation 실패로 종료
+    Superseded, // Boss intervention으로 교체됨
+    Aborted,    // early abort (FROZEN_GATE, SOVEREIGN_PROTECTION 등)
+    Fatal,      // v0.0.31.xx: fatal failure (e.g. max reworks reached), halting task entirely
+}
+
+impl TaskLifecycleState {
+    pub fn is_active(&self) -> bool {
+        matches!(self, TaskLifecycleState::Queued | TaskLifecycleState::Running)
+    }
+
+    pub fn is_terminal(&self) -> bool {
+        matches!(
+            self,
+            TaskLifecycleState::Completed 
+            | TaskLifecycleState::Rejected 
+            | TaskLifecycleState::Superseded 
+            | TaskLifecycleState::Aborted
+            | TaskLifecycleState::Fatal
+        )
+    }
+
+    pub fn is_governance_terminal(&self) -> bool {
+        matches!(self, TaskLifecycleState::Superseded | TaskLifecycleState::Aborted)
+    }
+}
+
+impl Default for TaskLifecycleState {
+    fn default() -> Self {
+        TaskLifecycleState::Queued
+    }
+}
+
+/// v0.0.31.xx: Runtime events for observability and replayability
+/// Append-only event log enables runtime replay and forensic debugging
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum RuntimeEvent {
+    TaskQueued {
+        task_id: String,
+        project_id: String,
+        target_file: Option<String>,
+        timestamp: DateTime<Local>,
+    },
+    TaskDispatched {
+        task_id: String,
+        worker_id: String,
+        timestamp: DateTime<Local>,
+    },
+    TaskTerminated {
+        task_id: String,
+        disposition: String,
+        new_state: TaskLifecycleState,
+        timestamp: DateTime<Local>,
+    },
+    RecoveryStarted {
+        epoch: u64,
+        active_tasks_from_db: usize,
+        timestamp: DateTime<Local>,
+    },
+    RecoveryCompleted {
+        epoch: u64,
+        reconstructed_queues: usize,
+        timestamp: DateTime<Local>,
+    },
+    InvariantBroken {
+        invariant_name: String,
+        details: String,
+        timestamp: DateTime<Local>,
+    },
+    StageAdvanced {
+        from_stage: String,
+        to_stage: String,
+        active_count: usize,
+        timestamp: DateTime<Local>,
+    },
+    QueueScrub {
+        removed_count: usize,
+        reason: String,
+        timestamp: DateTime<Local>,
+    },
+    ActiveFileOrphaned {
+        file: String,
+        timestamp: DateTime<Local>,
+    },
+    ActiveFileScrubbed {
+        file: String,
+        timestamp: DateTime<Local>,
+    },
+}
+
+impl RuntimeEvent {
+    /// Log the event to tracing for observability
+    pub fn log(&self) {
+        match self {
+            RuntimeEvent::TaskQueued { task_id, project_id, target_file, timestamp } => {
+                tracing::debug!("📝 [EVENT] TaskQueued task={} project={} file={:?} at {}", 
+                    task_id, project_id, target_file, timestamp);
+            }
+            RuntimeEvent::TaskDispatched { task_id, worker_id, timestamp } => {
+                tracing::debug!("🚀 [EVENT] TaskDispatched task={} worker={} at {}", 
+                    task_id, worker_id, timestamp);
+            }
+            RuntimeEvent::TaskTerminated { task_id, disposition, new_state, timestamp } => {
+                tracing::info!("🔚 [EVENT] TaskTerminated task={} disposition={} state={:?} at {}", 
+                    task_id, disposition, new_state, timestamp);
+            }
+            RuntimeEvent::RecoveryStarted { epoch, active_tasks_from_db, timestamp } => {
+                tracing::info!("🚑 [EVENT] RecoveryStarted epoch={} tasks={} at {}", 
+                    epoch, active_tasks_from_db, timestamp);
+            }
+            RuntimeEvent::RecoveryCompleted { epoch, reconstructed_queues, timestamp } => {
+                tracing::info!("✅ [EVENT] RecoveryCompleted epoch={} queues={} at {}", 
+                    epoch, reconstructed_queues, timestamp);
+            }
+            RuntimeEvent::InvariantBroken { invariant_name, details, timestamp } => {
+                tracing::error!("🚨 [EVENT] InvariantBroken name={} details={} at {}", 
+                    invariant_name, details, timestamp);
+            }
+            RuntimeEvent::StageAdvanced { from_stage, to_stage, active_count, timestamp } => {
+                tracing::info!("🚪 [EVENT] StageAdvanced from={} to={} active={} at {}", 
+                    from_stage, to_stage, active_count, timestamp);
+            }
+            RuntimeEvent::QueueScrub { removed_count, reason, timestamp } => {
+                tracing::info!("🧹 [EVENT] QueueScrub removed={} reason={} at {}", 
+                    removed_count, reason, timestamp);
+            }
+            RuntimeEvent::ActiveFileOrphaned { file, timestamp } => {
+                tracing::warn!("⚠️ [EVENT] ActiveFileOrphaned file={} at {}", file, timestamp);
+            }
+            RuntimeEvent::ActiveFileScrubbed { file, timestamp } => {
+                tracing::info!("🧹 [EVENT] ActiveFileScrubbed file={} at {}", file, timestamp);
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,6 +191,7 @@ pub struct Task {
     pub title: String,
     pub description: String,
     pub status: TaskStatus,
+    pub lifecycle_state: TaskLifecycleState, // v0.0.31.xx: scheduler semantics
     pub dependencies: Vec<String>,
     pub result: Option<String>,
     pub target_file: Option<String>,
@@ -55,8 +207,20 @@ pub struct Task {
     pub assigned_worker: Option<String>,
     pub created_at: DateTime<Local>,
     pub ir_path: Option<String>,
-    pub task_kind: Option<TaskKind>,
+    pub task_kind: Option<LanguageTaskKind>,
     pub signature: Option<String>,
+    pub validator_rejections: u32,
+    pub senior_rejections: u32,
+    pub architecture_rejections: u32,
+    pub cargo_rejections: u32,
+    pub lsp_rejections: u32,
+    pub boss_interventions: u32,
+    #[serde(default)]
+    pub patch_contract: Option<PatchContract>,
+    #[serde(default)]
+    pub repair_mode: Option<RepairMode>,
+    #[serde(default)]
+    pub repair_origin: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,7 +241,7 @@ impl Task {
             status: TaskStatus::Pending,
             dependencies: Vec::new(),
             result: None,
-            target_file: dt.component_id,
+            target_file: dt.component_id.clone(),
             lock_files: Vec::new(),
             error_feedback: None,
             senior_comment: None,
@@ -85,32 +249,150 @@ impl Task {
             base_hash: None,
             parent_task: None,
             reason: None,
-            kind: "rust".to_string(), // Default, will be updated by daemon
+            kind: if let Some(ref f) = dt.component_id {
+                if f.ends_with(".c") || f.ends_with(".h") {
+                    "c".to_string()
+                } else if f.ends_with(".rs") {
+                    "rust".to_string()
+                } else if f.ends_with(".py") {
+                    "python".to_string()
+                } else {
+                    "rust".to_string()
+                }
+            } else {
+                "rust".to_string()
+            },
             retries: 0,
             assigned_worker: None,
             created_at: Local::now(),
             ir_path: None,
-            task_kind: None,
+            task_kind: dt.component_id.as_ref().map(|f| {
+                if f.ends_with(".h") || f.ends_with(".hpp") {
+                    LanguageTaskKind::C(CTaskKind::HeaderDecl)
+                } else {
+                    LanguageTaskKind::C(CTaskKind::SourceImpl)
+                }
+            }),
             signature: None,
+            validator_rejections: 0,
+            senior_rejections: 0,
+            architecture_rejections: 0,
+            cargo_rejections: 0,
+            lsp_rejections: 0,
+            boss_interventions: 0,
+            lifecycle_state: TaskLifecycleState::Queued,
+            patch_contract: None,
+            repair_mode: None,
+            repair_origin: None,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub enum TaskKind {
+pub enum CTaskKind {
     HeaderDecl,
     SourceImpl,
-    Integrator, // v0.0.28: Final Entry Point Integration
+    Integrator,
 }
 
-impl TaskKind {
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum RustTaskKind {
+    ModuleDecl,
+    ModuleImpl,
+    Integrator,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum LanguageTaskKind {
+    C(CTaskKind),
+    Rust(RustTaskKind),
+}
+
+impl LanguageTaskKind {
     pub fn phase(&self) -> u32 {
         match self {
-            TaskKind::HeaderDecl => 1,
-            TaskKind::SourceImpl => 2,
-            TaskKind::Integrator => 3,
+            LanguageTaskKind::C(CTaskKind::HeaderDecl) => 1,
+            LanguageTaskKind::C(CTaskKind::SourceImpl) => 2,
+            LanguageTaskKind::C(CTaskKind::Integrator) => 3,
+            LanguageTaskKind::Rust(RustTaskKind::ModuleDecl) => 1,
+            LanguageTaskKind::Rust(RustTaskKind::ModuleImpl) => 2,
+            LanguageTaskKind::Rust(RustTaskKind::Integrator) => 3,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum RepairMode {
+    FullRewrite,
+    PatchOnly,
+}
+
+impl Default for RepairMode {
+    fn default() -> Self {
+        RepairMode::FullRewrite
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum PatchOperation {
+    ReplaceFunction { symbol: String },
+    ModifyLines { start: usize, end: usize },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PatchContract {
+    pub target_file: String,
+    pub symbol: Option<String>,
+    pub error_line: Option<usize>,
+    pub error_message: String,
+    pub hard_constraints: Vec<String>,
+    pub forbidden_patterns: Vec<String>,
+    pub allowed_changes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum SymbolKind {
+    Function,
+    Struct,
+    Enum,
+    Variable,
+    Macro,
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SymbolOwnership {
+    pub symbol_name: String,
+    pub owner_task_id: Option<String>,
+    pub phase: LanguageTaskKind,
+    pub file_path: String,
+    pub symbol_kind: SymbolKind,
+    pub line_start: Option<usize>,
+    pub line_end: Option<usize>,
+    pub brace_depth: Option<usize>,
+    pub immutable: bool,
+    pub last_validated_hash: Option<String>,
+    #[serde(default)]
+    pub validated_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(default)]
+    pub validator_passed: bool,
+    #[serde(default)]
+    pub history: Vec<SymbolHistoryEvent>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SymbolHistoryEvent {
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub task_id: String,
+    pub event_type: String,
+    pub previous_hash: Option<String>,
+    pub new_hash: Option<String>,
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SymbolOwnershipRegistry {
+    pub files: std::collections::HashMap<String, std::collections::HashMap<String, SymbolOwnership>>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -121,6 +403,7 @@ pub enum TaskStatus {
     InProgress,
     Completed,
     Failed,
+    AwaitDependency,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -194,6 +477,7 @@ pub enum EventType {
     ThreadAssigned,
     ThreadStarted,
     ThreadCompleted,
+    ThreadStatusChanged,
     
     // Message/Post Events
     PostAdded,
@@ -250,19 +534,22 @@ pub mod spec;
 pub mod transformer;
 pub mod validator;
 pub mod rules;
+pub mod profile;
 
 pub mod events {
     use super::Event;
     use tokio::sync::broadcast;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     pub struct EventBus {
         tx: broadcast::Sender<Event>,
+        counter: AtomicUsize,
     }
 
     impl EventBus {
         pub fn new(capacity: usize) -> Self {
             let (tx, _) = broadcast::channel(capacity);
-            Self { tx }
+            Self { tx, counter: AtomicUsize::new(0) }
         }
 
         pub fn subscribe(&self) -> broadcast::Receiver<Event> {
@@ -270,7 +557,12 @@ pub mod events {
         }
 
         pub fn publish(&self, event: Event) {
+            self.counter.fetch_add(1, Ordering::Relaxed);
             let _ = self.tx.send(event);
+        }
+
+        pub fn get_count(&self) -> usize {
+            self.counter.load(Ordering::Relaxed)
         }
     }
 }
@@ -360,4 +652,67 @@ pub struct Batch {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatchAssignment {
     pub batch: Batch,
+}
+
+impl Default for Thread {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            project_id: String::new(),
+            title: String::new(),
+            status: ThreadStatus::Draft,
+            author: String::new(),
+            milestone_id: None,
+            task_kind: None,
+            rejection_count: 0,
+            validator_rejections: 0,
+            senior_rejections: 0,
+            architecture_rejections: 0,
+            cargo_rejections: 0,
+            lsp_rejections: 0,
+            error_feedback: None,
+            reason: None,
+            created_at: chrono::Local::now(),
+            updated_at: chrono::Local::now(),
+        }
+    }
+}
+
+impl Default for Task {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            project_id: String::new(),
+            title: String::new(),
+            description: String::new(),
+            status: TaskStatus::Pending,
+            lifecycle_state: TaskLifecycleState::Queued,
+            dependencies: Vec::new(),
+            result: None,
+            target_file: None,
+            lock_files: Vec::new(),
+            error_feedback: None,
+            senior_comment: None,
+            rework_count: 0,
+            base_hash: None,
+            parent_task: None,
+            reason: None,
+            kind: String::new(),
+            retries: 0,
+            assigned_worker: None,
+            created_at: chrono::Local::now(),
+            ir_path: None,
+            task_kind: None,
+            signature: None,
+            validator_rejections: 0,
+            senior_rejections: 0,
+            architecture_rejections: 0,
+            cargo_rejections: 0,
+            lsp_rejections: 0,
+            boss_interventions: 0,
+            patch_contract: None,
+            repair_mode: None,
+            repair_origin: None,
+        }
+    }
 }

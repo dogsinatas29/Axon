@@ -1,0 +1,9 @@
+[Core CoT]
+1. 사용자 피드백을 통해 AXON의 본질적 정체성을 완벽히 재정의함. AXON은 더 이상 "더 똑똑한 AI를 위한 에이전트 오케스트레이터"가 아님.
+2. 현재의 AXON은 "멍청해도 사고 치지 못하게 만드는 커널", 즉 대규모 레거시 환경을 통제하기 위한 "결정론적 수리 운영체제(Deterministic Repair OS)"이자 "엔트로피 감쇠 시스템(Entropy Reduction System)"임.
+3. LLM의 불안정성(환각, 비결정론)은 배제해야 할 대상이며, 절대적 권위는 `SYSTEM_STATE_HASH`, `TRACE_HASH`, `Ownership Registry`, `Replay Certificate`로 완전히 이양되었음.
+4. 향후 모든 개발 방향의 핵심 KPI를 기능 추가가 아닌 `deterministic_replay_rate`, `topology_preservation_rate`, `entropy_density`, `replay_variance = 0` 등의 Kernel Stability Metric으로 전환함.
+5. Copilot 계열의 지능 강화 방향과 철학적으로 완전히 결별했으며, 궤적의 100% 재현(Mathematical Replayability)을 지상 과제로 삼음.
+
+[Affected Files Diff]
+- 코드 변경 없음 (철학적 선언 및 KPI 기준 동기화 완료)

@@ -1,0 +1,8 @@
+[Core CoT]
+1. 사용자 지침에 따라 STAGE 1 (Ownership Intrusion) 및 STAGE 2 (Parser Drift Strike) 실증 테스트로 진입함.
+2. STAGE 1: Task_B가 타인의 GtkWidget에 Signal을 엮거나, 강제로 생명주기(free/destroy)를 종료시키는 악의적 개입을 시도. 커널이 이를 100% 차단함을 수학적으로 증명.
+3. STAGE 2: 소스코드에 CRLF, 무의미한 탭, 주석(Trivia) 등의 노이즈가 삽입된 경우에도, `Trivia Neutralization` 정책을 통해 파서 바운더리가 변함없이 `parser_boundary_variance = 0.0`으로 유지됨을 증명.
+4. 모든 공격이 "성공"하는 것이 아니라 "결정론적으로 차단"되어 붕괴 데이터(Catastrophe Data)로 승화됨을 확인함.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/replay/gtk_stage1_2_strike.rs (신설 예정)

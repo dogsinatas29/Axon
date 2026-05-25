@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, CheckCircle2, Zap, ArrowRight, Gavel, Trash2, Lock } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, Zap, ArrowRight, Gavel, Trash2, Lock, ThumbsUp, ThumbsDown, RotateCcw, AlertTriangle } from 'lucide-react';
 import { type Thread, type Event } from '../types';
 
 interface BossBoardProps {
@@ -17,7 +17,31 @@ const BossBoard: React.FC<BossBoardProps> = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [editedCode, setEditedCode] = useState('');
+  const [bootstrapProjectId, setBootstrapProjectId] = useState<string | null>(null);
+  const [bootstrapStatus, setBootstrapStatus] = useState<any>(null);
+  const [pendingApproval, setPendingApproval] = useState<any>(null);
   const [contractModal, setContractModal] = useState<{show: boolean, content: string}>({show: false, content: ''});
+
+  useEffect(() => {
+    const fetchPendingApproval = async () => {
+      try {
+        const res = await fetch(`/api/specs/approval`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!data.approved && !data.rejected) {
+            setPendingApproval(data);
+          } else {
+            setPendingApproval(null);
+          }
+        } else {
+          setPendingApproval(null);
+        }
+      } catch { setPendingApproval(null); }
+    };
+    fetchPendingApproval();
+    const interval = setInterval(fetchPendingApproval, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   const translations: any = {
     ko_KR: {
@@ -114,6 +138,37 @@ const BossBoard: React.FC<BossBoardProps> = () => {
     return () => clearInterval(interval);
   }, [selectedRisk]);
 
+  useEffect(() => {
+    if (!bootstrapProjectId) return;
+    const pollStatus = async () => {
+      try {
+        const res = await fetch(`/api/specs/status/${bootstrapProjectId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setBootstrapStatus(data);
+          if (data.state === 'Completed' || data.state === 'Failed') {
+            setTimeout(() => { setBootstrapProjectId(null); setBootstrapStatus(null); }, 5000);
+          }
+        }
+      } catch { /* ignore */ }
+    };
+    const interval = setInterval(pollStatus, 1500);
+    return () => clearInterval(interval);
+  }, [bootstrapProjectId]);
+
+  const [pipelineReviews, setPipelineReviews] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const res = await fetch(`/api/pipeline/reviews`);
+        if (res.ok) setPipelineReviews(await res.json());
+      } catch {}
+    };
+    fetchReviews();
+    const interval = setInterval(fetchReviews, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleSemanticDecision = async (action: string) => {
     if (!selectedRisk || isSubmitting) return;
     setIsSubmitting(true);
@@ -123,6 +178,7 @@ const BossBoard: React.FC<BossBoardProps> = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           risk_id: selectedRisk.risk_id,
+          token: selectedRisk.token || '',
           action,
           comment: clarification || 'Sovereign decision finalized by Boss',
           code: action === 'SEAL' ? editedCode : null
@@ -132,6 +188,9 @@ const BossBoard: React.FC<BossBoardProps> = () => {
         triggerSuccess();
         setSelectedRisk(null);
         setClarification('');
+      } else {
+        const errMsg = await response.text();
+        alert(`Decision failed: ${errMsg}`);
       }
     } catch (err) {
       console.error('Decision failed:', err);
@@ -242,6 +301,14 @@ const BossBoard: React.FC<BossBoardProps> = () => {
                     </div>
                 </div>
             ))}
+            {pipelineReviews.length > 0 && (
+              <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(255, 170, 0, 0.08)', borderRadius: '8px', border: '1px solid rgba(255, 170, 0, 0.2)' }}>
+                <div style={{ fontSize: '0.7rem', color: '#ffaa00', fontWeight: 'bold', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <AlertTriangle size={12} /> PIPELINE REVIEWS PENDING
+                </div>
+                <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#ffaa00' }}>{pipelineReviews.length}</div>
+              </div>
+            )}
         </div>
 
         {/* Console View - THE TACTICAL DESK */}
@@ -323,14 +390,20 @@ const BossBoard: React.FC<BossBoardProps> = () => {
                               </div>
                               
                               <div style={{ padding: '1rem', borderRadius: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                  <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold', marginBottom: '0.8rem' }}>HIGHLIGHTED ERRORS</div>
+                                  <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold', marginBottom: '0.8rem' }}>DETECTOR SUMMARY / ERRORS</div>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                                      <div style={{ fontSize: '0.75rem', color: '#ff4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                          <Zap size={10} /> sqlite3 usage [L12]
-                                      </div>
-                                      <div style={{ fontSize: '0.75rem', color: '#ff4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                          <Zap size={10} /> Missing Header [L1]
-                                      </div>
+                                      {selectedRisk.cause ? (
+                                          selectedRisk.cause.split('\n').filter(Boolean).map((line: string, idx: number) => (
+                                              <div key={idx} style={{ fontSize: '0.75rem', color: '#ff4444', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                                                  <Zap size={10} style={{ marginTop: '3px', flexShrink: 0 }} />
+                                                  <span style={{ wordBreak: 'break-all' }}>{line}</span>
+                                              </div>
+                                          ))
+                                      ) : (
+                                          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>
+                                              No diagnostics available
+                                          </div>
+                                      )}
                                   </div>
                               </div>
                           </div>
@@ -349,13 +422,13 @@ const BossBoard: React.FC<BossBoardProps> = () => {
                               </div>
                           </div>
                           <div style={{ display: 'flex', gap: '1rem' }}>
-                              <button onClick={() => handleSemanticDecision('SEAL')} style={{ flex: 1.5, background: '#00ffaa', color: '#000', fontWeight: 'bold', padding: '0.8rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                              <button disabled={isSubmitting} onClick={() => handleSemanticDecision('SEAL')} style={{ flex: 1.5, background: isSubmitting ? '#444' : '#00ffaa', color: isSubmitting ? '#888' : '#000', fontWeight: 'bold', padding: '0.8rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: isSubmitting ? 'not-allowed' : 'pointer' }}>
                                   <Gavel size={18} /> {currentT.btn_seal}
                               </button>
-                              <button onClick={() => handleSemanticDecision('REWORK')} style={{ flex: 2, background: 'var(--accent-primary)', color: '#000', fontWeight: 'bold', padding: '0.8rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                              <button disabled={isSubmitting} onClick={() => handleSemanticDecision('REWORK')} style={{ flex: 2, background: isSubmitting ? '#444' : 'var(--accent-primary)', color: isSubmitting ? '#888' : '#000', fontWeight: 'bold', padding: '0.8rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: isSubmitting ? 'not-allowed' : 'pointer' }}>
                                   <Zap size={18} /> {currentT.btn_rework}
                               </button>
-                              <button onClick={() => handleSemanticDecision('STOP')} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', color: '#ff4444', border: '1px solid rgba(255,68,68,0.2)', padding: '0.8rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                              <button disabled={isSubmitting} onClick={() => handleSemanticDecision('STOP')} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', color: isSubmitting ? '#888' : '#ff4444', border: '1px solid rgba(255,68,68,0.2)', padding: '0.8rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: isSubmitting ? 'not-allowed' : 'pointer' }}>
                                   <Trash2 size={18} /> {currentT.btn_discard}
                               </button>
                           </div>
@@ -380,13 +453,134 @@ const BossBoard: React.FC<BossBoardProps> = () => {
                                           method: 'POST', headers: { 'Content-Type': 'application/json' },
                                           body: JSON.stringify({ content: spec }),
                                       });
-                                      if (response.ok) { triggerSuccess(); setSpec(''); }
+                                      if (response.status === 202 || response.ok) {
+                                        const body = await response.json();
+                                        if (body.project_id) setBootstrapProjectId(body.project_id);
+                                        triggerSuccess(); setSpec('');
+                                      }
                                   } finally { setIsSubmitting(false); }
                               }} className="btn-control" style={{ background: 'rgba(0, 242, 255, 0.1)', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)', padding: '0 1.5rem', fontSize: '0.85rem' }}>{currentT.btn_declare}</button>
                           </div>
                       </div>
                   </div>
                 </>
+            ) : bootstrapProjectId && bootstrapStatus ? (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.5rem' }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.15rem' }}>
+                    Bootstrap in progress
+                  </div>
+                  <div style={{ width: '300px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${(bootstrapStatus.progress || 0) * 100}%`, height: '100%',
+                      background: bootstrapStatus.state === 'Failed' ? '#ff4444' : 'var(--accent-primary)',
+                      borderRadius: '3px', transition: 'width 0.5s ease'
+                    }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: '2rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>
+                    <span>Stage: <strong style={{ color: '#fff' }}>{bootstrapStatus.stage || 'init'}</strong></span>
+                    <span>State: <strong style={{ color: bootstrapStatus.state === 'Failed' ? '#ff4444' : '#00ffaa' }}>{bootstrapStatus.state}</strong></span>
+                  </div>
+                </div>
+            ) : pendingApproval ? (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem', padding: '2rem' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#ffaa00', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.15rem', border: '1px solid #ffaa00', padding: '0.5rem 1.5rem', borderRadius: '8px' }}>
+                    SPEC ANALYSIS COMPLETE — AWAITING APPROVAL
+                  </div>
+                  <div style={{ background: 'rgba(255, 170, 0, 0.05)', border: '1px solid rgba(255, 170, 0, 0.2)', borderRadius: '16px', padding: '2rem', maxWidth: '600px', width: '100%' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginBottom: '1rem' }}>COMPONENTS DETECTED</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                      {(pendingApproval.components || []).map((c: string, i: number) => (
+                        <span key={i} style={{ background: 'rgba(0, 242, 255, 0.1)', color: 'var(--accent-primary)', padding: '0.3rem 0.8rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>Ambiguity Detected:</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: pendingApproval.ambiguity_detected ? '#ff4444' : '#00ffaa' }}>
+                        {pendingApproval.ambiguity_detected ? 'YES' : 'NO'}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await fetch(`/api/specs/approve`, { method: 'POST' });
+                            setShowSuccess(true);
+                            setPendingApproval(null);
+                            setTimeout(() => setShowSuccess(false), 2000);
+                          } catch {}
+                        }}
+                        style={{ flex: 1, background: 'linear-gradient(135deg, #00ffaa, #059669)', color: '#000', border: 'none', padding: '1rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                      >
+                        <ThumbsUp size={18} /> APPROVE
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await fetch(`/api/specs/reject`, { method: 'POST' });
+                            setPendingApproval(null);
+                          } catch {}
+                        }}
+                        style={{ flex: 1, background: 'rgba(255,68,68,0.1)', color: '#ff4444', border: '1px solid rgba(255,68,68,0.3)', padding: '1rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                      >
+                        <ThumbsDown size={18} /> REJECT
+                      </button>
+                    </div>
+                  </div>
+                </div>
+            ) : pipelineReviews.length > 0 ? (
+              <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
+                <div style={{ fontSize: '0.7rem', color: '#ffaa00', fontWeight: 'bold', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.15rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <AlertTriangle size={14} /> PIPELINE REVIEWS ({pipelineReviews.length})
+                </div>
+                {pipelineReviews.map((review: any) => (
+                  <div key={review.task_id} style={{ background: 'rgba(255, 170, 0, 0.05)', border: '1px solid rgba(255, 170, 0, 0.2)', borderRadius: '12px', padding: '1.2rem', marginBottom: '1rem' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', marginBottom: '0.4rem' }}>{review.task?.title || review.task_id}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.8rem' }}>
+                      Target: {review.task?.target_file || 'N/A'} | Rejections: {review.task?.senior_rejections || 0}
+                    </div>
+                    {review.senior_feedback && (
+                      <div style={{ fontSize: '0.75rem', color: '#ff8888', marginBottom: '1rem', padding: '0.6rem', background: 'rgba(255,68,68,0.08)', borderRadius: '6px' }}>
+                        {review.senior_feedback}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        style={{ flex: 1, background: 'linear-gradient(135deg, #00ffaa, #059669)', color: '#000', border: 'none', padding: '0.6rem', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.75rem' }}
+                        onClick={async () => {
+                          await fetch(`/api/pipeline/reviews/${review.task_id}/approve`, { method: 'POST' });
+                          setPipelineReviews(prev => prev.filter(r => r.task_id !== review.task_id));
+                        }}
+                      >
+                        <ThumbsUp size={14} /> Approve
+                      </button>
+                      <button
+                        style={{ flex: 1, background: 'rgba(255,68,68,0.1)', color: '#ff4444', border: '1px solid rgba(255,68,68,0.3)', padding: '0.6rem', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.75rem' }}
+                        onClick={async () => {
+                          await fetch(`/api/pipeline/reviews/${review.task_id}/reject`, { method: 'POST' });
+                          setPipelineReviews(prev => prev.filter(r => r.task_id !== review.task_id));
+                        }}
+                      >
+                        <ThumbsDown size={14} /> Reject
+                      </button>
+                      <button
+                        style={{ flex: 1, background: 'rgba(0, 242, 255, 0.1)', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)', padding: '0.6rem', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.75rem' }}
+                        onClick={async () => {
+                          await fetch(`/api/pipeline/reviews/${review.task_id}/retry`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ feedback: review.senior_feedback }),
+                          });
+                          setPipelineReviews(prev => prev.filter(r => r.task_id !== review.task_id));
+                        }}
+                      >
+                        <RotateCcw size={14} /> Retry
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.1 }}>
                     <ShieldCheck size={120} />

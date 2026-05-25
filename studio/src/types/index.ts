@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export type ThreadStatus = 'Draft' | 'JuniorProposal' | 'SeniorReview' | 'PatchReady' | 'BossApproval' | 'Completed' | 'Paused' | 'Working' | 'Approved' | 'Rejected';
+export type ThreadStatus = 'Draft' | 'JuniorProposal' | 'SeniorReview' | 'PatchReady' | 'BossApproval' | 'Completed' | 'Paused' | 'Working' | 'Approved' | 'Rejected' | 'AwaitDependency';
 
 export interface Thread {
   id: string;
@@ -31,6 +31,12 @@ export interface Thread {
   rejection_count?: number;
   error_feedback?: string;
   reason?: string;
+  validator_rejections?: number;
+  senior_rejections?: number;
+  architecture_rejections?: number;
+  cargo_rejections?: number;
+  lsp_rejections?: number;
+  boss_interventions?: number;
 }
 
 export type PostType = 'Proposal' | 'Review' | 'Patch' | 'Nogari' | 'System' | 'Instruction';

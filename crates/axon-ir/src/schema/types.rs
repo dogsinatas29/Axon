@@ -1,6 +1,208 @@
 use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "PascalCase")]
+pub enum FileAuthority {
+    Immutable,
+    ValidatorOwned,
+    GeneratorPatchable,
+    HumanOwned,
+}
+
+impl Default for FileAuthority {
+    fn default() -> Self {
+        Self::GeneratorPatchable
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PatchRegion {
+    pub id: String,
+    pub start_line: usize,
+    pub end_line: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct OwnershipMetadata {
+    pub authority: FileAuthority,
+    #[serde(default)]
+    pub validator_locked: bool,
+    #[serde(default)]
+    pub patchable_regions: Vec<PatchRegion>,
+}
+
+impl OwnershipMetadata {
+    pub fn immutable() -> Self {
+        Self {
+            authority: FileAuthority::Immutable,
+            validator_locked: true,
+            patchable_regions: Vec::new(),
+        }
+    }
+
+    pub fn validator_owned() -> Self {
+        Self {
+            authority: FileAuthority::ValidatorOwned,
+            validator_locked: true,
+            patchable_regions: Vec::new(),
+        }
+    }
+
+    pub fn generator_patchable() -> Self {
+        Self {
+            authority: FileAuthority::GeneratorPatchable,
+            validator_locked: false,
+            patchable_regions: Vec::new(),
+        }
+    }
+
+    pub fn human_owned() -> Self {
+        Self {
+            authority: FileAuthority::HumanOwned,
+            validator_locked: false,
+            patchable_regions: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Language {
+    C,
+    Cpp,
+    Rust,
+    Python,
+}
+
+impl Default for Language {
+    fn default() -> Self {
+        Self::C
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Platform {
+    Generic,
+    Win32,
+    Linux,
+}
+
+impl Default for Platform {
+    fn default() -> Self {
+        Self::Generic
+    }
+}
+
+// v0.0.32: Runtime Subsystem - this is the runtime constitution that governs entry point, linker, and validation
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Subsystem {
+    Console,
+    WindowsGui,
+    Posix,
+    Gtk4,
+}
+
+impl Default for Subsystem {
+    fn default() -> Self {
+        Self::Console
+    }
+}
+
+// v0.0.32: Entry point type - runtime identity marker
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum EntrypointType {
+    Main,
+    WinMain,
+    WWinMain,
+}
+
+impl Default for EntrypointType {
+    fn default() -> Self {
+        Self::Main
+    }
+}
+
+impl EntrypointType {
+    pub fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "main" | "wmain" => Self::Main,
+            "winmain" => Self::WinMain,
+            "wwinmain" | "wwinmain16" | "wwinmainw" | "wwinmainunicode" | "wwinmaina" | "wwinmainansi" => Self::WWinMain,
+            _ => Self::Main,
+        }
+    }
+
+    pub fn canonical_name(&self) -> &'static str {
+        match self {
+            Self::Main => "main",
+            Self::WinMain => "WinMain",
+            Self::WWinMain => "wWinMain",
+        }
+    }
+
+    pub fn canonical_signature(&self, lang: Language) -> String {
+        match self {
+            Self::Main => match lang {
+                Language::Rust => "fn main()".to_string(),
+                Language::Python => "def main()".to_string(),
+                _ => "int main(void)".to_string(),
+            },
+            Self::WinMain => "int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)".to_string(),
+            Self::WWinMain => "int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)".to_string(),
+        }
+    }
+
+    pub fn canonical_file(&self, lang: Language) -> String {
+        let ext = match lang {
+            Language::Cpp | Language::Rust => "cpp",
+            _ => "c",
+        };
+        match self {
+            Self::Main => format!("src/main.{}", ext),
+            Self::WinMain => format!("src/winmain.{}", ext),
+            Self::WWinMain => format!("src/winmain.{}", ext),
+        }
+    }
+}
+
+// v0.0.32: Runtime model - replaces Option<String>
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeModel {
+    Console,
+    Win32Gui,
+    EventDriven,
+    Gtk4,
+}
+
+impl Default for RuntimeModel {
+    fn default() -> Self {
+        Self::Console
+    }
+}
+
+// v0.0.32: Win32-specific component taxonomy
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Win32ComponentType {
+    Win32WindowClass,
+    Win32WndProc,
+    Win32MessageLoop,
+    Win32Resource,
+    Win32Dialog,
+    LuaRuntime,
+}
+
+impl Default for Win32ComponentType {
+    fn default() -> Self {
+        Self::Win32WindowClass
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Constraint {
     pub id: u64,
@@ -22,7 +224,15 @@ pub struct ProjectIR {
     #[serde(default)]
     pub thought: Option<String>,
     #[serde(default)]
-    pub language: Option<String>, // v0.0.28: Primary language for this project (e.g., "c", "rust")
+    pub language: Language, // v0.0.31: Semantic root language declaration
+    #[serde(default)]
+    pub platform: Platform, // v0.0.31.14: Platform runtime personality declaration
+    #[serde(default)]
+    pub subsystem: Subsystem, // v0.0.32: Runtime constitution (Console / WindowsGui / Posix)
+    #[serde(default)]
+    pub entrypoint_type: EntrypointType, // v0.0.32: Runtime identity marker
+    #[serde(default)]
+    pub runtime_model: RuntimeModel, // v0.0.32: Replaces Option<String>
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -36,6 +246,26 @@ pub enum ComponentTier {
 impl Default for ComponentTier {
     fn default() -> Self {
         Self::Core
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum ComponentType {
+    ProjectModule,
+    SystemLibrary,
+    ExternalRuntime,
+    Win32WindowClass,
+    Win32WndProc,
+    Win32MessageLoop,
+    Win32Resource,
+    Win32Dialog,
+    LuaRuntime,
+}
+
+impl Default for ComponentType {
+    fn default() -> Self {
+        Self::ProjectModule
     }
 }
 
@@ -65,6 +295,16 @@ pub struct Component {
     pub is_blocking: bool, // v0.0.29: Whether failure blocks the whole factory
     #[serde(default)]
     pub locked: bool, // v0.0.30: SSOT physical seal status
+    #[serde(default)]
+    pub component_type: ComponentType, // v0.0.31.20: Semantic classification
+    // v0.0.32: Win32 Runtime Ontology
+    #[serde(default)]
+    pub subsystem: Option<Subsystem>, // Per-component subsystem override
+    #[serde(default)]
+    pub dll_imports: BTreeSet<String>, // e.g. user32, gdi32, kernel32
+    // v0.0.31.30: FileAuthority - rewrite sovereignty (P0)
+    #[serde(default)]
+    pub ownership: OwnershipMetadata,
 }
 
 pub fn default_true() -> bool { true }
@@ -88,7 +328,11 @@ impl ProjectIR {
             constraints: Vec::new(),
             constraint_ids: std::collections::HashSet::new(),
             thought: None,
-            language: None,
+            language: Language::C,
+            platform: Platform::Generic,
+            subsystem: Subsystem::Console,
+            entrypoint_type: EntrypointType::Main,
+            runtime_model: RuntimeModel::Console,
         }
     }
 
@@ -132,6 +376,25 @@ impl ProjectIR {
                                 locked: false,
                             });
                         }
+
+                        // Determine component type and apply auto-classification
+                        let mut comp_type = match c._type.to_lowercase().as_str() {
+                            "system_library" | "system" => ComponentType::SystemLibrary,
+                            "external_runtime" | "external" => ComponentType::ExternalRuntime,
+                            _ => ComponentType::ProjectModule,
+                        };
+
+                        let file_lower = c.file.to_lowercase();
+                        let base_name = std::path::Path::new(&file_lower)
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("");
+                        let name_lower = c.name.to_lowercase();
+                        let system_libs = ["user32", "gdi32", "kernel32", "shell32", "comdlg32", "gdi"];
+                        if system_libs.contains(&base_name) || system_libs.contains(&name_lower.as_str()) {
+                            comp_type = ComponentType::SystemLibrary;
+                        }
+
                         let canonical_key = crate::canonicalizer::canonicalize_path(&c.file);
                         let comp_name = c.name.clone();
                         components.insert(canonical_key.clone(), Component {
@@ -149,8 +412,12 @@ impl ProjectIR {
                             tier: c.tier,
                             is_blocking: c.is_blocking,
                             locked: false,
+                            component_type: comp_type,
+                            subsystem: None,
+                            dll_imports: BTreeSet::new(),
+                            ownership: OwnershipMetadata::generator_patchable(),
                         });
-                        tracing::debug!("[IR_REGISTER] key={} name={}", canonical_key, comp_name);
+                        tracing::debug!("[IR_REGISTER] key={} name={} type={:?}", canonical_key, comp_name, comp_type);
                     }
 
                     let mut constraints = Vec::new();
@@ -165,13 +432,51 @@ impl ProjectIR {
                         }
                     }
 
+                    let mut language = Language::C;
+                    let mut subsystem = Subsystem::Console;
+                    let mut entrypoint_type = EntrypointType::Main;
+                    let mut runtime_model = RuntimeModel::Console;
+
+                    let md_lower = md.to_lowercase();
+                    if md_lower.contains("language: rust") || md_lower.contains("language:rust") {
+                        language = Language::Rust;
+                    } else if md_lower.contains("language: python") || md_lower.contains("language:python") {
+                        language = Language::Python;
+                    } else if md_lower.contains("language: cpp") || md_lower.contains("language:cpp") {
+                        language = Language::Cpp;
+                    }
+
+                    let mut platform = Platform::Generic;
+                    if md_lower.contains("platform: win32")
+                        || md_lower.contains("platform:win32")
+                        || md_lower.contains("subsystem: windows")
+                        || md_lower.contains("subsystem:windows")
+                        || md_lower.contains("win32")
+                    {
+                        platform = Platform::Win32;
+                        // v0.0.32: Auto-promote for Win32 GUI projects
+                        if md_lower.contains("gui")
+                            || md_lower.contains("winnt")
+                            || md_lower.contains("winsdk")
+                        {
+                            subsystem = Subsystem::WindowsGui;
+                            entrypoint_type = EntrypointType::WWinMain;
+                            runtime_model = RuntimeModel::Win32Gui;
+                            language = Language::Cpp; // Win32 GUI auto-requires C++
+                        }
+                    }
+
                     return Some(ProjectIR {
                         node_mapping: raw.node_mapping,
                         components,
                         constraints,
                         constraint_ids: std::collections::HashSet::new(),
                         thought: None,
-                        language: None,
+                        language,
+                        platform,
+                        subsystem,
+                        entrypoint_type,
+                        runtime_model,
                     });
                 }
             }

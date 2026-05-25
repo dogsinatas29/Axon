@@ -1,0 +1,17 @@
+# Session: 2026-05-25 — Phase 5.6: WAL Flush Barriers + ThreadDetail Polling + task_kind 수정
+
+## Core CoT
+1. WAL flush FIFO drain (Phase 5.5) 후에도 4개 버그 잔존 확인:
+   - P0: ThreadDetail 영구 빈 화면 (단발 fetch + WAL 지연)
+   - P1: Worker count 0 (get_status가 WAL 미반영 InProgress 조회)
+   - P2: Task task_kind=None (Phase 1/2 메타데이터 누락)
+   - P3: 순차 실행 (병렬화는 로컬 VRAM 병목으로 보류)
+2. 우선순위 P0→P1→P2 순으로 3개 수정 동시 집행
+
+## Affected Files Diff
+- studio/src/components/ThreadDetail.tsx: 단발 useEffect → 2초 setInterval polling + clearInterval cleanup
+- crates/axon-daemon/src/server.rs: get_status()에 storage.flush().await barrier 추가
+- crates/axon-daemon/src/pipeline.rs: execute_one_task()에 InProgress 저장 후 flush() 추가
+- crates/axon-core/src/lib.rs: Task::from_decomposed() task_kind 동적 할당 (HeaderDecl/SourceImpl + .hpp 지원)
+- mile_stone/v0.0.31.md: Phase 5.6 Post-Work Log 추가
+- GEMINI.md: 5개 파일 설명 업데이트 (polling/flush/task_kind)

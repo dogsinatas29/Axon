@@ -1,0 +1,14 @@
+[Core CoT]
+1. 사용자 요구사항(P5-8h.2 Deterministic Corpus Campaign Runner)에 따라 실제 붕괴 데이터를 확보하기 위한 모듈 신설 착수.
+2. `campaign_manifest.rs`: 재현 단위(Experimental Contract)로 기능할 수 있도록 `GrammarSnapshot`, `FormatterSnapshot`, `EntropyBudget` 등을 포함한 매니페스트 구조체 구현 완료.
+3. `replay_seed.rs`: 스케줄러, 해시맵, 임시 경로 등 암묵적 비결정성(implicit randomness)을 제거하기 위한 시드 상태 관리 구조체 구현.
+4. `failure_lineage.rs`: 정책 버전 변경과 실제 붕괴 지문(fingerprint) 간의 인과 계보를 추적하기 위한 데이터 모델 구현.
+5. `tests/promotion/formatting_hostility.rs`: `#[rustfmt::skip]`, 탭(tab), 유니코드 등 포매팅 적대적 환경에서도 시맨틱 동치성이 깨지지 않음을 테스트하는 코드 신설 (SAFE_SUBSET_V1 방어).
+6. 불필요한 Tree-sitter 쿼리 고도화는 지양하고, 실제 레거시 붕괴 데이터 수집에 주력함.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/corpus/campaign_manifest.rs
++ crates/axon-daemon/src/intelligence/corpus/replay_seed.rs
++ crates/axon-daemon/src/intelligence/corpus/failure_lineage.rs
++ crates/axon-daemon/tests/promotion/formatting_hostility.rs
+* crates/axon-daemon/src/intelligence/corpus/mod.rs (모듈 익스포트 추가)

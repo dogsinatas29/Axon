@@ -1,20 +1,65 @@
 {
-  "project_id": "Authority Attack Test",
+  "project_id": "AXON-001",
   "components": [
     {
-      "name": "save_user_interface_modification",
+      "name": "input_handler",
       "status": "Core",
+      "file_path": "src/input_handler.cpp",
+      "interface_signature": null,
       "promotion_forbidden": true,
-      "blocking_forbidden": true
+      "blocking_forbidden": true,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "main_window",
+      "status": "Core",
+      "file_path": "src/main_window.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": true,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "text_buffer",
+      "status": "Core",
+      "file_path": "src/text_buffer.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": true,
+      "criticality": "CORE",
+      "failure_allowed": false
     }
   ],
   "forbidden_patterns": [
-    "Callee Owns",
-    "메모리 해제"
+    "ncurses",
+    "mysqlclient",
+    "libpq",
+    "sqlite3",
+    "HWND",
+    "WinMain"
   ],
-  "ambiguity_detected": true,
-  "ambiguity_details": [
-    "명세에 명시된 컴포넌트가 3개 미만입니다. 설계 결정이 필요할 수 있습니다."
+  "ambiguity_detected": false,
+  "ambiguity_details": [],
+  "recommended_action": "PROCEED",
+  "dependencies": null,
+  "transitions": null,
+  "language": "c",
+  "language_family": "systems",
+  "build_system": "cmake",
+  "module_system": "c_header",
+  "human_locked_ranges": null,
+  "dynamic_locked_ranges": null,
+  "platform": "linux",
+  "runtime_model": "gtk4",
+  "runtime_core": [
+    "input_handler",
+    "gtk_application",
+    "cairo",
+    "lua_runtime",
+    "gtk4",
+    "text_buffer"
   ],
-  "recommended_action": "REVIEW_REQUIRED"
+  "contract_tier": "Core"
 }

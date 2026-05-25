@@ -1,0 +1,9 @@
+[Core CoT]
+1. 사용자 지침 수용. 거대한 애플리케이션 전체를 돌리는 낭비를 배제하고, "가장 붕괴 밀도가 높은(Entropy-dense) 핫스팟"만 절제(Extraction)하여 관측하는 PHASE I(Real Corpus Mount) 돌입.
+2. 타겟 선정: 가장 적대적이고 훌륭한 붕괴 표본인 **XChat GTK2 IRC Client** 채택.
+3. 핫스팟 추출: XChat 내에서도 붕괴 확률이 극한에 달하는 `Reconnect + Plugin unload topology` 조합을 타겟팅. (Signal reentrancy, deferred destruction, ownership ambiguity 유발 목적)
+4. PHASE I 파이프라인 (XChatHotspotHarness) 구축: 
+   - 핫스팟 지문화(Fingerprinting) ➔ 위상 봉인(Sealing) ➔ 무작위 압박 주입(Pressure Mutation) ➔ 혈통 군집화(Lineage Clustering) ➔ 리플레이 정체성 증명(Replay Certification)
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/corpus/xchat_hotspot.rs (신설)

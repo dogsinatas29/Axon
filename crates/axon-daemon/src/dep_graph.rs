@@ -22,12 +22,15 @@ pub struct Node {
     pub node_type: NodeType,
     pub role: NodeRole,
     pub is_blocking: bool, // v0.0.29.25: Criticality
+    pub component_type: axon_ir::schema::types::ComponentType, // v0.0.31.20: Semantic classification
 }
 
 pub struct DepGraph {
     pub nodes: HashMap<String, Node>,
     pub edges_out: HashMap<String, HashSet<String>>, // Forward: A -> B (A uses B)
     pub edges_in: HashMap<String, HashSet<String>>,  // Reverse: B -> A (A is used by B)
+    pub platform: Option<String>,
+    pub runtime_model: Option<String>,
 }
 
 impl DepGraph {
@@ -36,11 +39,13 @@ impl DepGraph {
             nodes: HashMap::new(),
             edges_out: HashMap::new(),
             edges_in: HashMap::new(),
+            platform: None,
+            runtime_model: None,
         }
     }
 
-    pub fn add_node(&mut self, id: &str, node_type: NodeType, role: NodeRole, is_blocking: bool) {
-        self.nodes.insert(id.to_string(), Node { id: id.to_string(), node_type, role, is_blocking });
+    pub fn add_node(&mut self, id: &str, node_type: NodeType, role: NodeRole, is_blocking: bool, component_type: axon_ir::schema::types::ComponentType) {
+        self.nodes.insert(id.to_string(), Node { id: id.to_string(), node_type, role, is_blocking, component_type });
     }
 
     pub fn add_edge(&mut self, from: &str, to: &str) {
@@ -71,6 +76,13 @@ impl DepGraph {
 
     /// Build initial graph from architecture.md JSON components
     pub fn build_from_ir(&mut self, ir: &serde_json::Value) {
+        if let Some(p) = ir.get("platform").and_then(|v| v.as_str()) {
+            self.platform = Some(p.to_string());
+        }
+        if let Some(r) = ir.get("runtime_model").and_then(|v| v.as_str()) {
+            self.runtime_model = Some(r.to_string());
+        }
+
         let components_opt = ir.get("components");
         if let Some(components) = components_opt {
             if let Some(arr) = components.as_array() {
@@ -104,29 +116,53 @@ impl DepGraph {
         // v0.0.29.25: Criticality
         let is_blocking = comp.get("is_blocking").and_then(|v| v.as_bool()).unwrap_or(true);
 
+        // v0.0.31.20: Extract or auto-classify component type
+        let component_type = match comp.get("component_type")
+            .or_else(|| comp.get("type"))
+            .and_then(|v| v.as_str()) 
+        {
+            Some("system_library") => axon_ir::schema::types::ComponentType::SystemLibrary,
+            Some("external_runtime") => axon_ir::schema::types::ComponentType::ExternalRuntime,
+            _ => {
+                let file_path = comp.get("file").or_else(|| comp.get("file_path")).and_then(|f| f.as_str()).unwrap_or("");
+                let file_lower = file_path.to_lowercase();
+                let base_name = std::path::Path::new(&file_lower)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("");
+                let name_lower = comp_name.to_lowercase();
+                let system_libs = ["user32", "gdi32", "kernel32", "shell32", "comdlg32", "gdi"];
+                if system_libs.contains(&base_name) || system_libs.contains(&name_lower.as_str()) {
+                    axon_ir::schema::types::ComponentType::SystemLibrary
+                } else {
+                    axon_ir::schema::types::ComponentType::ProjectModule
+                }
+            }
+        };
+
         let comp_id = format!("comp:{}", comp_name);
-        self.add_node(&comp_id, NodeType::Component, comp_role, is_blocking);
+        self.add_node(&comp_id, NodeType::Component, comp_role, is_blocking, component_type);
 
         // v0.0.29: Support both 'file' (legacy/RawComponent) and 'file_path' (ProjectIR/Component)
         let file_path_opt = comp.get("file").or_else(|| comp.get("file_path")).and_then(|f| f.as_str());
         
         if let Some(file_path) = file_path_opt {
             let file_id = format!("file:{}", file_path);
-            self.add_node(&file_id, NodeType::File, comp_role, is_blocking);
+            self.add_node(&file_id, NodeType::File, comp_role, is_blocking, component_type);
             self.add_edge(&comp_id, &file_id);
 
             if let Some(funcs) = comp.get("functions").and_then(|f| f.as_array()) {
                 for func in funcs {
                     let func_name = func.get("name").and_then(|n| n.as_str()).unwrap_or("unknown");
                     let func_id = format!("func:{}::{}", file_path, func_name);
-                    self.add_node(&func_id, NodeType::Function, comp_role, is_blocking);
+                    self.add_node(&func_id, NodeType::Function, comp_role, is_blocking, component_type);
                     self.add_edge(&file_id, &func_id);
                 }
             } else if let Some(funcs_map) = comp.get("functions").and_then(|f| f.as_object()) {
                 // v0.0.29: Support BTreeMap structure from ProjectIR
                 for (func_name, _func_obj) in funcs_map {
                     let func_id = format!("func:{}::{}", file_path, func_name);
-                    self.add_node(&func_id, NodeType::Function, comp_role, is_blocking);
+                    self.add_node(&func_id, NodeType::Function, comp_role, is_blocking, component_type);
                     self.add_edge(&file_id, &func_id);
                 }
             }
@@ -166,10 +202,25 @@ impl DepGraph {
 
         let mut source_files = HashSet::new();
         let mut has_sqlite = false;
+        let mut link_libraries = HashSet::new();
 
         for (node_id, node) in &self.nodes {
             if let NodeType::File = node.node_type {
                 let file_path = node_id.replace("file:", "");
+                
+                // SystemLibrary 및 ExternalRuntime은 빌드 소스 대상에서 제외하고 링크 목록에 추가
+                if node.component_type == axon_ir::schema::types::ComponentType::SystemLibrary {
+                    let base_name = std::path::Path::new(&file_path)
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .to_string();
+                    link_libraries.insert(base_name);
+                    continue;
+                } else if node.component_type == axon_ir::schema::types::ComponentType::ExternalRuntime {
+                    continue;
+                }
+
                 if file_path.ends_with(".c") || file_path.ends_with(".cpp") {
                     // v0.0.29.25: Physical Pruning
                     let full_path = sandbox_root.join(&file_path);
@@ -181,6 +232,13 @@ impl DepGraph {
                 }
                 if file_path.contains("database") || file_path.contains("sqlite") {
                     has_sqlite = true;
+                }
+            }
+
+            if let NodeType::Component = node.node_type {
+                if node.component_type == axon_ir::schema::types::ComponentType::SystemLibrary {
+                    let comp_name = node_id.replace("comp:", "");
+                    link_libraries.insert(comp_name);
                 }
             }
         }
@@ -196,8 +254,14 @@ impl DepGraph {
             out.push_str("include_directories(${SQLITE3_INCLUDE_DIRS})\n\n");
         }
 
+        // v0.0.31.14: Build Personality Layer - WIN32 Subsystem executable flag injection
+        let is_win32 = self.platform.as_deref() == Some("win32")
+            || self.runtime_model.as_deref() == Some("win32_gui")
+            || project_name.to_lowercase().contains("win32");
+        let win32_flag = if is_win32 { " WIN32" } else { "" };
+
         if !sources.is_empty() {
-            out.push_str(&format!("add_executable({} {})\n", project_name, sources.join(" ")));
+            out.push_str(&format!("add_executable({}{} {})\n", project_name, win32_flag, sources.join(" ")));
         } else {
             let err_msg = if locale == "ko_KR" {
                 "# 오류: 아키텍처 명세에 소스 파일이 정의되지 않았거나 모두 Pruning 되었습니다.\n"
@@ -207,11 +271,28 @@ impl DepGraph {
                 "# ERROR: Architectural Spec defines no source files or all have been pruned.\n"
             };
             out.push_str(err_msg);
-            out.push_str(&format!("add_executable({} src/main.c)\n", project_name));
+            out.push_str(&format!("add_executable({}{} src/main.c)\n", project_name, win32_flag));
         }
 
         if has_sqlite {
             out.push_str(&format!("target_link_libraries({} PRIVATE ${{SQLITE3_LIBRARIES}})\n", project_name));
+        }
+
+        if is_win32 {
+            link_libraries.insert("user32".to_string());
+            link_libraries.insert("gdi32".to_string());
+            link_libraries.insert("kernel32".to_string());
+            out.push_str("if(MSVC)\n");
+            out.push_str(&format!("    set_target_properties({} PROPERTIES WIN32_EXECUTABLE TRUE)\n", project_name));
+            out.push_str("else()\n");
+            out.push_str("    set(CMAKE_EXE_LINKER_FLAGS \"${CMAKE_EXE_LINKER_FLAGS} -mwindows\")\n");
+            out.push_str("endif()\n\n");
+        }
+
+        if !link_libraries.is_empty() {
+            let mut libs: Vec<String> = link_libraries.into_iter().collect();
+            libs.sort();
+            out.push_str(&format!("target_link_libraries({} PRIVATE {})\n", project_name, libs.join(" ")));
         }
 
         out

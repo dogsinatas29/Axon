@@ -1,0 +1,15 @@
+Core CoT (추론 과정 요약):
+- 사용자의 요청에 따라 GEMINI.md의 `## Root Structure` 및 `### /crates/axon-daemon/src/` 테이블 업데이트 수행.
+- 이번 세션(Governance Kernel & E2E Validation) 동안 추가된 CLI 바이너리, 하네스 파일들(gtk_reconnect_demo, win32_reconnect_demo, legacy_async_demo, xchat_pilot 등)과 tools/git-hooks 구조를 내비게이션 레이어에 반영.
+- Thin Governance Hook의 핵심인 `axon.rs`를 통합 CLI 진입점으로 명시하여 시스템의 Operational Integration 방향성을 확고히 기록함.
+
+Affected Files (변경 파일 목록):
+- 수정: GEMINI.md (## Root Structure 에 tools/git-hooks 추가, Directory Details 에 6개의 신규 bin/*.rs 파일 명세 추가)
+- 추가 내역 (과거 프롬프트 포함): 
+  * crates/axon-daemon/src/bin/axon.rs
+  * crates/axon-daemon/src/bin/gtk_reconnect_demo.rs
+  * crates/axon-daemon/src/bin/win32_reconnect_demo.rs
+  * crates/axon-daemon/src/bin/legacy_async_demo.rs
+  * crates/axon-daemon/src/bin/xchat_pilot.rs
+  * crates/axon-daemon/src/bin/xchat_pilot_phase2.rs
+  * tools/git-hooks/pre-push

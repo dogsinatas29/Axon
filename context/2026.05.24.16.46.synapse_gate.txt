@@ -1,0 +1,12 @@
+[Core CoT]
+1. 사용자 통찰 수용. 관측 지상주의(Observability Saturation)의 위험성 직시. AXON은 설명 잘하는 "붕괴 박물관"이 아니라, "시스템을 죽이지 않으면서 레거시를 안전하게 진화시키는 개발/유지보수 커널(Runtime-safe software evolution system)"이 되어야 함.
+2. AXON vNext 3대 아키텍처 확립:
+   - Runtime Observatory Layer: (기존 텔레메트리 엔진룸 유지)
+   - Safe Mutation Layer: (신규) 런타임 위상 경계(Topology Boundary)를 보존하면서 안전하게 기능을 추가하는 변이(Mutation) 엔진.
+   - Evolution Workflow Layer: Human Goal → Hotspot → Observation → Safe Mutation → Replay Validation → Merge 로 이어지는 실전 개발 루프.
+3. STEP B (Sensor Observer Effect Validation) 즉시 완료: 
+   - 텔레메트리 후킹(`LD_PRELOAD`) 자체가 큐 순서나 시그널 재진입에 Jitter를 유발하여 현실을 왜곡(Observer Effect)하는지 검증. 
+   - 관측 센서 ON/OFF 시에도 압축된 런타임 인과율(Canonical Lineage)이 100% 일치함을 증명하여, AXON 관측기의 신뢰성(Fidelity) 최종 확보.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/telemetry/observer_effect.rs (신설)

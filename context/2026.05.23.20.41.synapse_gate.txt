@@ -1,0 +1,7 @@
+[Core CoT]
+사용자의 통찰에 따라 `SymbolOwnershipRegistry`를 인메모리가 아닌 `debug/symbol_registry.json`이라는 물리적 파일 형태(Materialized Governance State)로 영속화하는 아키텍처를 최종 확정함.
+단순한 맵핑이 아닌 Authority(권위)로서의 Registry로 승격시킬 예정이며, 추후 Immutable Region과 AST Diff Merge의 기반이 될 `last_validated_hash` 등의 필드를 선제적으로 추가하기로 결정함.
+구현 순서는 P2-1a(Materialization) -> P2-1b(Owner Lookup) -> P2-1c(Reopen Task) -> P2-1d(Write Rejection)으로 점진적 하드닝을 진행함.
+
+[Affected Files Diff]
+* 변경 파일 없음 (설계 및 로드맵 확정 단계)

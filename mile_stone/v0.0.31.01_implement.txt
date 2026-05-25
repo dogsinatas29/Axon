@@ -1,0 +1,185 @@
+# AXON v0.0.31.01 Implementation Plan
+# Spec-Level Semantic Validation
+
+---
+
+## 1. 목표
+
+v0.0.31 Phase 1-5 완료 후, 남은 핵심 계층 구현:
+
+- Spec-level semantic validation
+- Pre-IR semantic rejection
+- SemanticOntology formalization
+- SemanticViolation hierarchy
+- Semantic repair loop
+
+현재 구조:
+```
+Spec → RawIR → IR Validation → Artifact Firewall
+```
+
+목표 구조:
+```
+Spec → SemanticSpec → SpecSemanticValidator → RawIR → IR Validation → Artifact Firewall
+```
+
+---
+
+## 2. 현재 구현 상태
+
+| 계층 | 상태 | 위치 |
+|------|------|------|
+| Language enum | ✅ | axon-ir/src/schema/types.rs |
+| LanguageProfile | ✅ | axon-core/src/profile.rs |
+| allows_artifact() | ✅ | IR 생성 후 검증 |
+| IR Validation | ✅ | axon-ir/src/validator/mod.rs |
+| Artifact Firewall | ✅ | axon-agent/src/lib.rs:1622 |
+
+**누락:**
+- Spec 자체의 vocabulary 검증 (IR 생성 전)
+- SemanticOntology formalization
+- SemanticViolation hierarchy
+
+---
+
+## 3. 구현 순서
+
+### Phase A: SemanticOntology 계층 구축
+
+**A.1 새 디렉토리 생성**
+```
+crates/axon-ir/src/semantic/
+```
+
+**A.2 ontology.rs - SemanticOntology trait**
+```rust
+pub trait SemanticOntology: Send + Sync {
+    fn forbidden_vocabulary(&self) -> &[&str];
+    fn allowed_task_kinds(&self) -> Option<&[axon_core::LanguageTaskKind]>;
+    fn allowed_build_systems(&self) -> &[&str];
+}
+```
+
+**A.3 ontology 구현**
+- RustOntology: "HeaderDecl", "SourceImpl", "Integrator" (C vocabulary), ".h", "CMakeLists.txt" 금지
+- COntology: 기본 허용
+- PythonOntology: "Cargo.toml", "cmake", "HeaderDecl" 금지
+
+---
+
+### Phase B: SemanticSpec 타입
+
+**B.1 spec.rs - SemanticSpec 구조체**
+```rust
+pub struct SemanticSpec {
+    pub language: Language,
+    pub extracted_terms: Vec<String>,  // vocabulary 추출
+    pub component_names: Vec<String>,
+    pub file_paths: Vec<String>,
+    pub build_systems: Vec<String>,
+}
+```
+
+**B.2 from_llm_json() 구현**
+- LLM JSON에서 vocabulary/task kind/string 추출
+
+---
+
+### Phase C: SemanticViolation hierarchy
+
+**C.1 violation.rs - SemanticViolation enum**
+```rust
+pub enum SemanticViolation {
+    ForbiddenVocabulary { term: String, language: Language },
+    CrossLanguageContamination { detected: String, expected: Language },
+    InvalidBuildSystem { system: String, language: Language },
+    InvalidTaskVocabulary { task: String, language: Language },
+}
+```
+
+---
+
+### Phase D: SpecSemanticValidator
+
+**D.1 validator.rs - SpecSemanticValidator**
+```rust
+pub struct SpecSemanticValidator;
+
+impl SpecSemanticValidator {
+    pub fn validate(spec: &SemanticSpec) -> Result<(), SemanticViolation>;
+}
+```
+
+**D.2 검증 로직**
+1. extracted_terms에서 forbidden_vocabulary 검사
+2. build_systems에서 allowed_build_systems 검사
+3. component_names에서 vocabulary contamination 검사
+
+---
+
+### Phase E: axon-agent 통합
+
+**E.1 parse_ir_from_llm_json 수정**
+```rust
+fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<ProjectIR> {
+    // 1. SemanticSpec 추출 (vocabulary/intent)
+    let spec = SemanticSpec::from_llm_json(json)?;
+
+    // 2. Pre-IR Semantic Validation (핵심!)
+    SpecSemanticValidator::validate(&spec)?;
+
+    // 3. 기존 로직 진행 (RawIR → IR)
+    // ...
+}
+```
+
+**E.2 기존 allows_artifact() 유지**
+- IR 생성 후 artifact合法性는 계속 유지
+- 이중 방어 (Pre-IR + Post-IR)
+
+---
+
+### Phase F: Semantic Repair Loop
+
+**F.1 Repair Prompt 갱신**
+```
+Rust semantic universe forbids:
+- HeaderDecl, SourceImpl (C vocabulary)
+- .h files, CMakeLists.txt
+
+Use Rust module topology: ModuleDecl, ModuleImpl
+```
+
+---
+
+## 4. 파일 생성/수정 목록
+
+| 파일 | 작업 |
+|------|------|
+| `crates/axon-ir/src/semantic/mod.rs` | **신규** - 모듈 |
+| `crates/axon-ir/src/semantic/ontology.rs` | **신규** - SemanticOntology |
+| `crates/axon-ir/src/semantic/spec.rs` | **신규** - SemanticSpec |
+| `crates/axon-ir/src/semantic/validator.rs` | **신규** - SpecSemanticValidator |
+| `crates/axon-ir/src/semantic/violation.rs` | **신규** - SemanticViolation |
+| `crates/axon-ir/src/lib.rs` | 수정 - semantic re-export |
+| `crates/axon-ir/src/schema/mod.rs` | 수정 - semantic 모듈 등록 |
+| `crates/axon-core/src/profile.rs` | 수정 - ontology registry |
+| `crates/axon-agent/src/lib.rs` | 수정 - Pre-IR validation |
+
+---
+
+## 5. 검증 체크리스트
+
+- [ ] cargo check 통과
+- [ ] C preservation (기존 동작 유지)
+- [ ] Rust contamination test: Rust spec + "HeaderDecl" → reject
+- [ ] Python contamination test: Python spec + "Cargo.toml" → reject
+
+---
+
+## 6. 핵심 원칙
+
+1. **Pre-IR rejection**: IR 생성 전에 vocabulary contamination 검출
+2. **이중 방어**: Spec validation + IR validation + Artifact firewall
+3. **C preservation**: 기존 C 동작 절대破坏禁止
+4. **No generic runtime**: ontology는 언어별로 명확히 분리

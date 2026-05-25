@@ -1,0 +1,382 @@
+# AXON v0.0.31 문제점 정리
+
+## 1. 핵심 결론
+
+현재 AXON의 “Universal IR”은 실제로는 언어 중립이 아니다.
+
+실제 구조는:
+
+```text
+Universal IR
+→ C-centric decomposition
+→ Generic artifact emission
+→ Late validation
+```
+
+상태다.
+
+즉 시스템 내부 깊숙이:
+
+* C/C++ 빌드 모델
+* Header/Source 분리
+* CMake scaffold
+* main.c 구조
+
+가 기본 전제로 박혀 있다.
+
+그 결과 Rust 프로젝트에서도 C artifact가 생성된다.
+
+---
+
+# 2. 실제 관측된 증상
+
+## Rust spec인데 C 구조 생성
+
+실제 생성 결과:
+
+```text
+src/main.c
+src/bypass.c
+include/module.h
+CMakeLists.txt
+```
+
+반면 spec은:
+
+```text
+chrono
+rusqlite
+ratatui
+Result<T, E>
+```
+
+등 Rust semantics를 요구하고 있었다.
+
+즉:
+
+* dependency semantics = Rust
+* file topology = C
+* build system = CMake
+
+라는 semantic corruption이 발생했다.
+
+---
+
+# 3. 직접 원인들
+
+## (1) `TaskKind`가 C 중심 설계
+
+현재:
+
+```rust
+pub enum TaskKind {
+    HeaderDecl,
+    SourceImpl,
+    Integrator,
+}
+```
+
+문제:
+
+* `HeaderDecl` 자체가 C/C++ 전용 개념
+* Rust에는 header declaration phase 없음
+
+즉 decomposition vocabulary 자체가 C compilation model 기반이다.
+
+결과:
+
+```text
+Rust project
+→ HeaderDecl emitted
+→ module.h 생성
+```
+
+---
+
+## (2) 언어 결정이 너무 늦다 (Late Language Binding)
+
+현재:
+
+```rust
+kind: "rust".to_string(), // Default, will be updated by daemon
+```
+
+문제:
+
+* Task 생성 시점에 language invariant가 확정되지 않음
+* 이후 daemon이 수정하는 eventual consistency 구조
+
+결과:
+
+```text
+IR
+→ generic task decomposition
+→ artifact generation
+→ later language correction
+```
+
+이미 contamination 발생 후다.
+
+---
+
+## (3) `kind: String` 사용
+
+현재:
+
+```rust
+pub kind: String
+```
+
+문제:
+
+* free-form string
+* compile-time guarantee 없음
+* invalid semantic state 허용
+
+예:
+
+```text
+kind = "rust"
+task_kind = HeaderDecl
+```
+
+같은 불가능 상태가 실제로 발생했다.
+
+---
+
+## (4) Validator가 너무 늦게 동작
+
+현재 구조:
+
+```text
+Generator first
+→ Validator later
+```
+
+즉:
+
+* architecture.md 생성 완료
+* task decomposition 완료
+* worker dispatch 완료
+* artifact materialization 완료
+
+후에 검증한다.
+
+Validator가 gatekeeper가 아니라 사후 검시관 역할만 수행 중이다.
+
+---
+
+## (5) Language Semantic Closure 부재
+
+현재 시스템에는 다음 개념이 없다:
+
+```text
+Language Semantic Contract
+```
+
+즉 language별:
+
+* 허용 확장자
+* 금지 artifact
+* build system
+* entry semantics
+* module topology
+
+를 강제하는 계층이 없다.
+
+결과:
+
+Rust 프로젝트에서도:
+
+```text
+.h
+.c
+CMakeLists.txt
+int main()
+```
+
+가 생성 가능하다.
+
+---
+
+# 4. 실제 contamination 흐름
+
+현재 내부 흐름은 사실상:
+
+```text
+Universal IR
+  ↓
+Generic TaskKind
+  ↓
+HeaderDecl emitted
+  ↓
+C scaffold fallback
+  ↓
+CMakeLists generated
+```
+
+이다.
+
+즉 Rust contamination의 근본 원인은:
+
+```text
+Rust validator failure
+```
+
+가 아니라:
+
+```text
+C-centric decomposition architecture
+```
+
+이다.
+
+---
+
+# 5. 시스템 구조적 문제
+
+## 현재 구조
+
+```text
+IR
+ ↓
+Generator (hallucinating)
+ ↓
+Validator (late)
+```
+
+---
+
+## 필요한 구조
+
+```text
+IR
+ ↓
+Language Semantic Contract
+ ↓
+Architecture Generator
+ ↓
+Artifact Validator
+ ↓
+Task Decomposer
+ ↓
+Materializer
+```
+
+즉 generator가 validator contract에 종속되어야 한다.
+
+---
+
+# 6. 반드시 필요한 개선점
+
+## (1) Language enum 도입
+
+현재:
+
+```rust
+pub kind: String
+```
+
+개선:
+
+```rust
+pub enum Language {
+    C,
+    Cpp,
+    Rust,
+    Python,
+}
+```
+
+---
+
+## (2) LanguageProfile 시스템 도입
+
+예:
+
+```rust
+pub struct LanguageProfile {
+    allowed_extensions: Vec<&'static str>,
+    forbidden_artifacts: Vec<&'static str>,
+    required_files: Vec<&'static str>,
+    allowed_task_kinds: Vec<TaskKind>,
+}
+```
+
+---
+
+## (3) TaskKind language-aware化
+
+현재:
+
+```rust
+HeaderDecl
+```
+
+같은 universal enum 사용.
+
+개선:
+
+```rust
+LanguageTaskKind::C(CTaskKind)
+LanguageTaskKind::Rust(RustTaskKind)
+```
+
+혹은 language별 decomposition registry 분리.
+
+---
+
+## (4) Semantic Firewall 추가
+
+예:
+
+```rust
+if language == Rust && path.ends_with(".h") {
+    reject();
+}
+```
+
+```rust
+if language == Rust && file == "CMakeLists.txt" {
+    reject();
+}
+```
+
+---
+
+## (5) Generation-time Validation
+
+현재는 validation이 너무 늦다.
+
+반드시:
+
+```text
+generation-time invariant enforcement
+```
+
+가 필요하다.
+
+즉 artifact emit 전에 semantic contract 검증해야 한다.
+
+---
+
+# 7. 가장 중요한 최종 진단
+
+현재 AXON의 “Universal IR”은 실제로는:
+
+```text
+C semantics disguised as language-neutral IR
+```
+
+상태다.
+
+Rust contamination은 단순 hallucination이 아니라:
+
+* decomposition layer
+* task vocabulary
+* artifact scaffold
+* validator timing
+* language binding
+
+전체에 걸친 구조적 문제다.
+

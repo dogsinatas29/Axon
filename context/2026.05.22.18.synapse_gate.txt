@@ -1,0 +1,63 @@
+======================================================
+SYNAPSE GATE — 2026.05.22.18 (Phase 24 / Step 8)
+v0.0.31.93
+======================================================
+
+## Core CoT (추론 과정 요약)
+
+### 문제 A: Approval loop 반복 (승인 후에도 pending_approval 재발)
+- 원인 흐름:
+  Stage retry → orchestrator 재진입 → approval_file이 approved:true 상태로 존재
+  → server.rs DFS Radar가 .axon_approval_pending 재감지
+  → SEAL 핸들러가 contract_hash 동일함에도 무조건 재작성
+  → 파일의 approved:true가 approved:false로 초기화
+  → lib.rs 폴링 루프가 다시 대기 상태로 빠짐
+- 수정: server.rs SEAL 핸들러에 APPROVAL_IDEMPOTENCY 로직 추가
+  contract_hash == existing_hash AND approved:true이면 re-seal SKIP
+
+### 문제 B: HeaderGen "invalid type: map, expected a sequence"
+- 원인: LLM이 [...]가 아니라 {"headers": [...]} 또는 {"tasks": [...]} 형태로 응답.
+  코드가 직접 Vec<DecomposedTask>로 serde deserialize → map 타입에서 즉사.
+- 수정: canonicalizer 삽입 (lib.rs L2286 지점)
+  RAW_LLM → serde_json::Value parse → if object: 알려진 키 순서로 array 추출
+  → unwrapped string → Vec<DecomposedTask> deserialize
+  키 우선순위: headers > tasks > components > items > decomposed_tasks > first array field
+
+### 아키텍처 관점 (사용자 지적 정리)
+- 현재 시스템은 "LLM engineering" 단계를 지나 "compiler engineering" 단계 진입
+- 부족한 것: contract normalization, canonicalization, retry lifecycle, approval persistence
+- 이번 패치는:
+  - approval persistence (contract hash cache)
+  - canonical normalization (map → sequence)
+  두 레이어를 추가한 것
+
+## Affected Files Diff
+
+### crates/axon-daemon/src/server.rs (Fix A)
+```diff
++ // v0.0.31.93: [APPROVAL_IDEMPOTENCY]
++ let already_approved = approval_file.exists() && {
++     // read existing file, check same hash && approved:true
++     same_hash && is_approved
++ };
++ if already_approved {
++     tracing::info!("✅ [APPROVAL_IDEMPOTENT] Skipping re-seal.");
++ } else if let Ok(json) = ... {
++     // write seal as before
+```
+
+### crates/axon-daemon/src/lib.rs (Fix B)
+```diff
++ // v0.0.31.93: [HEADER_CANONICALIZER]
++ let canonical_content = if raw_val.is_array() { content }
++     else if raw_val.is_object() { unwrap_known_key(raw_val) }
++     else { content };
+- match serde_json::from_str::<Vec<DecomposedTask>>(&content) {
++ match serde_json::from_str::<Vec<DecomposedTask>>(&canonical_content) {
+```
+
+## 다음 과제 예고 (v0.0.32)
+- ImplGen에도 동일한 canonicalizer 적용 (동일 패턴 반복 가능성)
+- Approval state machine: .axon_approved_state 영속 파일로 lifecycle 관리
+- Seed-first architecture 완전 전환
+======================================================

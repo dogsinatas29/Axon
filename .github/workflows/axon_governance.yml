@@ -1,0 +1,29 @@
+name: AXON Governance Integration
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  axon-verification:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code with Proof Bundle
+        uses: actions/checkout@v3
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: AXON Verify Kernel
+        id: axon
+        run: |
+          echo "Initiating AXON Thin Governance Hook..."
+          cargo run --quiet --bin axon --manifest-path crates/axon-daemon/Cargo.toml -- verify .axon-proof/
+        # In a production release, it would simply be:
+        # run: axon verify .axon-proof/
+
+      - name: Governance Verification Failure Notification
+        if: failure()
+        run: |
+          echo "AXON Governance has rejected this evolution."
+          echo "Please review the Causal Family and Symptoms provided in the CLI output above."

@@ -1,0 +1,74 @@
+[Core CoT]
+7B 소형 로컬 LLM이 단일 JSON 스키마 하에서 거대한 4대 마크다운 명세를 한 번에 생성하도록 하는 디자인은 instruction following 및 context 용량 제한으로 인해 구조적 포기(missing field, deserialization failure)를 빈번히 유발함을 명확하게 발견했습니다.
+이에 따라 JSON 스키마 포맷을 전면 배제(JSON-less)하고, 4개의 명세 문서(constitution, architecture_seed, implementation_rules, hardening)를 개별적으로 독립적 LLM 질의를 통해 Raw Markdown 형태로 순차 생성 및 검증하는 구조로 전환(JSON Schema Decoupling & Per-Layer Decoupled Generator)하였습니다. 
+이를 통해 파이프라인의 견고함을 극대화하고 에러 복구를 위한 복잡한 fallback 구문 400여 줄을 전면 제거하여 구조적 정합성을 달성하였습니다.
+
+[Affected Files Diff]
+1. crates/axon-daemon/src/lib.rs
+   - 1회 JSON 질의 및 fallback 파서 제거
+   - 4회 독립적인 Markdown 순차 쿼리 루프 및 도메인별 검증(validate) 코드 이식
+2. mile_stone/v0.0.31.md
+   - Phase 21 (v0.0.31.42) 및 Phase 22 (v0.0.31.43) 작업 내역 추가
+
+[Core CoT - Phase 22 Extension]
+확률론적 기계(Probabilistic Engine)로서의 소형 LLM(7B)이 유발할 수 있는 비결정적 출력(동의어 치환, 요약, 사양 변형)을 원천 차단하기 위해 "생성"이 아닌 "추출(Extraction)" 지향형 시스템으로 전환을 완료했습니다.
+프롬프트 단에 요약/창작을 전면 금지하는 'Anti-creativity directives'를 이식하였으며, 원본 spec.md에 명시된 핵심 식별자(GtkApplicationWindow, lua_State, cairo_t 등)가 결과물에 100% 동일하게(Verbatim) 남아있는지 대소문자 매칭을 통해 확인하는 'Structural Checksum Validator'를 탑재했습니다. 하나라도 유실되면 전체 파스 패스를 무효화하고 재시도하도록 강제 가드 처리했습니다.
+
+[Core CoT - Phase 23 (Deterministic Normalizer Layer / Truth Authority)]
+LLM에게 완벽한 JSON 포맷 준수를 기대하면 7B 모델 환경에서 탈선이 발생합니다. 이에 LLM을 러프한 텍스트 의미론적 압축기(Lexer + Semantic Hint Engine)로 격하하고, 규격 검증 및 병합/재구성의 역할을 Rust 단의 Deterministic Normalizer에 위임했습니다.
+LLM JSON 파싱이 깨지더라도 빈 JSON 객체로 파싱 복구(Fuzzy Parsing)하고, Rust가 원본 spec.md의 키워드를 스캔해 platform/subsystem/language를 강제 교정하고, Baseline 컴포넌트 목록과 LLM 힌트를 안전하게 머지하며, 금지 패턴을 강제 삽입하도록 하드닝했습니다.
+
+[Affected Files Diff - Phase 23]
+1. crates/axon-agent/src/lib.rs
+   - process_spec_analysis 함수에 Fuzzy Parsing, Platform Normalizer, Deterministic Component Merge, Strict Blacklist Force-Injection 로직 이식
+   - validate_constraint_schema 함수 사용 해제에 따른 #[allow(dead_code)] 선언 추가
+
+[Core CoT - Phase 24 (Compiler-driven AUTO_PURIFY Pipeline with LLM Harvester)]
+4대 Canonical Spec 문서 작성과 레이아웃/구조 재조직(Reconstruction) 전체를 LLM에게 맡겼던 기존 아키텍처는 모델의 불필요한 아키텍트 페르소나 발현 및 펜스 파싱 붕괴의 원인이었습니다. 이를 해결하기 위해 LLM의 역할을 순수한 의미 추출기(Semantic Harvester - Lexer & Semantic Hint Engine)로 축소하고, Rust가 최종 Canonical 명세 문서를 Deterministic하게 조립하는 컴파일러(Rust Canonical Compiler/Assembler Layer)로 개편하였습니다.
+LLM에게는 단일 패스로 HarvestItem JSON Array를 뽑도록 책임을 극소화시키고, Rust 단에서 4대 명세 템플릿 문서를 빌드합니다. 특히 CMakeLists.txt나 핵심 C/C++ 소스 조각들은 Rust가 정규식(extract_spec_code_block)을 사용해 원본 spec.md에서 직접 뜯어내 명세서 내에 강제 주입(Enforce Invariant)하도록 철저히 하드닝했습니다.
+
+[Affected Files Diff - Phase 24]
+1. crates/axon-daemon/src/lib.rs
+   - bootstrap_from_spec 내의 다중 마크다운 생성기 블록을 단일 패스 JSON Semantic Harvester + Rust Assembler 구조로 완전히 교체.
+   - Rust deterministic fallback compiler 및 CMake/C++ 코드 블록 기계적 분리기인 extract_spec_code_block, fallback_harvest_spec 헬퍼 함수 및 HarvestItem 구조체 구현.
+2. mile_stone/v0.0.31.md
+   - Phase 23 (v0.0.31.50) 및 Phase 24 (v0.0.31.60) 작업 내역 하단 반영.
+
+[Core CoT - Phase 24 Step 2 (Non-Creative Semantic Extractor & Rust Semantic Validator)]
+LLM이 Spec 명세를 재설계(Re-authoring)하여 발생하는 온톨로지 불일치(Ontology mismatch) 문제를 해결하기 위해, LLM의 창작 자유도를 완벽히 거세하고 비창작형 AST 파서 레이어로의 격하를 완성했습니다.
+LLM은 원본 스펙에서 있는 그대로의 텍스트 스팬을 verbatim으로 추출하여 SemanticFragment JSON Array(type, tags, source_span, content)로 매핑(Semantic Extractor)합니다. Rust는 수집된 Semantic IR을 수신한 즉시 8대 필수 토큰의 유실 여부를 조기에 검증(Semantic Validator)하며, 검증 통과된 IR을 목적 마크다운 버킷으로 Deterministic하게 라우팅(Canonical Compiler)하여 빌드합니다.
+
+[Affected Files Diff - Phase 24 Step 2]
+1. crates/axon-daemon/src/lib.rs
+   - SemanticFragment 구조체 및 validate_semantic_fragments 조기 검증 헬퍼 함수 구현.
+   - bootstrap_from_spec 내에 Semantic Extractor 프롬프트 및 Semantic Validator 검증 루프 탑재.
+   - Rust Canonical Compiler 버킷 deterministic routing 구현 및 fallback 파서 데이터 형식 수정.
+2. mile_stone/v0.0.31.md
+   - Phase 24 Step 2 (v0.0.31.70) 작업 내역 하단 반영.
+
+[Core CoT - Phase 24 Step 3 (Lossless Section Fallback Parser)]
+LLM이 로컬 7B의 Instruction following 한계로 인해 JSON Deserialization 실패 혹은 Validation 거부로 Fallback 루프에 진입할 때, 단순 라인 스캐너 방식이 유발하던 심각한 정보 소실(헤더 하위 리스트 및 코드 블록 누락) 현상을 극복했습니다.
+Fallback 파서를 마크다운 헤더(`#` 또는 `##` 등) 구조를 식별하여 관련 본문 블록 전체를 고스란히 담아내는 'Lossless Section Parser'로 전면 교정하여, 통신 및 추론 실패 시에도 100% 정보 밀도를 지닌 사양서 복구를 보장했습니다. 또한 1차 조기 검증 토큰 세트를 실질적 핵심 4개로 합리적으로 정돈했습니다.
+
+[Affected Files Diff - Phase 24 Step 3]
+1. crates/axon-daemon/src/lib.rs
+   - fallback_harvest_spec 함수를 문단 기반 구조적 파서로 전면 재개발.
+   - validate_semantic_fragments 검증 단어 set을 핵심 4개 키워드로 한정하여 로컬 모델 안정성 도모.
+2. release_note/v0.0.31.80_release_notes.md
+   - 무손실 파서 및 합리화 변경 내역 상세 기술 및 보관.
+3. mile_stone/v0.0.31.md
+   - Phase 24 Step 3 (v0.0.31.80) 작업 내역 하단 반영.
+
+[Core CoT - Phase 24 Step 4 (Deterministic Project ID Resolution)]
+`spec.md`와 같이 범용적인 파일명이 CLI 인자로 들어올 때 `project_id`가 `"spec"`으로 추출되어 엉뚱한 임시 디렉토리가 생성되고, 이로 인해 기존의 올바른 `TEST4_GTK/immutable_constraints.json` 캐시를 무시하고 7B 모델이 재추출을 수행하여 `src/gtk.cpp`, `src/pthread.cpp` 등 외부 링킹 라이브러리들을 소스 컴포넌트로 오인하는 심각한 시맨틱 오염(Semantic Contamination) 문제를 격파했습니다.
+데몬의 부트스트랩 로직에서 파일 스템이 `"spec"` 또는 `"specification"`일 경우 그 부모 디렉토리명(여기서는 `"TEST4_GTK"`)을 `project_id`로 자동 매핑하도록 수정하여, 올바른 캐시 및 경로를 통해 6대 C++17 코어 컴포넌트를 정확하게 로딩하도록 구현했습니다.
+
+[Affected Files Diff - Phase 24 Step 4]
+1. crates/axon-daemon/src/lib.rs
+   - bootstrap_from_spec 내에서 generic spec 파일명을 부모 디렉토리 이름의 project_id로 동적 치환하는 로직 추가.
+
+[Core CoT - Phase 24 Step 5 (Spec Folder Self-Healing Verification)]
+사용자가 실수로 `TEST4_GTK/spec/` 폴더를 임의 삭제한 후 데몬이 재구동될 때, 정상적으로 `spec/architecture_seed.md` 누락을 감지하고 Harvester 및 Lossless Paragraph Fallback Parser를 자동 실행하여 `TEST4_GTK/spec/` 아래의 4대 사양 문서를 무손실 자가 복구(Self-healing)해냈음을 실측 확인했습니다.
+이후 `TEST4_GTK/immutable_constraints.json` 캐시 바이패스 조건과 결합되어, 오염 없는 6대 제약조건 상태로 무사히 승인 대기 상태에 복귀했습니다.
+
+

@@ -1,0 +1,8 @@
+1. 추론 과정 요약 (Core CoT)
+- 사용자가 axon 프로젝트 내에서 고립되어 더 이상 사용되지 않는 파일들이 있는지 조사를 요청함.
+- 우선 프로젝트 루트 디렉토리를 탐색하고 context 폴더가 있음을 확인함.
+- Cargo.toml 및 crates/ 디렉토리 구조를 분석하고, rust 코드 내에서 선언되었으나 사용되지 않는 파일, 혹은 빌드 대상에서 제외된 크레이트, 테스트용 임시 폴더/스크립트 등을 조사할 예정임.
+- 첫 단계로 Cargo.toml 파일을 읽어 프로젝트 구성 크레이트를 파악하고, synapse_gate.txt를 작성함.
+
+2. 변경 파일 목록 (Affected Files Diff)
+- /home/dogsinatas/rust_project/axon/context/2026.05.21.18.46.synapse_gate.txt (생성)

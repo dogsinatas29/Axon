@@ -1,0 +1,12 @@
+[package]
+name = "axon-ir-validator"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axon-platform-win32 = { path = "../axon-platform-win32" }
+axon-core = { path = "../axon-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = "1.0"
+regex = { workspace = true }

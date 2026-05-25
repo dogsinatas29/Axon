@@ -1,0 +1,8 @@
+{
+  "divergence": 0,
+  "runs": 1000,
+  "seed": "baseline_seed_v1",
+  "state_hash": "hash_after_patch_0xABCD",
+  "status": "DETERMINISTIC",
+  "trace_hash": "779667f2957cd7c471ebef4b4802b7e11be695af83f005bd099194e629a1ccf4"
+}

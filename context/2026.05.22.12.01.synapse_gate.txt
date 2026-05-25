@@ -1,0 +1,31 @@
+Core CoT (추론 과정 요약):
+1. 문제 정의:
+   - AXON의 승인 대기 상태 검사 및 시맨틱 리스크 추출 로직이 DFS(전체 디스크의 재귀 폴링)로 구성되어 있어, 기동 시 레이스 컨디션 및 UI 리프레시 데드락을 초래함.
+   - 상태 관리를 파일 존재 여부에서 데몬의 런타임 메모리(SandboxRegistry)로 전환하여 O(1) 결정론적 상태 머신을 구축해야 함.
+
+2. 해결 방향 및 구현 계획:
+   - `crates/axon-daemon/src/lib.rs` 내부에 `SandboxRegistry` 및 `SandboxContext`를 정의하여 각 샌드박스의 메타데이터와 pending_approval 상태를 관리.
+   - `crates/axon-daemon/src/main.rs` 의 데몬 기동 로직에 spec_path 기반 프로젝트를 레지스트리에 사전 적재(Pre-load)하는 복구 로직 구현.
+   - `crates/axon-daemon/src/server.rs` 의 `get_pending_approval`, `get_semantic_risks`, `submit_semantic_decision` API를 DFS에서 `sandbox_registry`를 바로 참조하는 O(1) 결정론적 로직으로 변경.
+   - 보스의 승인(SEAL)이 완료되면 즉시 `sandbox_registry` 의 `pending_approval` 플래그를 `false`로 갱신하여 eventual consistency 확보 및 데드락 제거.
+
+3. 검증 결과:
+   - `cargo check` 통과하여 Zero-Warning 컴파일 확보.
+   - `GEMINI.md`와 `mile_stone/v0.0.31.md` 문서 내비게이션 동기화.
+
+Affected Files Diff (수정 및 생성된 파일 목록):
+1. crates/axon-daemon/src/lib.rs (수정)
+   - SandboxState, SandboxContext 구조체 추가.
+   - Daemon 구조체에 sandbox_registry (Arc<RwLock<HashMap<String, SandboxContext>>>) 멤버 및 초기화 로직 추가.
+2. crates/axon-daemon/src/main.rs (수정)
+   - CLI 구동 시 spec_path 인자 디렉토리를 파싱해 sandbox_registry 에 미리 적재하여 복구 보장.
+3. crates/axon-daemon/src/server.rs (수정)
+   - get_pending_approval API: sandbox_registry 를 순회하며 O(1)로 승인 대기 목록 반환.
+   - get_semantic_risks API: DFS 디스크 탐색을 완전히 걷어내고 sandbox_registry 내 활성 샌드박스를 순회하며 리스크 스캔.
+   - submit_semantic_decision API: SEAL 승인 인가 시 sandbox_registry 의 pending_approval을 false로 즉각 업데이트해 메모리-파일 불일치 해소.
+4. GEMINI.md (수정)
+   - Architecture Navigation Layer의 lib.rs 역할 정의와 Source of Truth 테이블의 Boss Approval 부분 갱신(취소선 및 변경 후 명세 적용).
+5. release_note/v0.0.31_release_notes.md (생성)
+   - 레지스트리 기반 결정론적 런타임 하드닝 상세 릴리즈 내역 문서화.
+6. mile_stone/v0.0.31.md (수정)
+   - v0.0.31.30 릴리즈 내역 및 Post-Work Log 추가.

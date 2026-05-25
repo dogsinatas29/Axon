@@ -1,0 +1,8 @@
+[Core CoT]
+1. 사용자 피드백 "PHASE D-2: C Header Topology Strike Test" 완벽 동의. C 언어는 'Entropy-native language'이며, include, macro, typedef 등 텍스트 관습에 숨은 Topology를 제어하는 것이 진정한 커널의 역할임.
+2. Ownership의 대상을 함수나 구조체 같은 Symbol에 국한하지 않고, "Topology Ownership" (Include Edge, Macro Scope, ABI Contract)으로 확장함.
+3. AXON은 단순한 코드 수정 시스템이 아니라, "Topology Mutation Permission System(누가 어느 범위까지 어떤 인과율로 위상을 변경할 수 있는가)"임을 명확히 인지.
+4. `c_topology_strike.rs`를 구현하여, `ABI_TOPOLOGY_VIOLATION`, `TOPOLOGY_IMPORT_VIOLATION`, `MACRO_CONTAMINATION`을 결정론적으로 검출하고 차단하는 세 가지 실험을 수행.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/replay/c_topology_strike.rs (신설)

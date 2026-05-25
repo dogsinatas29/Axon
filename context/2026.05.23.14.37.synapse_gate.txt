@@ -1,0 +1,7 @@
+Reasoning Summary:
+- Analyzed `crates/axon-storage/src/lib.rs` schema initialization and migration logic.
+- Summarized the database tables (tasks, project_state, execution_log, threads, posts, agents) and incremental columns.
+- Noted how column addition (via PRAGMA table_info) and backfill updates ensure backward compatibility.
+
+Affected Files:
+- None (Query response only)

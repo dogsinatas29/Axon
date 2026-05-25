@@ -1,0 +1,15 @@
+{
+  "module": "legacy_server.rs",
+  "reason": "HTTP layer carrying runtime authority, implicit mutable state writes",
+  "removed_symbols": [
+    "start_server",
+    "handle_task_submission",
+    "api handlers"
+  ],
+  "hidden_state_sources": [
+    "direct registry write via axum routes",
+    "hidden mutation of daemon internal state"
+  ],
+  "replay_risk": "HIGH",
+  "migration_target": "HTTP Ingress (Read-Only/Deterministic Command Translation)"
+}

@@ -1,0 +1,8 @@
+[Core CoT]
+1. 사용자 지침 "정상 동작 검증이 아니라 공격 시나리오별 붕괴 인과율 수집 단계" 완벽 수용. GTK의 signal, lifecycle 위상을 공격하고 결정론적 붕괴가 동일한 Hash로 출력되는지 확인.
+2. STAGE 1-A (Signal Topology Corruption) 및 STAGE 1-B (Lifecycle Intrusion)에 이어 STAGE 3 (Runtime Lifecycle Collapse)로 진입. 이중 소멸(Double destroy), 고아 위젯 등 런타임 위상 붕괴를 유발.
+3. REPAIR_TRACE에 `seq`, `ownership_anchor`, `topology_edge_hash`, `parser_boundary_hash`, `canonical_failure`, `catastrophe_lineage` 필드를 강제하여 실패의 인과율(Lineage)을 완벽히 추적.
+4. Auto retry, implicit repair 등 편의성 로직(Replay variance의 씨앗)의 재침투를 원천 봉쇄 유지.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/replay/gtk_stage3_collapse.rs (신설)

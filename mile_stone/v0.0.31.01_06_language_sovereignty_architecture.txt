@@ -1,0 +1,296 @@
+여기서 중요한 건:
+
+Python도 “예외 처리 언어”로 넣으면 안 된다
+
+는 점이다.
+
+지금 AXON이 해야 하는 건:
+
+언어 지원 추가
+
+가 아니다.
+
+진짜 목표는:
+
+language sovereignty architecture
+
+구축이다.
+
+1. 결국 문제의 본질
+
+현재 generic runtime은 사실상:
+
+implicit C worldview
+
+를 중심으로 만들어져 있었다.
+
+Rust는 contamination 피해자였고,
+Python은 아직 formalization조차 안 된 상태다.
+
+즉 현재 구조는:
+
+generic runtime
+=
+hidden C semantic runtime
+
+이었다.
+
+2. 따라서 Python도 동등 승격 필요
+
+Python도 반드시:
+
+first-class semantic runtime
+
+로 승격해야 한다.
+
+즉:
+
+Python ontology
+Python topology
+Python decomposition
+Python artifact legality
+Python runtime contract
+
+전부 독립적으로 가져야 한다.
+
+3. Python이 C/Rust와 가장 다른 점
+
+Python은:
+
+dynamic runtime civilization
+
+이다.
+
+즉:
+
+compile stage
+linker stage
+translation unit
+header semantics
+
+자체가 존재하지 않는다.
+
+이 차이를 formalize 해야 한다.
+
+4. Python Semantic Ontology
+
+Python은 다음 semantic vocabulary를 가진다.
+
+예:
+
+package
+module
+__init__.py
+venv
+pip
+import
+asyncio
+entrypoint
+
+반대로 forbidden:
+
+Cargo.toml
+CMakeLists.txt
+header
+translation unit
+5. Python Artifact Authority
+
+Python semantic universe에서 허용:
+
+.py
+requirements.txt
+pyproject.toml
+
+금지:
+
+.h
+.cpp
+Cargo.toml
+6. Python Build Authority
+
+중요한 부분.
+
+Python은:
+
+build system civilization
+
+이 아니라:
+
+runtime execution civilization
+
+이다.
+
+즉:
+
+C:
+
+compile → link → binary
+
+Rust:
+
+cargo build → crate graph
+
+Python:
+
+runtime execution
+7. Python Decomposition도 달라야 한다
+
+절대:
+
+HeaderDecl
+SourceImpl
+
+같은 vocabulary 쓰면 안 된다.
+
+Python decomposition 예:
+
+PackageInit
+ModuleImpl
+Entrypoint
+RuntimeService
+8. Python Topology도 독립적이어야 한다
+
+Python topology는:
+
+import graph
+
+중심이다.
+
+C:
+
+header dependency graph
+
+Rust:
+
+crate/module graph
+
+Python:
+
+runtime import graph
+9. 가장 중요한 점
+
+Python도:
+
+C generic runtime의 fallback mode
+
+로 구현되면 실패다.
+
+반드시:
+
+독립 semantic civilization
+
+이어야 한다.
+
+10. 최종 구조는 결국 이것
+
+최종적으로 AXON은:
+
+LanguageRuntime
+ ├── CRuntime
+ ├── RustRuntime
+ └── PythonRuntime
+
+구조가 되어야 한다.
+
+그리고 각각이:
+
+ontology
+validator
+decomposition
+topology
+build/runtime
+artifact legality
+
+전부 독립적으로 가진다.
+
+11. 중요한 아키텍처 철학
+
+이 작업은:
+
+multi-language support
+
+가 아니다.
+
+진짜 목표는:
+
+multi-semantic civilization runtime
+
+이다.
+
+즉:
+
+각 언어가 자기 semantic laws를 가진 독립 세계
+
+가 되어야 한다.
+
+12. 따라서 앞으로 절대 하면 안 되는 것
+
+금지:
+
+if language == rust
+if language == python
+
+generic core 내부에 계속 누적.
+
+그건 다시:
+
+C-centric empire
++
+language exception patches
+
+구조로 회귀한다.
+
+13. 최종 목표
+
+최종 상태:
+
+Language::Python
+↓
+PythonProfile
+↓
+PythonOntology
+↓
+PythonSpecValidator
+↓
+PythonTopology
+↓
+PythonTaskRuntime
+↓
+PythonArtifactEmitter
+↓
+PythonExecutionRuntime
+
+즉:
+
+Python semantic sovereignty
+
+까지 확보해야 한다.
+
+14. 결론
+
+이번 작업의 본질은:
+
+언어 추가
+
+가 아니다.
+
+진짜 목표는:
+
+implicit C empire 해체
+
+그리고:
+
+C / Rust / Python
+semantic sovereignty establishment
+
+이다.
+
+즉 AXON을:
+
+generic pipeline
+
+에서:
+
+language-pluggable semantic operating system
+
+으로 승격시키는 작업이다.

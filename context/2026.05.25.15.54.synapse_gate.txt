@@ -1,0 +1,14 @@
+Phase 5.7: Protocol Downsizing — Senior Raw Line + Junior Full Code Always + Round-Robin
+
+## Core CoT
+- Runtime log analysis revealed root cause: 8/9 Junior tasks hit PARSER FAIL (qwen2.5:7b-instruct-q4_K_M cannot produce AXON Patch v2 format), all Senior outputs were JSON-truncated despite "DO NOT USE JSON" instruction, Junior 2 never used (hardcoded `juniors[0]`)
+- Architecture decision: "Don't change the model — change the protocol." 4-bit 7B cannot do JSON/SEARCH-REPLACE; make the model succeed at what it CAN do.
+- P0: Senior prompt stripped of FIX_HINT prefix (SFT bias trigger). Parsing changed from `contains("[APPROVE]")` to `first_line.starts_with("[APPROVE]")`. Feedback extraction: `lines().skip(1).join("\n")` instead of raw content clone.
+- P1: `effective_rework = false` forced. Output format simplified to markdown code block only. New `extract_code_block()` function. `apply_hunks()` (130 lines SEARCH/REPLACE engine) fully removed. `extract_json()` fallback removed. `parser_failed` flag removed.
+- P2: `run_background()` creates `Vec<AgentRuntime>` from all config.agents.juniors. `execute_phase()` uses `idx % juniors.len()` round-robin. Sequential execution preserved — VRAM safe.
+
+## Affected Files
+- `crates/axon-agent/src/lib.rs` — effective_rework=false (355), output_format simplified (495-504), parser fallback chain (660-676), final_code simplified (679), extract_code_block() added (2439-2459), Senior prompt ULTRA LIGHT (2173-2186), apply_hunks() removed (3369-3497)
+- `crates/axon-daemon/src/pipeline.rs` — Senior first-line matching (461), feedback extraction (535), Vec<AgentRuntime> creation (78-113), &[AgentRuntime] signatures (129-300), round-robin idx assignment (294-298)
+- `mile_stone/v0.0.31.md` — Phase 5.7 work log appended
+- `GEMINI.md` — pipeline.rs, lib.rs (axon-agent), ThreadDetail.tsx entries updated for Protocol Downsizing

@@ -1,0 +1,10 @@
+[Core CoT]
+1. 사용자 지침 "GTK 수동 검증은 기능 동작 확인이 아니라, 100% 결정론과 위상 보존 증명에 있다" 완벽 수용.
+2. 앱 구동 여부는 전혀 중요하지 않음. 핵심은 "AI의 파괴적 변이가 100회, 1000회 동일한 인과율(Trace)로 차단되고 붕괴하는가"를 증명하는 것.
+3. STAGE 0 (Kernel Baseline Seal) -> STAGE 1 (Minimal GTK Topology) -> STAGE 2 (Ownership Strike) -> STAGE 3 (Replay Validation) -> STAGE 4 (Hostile GTK Corpus) 로드맵 확립.
+4. "AI가 실패하는 것은 정상, 그 실패를 결정론적으로 재현하는 것이 성공"이라는 철학에 기반하여 실증적 붕괴 데이터 수집 체계 가동.
+
+[Affected Files Diff]
++ crates/axon-daemon/tests/gtk_hostile_corpus/minimal_gtk/ui.h (신설)
++ crates/axon-daemon/tests/gtk_hostile_corpus/minimal_gtk/ui.c (신설)
++ crates/axon-daemon/tests/gtk_hostile_corpus/minimal_gtk/main.c (신설)

@@ -1,0 +1,4 @@
+# Win32 GDI Rendering Contract
+REQUIRED_MESSAGES: WM_PAINT
+REQUIRED_RENDERING_CALLS: BeginPaint, EndPaint, TextOut
+DESCRIPTION: GDI viewport rendering must handle WM_PAINT message using BeginPaint/EndPaint and standard TextOut functions.

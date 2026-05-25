@@ -58,6 +58,10 @@ mod tests {
             tier: crate::schema::ComponentTier::Core,
             is_blocking: true,
             locked: false,
+            component_type: crate::schema::ComponentType::ProjectModule,
+            subsystem: None,
+            dll_imports: std::collections::BTreeSet::new(),
+            ownership: crate::schema::OwnershipMetadata::generator_patchable(),
         });
 
         let path = Path::new("/tmp/test_ir.json");

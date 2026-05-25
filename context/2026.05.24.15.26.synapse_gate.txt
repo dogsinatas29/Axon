@@ -1,0 +1,8 @@
+[Core CoT]
+1. 사용자 피드백 "PHASE D-0: AST Demotion" 완벽 수용. Tree-sitter는 절대 Authority가 아니며, 오직 Sensor/Locator 역할만 수행해야 함.
+2. AI가 "안다고 착각하는 것"을 구조적으로 차단하기 위해, AST 파싱의 목적은 '이해'가 아니라 '물리적 소유권 경계(Ownership Boundary)'의 확정에 있음.
+3. 새로운 KPI 체계 도입: `ownership_boundary_stability`, `parser_range_variance`, `topology_anchor_integrity`, `abi_preservation_rate`.
+4. "PHASE D-1: Physical Ownership Strike Test" 진행 결의. Rust 코드의 `parse_user`, `render_user` 위상에 대해 `Task_B`가 `Task_A`의 소유권을 침해하는 변이를 시도할 때, 커널이 즉각적인 `OWNERSHIP_VIOLATION`을 발생시키는지 검증하는 하네스 설계.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/replay/strike_test.rs (신설 예정)

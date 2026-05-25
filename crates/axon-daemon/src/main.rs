@@ -1,506 +1,512 @@
-/*
- * AXON - The Automated Software Factory
- * Copyright (C) 2026 dogsinatas
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
-mod cli;
-
-use axon_daemon::Daemon;
-use clap::Parser;
-use cli::{Cli, Commands};
+use axon_daemon::{DeterministicKernel, KernelConfig};
+use std::collections::BTreeSet;
+use std::path::PathBuf;
+use std::io::{self, Write};
 use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
-use tracing_subscriber::{fmt, Registry, prelude::*};
-use axon_daemon::observability::EventBusLayer;
+use clap::Parser;
+mod cli;
+use cli::{Cli, Commands};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // v0.0.29: [DYNAMIC_OBSERVABILITY] Reloadable filter for Stage-aware logging
-    let filter = tracing_subscriber::EnvFilter::new("info");
-    let (filter, reload_handle) = tracing_subscriber::reload::Layer::new(filter);
-
-    let subscriber = Registry::default()
-        .with(filter)
-        .with(fmt::Layer::default())
-        .with(EventBusLayer);
-    tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
-
-    // v0.0.29: Pass handle to EventBus or keep it available for later
-    let logger_handle = Arc::new(reload_handle);
-    
+    if std::env::var("RUST_LOG").is_err() {
+        unsafe { std::env::set_var("RUST_LOG", "info") };
+    }
     let cli = Cli::parse();
 
-    match cli.command {
+    match &cli.command {
         Commands::Init => {
-            tracing::info!("Initializing AXON project...");
-            // Logic for init
-        }
-        Commands::Read { path } => {
-            tracing::info!("Reading blueprint from: {}", path);
-            let content = std::fs::read_to_string(&path)?;
-
-            let (worker_tx, _) = tokio::sync::mpsc::channel(1);
-            let storage = Arc::new(axon_storage::Storage::new("axon.db")?);
-            let mock_model: Arc<dyn axon_model::ModelDriver + Send + Sync> =
-                Arc::new(axon_model::MockDriver);
-            let daemon = Daemon::new(
-                storage,
-                mock_model.clone(), // Architect
-                "mock-architect".into(),
-                vec![mock_model.clone()], // Senior
-                vec!["mock-senior".into()],
-                vec![mock_model.clone()], // Junior
-                vec!["mock-junior".into()],
-                worker_tx,
-                "Standard AXON Protocol".to_string(),
-                1.0,
-                "en_US".to_string(),
-            );
-            for line in content.lines() {
-                if line.starts_with("## Task:") || line.starts_with("- [ ]") {
-                    let title = line
-                        .trim_start_matches("## Task:")
-                        .trim_start_matches("- [ ]")
-                        .trim();
-                    if !title.is_empty() {
-                        let thread_id = uuid::Uuid::new_v4().to_string();
-                        let thread = axon_core::Thread {
-                            id: thread_id.clone(),
-                            project_id: "default-project".to_string(), 
-                            title: title.to_string(),
-                            status: axon_core::ThreadStatus::Draft,
-                            author: "BOSS".to_string(),
-                            milestone_id: None,
-                            task_kind: None,
-                            rejection_count: 0,
-                            created_at: chrono::Local::now(),
-                            updated_at: chrono::Local::now(),
-                        };
-                        daemon.storage.save_thread(thread).await.expect("Failed to save thread");
-
-                        // v0.0.28: Create a corresponding Task for the Scheduler to pick up
-                        let task = axon_core::Task {
-                            id: thread_id, // Use same ID for linkage
-                            project_id: "default-project".to_string(),
-                            title: title.to_string(),
-                            description: format!("Automated task generated from spec: {}", title),
-                            status: axon_core::TaskStatus::Pending,
-                            dependencies: Vec::new(),
-                            result: None,
-                            target_file: None,
-                            lock_files: Vec::new(),
-                            error_feedback: None,
-                            senior_comment: None,
-                            rework_count: 0,
-                            base_hash: None,
-                            parent_task: None,
-                            reason: None,
-                            kind: "rust".to_string(),
-                            retries: 0,
-                            assigned_worker: None,
-                            created_at: chrono::Local::now(),
-                            ir_path: None,
-                            task_kind: None,
-                            signature: None,
-                        };
-                        daemon.storage.save_task(task).await.expect("Failed to save task");
-                        
-                        tracing::info!("Generated thread & task: {}", title);
-                    }
-                }
-            }
+            tracing_subscriber::fmt::init();
+            run_init_wizard();
         }
         Commands::Run { resume, spec } => {
-            println!("\n====================================================
-🏭 AXON: Automated Software Factory v0.0.30_HARDENED
-====================================================
-======================\n");
+            let event_bus = Arc::new(axon_core::events::EventBus::new(256));
+            let storage = Arc::new(axon_storage::Storage::new("runtime/state.db")
+                .map_err(|e| format!("Failed to initialize Storage: {}", e))?);
 
-            // ... (rest of the config logic remains same)
+            axon_daemon::observability::EventBusLayer::init(event_bus.clone());
 
-            #[derive(serde::Serialize, serde::Deserialize, Clone)]
-            struct AgentConfig {
-                runtime: String,
-                provider: Option<String>,
-                endpoint: Option<String>,
-                model: String,
-            }
+            use tracing_subscriber::layer::SubscriberExt;
+            use tracing_subscriber::Registry;
+            let subscriber = Registry::default()
+                .with(tracing_subscriber::EnvFilter::new(
+                    &std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string())
+                ))
+                .with(tracing_subscriber::fmt::Layer::default())
+                .with(axon_daemon::observability::EventBusLayer);
+            tracing::subscriber::set_global_default(subscriber)?;
 
-            #[derive(serde::Serialize, serde::Deserialize, Clone)]
-            struct ExecutionConfig {
-                review_queue_limit: usize,
-                sampling_rate: f32,
-                fallback_enabled: bool,
-            }
+            let (config, spec_path, skip_bootstrap) = resolve_bootstrap_config(*resume, spec.as_deref());
 
-            #[derive(serde::Serialize, serde::Deserialize, Clone)]
-            struct AgentsConfig {
-                architect: AgentConfig,
-                seniors: Vec<AgentConfig>,
-                juniors: Vec<AgentConfig>,
-            }
+            let kernel = DeterministicKernel::new(config, storage, event_bus);
 
-            #[derive(serde::Serialize, serde::Deserialize, Clone)]
-            struct AxonConfig {
-                agents: AgentsConfig,
-                execution: ExecutionConfig,
-                locale: String,
-            }
-
-            fn prompt(msg: &str) -> String {
-                use std::io::{self, Write};
-                print!("{}", msg);
-                io::stdout().flush().unwrap();
-                let mut input = String::new();
-                io::stdin().read_line(&mut input).unwrap();
-                input.trim().to_string()
-            }
-
-            // v0.0.29: Restore Language Selection Prompt
-            let system_locale = std::env::var("LANG").unwrap_or_else(|_| "en_US".to_string());
-            let detected_lang = if system_locale.contains("ko") { "ko_KR" }
-                                  else if system_locale.contains("ja") { "ja_JP" }
-                                  else { "en_US" };
-            
-            println!("🌐 Detected System Language: {}", detected_lang);
-            let use_detected = prompt("Use detected language? [Y/n]: ");
-            
-            let final_locale = if use_detected.trim().to_lowercase() == "n" {
-                println!("\nSelect Language / 언어 선택 / 言語選択:");
-                println!("  1. English (en_US)");
-                println!("  2. 한국어 (ko_KR)");
-                println!("  3. 日本語 (ja_JP)");
-                let lang_choice = prompt("Choice (1-3): ");
-                match lang_choice.trim() {
-                    "2" => "ko_KR".to_string(),
-                    "3" => "ja_JP".to_string(),
-                    _ => "en_US".to_string(),
+            if skip_bootstrap {
+                kernel.run().await?;
+            } else if let Some(path) = &spec_path {
+                if path.is_empty() {
+                    kernel.run().await?;
+                } else {
+                    kernel.start_with_spec(path).await?;
                 }
             } else {
-                detected_lang.to_string()
-            };
-            println!("✅ Language Set to: {}\n", final_locale);
-
-            let mut available_models = Vec::new();
-            if let Ok(key) = std::env::var("GEMINI_API_KEY") { available_models.push(("Gemini", key)); }
-            if let Ok(key) = std::env::var("CLAUDE_API_KEY") { available_models.push(("Claude", key)); }
-            if let Ok(key) = std::env::var("OPEN_AI_KEY") { available_models.push(("ChatGPT", key)); }
-
-            let mut fast_cfg: Option<AxonConfig> = None;
-            if std::path::Path::new("axon_config.json").exists() {
-                if let Ok(content) = std::fs::read_to_string("axon_config.json") {
-                    if let Ok(mut parsed) = serde_json::from_str::<AxonConfig>(&content) {
-                        parsed.locale = final_locale.clone();
-                        let msg = if final_locale == "ko_KR" { 
-                            "📦 기존 설정(axon_config.json)을 발견했습니다. 빠른 재개를 사용하시겠습니까? [Y/n]: " 
-                        } else if final_locale == "ja_JP" {
-                            "📦 既存の設定(axon_config.json)が見つかりました。高速再開を使用しますか？ [Y/n]: "
-                        } else { 
-                            "📦 Existing factory settings (axon_config.json) found. Fast Resume? [Y/n]: " 
-                        };
-                        let choice = prompt(msg);
-                        if choice.trim().to_lowercase() != "n" { fast_cfg = Some(parsed); }
-                    }
-                }
+                kernel.run().await?;
             }
-
-            let get_drv = |cfg: &AgentConfig| -> Arc<dyn axon_model::ModelDriver + Send + Sync> {
-                match cfg.runtime.as_str() {
-                    "cloud" => {
-                        let provider = cfg.provider.as_deref().unwrap_or("gemini");
-                        let key = match provider {
-                            "gemini" => std::env::var("GEMINI_API_KEY").unwrap_or_default(),
-                            "claude" => std::env::var("CLAUDE_API_KEY").unwrap_or_default(),
-                            "openai" => std::env::var("OPEN_AI_KEY").unwrap_or_default(),
-                            _ => "".to_string(),
-                        };
-                        match provider {
-                            "gemini" => Arc::new(axon_model::GeminiDriver::new(key, cfg.model.clone())),
-                            "claude" => Arc::new(axon_model::ClaudeDriver::new(key, cfg.model.clone())),
-                            "openai" => Arc::new(axon_model::OpenAIDriver::new(key, cfg.model.clone())),
-                            _ => Arc::new(axon_model::MockDriver),
-                        }
-                    }
-                    "local" => {
-                        let endpoint = cfg.endpoint.as_deref().unwrap_or("http://localhost:11434");
-                        Arc::new(axon_model::OllamaDriver::new(endpoint.to_string(), cfg.model.clone()))
-                    }
-                    _ => Arc::new(axon_model::MockDriver),
-                }
-            };
-
-
-            let (architect_model, arch_name, senior_models, senior_model_names, junior_models, junior_model_names) = if let Some(cfg) = &fast_cfg {
-                let msg = if final_locale == "ko_KR" { "✅ 저장된 설정으로부터 공장 가동을 재개합니다..." } else if final_locale == "ja_JP" { "✅ 保存された設定から工場の稼働を再開します..." } else { "✅ Resuming factory operation..." };
-                println!("{}", msg);
-                let arch_drv = get_drv(&cfg.agents.architect);
-                let mut s_drvs = Vec::new();
-                let mut s_names = Vec::new();
-                for s_cfg in &cfg.agents.seniors { s_drvs.push(get_drv(s_cfg)); s_names.push(s_cfg.model.clone()); }
-                let mut j_drvs = Vec::new();
-                let mut j_names = Vec::new();
-                for j_cfg in &cfg.agents.juniors { j_drvs.push(get_drv(j_cfg)); j_names.push(j_cfg.model.clone()); }
-                (arch_drv, cfg.agents.architect.model.clone(), s_drvs, s_names, j_drvs, j_names)
-            } else {
-                let arch_config: AgentConfig;
-                let mut senior_configs = Vec::new();
-                let mut junior_configs = Vec::new();
-                let mut global_local_endpoint: Option<String> = None;
-                let mut use_global_endpoint = false;
-
-                async fn recruit_agent_async(role: &str, _available_models: &Vec<(&str, String)>, locale: &str, cached_endpoint: &mut Option<String>, use_cached: &mut bool) -> AgentConfig {
-                    let recruit_header = if locale == "ko_KR" { format!("\n--- [{} 모집] ---", role) } else if locale == "ja_JP" { format!("\n--- [{} 募集] ---", role) } else { format!("\n--- [Recruiting {}] ---", role) };
-                    println!("{}", recruit_header);
-                    
-                    let engine_list = if locale == "ko_KR" { "🔍 사용 가능한 엔진: (1. Gemini, L. LocalAI)" } else if locale == "ja_JP" { "🔍 使用可能なエンジン: (1. Gemini, L. LocalAI)" } else { "🔍 Available Engines: (1. Gemini, L. LocalAI)" };
-                    println!("{}", engine_list);
-                    
-                    let provider_prompt = if locale == "ko_KR" { format!("{}를 위한 제공자 선택 (번호 또는 L): ", role) } else if locale == "ja_JP" { format!("{}のためのプロバイダー選択 (番号または L): ", role) } else { format!("Select provider for {} (Number or L): ", role) };
-                    let p_idx_str = prompt(&provider_prompt);
-                    
-                    let (runtime, provider, endpoint) = if p_idx_str.to_lowercase() == "l" {
-                        let ep = if *use_cached && cached_endpoint.is_some() { cached_endpoint.clone().unwrap() } else {
-                            loop {
-                                let ep_prompt = if locale == "ko_KR" { "로컬 엔드포인트 입력: " } else if locale == "ja_JP" { "ローカルエンドポイント入力: " } else { "Enter local endpoint: " };
-                                let input_ep = prompt(ep_prompt).trim_end_matches('/').to_string();
-                                
-                                let wait_msg = if locale == "ko_KR" { format!("⏳ {} 연결 확인 중...", input_ep) } else if locale == "ja_JP" { format!("⏳ {} 接続確認中...", input_ep) } else { format!("⏳ Checking connection to {}...", input_ep) };
-                                println!("{}", wait_msg);
-                                
-                                if reqwest::get(&input_ep).await.is_ok() { 
-                                    let success_msg = if locale == "ko_KR" { "✅ [SUCCESS] 접속 가능합니다.\n" } else if locale == "ja_JP" { "✅ [SUCCESS] 接続可能です。\n" } else { "✅ [SUCCESS] Connection established.\n" };
-                                    println!("{}", success_msg); 
-                                    break input_ep; 
-                                }
-                                
-                                let fail_msg = if locale == "ko_KR" { "❌ [FAILED] 접속 실패. 다시 입력하세요." } else if locale == "ja_JP" { "❌ [FAILED] 接続失敗。再入力してください。" } else { "❌ [FAILED] Connection failed. Please retry." };
-                                println!("{}", fail_msg);
-                            }
-                        };
-                        if cached_endpoint.is_none() {
-                            *cached_endpoint = Some(ep.clone());
-                            let apply_all_prompt = if locale == "ko_KR" { "이후 모든 요원에게 이 주소를 동일하게 적용할까요? [Y/n]: " } else if locale == "ja_JP" { "以降のすべてのエージェントにこのアドレスを適用しますか？ [Y/n]: " } else { "Apply this endpoint to all future agents? [Y/n]: " };
-                            if prompt(apply_all_prompt).to_lowercase() != "n" { *use_cached = true; }
-                        }
-                        ("local".to_string(), None, Some(ep))
-                    } else { ("cloud".to_string(), Some("gemini".to_string()), None) };
-
-                    let drv: Arc<dyn axon_model::ModelDriver + Send + Sync> = if runtime == "local" {
-                        Arc::new(axon_model::OllamaDriver::new(endpoint.clone().unwrap_or_default(), "".into()))
-                    } else { Arc::new(axon_model::MockDriver) };
-
-                    let mut model_name = String::new();
-                    if let Ok(models) = drv.list_available_models().await {
-                        let avail_models_msg = if locale == "ko_KR" { "사용 가능한 모델:" } else if locale == "ja_JP" { "使用可能なモデル:" } else { "Available models:" };
-                        println!("{}", avail_models_msg);
-                        for (i, m) in models.iter().enumerate() { println!("  {}. {}", i + 1, m); }
-                        
-                        let select_msg = if locale == "ko_KR" { "번호 선택 (또는 이름 입력): " } else if locale == "ja_JP" { "番号選択 (または名前入力): " } else { "Select number (or enter name): " };
-                        let m_idx_str = prompt(select_msg);
-                        if let Ok(m_idx) = m_idx_str.parse::<usize>() { if let Some(m) = models.get(m_idx - 1) { model_name = m.clone(); } }
-                        if model_name.is_empty() { model_name = m_idx_str; }
-                    }
-                    AgentConfig { runtime, provider, endpoint, model: model_name }
-                }
-
-                arch_config = recruit_agent_async("Architect", &available_models, &final_locale, &mut global_local_endpoint, &mut use_global_endpoint).await;
-                
-                let senior_count_prompt = if final_locale == "ko_KR" { "\n시니어 요원 수 (기본 1): " } else if final_locale == "ja_JP" { "\nシニアエージェント数 (基本 1): " } else { "\nNumber of Senior Agents (Default 1): " };
-                let senior_count: usize = prompt(senior_count_prompt).parse().unwrap_or(1);
-                for i in 0..senior_count { senior_configs.push(recruit_agent_async(&format!("Senior #{}", i + 1), &available_models, &final_locale, &mut global_local_endpoint, &mut use_global_endpoint).await); }
-                
-                let junior_count_prompt = if final_locale == "ko_KR" { "\n주니어 요원 수 (기본 1): " } else if final_locale == "ja_JP" { "\nジュニアエージェント数 (基本 1): " } else { "\nNumber of Junior Agents (Default 1): " };
-                let junior_count: usize = prompt(junior_count_prompt).parse().unwrap_or(1);
-                for i in 0..junior_count { junior_configs.push(recruit_agent_async(&format!("Junior #{}", i + 1), &available_models, &final_locale, &mut global_local_endpoint, &mut use_global_endpoint).await); }
-
-                let cfg = AxonConfig {
-                    agents: AgentsConfig { architect: arch_config, seniors: senior_configs, juniors: junior_configs },
-                    execution: ExecutionConfig { review_queue_limit: 5, sampling_rate: 0.3, fallback_enabled: true },
-                    locale: final_locale.clone(),
-                };
-                if let Ok(json) = serde_json::to_string_pretty(&cfg) { let _ = std::fs::write("axon_config.json", json); }
-                
-                let mut s_drvs = Vec::new(); let mut s_names = Vec::new();
-                for s_cfg in &cfg.agents.seniors { s_drvs.push(get_drv(s_cfg)); s_names.push(s_cfg.model.clone()); }
-                let mut j_drvs = Vec::new(); let mut j_names = Vec::new();
-                for j_cfg in &cfg.agents.juniors { j_drvs.push(get_drv(j_cfg)); j_names.push(j_cfg.model.clone()); }
-                (get_drv(&cfg.agents.architect), cfg.agents.architect.model.clone(), s_drvs, s_names, j_drvs, j_names)
-            };
-
-            // --- Configuration Briefing (v0.0.28) ---
-            println!("\n📋 --------------------------------------");
-            let briefing_title = if final_locale == "ko_KR" { "현재 공장 가동 설정 요약" } else if final_locale == "ja_JP" { "現在の工場稼働設定の要約" } else { "Factory Configuration Briefing" };
-            println!("   [{}]", briefing_title);
-            println!("   - Architect : {}", arch_name);
-            println!("   - Seniors   : {}", senior_model_names.join(", "));
-            println!("   - Juniors   : {}", junior_model_names.join(", "));
-            println!("   - Locale    : {}", final_locale);
-            println!("------------------------------------------\n");
-
-            // Stage 4: Factory Initialization (Spec)
-            let stage4_title = if final_locale == "ko_KR" { "--- [Stage 4: 공장 사양 설정 (부트스트랩 메뉴)] ---" } else if final_locale == "ja_JP" { "--- [Stage 4: 工場仕様設定 (ブートストラップメニュー)] ---" } else { "--- [Stage 4: Factory Specification (Bootstrap Menu)] ---" };
-            println!("{}", stage4_title);
-            let mut skip_bootstrap = false;
-
-            if std::path::Path::new("architecture.md").exists() {
-                if resume {
-                    skip_bootstrap = true;
-                    println!("✅ Auto-resuming factory operation from existing database...\n");
-                } else {
-                    println!("⚠️  'architecture.md' already exists in this workspace.");
-                    let choice = prompt(
-                        "Do you want to [1] Resume (skip spec re-analysis) or [2] Overwrite and Rebuild? [1/2]: ",
-                    );
-                    if choice.trim() == "1" {
-                        skip_bootstrap = true;
-                        println!("✅ Resuming factory operation from existing database...\n");
-                    }
-                }
-            }
-
-            let mut spec_path = if !skip_bootstrap {
-                if let Some(s) = spec {
-                    s
-                } else {
-                    let msg = if final_locale == "ko_KR" {
-                        "공장 가동을 위한 요구사항 명세서 경로를 입력하세요 (예: GEMINI.md)\n[이미 진행 중인 작업을 이어서 하려면 아무것도 입력하지 말고 엔터를 누르세요]: "
-                    } else if final_locale == "ja_JP" {
-                        "工場の稼働に必要な要件定義書のパスを入力してください (例: spec.md)\n[既存のプロジェクトを再開する場合は、何も入力せずにエンターキーを押してください]: "
-                    } else {
-                        "Enter Specification File Path (e.g., GEMINI.md)\n[Press Enter to SKIP if resuming an existing project]: "
-                    };
-                    prompt(msg)
-                }
-            } else {
-                "".to_string()
-            };
-
-            // v0.0.30: If spec_path is empty but architecture.md exists, try to auto-detect project
-            if spec_path.is_empty() {
-                let mut found_arch = None;
-                if std::path::Path::new("architecture.md").exists() {
-                    found_arch = Some(std::path::PathBuf::from("."));
-                } else if let Ok(entries) = std::fs::read_dir(".") {
-                    for entry in entries.flatten() {
-                        if entry.path().is_dir() {
-                            let arch = entry.path().join("architecture.md");
-                            if arch.exists() {
-                                found_arch = Some(entry.path());
-                                break;
-                            }
-                        }
-                    }
-                }
-                if let Some(p) = found_arch {
-                    let pid = p.file_name().and_then(|s| s.to_str()).unwrap_or("spec").to_string();
-                    println!("♻️  Auto-detected active project: '{}'. Resuming pipeline...", pid);
-                    spec_path = if p == std::path::PathBuf::from(".") { "architecture.md".to_string() } else { format!("{}/spec.md", pid) };
-                }
-            }
-            
-            // v0.0.29: Input Validation Guard
-            if !skip_bootstrap && !spec_path.is_empty() && !std::path::Path::new(&spec_path).exists() {
-                println!("❌ Spec file '{}' not found. Falling back to manual input.", spec_path);
-                loop {
-                    let msg = if final_locale == "ko_KR" {
-                        "공장 가동을 위한 요구사항 명세서 경로를 다시 입력하세요: "
-                    } else if final_locale == "ja_JP" {
-                        "工場の稼働に必要な要件定義書のパスを再入力してください: "
-                    } else {
-                        "Please re-enter Specification File Path: "
-                    };
-                    let input = prompt(msg);
-                    if input.is_empty() || std::path::Path::new(&input).exists() {
-                        spec_path = input;
-                        break;
-                    }
-                    println!("❌ File '{}' not found.", input);
-                }
-            }
-
-            println!("\n====================================================");
-            let msg_all_systems = if final_locale == "ko_KR" { "🚀 모든 시스템 가동 준비 완료: 공장 라인 활성화 중..." } else if final_locale == "ja_JP" { "🚀 全システム稼働準備完了: 工場ラインを活性化中..." } else { "🚀 ALL SYSTEMS GO: Activating Factory Line..." };
-            println!("{}", msg_all_systems);
-            let msg_target_spec = if final_locale == "ko_KR" { format!("   - 대상 명세서: {}", spec_path) } else if final_locale == "ja_JP" { format!("   - ターゲット仕様書: {}", spec_path) } else { format!("   - Target Spec: {}", spec_path) };
-            println!("{}", msg_target_spec);
-            println!("   - Studio UI  : http://localhost:9000");
-            println!("====================================================\n");
-
-            thread::sleep(Duration::from_millis(1500));
-
-            // Actual Execution
-            let storage =
-                Arc::new(axon_storage::Storage::new("axon.db").expect("Failed to open DB"));
-            let (worker_tx, _worker_rx) = tokio::sync::mpsc::channel(100);
-
-            let sampling_rate = fast_cfg.as_ref().map(|c| c.execution.sampling_rate as f64).unwrap_or(0.3);
-
-            let daemon = Arc::new(Daemon::new(
-                storage,
-                architect_model,
-                arch_name, // v0.0.28: Use the explicitly selected name
-                senior_models,
-                senior_model_names, // v0.0.28: Use the explicitly selected names
-                junior_models,
-                junior_model_names, // v0.0.28: Use the explicitly selected names
-                worker_tx,
-                "Standard AXON Protocol".to_string(),
-                sampling_rate,
-                final_locale.clone(),
-            ));
-
-            EventBusLayer::init(daemon.event_bus.clone());
-
-            let daemon_clone = daemon.clone();
-            tokio::spawn(async move {
-                if let Err(e) = axon_daemon::server::start_server(daemon_clone).await {
-                    tracing::error!("Server error: {}", e);
-                }
-            });
-
-            let daemon_bootstrap = daemon.clone();
-            if !spec_path.is_empty() {
-                if std::path::Path::new(&spec_path).exists() {
-                    let path_for_bootstrap = spec_path.clone();
-                    tokio::spawn(async move {
-                        if let Err(e) = daemon_bootstrap.bootstrap_from_spec(path_for_bootstrap).await {
-                            tracing::error!("Bootstrapping failed: {}", e);
-                        }
-                    });
-                } else {
-                    tracing::warn!(
-                        "Spec file '{}' not found. Skipping initial bootstrapping.",
-                        spec_path
-                    );
-                }
-            }
-
-            // v0.0.29: [RELEASE_THE_TRACE] Configuration complete. Activate full observability for factory run.
-            let _ = logger_handle.modify(|filter| {
-                *filter = tracing_subscriber::EnvFilter::try_from_default_env()
-                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("trace"));
-            });
-
-            daemon.run().await?;
+        }
+        Commands::Read { path } => {
+            tracing_subscriber::fmt::init();
+            println!("Reading blueprint from: {}", path);
         }
         Commands::Status => {
-            println!("AXON: Checking status...");
+            tracing_subscriber::fmt::init();
+            println!("AXON Daemon is offline.");
+        }
+    }
+    
+    Ok(())
+}
+
+fn resolve_bootstrap_config(resume: bool, spec_arg: Option<&str>) -> (KernelConfig, Option<String>, bool) {
+    // 1. Check existing axon_config.json
+    let config_exists = std::path::Path::new("axon_config.json").exists();
+
+    if !config_exists && !resume {
+        run_init_wizard();
+    } else if config_exists && !resume {
+        prompt_config_reuse();
+    }
+
+    // 2. Load config
+    let axon_config = axon_daemon::AxonConfig::load("axon_config.json")
+        .expect("Failed to load axon_config.json");
+
+    let mut skip_bootstrap = false;
+
+    // 3. Check existing architecture.md
+    let arch_path = std::path::Path::new("architecture.md");
+    if arch_path.exists() && !resume {
+        println!("⚠️  'architecture.md' already exists in this workspace.");
+        print!("Do you want to [1] Resume (skip spec re-analysis) or [2] Overwrite and Rebuild? [1/2]: ");
+        io::stdout().flush().unwrap();
+        let mut choice = String::new();
+        io::stdin().read_line(&mut choice).unwrap();
+        if choice.trim() == "1" {
+            skip_bootstrap = true;
+            println!("✅ Resuming from existing architecture...\n");
         }
     }
 
-    Ok(())
+    // 4. Resolve spec path (from --spec arg or prompt)
+    let spec_path = if skip_bootstrap {
+        None
+    } else if let Some(s) = spec_arg {
+        if !s.is_empty() && std::path::Path::new(s).exists() {
+            Some(s.to_string())
+        } else if !s.is_empty() {
+            eprintln!("⚠️  Spec file '{}' not found.", s);
+            None
+        } else {
+            None
+        }
+    } else if !skip_bootstrap {
+        Some(prompt_spec_file())
+    } else {
+        None
+    };
+
+    let config = KernelConfig {
+        temp_dir: PathBuf::from("runtime/temp"),
+        thread_count: 1,
+        replay_seed: 42,
+        feature_flags: BTreeSet::new(),
+        axon_config,
+    };
+
+    (config, spec_path, skip_bootstrap)
 }
+
+fn prompt_config_reuse() {
+    println!("\n📦 Existing factory settings (axon_config.json) found.");
+    println!("   [1] Fast Resume — use current config and resume");
+    println!("   [2] New Spec — keep current config, load new specification");
+    println!("   [3] Reconfigure — run full setup wizard again");
+    print!("Choice [1/2/3] (default: 1): ");
+    io::stdout().flush().unwrap();
+    let mut choice = String::new();
+    io::stdin().read_line(&mut choice).unwrap();
+    match choice.trim() {
+        "3" => {
+            println!("♻️  Running setup wizard to reconfigure...\n");
+            run_init_wizard();
+        }
+        "2" => {
+            println!("📄 Keeping current config. Will prompt for new specification file.\n");
+        }
+        _ => {
+            println!("✅ Fast Resume: Using current configuration.\n");
+        }
+    }
+}
+
+fn prompt_spec_file() -> String {
+    loop {
+        print!("Enter specification file path [default: spec.md]: ");
+        io::stdout().flush().unwrap();
+        let mut sf = String::new();
+        io::stdin().read_line(&mut sf).unwrap();
+        let sf = if sf.trim().is_empty() { "spec.md".to_string() } else { sf.trim().to_string() };
+
+        if std::path::Path::new(&sf).exists() {
+            println!("    -> Found specification: {}", sf);
+            return sf;
+        }
+        if sf == "spec.md" {
+            println!("    -> spec.md not found. Skipping file bootstrap; use API to submit spec.");
+            return String::new();
+        }
+        println!("    -> Error: File '{}' not found. Try again or leave empty to skip.", sf);
+    }
+}
+
+fn run_init_wizard() {
+    use std::io::{self, Write};
+
+    println!("==========================================================");
+    println!(" AXON Initialization Wizard (Manual Setup)");
+    println!("==========================================================\n");
+    
+    // 1. Language Detection & Selection
+    let os_lang = std::env::var("LANG").unwrap_or_else(|_| "en_US".to_string());
+    println!("[1] Detected OS Language: {}", os_lang);
+    print!("Use this language for LLM Output and UI? (y/N): ");
+    io::stdout().flush().unwrap();
+    
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).unwrap();
+    
+    let target_lang = if input.trim().eq_ignore_ascii_case("y") {
+        if os_lang.contains("ko") { "Korean".to_string() }
+        else if os_lang.contains("ja") { "Japanese".to_string() }
+        else { "English".to_string() }
+    } else {
+        println!("Select Language:");
+        println!("1. English");
+        println!("2. Korean (한국어)");
+        println!("3. Japanese (日本語)");
+        print!("Choice (1/2/3): ");
+        io::stdout().flush().unwrap();
+        
+        let mut lang_choice = String::new();
+        io::stdin().read_line(&mut lang_choice).unwrap();
+        match lang_choice.trim() {
+            "2" => "Korean".to_string(),
+            "3" => "Japanese".to_string(),
+            _ => "English".to_string(),
+        }
+    };
+    println!("[*] Global LLM Output & UI Language locked to: {}\n", target_lang);
+
+    // 2. LSP Detection
+    println!("[2] Detecting Local LSPs...");
+    
+    let home_dir = std::env::var("HOME").unwrap_or_else(|_| "".to_string());
+    let mut found_lsps = Vec::new();
+    let mut lsps_json = Vec::new();
+
+    let check_lsp = |binary: &str, custom_path: &str| -> Option<String> {
+        if !custom_path.is_empty() && std::path::Path::new(custom_path).exists() {
+            Some(custom_path.to_string())
+        } else if let Ok(output) = std::process::Command::new("which").arg(binary).output() {
+            if output.status.success() {
+                Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    };
+
+    // Check Rust
+    let ra_path = format!("{}/.cargo/bin/rust-analyzer", home_dir);
+    if let Some(path) = check_lsp("rust-analyzer", &ra_path) {
+        found_lsps.push(format!("Rust (rust-analyzer) -> {}", path));
+        lsps_json.push(serde_json::json!({
+            "language": "rust",
+            "command": path,
+            "args": []
+        }));
+    }
+    
+    // Check Python
+    let pyright_path = format!("{}/.local/share/nvim/mason/bin/pyright-langserver", home_dir);
+    if let Some(path) = check_lsp("pyright-langserver", &pyright_path) {
+        found_lsps.push(format!("Python (pyright) -> {}", path));
+        lsps_json.push(serde_json::json!({
+            "language": "python",
+            "command": path,
+            "args": ["--stdio"]
+        }));
+    }
+
+    // Check C/C++
+    let clangd_path = format!("{}/.local/share/nvim/mason/bin/clangd", home_dir);
+    if let Some(path) = check_lsp("clangd", &clangd_path) {
+        found_lsps.push(format!("C/C++ (clangd) -> {}", path));
+        lsps_json.push(serde_json::json!({
+            "language": "c",
+            "command": path,
+            "args": ["--background-index", "--clang-tidy"]
+        }));
+    }
+
+    if found_lsps.is_empty() {
+        println!("    -> No supported LSPs detected. (AXON will fallback to regex parsing)");
+    } else {
+        for lsp in &found_lsps {
+            println!("    -> Found: {}", lsp);
+        }
+    }
+    
+    print!("(Press Enter to continue)");
+    io::stdout().flush().unwrap();
+    let mut _dummy = String::new();
+    io::stdin().read_line(&mut _dummy).unwrap();
+
+    // 3. LLM Configuration (Manual Setup with Auto-Detection)
+    println!("\n[3] LLM Persona Binding");
+
+    // Auto-detect API Keys from shell config
+    let bashrc = std::fs::read_to_string(format!("{}/.bashrc", home_dir)).unwrap_or_default();
+    let zshrc = std::fs::read_to_string(format!("{}/.zshrc", home_dir)).unwrap_or_default();
+    let combined_rc = format!("{}\n{}", bashrc, zshrc);
+
+    let mut detected_apis = Vec::new();
+    if combined_rc.contains("GEMINI_API_KEY") { detected_apis.push("Google Gemini"); }
+    if combined_rc.contains("ANTHROPIC_API_KEY") { detected_apis.push("Anthropic Claude"); }
+    if combined_rc.contains("OPENAI_API_KEY") { detected_apis.push("OpenAI"); }
+
+    if !detected_apis.is_empty() {
+        println!("    -> Detected Cloud APIs in ~/.bashrc / ~/.zshrc: {}", detected_apis.join(", "));
+    } else {
+        println!("    -> No Cloud APIs detected in shell configs.");
+    }
+
+    let mut shared_local_endpoint: Option<String> = None;
+
+    let configure_agent = |role: &str, detected_apis: &[&str], shared_endpoint: &mut Option<String>| -> serde_json::Value {
+        println!("Configure LLM for '{}'", role);
+        println!("1. Cloud LLM");
+        println!("2. Local LLM (e.g., Ollama)");
+        print!("Choice (1/2): ");
+        io::stdout().flush().unwrap();
+        
+        let mut llm_type = String::new();
+        io::stdin().read_line(&mut llm_type).unwrap();
+        
+        if llm_type.trim() == "1" {
+            let has_gemini = detected_apis.contains(&"Google Gemini");
+            let has_claude = detected_apis.contains(&"Anthropic Claude");
+            let has_openai = detected_apis.contains(&"OpenAI");
+
+            println!("Select Cloud Provider:");
+            println!("1. Google Gemini {}", if has_gemini { "[Detected]" } else { "" });
+            println!("2. Anthropic Claude {}", if has_claude { "[Detected]" } else { "" });
+            println!("3. OpenAI {}", if has_openai { "[Detected]" } else { "" });
+            print!("Choice: ");
+            io::stdout().flush().unwrap();
+            
+            let mut provider_choice = String::new();
+            io::stdin().read_line(&mut provider_choice).unwrap();
+            let provider = match provider_choice.trim() {
+                "2" => "claude",
+                "3" => "openai",
+                _ => "gemini",
+            };
+
+            let model = match provider {
+                "gemini" => {
+                    println!("Select Gemini Model:");
+                    println!("1. gemini-1.5-pro-preview-0409 (Advanced Reasoning)");
+                    println!("2. gemini-1.5-flash-latest (Fast/Cheap)");
+                    println!("3. gemini-1.0-pro");
+                    print!("Choice: ");
+                    io::stdout().flush().unwrap();
+                    let mut m = String::new();
+                    io::stdin().read_line(&mut m).unwrap();
+                    match m.trim() {
+                        "1" => "gemini-1.5-pro-preview-0409",
+                        "2" => "gemini-1.5-flash-latest",
+                        "3" => "gemini-1.0-pro",
+                        _ => "gemini-1.5-pro-preview-0409",
+                    }
+                },
+                "claude" => {
+                    println!("Select Claude Model:");
+                    println!("1. claude-3-opus-20240229");
+                    println!("2. claude-3-sonnet-20240229");
+                    println!("3. claude-3-haiku-20240307");
+                    print!("Choice: ");
+                    io::stdout().flush().unwrap();
+                    let mut m = String::new();
+                    io::stdin().read_line(&mut m).unwrap();
+                    match m.trim() {
+                        "1" => "claude-3-opus-20240229",
+                        "2" => "claude-3-sonnet-20240229",
+                        "3" => "claude-3-haiku-20240307",
+                        _ => "claude-3-opus-20240229",
+                    }
+                },
+                "openai" => {
+                    println!("Select OpenAI Model:");
+                    println!("1. gpt-4o");
+                    println!("2. gpt-4-turbo");
+                    println!("3. gpt-3.5-turbo");
+                    print!("Choice: ");
+                    io::stdout().flush().unwrap();
+                    let mut m = String::new();
+                    io::stdin().read_line(&mut m).unwrap();
+                    match m.trim() {
+                        "1" => "gpt-4o",
+                        "2" => "gpt-4-turbo",
+                        "3" => "gpt-3.5-turbo",
+                        _ => "gpt-4o",
+                    }
+                },
+                _ => "default"
+            };
+
+            serde_json::json!({
+                "runtime": "cloud",
+                "provider": provider,
+                "endpoint": null,
+                "model": model
+            })
+        } else {
+            let endpoint = if let Some(prev_ep) = shared_endpoint {
+                prev_ep.clone()
+            } else {
+                print!("Enter Local Endpoint [default: http://127.0.0.1:11434]: ");
+                io::stdout().flush().unwrap();
+                let mut ep = String::new();
+                io::stdin().read_line(&mut ep).unwrap();
+                let new_ep = if ep.trim().is_empty() { "http://127.0.0.1:11434".to_string() } else { ep.trim().trim_end_matches('/').to_string() };
+                
+                print!("Use this Local Endpoint for all subsequent agents? (Y/n): ");
+                io::stdout().flush().unwrap();
+                let mut auto_use_str = String::new();
+                io::stdin().read_line(&mut auto_use_str).unwrap();
+                if !auto_use_str.trim().eq_ignore_ascii_case("n") {
+                    *shared_endpoint = Some(new_ep.clone());
+                }
+                new_ep
+            };
+
+            println!("Fetching models from {}...", endpoint);
+            let mut available_models = Vec::new();
+            if let Ok(output) = std::process::Command::new("curl")
+                .arg("-s")
+                .arg(format!("{}/api/tags", endpoint))
+                .output() 
+            {
+                let output_str = String::from_utf8_lossy(&output.stdout);
+                let parts: Vec<&str> = output_str.split("\"name\":\"").collect();
+                for part in parts.iter().skip(1) {
+                    if let Some(end_idx) = part.find("\"") {
+                        available_models.push(part[..end_idx].to_string());
+                    }
+                }
+            }
+
+            let model = if available_models.is_empty() {
+                println!("Failed to fetch models from endpoint. Please enter manually.");
+                print!("Enter Model Name (e.g., qwen2.5:7b-instruct-q4_K_M): ");
+                io::stdout().flush().unwrap();
+                let mut m = String::new();
+                io::stdin().read_line(&mut m).unwrap();
+                if m.trim().is_empty() { "qwen2.5:7b-instruct-q4_K_M".to_string() } else { m.trim().to_string() }
+            } else {
+                println!("Select Model:");
+                for (i, m) in available_models.iter().enumerate() {
+                    println!("{}. {}", i + 1, m);
+                }
+                print!("Choice: ");
+                io::stdout().flush().unwrap();
+                let mut choice_str = String::new();
+                io::stdin().read_line(&mut choice_str).unwrap();
+                if let Ok(choice) = choice_str.trim().parse::<usize>() {
+                    if choice > 0 && choice <= available_models.len() {
+                        available_models[choice - 1].clone()
+                    } else {
+                        available_models[0].clone()
+                    }
+                } else {
+                    available_models[0].clone()
+                }
+            };
+            
+            serde_json::json!({
+                "runtime": "local",
+                "provider": null,
+                "endpoint": endpoint,
+                "model": model
+            })
+        }
+    };
+
+    let detected_slice: Vec<&str> = detected_apis.iter().map(|s| *s).collect();
+
+    println!();
+    let architect_config = configure_agent("Architect", &detected_slice, &mut shared_local_endpoint);
+    
+    println!();
+    print!("How many Seniors to hire? [default: 1]: ");
+    io::stdout().flush().unwrap();
+    let mut num_seniors_str = String::new();
+    io::stdin().read_line(&mut num_seniors_str).unwrap();
+    let num_seniors = num_seniors_str.trim().parse::<usize>().unwrap_or(1).max(1);
+    
+    let mut senior_configs = Vec::new();
+    for i in 1..=num_seniors {
+        println!();
+        senior_configs.push(configure_agent(&format!("Senior ({}/{})", i, num_seniors), &detected_slice, &mut shared_local_endpoint));
+    }
+
+    println!();
+    print!("How many Juniors to hire? [default: 3]: ");
+    io::stdout().flush().unwrap();
+    let mut num_juniors_str = String::new();
+    io::stdin().read_line(&mut num_juniors_str).unwrap();
+    let num_juniors = num_juniors_str.trim().parse::<usize>().unwrap_or(3).max(1);
+    
+    let mut junior_configs = Vec::new();
+    for i in 1..=num_juniors {
+        println!();
+        junior_configs.push(configure_agent(&format!("Junior ({}/{})", i, num_juniors), &detected_slice, &mut shared_local_endpoint));
+    }
+    println!();
+
+    // 4. Scaffolding
+    println!("[4] Generating Workspace...");
+    std::fs::create_dir_all(".axon/personas").unwrap_or_default();
+    
+    let config_json = serde_json::json!({
+        "locale": if target_lang == "Korean" { "ko_KR" } else if target_lang == "Japanese" { "ja_JP" } else { "en_US" },
+        "lsps": lsps_json,
+        "agents": {
+            "architect": architect_config,
+            "seniors": senior_configs,
+            "juniors": junior_configs
+        },
+        "execution": {
+            "review_queue_limit": 5,
+            "sampling_rate": 0.3,
+            "fallback_enabled": true
+        }
+    });
+
+    std::fs::write("axon_config.json", serde_json::to_string_pretty(&config_json).unwrap()).unwrap_or_default();
+    
+    println!("    -> Created axon_config.json");
+    println!("\nAXON Initialization Complete.\n");
+}
+

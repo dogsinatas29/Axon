@@ -20,6 +20,7 @@ use rusqlite::{params, Connection, Result, OptionalExtension};
 pub use axon_core::{Task, Agent, Post};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
+use tokio::sync::oneshot;
 use std::fs::OpenOptions;
 use std::io::Write;
 use chrono::{DateTime, Local};
@@ -46,15 +47,20 @@ pub enum WriteOp {
     Ack(String), 
 }
 
+#[derive(Clone)]
 pub struct Storage {
     pub conn: Arc<Mutex<Connection>>,
     pub tx: mpsc::Sender<WriteOpEnvelope>,
+    flush_tx: mpsc::UnboundedSender<oneshot::Sender<()>>,
     pub log_path: String,
     pub dlq_path: String,
 }
 
 impl Storage {
     pub fn new(path: &str) -> Result<Self> {
+        if let Some(parent) = std::path::Path::new(path).parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
         let conn = Connection::open(path)?;
         let log_path = format!("{}.log", path);
         let dlq_path = format!("{}.dead_letter.log", path);
@@ -64,6 +70,7 @@ impl Storage {
 
         let conn = Arc::new(Mutex::new(conn));
         let (tx, mut rx) = mpsc::channel::<WriteOpEnvelope>(4096);
+        let (flush_tx, mut flush_rx) = mpsc::unbounded_channel::<oneshot::Sender<()>>();
         
         // 1. Safe Recovery (Handling Partial Writes/Corruption)
         let mut recovered_ops = Vec::new();
@@ -106,6 +113,16 @@ impl Storage {
                             Self::flush_batch_durable(&db_writer, &writer_log, &writer_dlq, &mut batch);
                         }
                     }
+                    Some(ack_sender) = flush_rx.recv() => {
+                        // Drain ALL pending write-ops FIRST (FIFO ordering guarantee)
+                        while let Ok(env) = rx.try_recv() {
+                            batch.push(env);
+                        }
+                        if !batch.is_empty() {
+                            Self::flush_batch_durable(&db_writer, &writer_log, &writer_dlq, &mut batch);
+                        }
+                        let _ = ack_sender.send(());
+                    }
                     _ = timeout => {
                         if !batch.is_empty() {
                             Self::flush_batch_durable(&db_writer, &writer_log, &writer_dlq, &mut batch);
@@ -115,7 +132,7 @@ impl Storage {
             }
         });
 
-        let storage = Self { conn, tx, log_path, dlq_path };
+        let storage = Self { conn, tx, flush_tx, log_path, dlq_path };
         storage.init_schema()?;
         Ok(storage)
     }
@@ -174,19 +191,71 @@ impl Storage {
     fn apply_op_internal(tx: &rusqlite::Transaction, op: &WriteOp) -> bool {
         match op {
             WriteOp::SaveTask(t) => {
+                // v0.0.31.20: [PRESERVE_REWORK_STATE] 
+                // If a task with the same ID already exists in the database and is NOT Completed,
+                // we MUST inherit/preserve its cumulative rework state to prevent API/spec reprocessing 
+                // from resetting the rejection history.
+                let mut final_rework_count = t.rework_count;
+                let mut final_validator_rejections = t.validator_rejections;
+                let mut final_senior_rejections = t.senior_rejections;
+                let mut final_architecture_rejections = t.architecture_rejections;
+                let mut final_cargo_rejections = t.cargo_rejections;
+                let mut final_lsp_rejections = t.lsp_rejections;
+                let mut final_boss_interventions = t.boss_interventions;
+                let mut final_error_feedback = t.error_feedback.clone();
+                let mut final_senior_comment = t.senior_comment.clone();
+
+                let existing_query = tx.query_row(
+                    "SELECT status, rework_count, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections, boss_interventions, error_feedback, senior_comment FROM tasks WHERE id = ?1",
+                    params![t.id],
+                    |row| {
+                        let status: String = row.get(0)?;
+                        let rework_count: u32 = row.get(1)?;
+                        let val_rejs: u32 = row.get(2)?;
+                        let sen_rejs: u32 = row.get(3)?;
+                        let arch_rejs: u32 = row.get(4)?;
+                        let cargo_rejs: u32 = row.get(5)?;
+                        let lsp_rejs: u32 = row.get(6)?;
+                        let boss_ints: u32 = row.get(7)?;
+                        let err_feedback: Option<String> = row.get(8)?;
+                        let sen_comment: Option<String> = row.get(9)?;
+                        Ok((status, rework_count, val_rejs, sen_rejs, arch_rejs, cargo_rejs, lsp_rejs, boss_ints, err_feedback, sen_comment))
+                    }
+                );
+
+                if let Ok((status, r_count, val_rejs, sen_rejs, arch_rejs, cargo_rejs, lsp_rejs, boss_ints, err_feedback, sen_comment)) = existing_query {
+                    if status != "Completed" {
+                        final_rework_count = std::cmp::max(t.rework_count, r_count);
+                        final_validator_rejections = std::cmp::max(t.validator_rejections, val_rejs);
+                        final_senior_rejections = std::cmp::max(t.senior_rejections, sen_rejs);
+                        final_architecture_rejections = std::cmp::max(t.architecture_rejections, arch_rejs);
+                        final_cargo_rejections = std::cmp::max(t.cargo_rejections, cargo_rejs);
+                        final_lsp_rejections = std::cmp::max(t.lsp_rejections, lsp_rejs);
+                        final_boss_interventions = std::cmp::max(t.boss_interventions, boss_ints);
+                        
+                        if final_error_feedback.is_none() && err_feedback.is_some() {
+                            final_error_feedback = err_feedback;
+                        }
+                        if final_senior_comment.is_none() && sen_comment.is_some() {
+                            final_senior_comment = sen_comment;
+                        }
+                    }
+                }
+
                 tx.execute(
-                    "INSERT OR REPLACE INTO tasks (id, project_id, title, description, status, target_file, dependencies, error_feedback, senior_comment, rework_count, base_hash, parent_task, reason, kind, retries, assigned_worker, created_at, ir_path, task_kind, signature) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
+                    "INSERT OR REPLACE INTO tasks (id, project_id, title, description, status, lifecycle_state, target_file, dependencies, error_feedback, senior_comment, rework_count, base_hash, parent_task, reason, kind, retries, assigned_worker, created_at, ir_path, task_kind, signature, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections, boss_interventions) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)",
                     params![
                         t.id, 
                         t.project_id, 
                         t.title, 
                         t.description, 
                         format!("{:?}", t.status), 
+                        format!("{:?}", t.lifecycle_state),
                         t.target_file, 
                         serde_json::to_string(&t.dependencies).unwrap_or_default(), 
-                        t.error_feedback, 
-                        t.senior_comment, 
-                        t.rework_count, 
+                        final_error_feedback, 
+                        final_senior_comment, 
+                        final_rework_count, 
                         t.base_hash, 
                         t.parent_task, 
                         t.reason, 
@@ -196,13 +265,19 @@ impl Storage {
                         t.created_at.to_rfc3339(),
                         t.ir_path,
                         t.task_kind.as_ref().map(|k| serde_json::to_string(k).unwrap_or_default()),
-                        t.signature
+                        t.signature,
+                        final_validator_rejections,
+                        final_senior_rejections,
+                        final_architecture_rejections,
+                        final_cargo_rejections,
+                        final_lsp_rejections,
+                        final_boss_interventions
                     ],
                 ).is_ok()
             },
             WriteOp::SaveThread(th) => {
                 tx.execute(
-                    "INSERT OR REPLACE INTO threads (id, project_id, title, status, author, milestone_id, task_kind, rejection_count, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                    "INSERT OR REPLACE INTO threads (id, project_id, title, status, author, milestone_id, task_kind, rejection_count, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections, error_feedback, reason, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
                     params![
                         th.id, 
                         th.project_id, 
@@ -212,6 +287,13 @@ impl Storage {
                         th.milestone_id, 
                         th.task_kind.as_ref().map(|k| serde_json::to_string(k).unwrap_or_default()),
                         th.rejection_count,
+                        th.validator_rejections,
+                        th.senior_rejections,
+                        th.architecture_rejections,
+                        th.cargo_rejections,
+                        th.lsp_rejections,
+                        th.error_feedback,
+                        th.reason,
                         th.created_at.to_rfc3339(), 
                         th.updated_at.to_rfc3339()
                     ],
@@ -225,8 +307,8 @@ impl Storage {
             },
             WriteOp::SaveEvent(e) => {
                 tx.execute(
-                    "INSERT OR REPLACE INTO event_log (id, project_id, thread_id, agent_id, event_type, source, content, payload, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-                    params![e.id, e.project_id, e.thread_id, e.agent_id, format!("{:?}", e.event_type), e.source, e.content, e.payload.as_ref().map(|p| serde_json::to_string(p).unwrap_or_default()), e.timestamp.to_rfc3339()],
+                    "INSERT OR REPLACE INTO event_log (id, project_id, thread_id, agent_id, event_type, source, level, content, payload, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                    params![e.id, e.project_id, e.thread_id, e.agent_id, format!("{:?}", e.event_type), e.source, format!("{:?}", e.level), e.content, e.payload.as_ref().map(|p| serde_json::to_string(p).unwrap_or_default()), e.timestamp.to_rfc3339()],
                 ).is_ok()
             },
             WriteOp::SaveAgent(a) => {
@@ -252,6 +334,14 @@ impl Storage {
             },
             WriteOp::Ack(_) => true,
         }
+    }
+
+    pub async fn flush(&self) -> anyhow::Result<()> {
+        let (tx, rx) = oneshot::channel();
+        self.flush_tx.send(tx).map_err(|e| anyhow::anyhow!("Failed to send flush signal: {}", e))?;
+        rx.await.map_err(|e| anyhow::anyhow!("Flush ack channel dropped: {}", e))?;
+        tracing::debug!("💾 WAL queue successfully flushed to SQLite disk storage.");
+        Ok(())
     }
 
     async fn enqueue_durable(&self, op: WriteOp) -> anyhow::Result<()> {
@@ -345,6 +435,13 @@ impl Storage {
                 milestone_id TEXT,
                 task_kind TEXT,
                 rejection_count INTEGER DEFAULT 0,
+                validator_rejections INTEGER DEFAULT 0,
+                senior_rejections INTEGER DEFAULT 0,
+                architecture_rejections INTEGER DEFAULT 0,
+                cargo_rejections INTEGER DEFAULT 0,
+                lsp_rejections INTEGER DEFAULT 0,
+                error_feedback TEXT,
+                reason TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )",
@@ -385,7 +482,13 @@ impl Storage {
             ("result", "TEXT"),
             ("ir_path", "TEXT"),
             ("task_kind", "TEXT"),
-            ("signature", "TEXT"),
+            ("validator_rejections", "INTEGER DEFAULT 0"),
+            ("senior_rejections", "INTEGER DEFAULT 0"),
+            ("architecture_rejections", "INTEGER DEFAULT 0"),
+            ("cargo_rejections", "INTEGER DEFAULT 0"),
+            ("lsp_rejections", "INTEGER DEFAULT 0"),
+            ("boss_interventions", "INTEGER DEFAULT 0"),
+            ("lifecycle_state", "TEXT DEFAULT 'Queued'"), // v0.0.31.xx: scheduler semantics
         ];
 
         for (col_name, col_type) in tasks_columns {
@@ -394,6 +497,12 @@ impl Storage {
                 let _ = conn.execute(&format!("ALTER TABLE tasks ADD COLUMN {} {}", col_name, col_type), []);
             }
         }
+
+        // v0.0.31.xx: Migration backfill for NULL lifecycle_state
+        let _: Result<usize, _> = conn.execute(
+            "UPDATE tasks SET lifecycle_state = CASE WHEN status = 'Completed' THEN 'Completed' WHEN status = 'Failed' THEN 'Rejected' ELSE 'Queued' END WHERE lifecycle_state IS NULL",
+            [],
+        );
 
         let table_info_posts: Vec<String> = conn
             .prepare("PRAGMA table_info(posts)")?
@@ -426,6 +535,41 @@ impl Storage {
         if !table_info_threads.contains(&"rejection_count".to_string()) {
             tracing::info!("🛠️ [DB_MIGRATION:threads] Adding missing column: rejection_count");
             let _ = conn.execute("ALTER TABLE threads ADD COLUMN rejection_count INTEGER DEFAULT 0", []);
+        }
+
+        if !table_info_threads.contains(&"validator_rejections".to_string()) {
+            tracing::info!("🛠️ [DB_MIGRATION:threads] Adding missing column: validator_rejections");
+            let _ = conn.execute("ALTER TABLE threads ADD COLUMN validator_rejections INTEGER DEFAULT 0", []);
+        }
+
+        if !table_info_threads.contains(&"senior_rejections".to_string()) {
+            tracing::info!("🛠️ [DB_MIGRATION:threads] Adding missing column: senior_rejections");
+            let _ = conn.execute("ALTER TABLE threads ADD COLUMN senior_rejections INTEGER DEFAULT 0", []);
+        }
+
+        if !table_info_threads.contains(&"architecture_rejections".to_string()) {
+            tracing::info!("🛠️ [DB_MIGRATION:threads] Adding missing column: architecture_rejections");
+            let _ = conn.execute("ALTER TABLE threads ADD COLUMN architecture_rejections INTEGER DEFAULT 0", []);
+        }
+
+        if !table_info_threads.contains(&"cargo_rejections".to_string()) {
+            tracing::info!("🛠️ [DB_MIGRATION:threads] Adding missing column: cargo_rejections");
+            let _ = conn.execute("ALTER TABLE threads ADD COLUMN cargo_rejections INTEGER DEFAULT 0", []);
+        }
+
+        if !table_info_threads.contains(&"lsp_rejections".to_string()) {
+            tracing::info!("🛠️ [DB_MIGRATION:threads] Adding missing column: lsp_rejections");
+            let _ = conn.execute("ALTER TABLE threads ADD COLUMN lsp_rejections INTEGER DEFAULT 0", []);
+        }
+
+        if !table_info_threads.contains(&"error_feedback".to_string()) {
+            tracing::info!("🛠️ [DB_MIGRATION:threads] Adding missing column: error_feedback");
+            let _ = conn.execute("ALTER TABLE threads ADD COLUMN error_feedback TEXT", []);
+        }
+
+        if !table_info_threads.contains(&"reason".to_string()) {
+            tracing::info!("🛠️ [DB_MIGRATION:threads] Adding missing column: reason");
+            let _ = conn.execute("ALTER TABLE threads ADD COLUMN reason TEXT", []);
         }
 
         // 3. Auxiliary Tables
@@ -462,6 +606,7 @@ impl Storage {
                 agent_id TEXT,
                 event_type TEXT NOT NULL,
                 source TEXT NOT NULL,
+                level TEXT DEFAULT 'Info',
                 content TEXT NOT NULL,
                 payload TEXT,
                 created_at TEXT NOT NULL
@@ -477,6 +622,11 @@ impl Storage {
         if !table_info_event.contains(&"source".to_string()) {
             tracing::info!("🛠️ [DB_MIGRATION:event_log] Adding missing column: source");
             let _ = conn.execute("ALTER TABLE event_log ADD COLUMN source TEXT NOT NULL DEFAULT 'daemon'", []);
+        }
+
+        if !table_info_event.contains(&"level".to_string()) {
+            tracing::info!("🛠️ [DB_MIGRATION:event_log] Adding missing column: level");
+            let _ = conn.execute("ALTER TABLE event_log ADD COLUMN level TEXT DEFAULT 'Info'", []);
         }
 
         conn.execute(
@@ -565,7 +715,7 @@ impl Storage {
 
     pub fn list_runnable_threads(&self) -> Result<Vec<axon_core::Thread>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at, task_kind, rejection_count FROM threads WHERE status != 'Completed' AND status != 'Paused'")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at, task_kind, rejection_count, error_feedback, reason, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections FROM threads WHERE status != 'Completed' AND status != 'Paused'")?;
         let thread_iter = stmt.query_map([], |row| {
             Ok(axon_core::Thread {
                 id: row.get(0)?,
@@ -576,6 +726,13 @@ impl Storage {
                 milestone_id: row.get(5)?,
                 task_kind: row.get::<_, Option<String>>(8)?.and_then(|s| serde_json::from_str(&s).ok()),
                 rejection_count: row.get(9)?,
+                validator_rejections: row.get(12).unwrap_or(0),
+                senior_rejections: row.get(13).unwrap_or(0),
+                architecture_rejections: row.get(14).unwrap_or(0),
+                cargo_rejections: row.get(15).unwrap_or(0),
+                lsp_rejections: row.get(16).unwrap_or(0),
+                error_feedback: row.get(10)?,
+                reason: row.get(11)?,
                 created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),
                 updated_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?).unwrap().with_timezone(&Local),
             })
@@ -590,7 +747,7 @@ impl Storage {
 
     pub fn list_all_threads(&self) -> Result<Vec<axon_core::Thread>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at, task_kind, rejection_count FROM threads ORDER BY updated_at DESC")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at, task_kind, rejection_count, error_feedback, reason, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections FROM threads ORDER BY updated_at DESC")?;
         let thread_iter = stmt.query_map([], |row| {
             Ok(axon_core::Thread {
                 id: row.get(0)?,
@@ -601,6 +758,13 @@ impl Storage {
                 milestone_id: row.get(5)?,
                 task_kind: row.get::<_, Option<String>>(8)?.and_then(|s| serde_json::from_str(&s).ok()),
                 rejection_count: row.get(9)?,
+                validator_rejections: row.get(12).unwrap_or(0),
+                senior_rejections: row.get(13).unwrap_or(0),
+                architecture_rejections: row.get(14).unwrap_or(0),
+                cargo_rejections: row.get(15).unwrap_or(0),
+                lsp_rejections: row.get(16).unwrap_or(0),
+                error_feedback: row.get(10)?,
+                reason: row.get(11)?,
                 created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),
                 updated_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?).unwrap().with_timezone(&Local),
             })
@@ -707,9 +871,10 @@ impl Storage {
 
     pub fn count_active_tasks_by_project(&self, project_id: &str) -> Result<usize> {
         let conn = self.conn.lock().unwrap();
-        // v0.0.29: Count everything that is NOT 'Completed'. 
-        // This includes 'Pending', 'InProgress', and 'Failed' (awaiting rework).
-        let mut stmt = conn.prepare("SELECT COUNT(*) FROM tasks WHERE project_id = ?1 AND status != 'Completed'")?;
+        // v0.0.31.xx: POSITIVE ACTIVE-STATE DEFINITION - Count only Queued or Running
+        // This is more robust than "status != 'Completed'" because it handles
+        // multiple terminal states (Superseded, Rejected, Aborted) correctly.
+        let mut stmt = conn.prepare("SELECT COUNT(*) FROM tasks WHERE project_id = ?1 AND lifecycle_state IN ('Queued', 'Running')")?;
         let count: usize = stmt.query_row(params![project_id], |row| row.get(0))?;
         Ok(count)
     }
@@ -730,7 +895,7 @@ impl Storage {
 
     pub fn list_all_tasks(&self) -> Result<Vec<axon_core::Task>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, dependencies, result, target_file, lock_files, error_feedback, rework_count, base_hash, created_at, parent_task, reason, assigned_worker, kind, retries, senior_comment, ir_path, task_kind, signature FROM tasks ORDER BY created_at DESC")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, lifecycle_state, dependencies, result, target_file, lock_files, error_feedback, rework_count, base_hash, created_at, parent_task, reason, assigned_worker, kind, retries, senior_comment, ir_path, task_kind, signature, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections, boss_interventions FROM tasks ORDER BY created_at DESC")?;
         let task_iter = stmt.query_map([], |row| {
             Ok(axon_core::Task {
                 id: row.get(0)?,
@@ -738,23 +903,33 @@ impl Storage {
                 title: row.get(2)?,
                 description: row.get(3)?,
                 status: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(4)?)).unwrap_or(axon_core::TaskStatus::Pending),
-                dependencies: serde_json::from_str(&row.get::<_, String>(5).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
-                result: row.get(6)?,
-                target_file: row.get(7)?,
-                lock_files: serde_json::from_str(&row.get::<_, String>(8).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
-                error_feedback: row.get(9)?,
-                rework_count: row.get(10)?,
-                base_hash: row.get(11)?,
-                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(12)?).unwrap().with_timezone(&Local),
-                parent_task: row.get(13)?,
-                reason: row.get(14)?,
-                assigned_worker: row.get(15)?,
-                kind: row.get(16)?,
-                retries: row.get(17)?,
-                senior_comment: row.get(18)?,
-                ir_path: row.get(19)?,
-                task_kind: row.get::<_, Option<String>>(20)?.and_then(|s| serde_json::from_str(&s).ok()),
-                signature: row.get(21)?,
+                lifecycle_state: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(5).unwrap_or_else(|_| "Queued".to_string()))).unwrap_or(axon_core::TaskLifecycleState::Queued),
+                dependencies: serde_json::from_str(&row.get::<_, String>(6).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
+                result: row.get(7)?,
+                target_file: row.get(8)?,
+                lock_files: serde_json::from_str(&row.get::<_, String>(9).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
+                error_feedback: row.get(10)?,
+                rework_count: row.get(11)?,
+                base_hash: row.get(12)?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(13)?).unwrap().with_timezone(&Local),
+                parent_task: row.get(14)?,
+                reason: row.get(15)?,
+                assigned_worker: row.get(16)?,
+                kind: row.get(17)?,
+                retries: row.get(18)?,
+                senior_comment: row.get(19)?,
+                ir_path: row.get(20)?,
+                task_kind: row.get::<_, Option<String>>(21)?.and_then(|s| serde_json::from_str(&s).ok()),
+                signature: row.get(22)?,
+                validator_rejections: row.get(23)?,
+                senior_rejections: row.get(24)?,
+                architecture_rejections: row.get(25)?,
+                cargo_rejections: row.get(26)?,
+                lsp_rejections: row.get(27)?,
+                boss_interventions: row.get(28).unwrap_or(0),
+                patch_contract: None,
+                repair_mode: None,
+                repair_origin: None,
             })
         })?;
 
@@ -767,7 +942,7 @@ impl Storage {
 
     pub fn get_task(&self, id: &str) -> Result<Option<axon_core::Task>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, dependencies, result, target_file, lock_files, error_feedback, rework_count, base_hash, created_at, parent_task, reason, assigned_worker, kind, retries, senior_comment, ir_path, task_kind, signature FROM tasks WHERE id = ?1")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, lifecycle_state, dependencies, result, target_file, lock_files, error_feedback, rework_count, base_hash, created_at, parent_task, reason, assigned_worker, kind, retries, senior_comment, ir_path, task_kind, signature, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections, boss_interventions FROM tasks WHERE id = ?1")?;
         let mut task_iter = stmt.query_map(params![id], |row| {
             Ok(axon_core::Task {
                 id: row.get(0)?,
@@ -775,23 +950,33 @@ impl Storage {
                 title: row.get(2)?,
                 description: row.get(3)?,
                 status: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(4)?)).unwrap_or(axon_core::TaskStatus::Pending),
-                dependencies: serde_json::from_str(&row.get::<_, String>(5).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
-                result: row.get(6)?,
-                target_file: row.get(7)?,
-                lock_files: serde_json::from_str(&row.get::<_, String>(8).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
-                error_feedback: row.get(9)?,
-                rework_count: row.get(10)?,
-                base_hash: row.get(11)?,
-                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(12)?).unwrap().with_timezone(&Local),
-                parent_task: row.get(13)?,
-                reason: row.get(14)?,
-                assigned_worker: row.get(15)?,
-                kind: row.get(16)?,
-                retries: row.get(17)?,
-                senior_comment: row.get(18)?,
-                ir_path: row.get(19)?,
-                task_kind: row.get::<_, Option<String>>(20)?.and_then(|s| serde_json::from_str(&s).ok()),
-                signature: row.get(21)?,
+                lifecycle_state: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(5).unwrap_or_else(|_| "Queued".to_string()))).unwrap_or(axon_core::TaskLifecycleState::Queued),
+                dependencies: serde_json::from_str(&row.get::<_, String>(6).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
+                result: row.get(7)?,
+                target_file: row.get(8)?,
+                lock_files: serde_json::from_str(&row.get::<_, String>(9).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
+                error_feedback: row.get(10)?,
+                rework_count: row.get(11)?,
+                base_hash: row.get(12)?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(13)?).unwrap().with_timezone(&Local),
+                parent_task: row.get(14)?,
+                reason: row.get(15)?,
+                assigned_worker: row.get(16)?,
+                kind: row.get(17)?,
+                retries: row.get(18)?,
+                senior_comment: row.get(19)?,
+                ir_path: row.get(20)?,
+                task_kind: row.get::<_, Option<String>>(21)?.and_then(|s| serde_json::from_str(&s).ok()),
+                signature: row.get(22)?,
+                validator_rejections: row.get(23)?,
+                senior_rejections: row.get(24)?,
+                architecture_rejections: row.get(25)?,
+                cargo_rejections: row.get(26)?,
+                lsp_rejections: row.get(27)?,
+                boss_interventions: row.get(28).unwrap_or(0),
+                patch_contract: None,
+                repair_mode: None,
+                repair_origin: None,
             })
         })?;
 
@@ -804,7 +989,7 @@ impl Storage {
 
     pub fn get_task_by_title(&self, project_id: &str, title: &str) -> Result<Option<axon_core::Task>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, dependencies, result, target_file, lock_files, error_feedback, rework_count, base_hash, created_at, parent_task, reason, assigned_worker, kind, retries, senior_comment, ir_path, task_kind, signature FROM tasks WHERE project_id = ?1 AND title = ?2")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, description, status, lifecycle_state, dependencies, result, target_file, lock_files, error_feedback, rework_count, base_hash, created_at, parent_task, reason, assigned_worker, kind, retries, senior_comment, ir_path, task_kind, signature, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections, boss_interventions FROM tasks WHERE project_id = ?1 AND title = ?2")?;
         let mut task_iter = stmt.query_map(params![project_id, title], |row| {
             Ok(axon_core::Task {
                 id: row.get(0)?,
@@ -812,23 +997,33 @@ impl Storage {
                 title: row.get(2)?,
                 description: row.get(3)?,
                 status: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(4)?)).unwrap_or(axon_core::TaskStatus::Pending),
-                dependencies: serde_json::from_str(&row.get::<_, String>(5).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
-                result: row.get(6)?,
-                target_file: row.get(7)?,
-                lock_files: serde_json::from_str(&row.get::<_, String>(8).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
-                error_feedback: row.get(9)?,
-                rework_count: row.get(10)?,
-                base_hash: row.get(11)?,
-                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(12)?).unwrap().with_timezone(&Local),
-                parent_task: row.get(13)?,
-                reason: row.get(14)?,
-                assigned_worker: row.get(15)?,
-                kind: row.get(16)?,
-                retries: row.get(17)?,
-                senior_comment: row.get(18)?,
-                ir_path: row.get(19)?,
-                task_kind: row.get::<_, Option<String>>(20)?.and_then(|s| serde_json::from_str(&s).ok()),
-                signature: row.get(21)?,
+                lifecycle_state: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(5).unwrap_or_else(|_| "Queued".to_string()))).unwrap_or(axon_core::TaskLifecycleState::Queued),
+                dependencies: serde_json::from_str(&row.get::<_, String>(6).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
+                result: row.get(7)?,
+                target_file: row.get(8)?,
+                lock_files: serde_json::from_str(&row.get::<_, String>(9).unwrap_or_else(|_| "[]".to_string())).unwrap_or_default(),
+                error_feedback: row.get(10)?,
+                rework_count: row.get(11)?,
+                base_hash: row.get(12)?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(13)?).unwrap().with_timezone(&Local),
+                parent_task: row.get(14)?,
+                reason: row.get(15)?,
+                assigned_worker: row.get(16)?,
+                kind: row.get(17)?,
+                retries: row.get(18)?,
+                senior_comment: row.get(19)?,
+                ir_path: row.get(20)?,
+                task_kind: row.get::<_, Option<String>>(21)?.and_then(|s| serde_json::from_str(&s).ok()),
+                signature: row.get(22)?,
+                validator_rejections: row.get(23)?,
+                senior_rejections: row.get(24)?,
+                architecture_rejections: row.get(25)?,
+                cargo_rejections: row.get(26)?,
+                lsp_rejections: row.get(27)?,
+                boss_interventions: row.get(28).unwrap_or(0),
+                patch_contract: None,
+                repair_mode: None,
+                repair_origin: None,
             })
         })?;
 
@@ -865,7 +1060,7 @@ impl Storage {
 
     pub fn get_thread(&self, id: &str) -> Result<Option<axon_core::Thread>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at, task_kind, rejection_count FROM threads WHERE id = ?1")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at, task_kind, rejection_count, error_feedback, reason, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections FROM threads WHERE id = ?1")?;
         let mut thread_iter = stmt.query_map(params![id], |row| {
             Ok(axon_core::Thread {
                 id: row.get(0)?,
@@ -876,6 +1071,13 @@ impl Storage {
                 milestone_id: row.get(5)?,
                 task_kind: row.get::<_, Option<String>>(8)?.and_then(|s| serde_json::from_str(&s).ok()),
                 rejection_count: row.get(9)?,
+                validator_rejections: row.get(12).unwrap_or(0),
+                senior_rejections: row.get(13).unwrap_or(0),
+                architecture_rejections: row.get(14).unwrap_or(0),
+                cargo_rejections: row.get(15).unwrap_or(0),
+                lsp_rejections: row.get(16).unwrap_or(0),
+                error_feedback: row.get(10)?,
+                reason: row.get(11)?,
                 created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),
                 updated_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?).unwrap().with_timezone(&Local),
             })
@@ -1064,7 +1266,7 @@ impl Storage {
 
     pub fn list_events(&self, limit: usize) -> Result<Vec<axon_core::Event>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, thread_id, agent_id, event_type, source, content, payload, created_at FROM event_log ORDER BY created_at DESC LIMIT ?1")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, thread_id, agent_id, event_type, source, level, content, payload, created_at FROM event_log ORDER BY created_at DESC LIMIT ?1")?;
         let event_iter = stmt.query_map(params![limit as i64], |row| {
             Ok(axon_core::Event {
                 id: row.get(0)?,
@@ -1072,11 +1274,11 @@ impl Storage {
                 thread_id: row.get(2)?,
                 agent_id: row.get(3)?,
                 event_type: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(4)?)).unwrap_or(axon_core::EventType::SystemLog),
-                level: axon_core::EventLevel::Info, // Default level for persisted logs
                 source: row.get(5)?,
-                content: row.get(6)?,
-                payload: row.get::<_, Option<String>>(7)?.and_then(|s| serde_json::from_str(&s).ok()),
-                timestamp: DateTime::parse_from_rfc3339(&row.get::<_, String>(8)?).unwrap().with_timezone(&Local),
+                level: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(6)?)).unwrap_or(axon_core::EventLevel::Info),
+                content: row.get(7)?,
+                payload: row.get::<_, Option<String>>(8)?.and_then(|s| serde_json::from_str(&s).ok()),
+                timestamp: DateTime::parse_from_rfc3339(&row.get::<_, String>(9)?).unwrap().with_timezone(&Local),
             })
         })?;
 

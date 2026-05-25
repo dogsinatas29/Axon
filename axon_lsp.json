@@ -1,0 +1,25 @@
+{
+  "c": {
+    "args": [
+      "--background-index",
+      "--clang-tidy"
+    ],
+    "command": "/home/dogsinatas/.local/share/nvim/mason/bin/clangd",
+    "enabled": true,
+    "transport": "stdio"
+  },
+  "python": {
+    "args": [
+      "--stdio"
+    ],
+    "command": "/home/dogsinatas/.local/share/nvim/mason/bin/pyright-langserver",
+    "enabled": true,
+    "transport": "stdio"
+  },
+  "rust": {
+    "args": [],
+    "command": "/home/dogsinatas/.cargo/bin/rust-analyzer",
+    "enabled": true,
+    "transport": "stdio"
+  }
+}

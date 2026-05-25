@@ -1,0 +1,26 @@
+# Synapse Gate: 2026.05.22.16.12.00
+## Core CoT (추론 과정 요약)
+- 문제 진단: 사용자가 수동 정리 후 데몬을 기동했으나 스튜디오 UI 상에서 2개의 Factory Gateway 카드가 여전히 표시됨.
+- DB 확인: SQLite `runtime/state.db`를 리셋하여 조회한 결과, tasks와 threads는 깨끗한 상태이나 `find . -name ".axon_approval_pending"` 분석 시 `./TEST4_GTK/TEST4_GTK/.axon_approval_pending` 및 `./TEST4_GTK/.axon_approval_pending` 두 개가 공존하는 것을 확인.
+- 원인 규명: 사용자가 `TEST4_GTK/` 안으로 들어가서 데몬을 기동할 때, `current_dir`에 `project_id`인 `"TEST4_GTK"`를 한 번 더 push하게 되어 `TEST4_GTK/TEST4_GTK/` 형태의 중복 디렉토리가 생성되는 현상이 원인이었음.
+- 해결 방안: `crates/axon-daemon/src/lib.rs` 내 `bootstrap_from_spec`에서 `sandbox_path` 계산 시 `current_dir`에 `project_id`를 강제로 더하는 대신, `spec.md` 파일의 부모 디렉토리인 `canonical_spec_path.parent()`를 절대적인 샌드박스 루트 경로로 설정하도록 수정.
+- 빌드 및 검증: `cargo build --release` 후 이중 생성 디렉토리를 청소하고 재기동한 결과, 중복이 영구 해제되고 오직 1개의 정상적인 대기 경로만 생성됨을 실증 완료.
+
+## Affected Files Diff
+```diff
+diff --git a/crates/axon-daemon/src/lib.rs b/crates/axon-daemon/src/lib.rs
+index f1c2b5..a9d9b5 100644
+--- a/crates/axon-daemon/src/lib.rs
++++ b/crates/axon-daemon/src/lib.rs
+@@ -1472,3 +1472,7 @@
+-        let mut sandbox_path =
+-            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+-        sandbox_path.push(&project_id);
++        let sandbox_path = canonical_spec_path.parent()
++            .map(|p| p.to_path_buf())
++            .unwrap_or_else(|| {
++                let mut p = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
++                p.push(&project_id);
++                p
++            });
+```

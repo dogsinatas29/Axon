@@ -1,0 +1,10 @@
+[Core CoT]
+1. Identified a critical mismatch: the daemon uses a shared SQLite database path `runtime/state.db` at the workspace root, not project-specific runtimes.
+2. Verified that deleting `TEST4_GTK/runtime/state.db` alone failed to clear the legacy task execution queue since the global state was untouched.
+3. Identified multiple running zombie daemon instances using `ps aux`, which hijacked Boss board SEAL events using unpatched code.
+4. Cleaned up all daemon processes, purged the global `runtime/` directory, and aligned version nomenclature to `v0.0.31.34` per instructions.
+5. Re-triggered the startup pipeline to monitor clean Stage transition and task decomposition.
+
+[Affected Files Diff]
+- mile_stone/v0.0.31.34.md (Created)
+- crates/axon-daemon/src/lib.rs (Component comparison logic fixed)

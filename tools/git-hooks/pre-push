@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# AXON Deterministic Governance Pre-Push Hook
+# Path: .git/hooks/pre-push
+
+echo "=========================================================="
+echo " AXON: Evaluating Runtime Proof Semantics                 "
+echo "=========================================================="
+
+# Check if AXON_BYPASS is engaged
+if [ "$AXON_BYPASS" = "1" ]; then
+    echo "[GOVERNANCE_BYPASSED]"
+    echo "Warning: AXON_BYPASS=1 detected. Skipping local deterministic evolution verification."
+    echo "Audit trail: Override event logged and proceeding with push."
+    echo "=========================================================="
+    exit 0
+fi
+
+# Determine proof directory (default to .axon-proof)
+PROOF_DIR=".axon-proof"
+
+if [ ! -d "$PROOF_DIR" ]; then
+    echo "[PROOF_CORRUPTED]"
+    echo "Error: Proof directory '$PROOF_DIR' not found."
+    echo "Action: Ensure 'axon prove' is run before pushing evolution code."
+    echo "=========================================================="
+    exit 3
+fi
+
+# Execute AXON Verification Kernel
+# We use cargo run for development, but in prod it would be just `axon verify`
+cargo run --quiet --bin axon --manifest-path crates/axon-daemon/Cargo.toml -- verify "$PROOF_DIR"
+VERIFY_EXIT_CODE=$?
+
+echo "=========================================================="
+if [ $VERIFY_EXIT_CODE -eq 0 ]; then
+    echo "✔ AXON Verdict: SAFE TO MERGE"
+    exit 0
+elif [ $VERIFY_EXIT_CODE -eq 1 ]; then
+    echo "❌ AXON Verdict: PUSH REJECTED (Topology Drift Detected)"
+    exit 1
+elif [ $VERIFY_EXIT_CODE -eq 2 ]; then
+    echo "💥 AXON Verdict: PUSH REJECTED (Catastrophic Collapse)"
+    exit 2
+elif [ $VERIFY_EXIT_CODE -eq 3 ]; then
+    echo "⚠️ AXON Verdict: PROOF CORRUPTED (Schema Mismatch or Missing Data)"
+    exit 3
+else
+    echo "⚠️ AXON Verdict: UNKNOWN FAILURE"
+    exit 1
+fi

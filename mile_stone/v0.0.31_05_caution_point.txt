@@ -1,0 +1,472 @@
+# AXON v0.0.31 Caution Points
+
+## 1. 가장 중요한 원칙
+
+v0.0.31 작업에서 가장 중요한 것은:
+
+```text
+semantic authority를 어디에 둘 것인가
+```
+
+를 끝까지 일관되게 유지하는 것이다.
+
+현재 AXON의 문제는:
+
+```text
+generic pipeline
++
+language-aware validator
+```
+
+구조라는 점이다.
+
+즉 language semantics가 runtime 후반부에서만 등장한다.
+
+반드시:
+
+```text
+semantic contract first
+```
+
+구조로 전환해야 한다.
+
+즉:
+
+```text
+언어가 전체 파이프라인을 결정
+```
+
+해야 한다.
+
+절대로:
+
+```text
+generic pipeline + language exceptions
+```
+
+구조로 가면 안 된다.
+
+---
+
+# 2. 가장 위험한 함정
+
+## “Rust 지원 추가” 사고방식
+
+이 방향은 매우 위험하다.
+
+잘못된 방향:
+
+```rust
+if language == Rust {
+    ...
+}
+```
+
+이런 분기들이 runtime 전체에 퍼지기 시작하면:
+
+```text
+branch explosion
+```
+
+이 발생한다.
+
+결국:
+
+```text
+if rust
+if c
+if python
+if ts
+```
+
+같은 구조로 붕괴한다.
+
+---
+
+# 3. 반드시 유지해야 하는 방향
+
+필요한 것은:
+
+```text
+language-specific branching
+```
+
+이 아니라:
+
+```text
+language-pluggable architecture
+```
+
+다.
+
+예:
+
+```rust
+profile.decomposer()
+profile.validator()
+profile.emitter()
+```
+
+같은:
+
+```text
+polymorphic dispatch
+```
+
+구조를 유지해야 한다.
+
+즉 runtime 내부에:
+
+```text
+language condition branching
+```
+
+이 퍼지는 것을 반드시 막아야 한다.
+
+---
+
+# 4. validator만 강화하는 방향의 위험
+
+현재 문제는 validator가 약해서가 아니다.
+
+진짜 문제는:
+
+```text
+semantic contamination이 이미 생성된 후 검증
+```
+
+한다는 점이다.
+
+즉 현재 validator는:
+
+```text
+postmortem inspector
+```
+
+역할만 수행 중이다.
+
+---
+
+# 5. 반드시 필요한 방향
+
+필요한 것은:
+
+```text
+generation-time semantic enforcement
+```
+
+다.
+
+즉:
+
+```text
+생성 자체가 불가능
+```
+
+해야 한다.
+
+예:
+
+```rust
+RustEmitter::emit_header()
+```
+
+같은 함수 자체가 존재하면 안 된다.
+
+즉 semantic invalid artifact는:
+
+```text
+validator reject
+```
+
+이 아니라:
+
+```text
+construction impossible
+```
+
+상태여야 한다.
+
+---
+
+# 6. Generic decomposition 유지의 위험
+
+현재 contamination root는:
+
+```text
+generic task decomposition
+```
+
+이다.
+
+예:
+
+```text
+HeaderDecl
+SourceImpl
+Integrator
+```
+
+이 task model은 이미:
+
+```text
+C compilation semantics
+```
+
+를 포함한다.
+
+즉:
+
+```text
+Universal task model
+```
+
+은 실제로 존재하지 않는다.
+
+언어마다:
+
+* Rust → crate/module semantics
+* Python → package/runtime semantics
+* C → translation unit semantics
+* TypeScript → bundler/module semantics
+
+전체가 다르다.
+
+따라서:
+
+```text
+language-aware decomposition
+```
+
+구조가 필요하다.
+
+---
+
+# 7. file extension inference 유지의 위험
+
+현재 구조:
+
+```text
+.rs 발견 → Rust
+```
+
+같은:
+
+```text
+semantic inference architecture
+```
+
+를 사용한다.
+
+이 구조는 반드시 제거되어야 한다.
+
+언어는:
+
+```text
+추론되는 것이 아니라 선언되는 것
+```
+
+이어야 한다.
+
+즉:
+
+```rust
+pub struct ProjectIR {
+    pub language: Language,
+}
+```
+
+같은:
+
+```text
+root invariant
+```
+
+가 필요하다.
+
+---
+
+# 8. lib.rs를 God Object로 만드는 위험
+
+v0.0.31 방향상 lib.rs는:
+
+```text
+language orchestration kernel
+```
+
+역할로 확장될 가능성이 높다.
+
+하지만 잘못하면:
+
+```text
+거대한 중앙 dispatcher
+```
+
+가 된다.
+
+그러면:
+
+* coupling 증가
+* maintenance difficulty 증가
+* compile dependency 증가
+* runtime branching 증가
+
+문제가 발생한다.
+
+좋은 방향은:
+
+```text
+semantic registry
+```
+
+정도 역할만 유지하는 것이다.
+
+예:
+
+```rust
+get_profile(Language::Rust)
+```
+
+같은:
+
+```text
+entry routing layer
+```
+
+수준으로 유지하는 것이 안전하다.
+
+---
+
+# 9. Rust 중심 설계로 기울 위험
+
+Rust contamination을 해결하는 과정에서:
+
+```text
+Rust-centric architecture
+```
+
+로 기울 위험이 있다.
+
+하지만 그러면 다시:
+
+```text
+Rust semantics contamination
+```
+
+이 발생한다.
+
+현재 목표는:
+
+```text
+Rust 강화
+```
+
+가 아니라:
+
+```text
+언어 시스템 재정립
+```
+
+이다.
+
+즉:
+
+* C
+* Rust
+* Python
+* TypeScript
+
+전체를 수용 가능한:
+
+```text
+uniform semantic framework
+```
+
+를 목표로 해야 한다.
+
+---
+
+# 10. Semantic graph를 너무 빨리 확장하는 위험
+
+Rust 문제를 해결하다 보면:
+
+```text
+완전한 compiler IR
+```
+
+수준으로 가고 싶어질 수 있다.
+
+예:
+
+* borrow graph
+* ownership graph
+* MIR-level semantics
+* trait resolution engine
+
+같은 방향.
+
+하지만 현재 AXON의 목적은:
+
+```text
+runtime orchestration system
+```
+
+이지:
+
+```text
+full compiler implementation
+```
+
+이 아니다.
+
+따라서 semantic graph는:
+
+```text
+project topology level
+```
+
+부터 점진적으로 도입해야 한다.
+
+우선 필요한 것은:
+
+* project topology
+* module topology
+* artifact legality
+* decomposition legality
+
+수준이다.
+
+---
+
+# 11. 최종 원칙
+
+v0.0.31 전체에서 반드시 유지해야 하는 최종 원칙:
+
+```text
+semantic contract first
+```
+
+즉:
+
+```text
+언어가 전체 semantic pipeline을 결정
+```
+
+해야 한다.
+
+절대로:
+
+```text
+generic runtime + language exceptions
+```
+
+구조로 회귀하면 안 된다.
+
+필요한 것은:
+
+```text
+language-pluggable semantic runtime
+```
+
+이다.
+

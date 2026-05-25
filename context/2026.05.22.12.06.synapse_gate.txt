@@ -1,0 +1,16 @@
+Core CoT (추론 과정 요약):
+1. 문제 현상:
+   - 사용자가 루트의 `spec.md` 만으로 수동 테스트를 다시 처음부터 진행하려 했으나, UI 상의 사장 게시판에 `Factory Gateway` 카드가 2개(승인 대기) 노출되는 현상 발생.
+2. 원인 분석:
+   - `main.rs` 의 pre-load 로직이 spec_path가 파일명만 존재할 때 parent 경로가 비어 있어 canonicalize가 실패, "default-project" (경로: "") 라는 잘못된 정보로 레지스트리에 사전 적재됨.
+   - 이와 동시에 기존 수동 테스트의 잔재가 있는 `TEST4_GTK` 디렉토리 내에 `.axon_approval_pending` 파일이 여전히 남아 있어, 부팅 시 디렉토리 복구 스캐너([RECOVERY])가 이를 감지하고 `TEST4_GTK` 프로젝트를 활성 샌드박스로 자동 등록함.
+   - 따라서 레지스트리에 `default-project` 와 `TEST4_GTK` 2개가 등록되어 2개의 승인 대기 카드가 화면에 나타난 것임.
+3. 해결책:
+   - `main.rs` 의 pre-load 로직에서 상대경로 및 단일 파일명 인입 시에도 `current_dir` 과 결합해 절대경로로 온전하게 변환한 후 부모 폴더명을 추출하도록 정교화.
+   - 사용자가 이전 테스트 흔적을 깨끗하게 정리(예: `TEST4_GTK` 디렉토리 내 임시 파일 삭제)하도록 안내.
+
+Affected Files Diff (수정 및 생성된 파일 목록):
+1. crates/axon-daemon/src/main.rs (수정)
+   - pre-load 단계에서 spec_path 의 상대경로를 절대경로로 완벽 변환한 후 parent canonicalize 처리하도록 보완하여 "default-project" 중복 등록 차단.
+2. context/2026.05.22.12.06.synapse_gate.txt (생성)
+   - 본 코텍스 게이트 트래킹 로그 기록 완료.

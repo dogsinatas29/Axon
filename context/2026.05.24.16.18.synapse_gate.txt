@@ -1,0 +1,12 @@
+[Core CoT]
+1. 지침 수용. AXON의 정체성이 "수리 품질"에서 "결정론적 런타임 관측소(runtime topology governance research kernel)"로 완전히 이행됨. 새로운 KPI: collapse_family_identity_rate, runtime_lineage_stability 등.
+2. PHASE I-2 Physical Corpus Mount 도입.
+3. 1단계: Immutable Fetch. `shallow clone`, `detached commit`, `submodule disable` 원칙 강제 (HEAD 참조 금지).
+4. 2단계: Corpus Normalization Seal. `CORPUS_SEAL.json`에 `filesystem_topology_hash`, `macro_symbol_density` 등의 신규 엔트로피 지표 필드 추가.
+5. 3단계: Runtime Hotspot Extraction. XChat 핫스팟 파싱 시 전체 프로젝트 섭취(Ingestion)로 인한 노이즈를 막기 위해 `src/common/plugin*.c`, `src/fe-gtk/menu*.c` 등 특정 하위 시스템 경로만 엄격하게 절제(Extraction)하여 관측.
+6. 4단계: Runtime Adjacency Snapshot. AST 추적을 대체하는 `RUNTIME_ADJACENCY_GRAPH.json` 캡처 체계 신설 (callback edge, signal recursion edge 등).
+
+[Affected Files Diff]
+M crates/axon-daemon/src/intelligence/corpus/corpus_seal.rs
++ crates/axon-daemon/src/intelligence/corpus/runtime_adjacency.rs (신설)
++ crates/axon-daemon/src/intelligence/corpus/physical_mount.rs (신설)

@@ -1,0 +1,8 @@
+[Core CoT]
+1. 사용자 지침 수용: AXON의 최종 진화 지점을 "Deterministic Runtime Evolution OS"로 확정. 생성(Generation) 속도의 경쟁이 아니라, 진화 안전성(Evolution Safety)이라는 업계의 진짜 병목을 해결하는 유일한 시스템으로 포지셔닝.
+2. 관점의 완벽한 전이 (Paradigm Shift):
+   - Code Review → Runtime Causality Review
+   - Reviewer → Runtime Governor
+   - Source Code Merge → Runtime Causality Acceptance
+3. 철학적 기반: AI가 "안전하다"고 주장하는(Hallucinated Safety) 시스템이 아니라, **"실제 런타임 리플레이가 위상 변형(Drift)의 부재를 물리적으로 증명"**하는 증명 기반 진화(Proof-driven evolution) 시스템.
+4. 구현 지침: 향후 제작될 모든 승인 UI(Dashboard)는 문법이나 코드 Diff 중심이 아니라, 위상 변화(Queue, Ownership, Lineage) 중심의 렌즈로 구성되어야 함.

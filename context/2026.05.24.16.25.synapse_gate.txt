@@ -1,0 +1,20 @@
+[Core CoT]
+1. 사용자 지침 수용. AXON은 이제 "코드 수리기"가 아닌 "분산 런타임 병리 관측 장비(distributed runtime pathology instrumentation)"임.
+2. 타겟 전환: XChat(시그널, 콜백 폭풍)에서 ROX-Filer(깊은 위젯 트리, 계층적 소유권 붕괴)로 관측 대상을 변경. (PHASE J: ROX-Filer Deep Widget Topology Hell)
+3. 새로운 관측 계층 도입:
+   - `HIERARCHICAL_OWNERSHIP_GRAPH`: 부모-자식 위젯 토폴로지.
+   - `SUBTREE_LIFECYCLE_CHAIN`: 재귀적 소멸(Destroy propagation) 혈통.
+   - `SELECTION_STATE_GRAPH`: UI Selection 동기화.
+   - `RECURSIVE_INVALIDATION_TRACE`: Redraw/Refresh 전파 경로.
+4. 새로운 KPI 도입:
+   - `subtree_replay_identity`
+   - `hierarchical_ownership_stability`
+   - `recursive_destroy_lineage_consistency`
+   - `selection_sync_drift`
+   - `widget_branch_orphan_rate`
+5. Immunology Genealogy에 `HierarchicalOwnershipCollapse` 패밀리 및 서브타입(ParentChildDrift, RecursiveDestroyPropagation 등)을 추가하여 붕괴 혈통 지도화(Pathology mapping) 실시.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/corpus/hierarchical_topology.rs (신설)
++ crates/axon-daemon/src/intelligence/corpus/rox_filer_hotspot.rs (신설)
+M crates/axon-daemon/src/intelligence/replay/immunology_genealogy.rs

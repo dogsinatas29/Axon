@@ -1,0 +1,9 @@
+[Core CoT]
+1. 사용자의 지시에 따라, 8단계 파이프라인에서 `win32` 플랫폼에 특화된 검증(Validation) 로직이 어떻게 동작하는지 `axon-platform-win32` 및 `axon-ir-validator`의 코드를 바탕으로 검수함.
+2. 2단계(명세 분석): `validate_spec`이 명세의 윈도우 GUI 요구사항을 분석하여 SDL, Qt, GTK 같은 크로스플랫폼 라이브러리 혼용을 조기에 차단함.
+3. 4~5단계(뼈대/구현 생성): `validate_source_code`가 Win32 ABI 타입을 마음대로 재정의(Fake Typedef)하거나 시스템 라이브러리(user32.c 등)를 덮어쓰는 행위를 완벽히 막고, `WinMain`, `WndProc`, 메시지 루프 구조를 강제함. 특히 `BeginPaint`가 `WM_PAINT` 밖에서 실행되지 못하도록 스코프 검사를 수행하는 뛰어난 통제력을 확인함.
+4. 6단계(바이너리 빌드): `validate_binary_subsystem`이 바이너리의 PE 헤더를 읽어 Subsystem이 WINDOWS_GUI(2)인지, user32/gdi32 링키지가 보장되는지 실증함.
+5. Win32 전용 검수 결과를 리포트로 작성하여 사용자에게 반환함.
+
+[Affected Files Diff]
+- 코드 변경 없음 (Win32 검수 리포트 출력 및 로그 기록)

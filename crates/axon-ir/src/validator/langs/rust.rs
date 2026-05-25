@@ -8,11 +8,15 @@ impl LanguageValidator for RustValidator {
     fn validate(&self, ir: &ProjectIR) -> Vec<ValidationError> {
         let mut errors = Vec::new();
         for (key, comp) in &ir.components {
+            let path_lower = comp.file_path.to_lowercase();
+
             // Rust specific: files must have functions unless they are module roots with re-exports
             if comp.functions.is_empty() && 
                !comp.file_path.ends_with("lib.rs") && 
                !comp.file_path.ends_with("mod.rs") &&
-               !comp.file_path.ends_with("main.rs") {
+               !comp.file_path.ends_with("main.rs") &&
+               !path_lower.ends_with(".c") &&
+               !path_lower.ends_with(".h") {
                  errors.push(ValidationError {
                     kind: ValidationKind::Semantic,
                     target: key.clone(),

@@ -129,6 +129,108 @@ fn is_c_builtin(s: &str) -> bool {
              | "bool" | "size_t" | "ssize_t" | "FILE" | "NULL")
 }
 
+use crate::intelligence::decision::{Stage, FailureCause};
+
+/// v0.0.31.xx: Generate #include statements for dependencies
+/// This ensures header files include necessary library headers (e.g., sqlite3.h for sqlite3)
+pub fn dependency_includes(dependencies: &[String]) -> String {
+    if dependencies.is_empty() {
+        return String::new();
+    }
+
+    let mut includes = String::from("\n[DEPENDENCY_INCLUDES]\n");
+    for dep in dependencies {
+        let include = match dep.as_str() {
+            "sqlite3" => "#include <sqlite3.h>",
+            "curl" => "#include <curl/curl.h>",
+            "openssl" => "#include <openssl/ssl.h>",
+            "json" => "#include <cjson/cjson.h>",
+            "zlib" => "#include <zlib.h>",
+            "pthread" => "#include <pthread.h>",
+            "unistd" => "#include <unistd.h>",
+            "sys_socket" => "#include <sys/socket.h>",
+            _ => continue, // Skip unknown dependencies
+        };
+        includes.push_str(&format!("{}\n", include));
+    }
+    includes
+}
+
+pub fn base_prompt(stage: &Stage, dependencies: &[String]) -> String {
+    let dep_includes = dependency_includes(dependencies);
+    
+    match stage {
+        Stage::HeaderGen => 
+            format!(
+                "[ROLE]\nYou generate a C/C++ header file.\n\n\
+                 [TASK]\nDeclare public interfaces only.\n\n\
+                 [CONSTRAINTS]\n- No implementation\n- Use include guards\n- Use simple types\n- Signatures must ending with ';'{}\n",
+                dep_includes
+            ),
+        Stage::ImplGen => 
+            "[ROLE]\nYou implement a C/C++ source file.\n\n\
+             [TASK]\nImplement functions declared in the header.\n\n\
+             [CONSTRAINTS]\n- Must include its own header\n- Do not change signatures from header\n- Keep logic minimal and safe\n".to_string(),
+        Stage::Build | Stage::Runtime => 
+            "[ROLE]\nYou are fixing a broken C/C++ program.\n\n\
+             [TASK]\nFix the error without rewriting the entire module.\n\n\
+             [CONSTRAINTS]\n- Minimal changes only\n- Do not modify unrelated code\n- Focus on the identified failure cause\n".to_string(),
+        _ => "[ROLE]\nAI Agent (C/C++)\n\n[TASK]\nAssist with C/C++ project.\n".to_string(),
+    }
+}
+
+pub fn infer_cause(diag_message: &str) -> FailureCause {
+    let msg = diag_message.to_lowercase();
+    if msg.contains("constitutional_violation") || msg.contains("language mismatch") {
+        FailureCause::ConstitutionalViolation
+    } else if msg.contains("no such file or directory") || msg.contains("missing header") {
+        FailureCause::MissingHeader
+    } else if msg.contains("undeclared") || msg.contains("not declared") {
+        FailureCause::MissingSymbol
+    } else if msg.contains("undefined reference") {
+        FailureCause::UndefinedReference
+    } else if msg.contains("segmentation fault") || msg.contains("segfault") {
+        FailureCause::SegFault
+    } else if msg.contains("syntax error") || msg.contains("expected") {
+        FailureCause::SyntaxError
+    } else {
+        FailureCause::Unknown
+    }
+}
+
+pub fn generate_hint(cause: &FailureCause) -> &'static str {
+    match cause {
+        FailureCause::ConstitutionalViolation => "CONSTITUTIONAL VIOLATION: Mismatch between specification and implementation language. Output ONLY valid C/C++ files.",
+        FailureCause::MissingHeader => "Focus on generating the header file first. Check include paths.",
+        FailureCause::MissingSymbol => "Declare the missing symbol in the corresponding header.",
+        FailureCause::UndefinedReference => "Provide the implementation body for the declared function.",
+        FailureCause::SegFault => "Add null pointer checks and verify memory allocation.",
+        FailureCause::SyntaxError => "Fix semicolons, braces, or type mismatches reported by GCC/Clang.",
+        _ => "Analyze compiler logs and apply minimal targeted fixes.",
+    }
+}
+
+pub fn inject_cause(cause: &FailureCause) -> &'static str {
+    match cause {
+        FailureCause::MissingHeader => 
+            "CAUSE: Header file is missing or not found.\n\
+             INSTRUCTION: Generate the required header file first. Ensure it's correctly linked.",
+        FailureCause::MissingSymbol => 
+            "CAUSE: A symbol (function/variable) is used but not declared.\n\
+             INSTRUCTION: Declare the missing symbol in the header file. Do not touch implementation yet.",
+        FailureCause::UndefinedReference => 
+            "CAUSE: Function is declared but its definition (body) is missing.\n\
+             INSTRUCTION: Implement the missing function in the .c/.cpp file.",
+        FailureCause::SegFault => 
+            "CAUSE: Segmentation fault detected (Memory Error).\n\
+             INSTRUCTION: Check for null pointers and array boundaries. Add safety checks.",
+        FailureCause::SyntaxError => 
+            "CAUSE: Syntax error (missing semicolon or unbalanced braces).\n\
+             INSTRUCTION: Fix the specific syntax error reported in the logs.",
+        _ => "CAUSE: Technical discrepancy detected.\nINSTRUCTION: Re-evaluate module structure and fix the error.",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

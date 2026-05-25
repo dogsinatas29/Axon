@@ -8,8 +8,20 @@ impl LanguageValidator for PythonValidator {
     fn validate(&self, ir: &ProjectIR) -> Vec<ValidationError> {
         let mut errors = Vec::new();
         for (key, comp) in &ir.components {
+            let path_lower = comp.file_path.to_lowercase();
+            if path_lower.ends_with(".c") || path_lower.ends_with(".h") || path_lower.contains("include/") || path_lower == "cmakelists.txt" {
+                errors.push(ValidationError {
+                    kind: ValidationKind::Semantic,
+                    target: key.clone(),
+                    message: format!("[CONSTITUTIONAL_VIOLATION] C-centric file '{}' detected in Python project. Python projects must use Python files (.py) only.", comp.file_path),
+                });
+            }
+
             // Python specific: must have functions or be a package init/script
-            if comp.functions.is_empty() && !comp.file_path.ends_with("__init__.py") {
+            if comp.functions.is_empty() && 
+               !comp.file_path.ends_with("__init__.py") &&
+               !path_lower.ends_with(".c") &&
+               !path_lower.ends_with(".h") {
                  errors.push(ValidationError {
                     kind: ValidationKind::Semantic,
                     target: key.clone(),

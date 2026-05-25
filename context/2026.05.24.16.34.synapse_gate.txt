@@ -1,0 +1,9 @@
+[Core CoT]
+1. 사용자 지침 수용: 용어(Terminology) 확장을 전면 중단하고 "실제 런타임 바이트(Actual runtime bytes)"를 캡처하는 시스템 엔지니어링으로 진입.
+2. STEP 1 (GTK Runtime Tap): `g_signal_emit`, `g_idle_add`, `gtk_widget_destroy`의 물리적 런타임 후킹을 위해 `LD_PRELOAD` 기반의 C 코드 생성기(`gtk_ld_preload.rs`) 구축. 
+3. STEP 2 (Runtime Snapshot Serializer): 캡처된 실제 이벤트 파이프라인에서 `refcount`, `pointer address` 등을 기반으로 캐노니컬 JSON 및 `runtime_object_hash`를 추출하는 `runtime_snapshot.rs` 도입.
+4. 더 이상 시뮬레이션이나 추상적 위상 모델이 아님. AXON은 실측 데이터(Queue depth, ptr lineage)를 바탕으로 GTK 프로세스의 숨통(Queue/Memory)을 감시하는 물리적 런타임 병리 레코더(Pathology recorder)로 작동함.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/telemetry/gtk_ld_preload.rs (신설)
++ crates/axon-daemon/src/intelligence/telemetry/runtime_snapshot.rs (신설)

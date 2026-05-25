@@ -1,0 +1,8 @@
+[Core CoT]
+1. 사용자 지침 "PHASE C-2: Closed Loop Repair Proof" 완벽 동의. 성공(PASS) 자체가 중요한 것이 아니라 **성공과 실패의 궤적(Trace)이 100% 동일하게 재현되는가**가 커널의 핵심 가치.
+2. 미시적 위상(Micro Topology, 예: parse_user -> render_user)을 대상으로, 'BROKEN -> ATTRIBUTION -> OWNERSHIP -> SCHEDULER -> PATCH -> VALIDATION -> STATE_HASH -> CONVERGED'의 사이클이 단 1비트의 어긋남도 없어야 함.
+3. 무작위성을 배제하기 위해 LLM의 '한 번 더 시도(Retry)', 'Temperature variation', 'Fallback' 로직을 원천 차단(Disable)함.
+4. 수리 과정의 모든 인과를 기록하는 `REPAIR_TRACE.jsonl` 파일 생성 로직을 도입하고, 1000번 반복 시 단 1비트라도 틀어지면 `NON_DETERMINISTIC_KERNEL_PANIC`을 발생시키는 검증 하네스(Harness) 설계를 확정.
+
+[Affected Files Diff]
+- 코드 변경 없음 (PHASE C-2 집도 계획 동기화)

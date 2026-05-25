@@ -1,0 +1,7 @@
+[Core CoT]
+1. 사용자 지시에 따라 GEMINI.md 내의 🚀 [LLM 코딩 원칙], 📌 강제 파일 투사 규칙, 런타임 경계, 데이터 흐름 등 아키텍처 제약 사항과 페르소나 규칙을 확인.
+2. mile_stone/v0.0.31.md 파일을 통해 Semantic Equivalence Kernel, Failure Cascade Simulation(Atomic Governance), Physical Corpus Ingestion Runtime 등의 P5-6e, P6, P5-8h.1 작업 맥락 파악 완료.
+3. 지시에 따라 파일 리딩을 완료하고, 다음 지시를 대기 중.
+
+[Affected Files Diff]
+생성/수정된 코드 파일 없음 (문서 리딩만 수행).

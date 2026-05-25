@@ -1,0 +1,7 @@
+[Core CoT]
+1. 사용자 피드백 "PHASE D-3: Win32 ABI Topology Strike Test" 수용. Win32는 단순한 API가 아니라 "호출 순서(Order)", "쌍(Pair)", "생명주기(Lifecycle)" 자체가 ABI로 작동하는 Runtime Topology Ecosystem임.
+2. AST 기반의 텍스트 분석(Semantic understanding)을 배제하고 오직 "Topology Invariants" (Pair integrity, callback ABI, lifecycle order)만 통제하는 방향 유지.
+3. `win32_topology_strike.rs`를 구현하여 WndProc 시그니처 훼손, GetMessage-DispatchMessage 붕괴, BeginPaint-EndPaint 짝실패, HWND 소유권 침해 등을 결정론적으로 잡아내어 `WIN32_ABI_VIOLATION` 등의 패닉을 유발하는지 증명.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/replay/win32_topology_strike.rs (신설 예정)

@@ -1,0 +1,12 @@
+[Core CoT]
+1. 사용자 지침 완벽 수용. 코퍼스 투입 전 "붕괴 혈통 분류 체계(Genealogy)"의 안정성 확보가 최우선. AXON을 "Deterministic Catastrophe Genealogy Kernel"로 승격.
+2. PHASE G 아키텍처 수립:
+   - G-1: Collapse Family Canonicalization (에러 메시지가 아닌 위상 붕괴 형태 기준 분류)
+   - G-2: Collapse Genealogy (부모 붕괴와 파생 붕괴의 계보학적 추적, V1->V2->V3)
+   - G-3: Corpus Immunity Regression (위상 유사도 기반 Catastrophic Mutation 사전 예측)
+   - G-4: Hostile Corpus Certification (기능 성공이 아닌 붕괴 재현성 관측)
+3. 신규 KPI 도입: `collapse_family_identity_rate`, `lineage_replay_consistency`, `catastrophe_prediction_precision`, `topology_mutation_similarity`, `runtime_drift_genealogy`, `parser_anchor_genealogy`.
+4. `immunology_genealogy.rs` 하네스를 통해 붕괴의 혈통(Lineage)을 군집화하고, 변이가 투입되기 전 붕괴 확률을 예측하는(Prediction) 면역 체계 구축.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/replay/immunology_genealogy.rs (신설)

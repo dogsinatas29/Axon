@@ -1,0 +1,13 @@
+[Core CoT]
+1. 사용자 지침 수용: GitHub PR 같은 텍스트 기반 코드 리뷰(Diff Review) 시대를 종료하고, **런타임 인과율 리뷰(Runtime Causality Review)** 시대를 여는 `Topology Mutation Contract` 도입.
+2. 거버넌스 승인 파이프라인 (Human Approval Workflow) 구축:
+   - 단순 Approve 버튼이 아닌, 위상 변화 의도(Intent), 리스크 예측(Risk Forecast), 리플레이 증명(Replay Evidence), 법의학 렌즈(Forensic Lens)가 모두 결합된 `TopologyMutationContract` 발행.
+   - 텍스트 코드를 승인하는 것이 아니라 "런타임 위상 전이(Topology Transition)" 자체를 승인하는 패러다임.
+3. **Mutation Transaction Ledger (변이 트랜잭션 원장)** 구축:
+   - 모든 변이 시도를 기록. 
+   - `safe_mutation_acceptance_rate`, `topology_stability_after_merge` 등 새로운 운영(Operable) KPI를 측정할 수 있는 데이터베이스 레이어(`ledger.rs`) 확립.
+4. AXON 정체성 확립: "AGI IDE 판타지"나 "대규모 자동 코딩"의 유혹을 끊어내고, "레거시를 죽이지 않고 점진적으로 진화시키는 결정론적 런타임-안전 진화 커널(Deterministic Runtime-Safe Software Evolution Kernel)"로 정체성 고정.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/evolution/ledger.rs (신설)
+* crates/axon-daemon/src/intelligence/evolution/workflow.rs (TopologyMutationContract 도입 수정)

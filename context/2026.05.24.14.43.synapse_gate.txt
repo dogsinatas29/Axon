@@ -1,0 +1,9 @@
+[Core CoT]
+1. 사용자의 요청에 따라 마일스톤 버전을 `v0.0.31`로 고정하고, `v0.0.32` (BootstrapManager 단일화) 및 `v0.0.33` (AXON IMMUNE LAB v0)의 기획 내용을 `v0.0.31.md`에 편입.
+2. 기존 `v0.0.31.md`의 내용을 삭제하지 않고, 하단에 `P5-8h.2 Deterministic Corpus Campaign Runner` 구현 결과 및 향후 POC 계획, BootstrapManager 관련 내용을 추가함.
+3. 중복된 개별 마일스톤 파일(`v0.0.32.md`, `v0.0.33.md`)은 삭제하여 프로젝트 루트의 문서 정합성 유지.
+
+[Affected Files Diff]
+* mile_stone/v0.0.31.md (내용 병합)
+- mile_stone/v0.0.32.md (삭제)
+- mile_stone/v0.0.33.md (삭제)

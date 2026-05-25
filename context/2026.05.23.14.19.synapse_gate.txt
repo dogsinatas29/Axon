@@ -1,0 +1,7 @@
+1. 이번 프롬프트로 인해 수행한 추론 과정 요약 (Core CoT)
+- 현상 진단: admin::tests::test_admin_intervention 테스트에서 50ms sleep 이후 0개의 posts가 반환되며 panicking 발생.
+- 원인: SQLite 비동기 쓰기 큐 처리보다 테스트 쿼리가 먼저 수행되는 레이스 컨디션. CPU 부하 상태인 환경에서 50ms는 부족할 수 있음.
+- 해결 방안: 대기 시간을 500ms로 대폭 확장하여 타이밍 이슈를 확실히 해결.
+
+2. 수정 및 생성된 변경 파일 목록 (Affected Files Diff)
+- crates/axon-daemon/src/admin.rs (수정)

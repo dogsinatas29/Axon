@@ -1,0 +1,13 @@
+[Core CoT]
+1. 사용자 피드백 수용: 개념적 자기증식(Conceptual Inflation)의 위험성 직시. "실제 런타임 계측(Actual runtime instrumentation)" 계층 없이 추상적인 붕괴 패밀리만 늘려가는 것은 독이라는 판단에 전적으로 동의함.
+2. 궤도 수정 (Pivot): ROX-Filer 물리적 마운트를 보류하고, 즉각 "2단계 - 물리적 GTK/Win32 Runtime Telemetry 구축"으로 진입.
+3. 2단계 핵심 과제:
+   - GTK Runtime Tap: 실제 `g_signal` emission, widget tree, refcount graph 수집.
+   - Runtime Object Graph: `runtime_object_hash`, `runtime_queue_hash` 등 실제 런타임 상태 해싱.
+   - Crash Sandbox: Process isolation, timeout killer, memory cap을 도입하여 런타임 Jitter로부터 데몬(Axon)을 보호.
+   - Human Surgery Workflow: AI가 코드를 짜는 것이 아니라, 인간이 핫스팟을 지정하면 AXON이 붕괴를 결정론적으로 캡처하고 예측하는 협력 모델 확립.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/telemetry/mod.rs (신설)
++ crates/axon-daemon/src/intelligence/telemetry/gtk_tap.rs (신설)
++ crates/axon-daemon/src/intelligence/telemetry/crash_sandbox.rs (신설)

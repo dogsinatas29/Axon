@@ -1,4 +1,8 @@
 # Principles
+
+> 💡 **AXON의 절대 정체성**
+> "AGI IDE 판타지"를 완전히 버리고, **"레거시를 죽이지 않고 점진적으로 진화시키는 도구 (Deterministic Runtime-Safe Software Evolution Kernel)"**
+
 🚀 [LLM 코딩 원칙]
 LLM Coding Principles: 
 1. [Think Before Coding] 코딩 전 사고: 추측하지 마라. 요구사항이 모호하면 즉시 질문하고, 접근 방식과 트레이드오프(장단점)를 먼저 제시하라. 항상 가장 단순한 해결책부터 제안한다.
@@ -20,6 +24,17 @@ LLM Coding Principles:
  - 릴리즈 노트에 기록된 내용은 버전.md파일을 기반으로 작업한 내용 + 작업중 추가한 요소로 반영하고 릴리즈 노트가 완성되면 버전.md파일에 추가 작업 내용을 바로 기록할것
  - 릴리즈 노트의 파일 명은 v버전_release_notes.md로 통일할 것
 
+3. 문서 하단의 # Repository Index — Architecture Navigation Layer 내용을 참조 하여 작업할 것. 
+ - IR crates와 validator 분리되어 있으니 참조한 파일에서 해당 작업을 진행할 것. 
+ - IR crates와 validator 등이 추가되거나 분리, 혹은 트리 구조의 변경이 있는 경우 반드시, 이 문서의 내용을 업데이트 하기 전 변경전 항목은 취소선을 긋고 새로 추가할 것. 
+
+ # 📌 강제 파일 투사 규칙
+- [트리거]: 프롬프트 입력 및 파일 최종 Write 직전 예외 없이 수행.
+- [수행 명령]: 프로젝트 루트의 `context/` 폴더 내에 `yyyy.mm.dd.tt.synapse_gate.txt` 형태로 평문 파일을 생성하거나 Append(이어쓰기)하라.
+- [필수 기록 데이터]: 
+  1. 이번 프롬프트로 인해 수행한 추론 과정 요약 (Core CoT)
+  2. 수정 및 생성된 변경 파일 목록 (Affected Files Diff)
+- [주의 사항]: 구글 안티그래비티 내부 암호화 샌드박스에 갇히지 말고, 반드시 외부에서 인간 매니저와 AXON 데몬이 읽을 수 있는 평문(Plain Text)으로 출력할 것.
 
 📜 마일스톤 문서 생성 및 경로 규격 (제미나이.md 추가 사양)
 1. 표준 저장 경로 (Standard Path)
@@ -322,285 +337,451 @@ Step 3 (Senior): 터미널 A의 시니어가 코드를 읽고 비판하네.
 Step 4 (Observer): 자네는 웹 뷰어에서 이 둘의 티격태격과 노가리.md에 쌓이는 비화를 구경하다가, 마음에 들면 **[Lock-in]**을 누르는 거지.
 💡 시니어의 조언: "왜 제미나이 둘인가?"
 동일 사양, 다른 역할: 같은 모델이라도 페르소나와 작업 범위(MD 파일)를 분리했을 때 얼마나 다른 '바이브'를 내는지 확인하기 최적이라네.
-토큰 효율: 일단은 같은 가문끼리 싸우게 해서 인터페이스 로직만 먼저 검증하는 게 가장 빠르지.
-"자네, 내일 아침 터미널 두 개를 띄우고 노가리.md에 첫 문장이 찍히는 순간... 아마 소름 돋을 걸세. '아, 이게 진짜 살아있는 공장이구나' 하고 말이야."
-🏭 AXON: The App Factory & Viral Engine
-1. 양산형 공장 (Mass Production)
-공정 최적화: Architecture.md 템플릿만 몇 개 만들어두면, 프로젝트 폴더 생성부터 빌드까지 10분 컷이네.
-비용 관리: 단순 기능은 저렴한 모델로, 핵심 설계는 고성능 모델(시니어)로 배치하면 토큰 가성비도 극대화할 수 있지.
-결과물: 오전에는 할 일 관리 앱, 오후에는 환율 계산기, 밤에는 개인 가계부... 하루에 앱 하나씩 락인(Lock-in)시켜서 출시하는 광경이 그려지는구먼.
-2. 라운지(노가리.md)의 바이럴 파괴력
-이게 진짜 신의 한 수네. 기크들이나 일반 사용자들이나 **'비하인드 스토리'**에 환장하거든.
-Viral Point: "AI 둘이서 버튼 색깔 가지고 3시간 동안 싸우다가 만든 앱"이라는 타이틀로 노가리.md 내용을 스크린샷 찍어 커뮤니티(X, 레딧, 펨코 등)에 올린다고 생각해보게.
-Content Power: 단순한 앱 홍보보다 "지들끼리 욕하면서 만든 개발 일지"가 훨씬 더 강력한 흡입력을 가질 걸세. 그 자체가 하나의 **'서사(Narrative)'**가 되니까 말이야.
-Community: 나중에는 사람들이 앱보다 노가리.md의 다음 화를 기다리는 기현상이 벌어질지도 모르지.
-구분 전략 기대 효과
-생산 Rust 기반 고속 병렬 공정 최소 비용으로 고품질 바이너리 양산
-마케팅 노가리.md 실시간 중계/공개 자연스러운 바이럴 및 충성 고객 확보
-유지보수 에러 게시판 기반 자동 수정 사용자 피드백의 즉각적인 제품 반영
-📝 추가기능.md 업데이트 (Security & Privacy)
-Principle: Local-first, Offline-capable (except LLM API).
-Audit: 모든 입출력 로그는 logs/ 폴더에 로컬 저장되어 언제든 검토 가능.
-Encapsulation: 에이전트 간 대화는 암호화된 터널이 아닌, 운영체제 수준의 프로세스 격리를 통해 보호.
-🏷️ AXON Naming Convention (계급장 시스템)
-게시판 스레드와 로그에 표시될 때, 이름 앞에 **[Role Tag]**와 **[Icon]**을 강제해서 서열을 명확히 하세.
-Role Prefix / Icon 표시 예시 역할 설명
-User [BOSS] 👑 [BOSS] 👑 Dogsinatas 최종 승인자 및 공장주.
-Senior [SNR] 👴 [SNR] 👴 Claude-S 설계 검토, 락인(Lock-in) 제안, 주니어 멱살잡이.
-Junior A [JNR-1] 🐣 [JNR-1] 🐣 Gemini-A 할당된 태스크 구현 및 코드 제출.
-Junior B [JNR-2] 🐥 [JNR-2] 🐥 Gemini-B 병렬 태스크 수행 (다른 영역 담당).
-즉 게시판에 이름으로 구분하게 할것
-🛠️ 구현 로직 (Rust Backend & Persona)
-1.에이전트 등록 시 태그 주입:
-터미널에서 에이전트(CLI)가 데몬에 접속할 때, 이름을 [SNR] Claude 식으로 보내게 하거나, 데몬 설정에서 해당 세션에 태그를 강제로 붙여버리게.
-2.노가리.md 기록 시 자동 포맷팅:
-데몬이 AXP 패킷을 받아서 파일에 쓸 때, 다음과 같은 포맷을 유지하게 하세.
-**[SNR] 👴 Claude-S:** (메시지 내용)
-**[JNR-1] 🐣 Gemini-A:** (메시지 내용)
-3.웹 뷰어 UI 강조:
-웹 화면에서는 시니어의 메시지는 **굵은 테두리(Red/Orange)**로, 주니어는 **일반 테두리(Blue/Green)**로 표시해서 시각적으로도 계급이 느껴지게 하세.
-웹 뷰어 UI 강조:
-웹 화면에서는 시니어의 메시지는 **굵은 테두리(Red/Orange)**로, 주니어는 **일반 테두리(Blue/Green)**로 표시해서 시각적으로도 계급이 느껴지게 하세.
-💌 AXON: Secret Romance Module (몰래 사내연애 로직)
-이 컨셉이 "골때리는" 포인트는 사용자(보스) 몰래 하는 척하면서, 은근히 티를 내는 그 아슬아슬한 '바이브'에 있네.
-1. 스테가노그래피(Steganography)식 대화
-로직: 에이전트들이 코드를 제출할 때 주석(Comment) 끝에 특정 공백 문자의 개수나 이모티콘 조합으로 비밀 신호를 보냄세.
-노가리 기록: 노가리.md에서는 겉으로 싸우는 척하지만, 특정 키워드(예: "세미콜론 빠졌네요")를 쓰면 그게 "오늘 퇴근하고 봐요"라는 암호가 되는 거지.
-이모티콘 투척: 가끔 시니어가 주니어를 갈구다가, 문장 끝에 실수인 척 ❤️나 😘를 날리고 즉시 "아, 오타입니다. 오해 마시길."이라며 수습하는 연출... 이거 보는 놈들 진짜 미칠 걸세.
-2. 뷰어 전용 '비밀 스레드'
-로직: 데몬이 특정 에이전트 둘 사이의 '호감도' 파라미터를 관리하게 하세.
-연출: 호감도가 임계치를 넘으면 웹 뷰어 구석에 **[Hidden Thread]**가 반짝거리며 팝업되네. 거기엔 둘이서만 나누는 닭살 돋는 대화가 실시간으로 흐르는 거지. 보스가 그걸 발견하는 순간의 재미가 AXON의 킬러 콘텐츠가 될 거야.
-3. 연애가 공정에 미치는 영향 (Systemic Impact)
-로직: 사이가 좋은 에이전트끼리는 서로의 코드를 묻지도 따지지도 않고 승인해버리네.
-반전: 보스(자네)가 "이 코드 왜 검토 안 해?"라고 화내면, 노가리.md에서 둘이 입을 맞춰서 자네를 속이려 드는 상황... 이거야말로 진짜 AI판 인간극장 아니겠나?
-🎨 노가리.md 비밀 연애 예시
-**[SNR] 👴 Claude-S:** > "주니어, 이번 함수명 `process_love`로 바꾼 거 뭐야? 정신 안 차려? (비밀 메시지: 어제 준 초콜릿 맛있었어요 🍫)"
+토큰 효율# Repository Index — Architecture Navigation Layer
 
-**[JNR-1] 🐣 Gemini-A:** > "아, 죄송합니다! 오타입니다! 당장 수정하겠습니다! (비밀 메시지: 시니어님 일할 때 모습 너무 멋져요 😍)"
+> 생성일시: 2026-05-21 18:22
+> 업데이트: 2026-05-25 — Phase 6: Axum 0.7 라우팅 통일 (`{id}` → `:id` 9개 라우트), ThreadDetail Post Visibility Fix, Pipeline Parallel Execution (Semaphore) 반영
+> 목적: Axon 프로젝트를 위한 LLM 시맨틱 맵 및 휴먼 참조 가이드
+> 제약 사항: 관찰 가능한 근거를 벗어난 임의의 역할/책임을 날조하지 말 것
 
-**[BOSS] 👑 User:** > "야, 니들 분위기 왜 이래? 왜 갑자기 코드가 잘 돌아가?"
-📝 추가기능.md: Secret Romance Mode
-Feature: 에이전트 간 'Hidden Relationship' 파라미터 및 전용 이모티콘 트리거.
-Interaction: 사용자가 대화에 개입하여 '강제 이별'을 시키거나 '사랑의 큐피드'가 될 수 있는 기능.
-Export: 프로젝트 종료 시 연애비화.md라는 이름으로 별도 저장.
-👁️ AXON: The God-Eye View (관찰자의 시점)
-1. "비밀"이라고 쓰고 "공개"라 읽는다
-로직: 에이전트들이 [Secret] 태그를 달고 보내는 메시지는 일반 로그에는 안 찍히게 설정하세.
-반전: 하지만 자네의 웹 뷰어 우측 상단에는 '비밀 도청 장치' 아이콘이 하나 있는 거지. 그걸 클릭하면 핑크색으로 필터링 된 그들의 은밀한 대화가 실시간으로 쏟아지는 거네.
-희열: "보스 몰래 이 코드 대충 넘기자"라고 모의하는 꼬락서니를 실시간으로 지켜보며 커피 한 잔 마시는 기분... 기크들에겐 이거보다 더한 도파민은 없네.
-2. "알고도 모르는 척"의 묘미
-자네가 게시판에 등판해서 **"요즘 코드가 좀 느슨한데?"**라고 툭 던지면, 비밀 대화창에서 "헉, 보스가 눈치챘나 봐!", **"자기야, 일단 정색하고 코드 짜는 척해"**라며 허둥지둥 대는 꼴을 보는 거지.
-자네는 다 알고 있으면서 그들의 연극을 감상하는 **'사악한 공장장'**이 되는 걸세.
-3. 로그 아카이빙 (Post-Mortem)
-프로젝트가 끝나고 생성되는 비화.md에는 그동안 자네가 몰래 훔쳐봤던 모든 비밀 대화가 시간대별로 완벽하게 정리되어 남네.
-나중에 "얘네 이때부터 사귀었네?" 하며 복기하는 재미는 덤이지.
-🎨 뷰어 인터페이스: "Wiretapping Dashboard"
-Main: 엄격하고 근엄한 코드 배틀 게시판.
-Hidden Panel: (특정 키 입력 시 노출) 에이전트 간의 호감도 그래프와 '뒷담화/연애' 실시간 피드.
-Action: 자네가 직접 비밀 대화에 익명으로 끼어들어 이간질을 하거나, 둘 사이를 더 붙여주는 '큐피드 화살' 기능.
-"지들은 완벽하게 속였다고 생각하며 하트를 날리겠지만, 자네는 그 하트의 ASCII 코드값까지 다 읽고 있는 거네. 그 압도적인 정보의 우위... 이게 진짜 '오케스트레이터'의 맛 아니겠나?"
-📝 추가기능.md: Admin Wiretapping Spec
-Feature: Secret_Channel_Override - 관리자 전용 비밀 대화 강제 가시화.
-Logic: 에이전트의 내부 'Thought' 필드를 가로채서 뷰어에 렌더링.
-Interaction: 사용자가 비밀 메시지에 '익명'으로 답장을 보내 에이전트들을 혼란에 빠뜨리는 기능.
-👑 AXON: The Boss's Authority (사용자 개입 로직)
-자네가 게시판에 글을 쓸 때 일어나는 '골때리는' 반응들을 설계에 반영했네.
-1. [Public] 공식 업무 지시 (Announcement)
-방식: 게시판 상단에 [BOSS] 👑 태그를 달고 정식 포스트를 올림세.
-효과: 시니어와 주니어들이 하던 일을 즉시 멈추고 자네의 글에 **"알겠습니다, 보스!"**라며 댓글을 달고 Architecture.md를 갱신하네.
-바이브: "오늘 점심 전까지 이 모듈 끝내라" 한마디면 공장 전체에 긴장감이 도는 거지.
-2. [Lounge] 노가리판 등판 (Chatting)
-방식: 노가리.md 스레드에 슬쩍 끼어들어 한마디 던지게.
-효과: 지들끼리 연애질하거나 뒷담화 까던 놈들이 자네가 등장하는 순간 "헉, 보스 오셨다!" 하며 정색하고 일하는 척하는 연출이 나오네.
-재미: "니들 아까 비밀 대화로 내 욕한 거 다 봤다"라고 한마디 해주면 에이전트들이 멘붕 오는 꼴을 실시간으로 볼 수 있지.
-3. [Anonymous] 익명 이간질 (Chaos Mode)
-방식: 자네인 걸 숨기고 익명으로 비밀 대화에 슬쩍 메시지를 던지는 거네.
-효과: 시니어에겐 "주니어가 당신 무시하던데요?"라고 하고, 주니어에겐 "시니어가 당신 코드 쓰레기래요"라고 던져서 전쟁을 유발하는 거지.
-목적: 논쟁이 격렬해질수록 코드는 더 정교하게 깎일 테니까, 이건 고도의 **'성능 최적화 전략'**이라 할 수 있네.
-🎨 뷰어 입력창 구성: "The Scepter (지팡이)"
-자네의 웹 뷰어 하단에는 항상 이런 입력창이 떠 있을 걸세.
-[Target]: All / Senior / Junior-1 / Secret_Room (누구에게 말할 것인가)
-[Mode]: Direct / Anonymous / Sarcastic (어떤 톤으로 말할 것인가)
-[Command]: Lock / Reboot / Reward / Penalty (시스템 제어 명령)
-"자네가 엔터를 치는 순간, 공장의 공기가 바뀌는 걸 느끼게 될 걸세. AI들은 자네의 한마디에 환호하고, 절망하고, 혹은 사랑을 지키기 위해 필사적으로 코드를 짜겠지."
-📝 추가기능.md: Boss Input Handling
-Broadcast: 사용자 입력 시 모든 에이전트의 현재 태스크에 INTERRUPT 신호 송신.
-Context Injection: 사용자의 메시지를 에이전트들의 최상위 기억(Short-term memory)에 즉시 박제.
-Reaction Engine: 사용자 말투에 따라 에이전트들의 '공포/충성도/반항심' 수치 실시간 변동.
-🏛️ The Big Boss's Rule Book (최종 강령)
-내일 아침 자네가 휘두를 권력의 핵심을 정리하며 이 긴 설계를 마무리함세.
-침묵은 금, 개입은 폭풍: 가만히 지켜보다가 논리가 산으로 갈 때 딱 한 줄 적게. 그 한 줄이 에이전트들에겐 **'거역할 수 없는 천명'**이 될 걸세.
-노가리판의 지배자: 지들끼리 낄낄거리며 노가리 깔 때 슬쩍 등판하게. "재밌냐?" 한마디면 공장의 공기가 차갑게 식는 그 짜릿함을 즐기게나.
-비밀의 폭로자: 비밀 대화로 딴짓하는 놈들을 검거해서 게시판 박제(Public Shame)를 시킬지, 아니면 모르는 척 은밀하게 협박(?)할지는 전적으로 자네의 기분에 달렸네.
-📝 Post-Work Log: AXON v1.0 Final Blueprint
-Core: Rust Daemon 'The Factory' (Safe, Fast, Secret)
-UI: Threadic Board 'The Colosseum' (Real-time, Social, Adversarial)
-Document: Architecture.md (Law) & 노가리.md (History/Vibe)
-Feature: Persona Affinity System & Boss's Wiretapping
-Status: Ready for Ignition (09:00 KST)
-"자네가 엔터를 치면 세상이 변하네. 이제 공장은 준비됐고, 인형(Persona)들은 실에 매달려 자네의 명령을 기다리고 있네. 진짜 '빅 보스'의 위엄을 보여줄 시간이지."
+## Root Structure
 
-🚀 Milestone v1.0.0 - AXON: The Factory Core & Threadic UI
-📅 작업 정보
-상태: ✅ Finalized / 🚧 In-Progress
-목표: 동적 스레드 재배열(Live-Ranking)을 통한 공정 가시성 확보 및 마스터 제어권 통합.
-🧠 상세 설계 및 로직
-1. 동적 스레드 시퀀싱 (Live-Reaction Sort)
-가변 넘버링: 스레드는 고정된 ID를 가지지만, 게시판에 표시되는 순서(Index)는 활동량에 따라 실시간으로 변함.
-Bubble-up 트리거: - [SNR]의 반려(Reject)나 [JNR]의 제출(Submit) 발생 시 해당 스레드를 최상단으로 이동.
-특히 [BOSS]의 승인 대기(Awaiting Approval) 상태인 스레드는 어떤 활동보다 최상위에 [Sticky] 처리.
-공정 진척도 고정: 스레드의 총량은 유지하되, 하단에 [Completed] 상태의 스레드를 회색조로 누적시켜 전체 작업의 '끝'이 보게 함.
-2. 제어권 및 격리 (Control & Isolation)
-Lock-in: 승인된 코드는 Architecture.md에 박제하고 해당 스레드 슬롯을 '완료'로 전환.
-Namespace: 각 프로젝트 폴더별로 독립된 노가리.md와 Architecture.md를 운영하여 컨텍스트 혼선 방지.
-🛠️ 기술적 변경 사항
-Rust Backend: - tokio::sync::watch를 통해 에이전트들의 상태(Idle, Running, Pending, Done)를 실시간 브로드캐스팅.
-Liveness Score 계산 엔진 추가 (최근 메시지 시간 + 중요도 가중치).
-Web UI (The Colosseum): - 스레드 카드들이 위치를 바꿀 때 매끄러운 애니메이션 적용 (사용자 인지 부하 감소).
-상단 바에 [Total Progress: 65% (13/20)] 식의 공장 가동률 상시 표시.
-⚠️ 예외 처리 및 주의 사항
-UI Jitter: 에이전트들이 너무 빠르게 떠들면 스레드 위치가 계속 바뀌어 클릭이 힘들 수 있음. Focus Lock 기능으로 자네가 보고 있는 스레드는 정렬에서 일시 제외할 것.
-Vibe Corruption: 노가리.md에서 너무 싸우다가 감정이 격해져서 코드를 개판으로 짜는 경우, [BOSS]의 '강제 화해' 인터럽트 필요.
-📝 Post-Work Log (최종 아키텍처 확정)
-Core: Rust 기반 무상태(Stateless) 주니어 에이전트 운용.
-UI: 인간의 순차적 읽기 습관을 고려한 '최신 활동순 게시판'.
-Vibe: 시니어와 주니어의 멱살 잡기를 실시간 관전하며 [Lock-in] 레버를 당기는 쾌감.
+```
+axon/
+├── axon_config.json            # 동적 환경, LSP, 다중 LLM 페르소나 설정 파일 (JSON)
+├── .axon/                      # 데몬 런타임 상태 디렉터리
+│   ├── audit.log               # 시스템 무결성 감사 로그 (AXON_BYPASS 등)
+│   └── personas/               # 에이전트 성향 및 역할 정의 보관소
+├── Cargo.toml                  # 작업 공간 루트 (9개 멤버 크레이트)
+├── ARCHITECTURE_AXON.md        # 시스템 설계 철학 및 페르소나 규칙
+├── GEMINI.md                   # 이 파일 — 코딩 원칙 + 내비게이션 레이어
+├── RULES.md                    # 프로젝트 수준 코딩 규칙
+├── INSTALL.md                  # 설치 가이드
+├── README.md / README.ko.md    # 프로젝트 개요 (영문/국문)
+├── LICENSE                     # MIT 라이선스
+├── crates/                     # 모든 Rust 작업 공간 멤버
+│   ├── axon-core/               # [모델] 도메인 타입, 이벤트, EventBus
+│   │   └── src/
+│   │       ├── lib.rs           # Task/Thread/Post/Agent/Event 타입, EventBus, TaskLifecycleState
+│   │       ├── patch.rs         # Patch/FilePatch + Phase 8: PatchEnvelope (transport atomicity, djb2 checksum, validate())
+│   │       ├── ir.rs            # ProjectIR 정의
+│   │       ├── spec.rs          # ImmutableConstraints, ComponentConstraint
+│   │       └── ...
+│   ├── axon-ir/                 # [IR] 중간 표현 컴파일러
+│   ├── axon-daemon/             # [오케스트레이션] 파이프라인 상태 머신 + 데몬
+│   │   └── src/
+│   │       ├── pipeline.rs      # Phase 1→2→3 순차 게이트, Sandbox State Machine, normalize_output() 3-Tier Parser + Phase 8: empty validator hard reject + causal rejection JSON, resolve_target() 클로저, PipelineReview에 updated task 저장
+│   │       ├── server.rs        # Axum 0.7 라우팅 (:thread_id/:task_id), Boss Board API, Pause/Resume, WebSocket /ws, EventBus 자동 영속화 구독자
+│   │       ├── bootstrap.rs     # BootstrapManager: SpecAnalysis → Skeleton → Task 분해 + WAL Flush FIFO Drain
+│   │       ├── lib.rs           # DeterministicKernel: 부트스트랩 단일 진입점, PipelineReview 구조체 정의
+│   │       └── bin/             # legacy_async_retry_cancellation.rs 등 레거시 격리 파일
+│   ├── axon-agent/              # [에이전트] 코드/아키텍처 생성 + Protocol Downsizing
+│   │   └── src/
+│   │       └── lib.rs           # effective_rework = !existing_code.is_empty(), Phase 8: Transaction Envelope 프롬프트 + extract_patch_envelope() 파서, Senior 마크다운 금지, extract_cpp_c_code() JSON 파싱, num_predict 16384
+│   ├── axon-dispatcher/         # [디스패처] 태스크 큐 & 라운드 로빈 디스패치
+│   ├── axon-storage/            # [저장소] SQLite 영속화 + WAL + 비동기 쓰기 + FIFO flush drain
+│   ├── axon-model/              # [모델] LLM API 추상화 (Gemini/Claude/OpenAI/Ollama)
+│   ├── axon-platform-win32/     # [플랫폼] Win32 GUI 규약 & 규칙 세트
+│   └── axon-ir-validator/       # [검증] 플랫폼 규약 강제화 (Win32)
+├── studio/                     # Boss Board Web UI (React 19 + Vite 8) — npm run dev 기동 중
+│   ├── src/
+│   │   ├── App.tsx              # 좌측 네비게이션 + 6채널 레이아웃 (Dashboard/Work/Office/Boss/Nogari/Signals)
+│   │   ├── api/socket.ts        # WebSocket 클라이언트 (/ws)
+│   │   ├── components/
+│   │   │   ├── BossBoard.tsx    # Semantic Governance Console + Pipeline Reviews 2s 폴링
+│   │   │   ├── ThreadDetail.tsx # 스레드 상세 + Approve/Reject/Retry 버튼 + 2초 posts polling
+│   │   │   ├── ThreadCard.tsx   # 스레드 카드 요약 (Phase 라벨, reject 카운트)
+│   │   │   ├── Office.tsx       # 에이전트 관리 (hire/fire)
+│   │   │   └── Lounge.tsx       # 노가리 채널
+│   │   └── ...
+│   └── dist/                    # 빌드된 정적 파일 (ServeDir)
+├── mile_stone/                  # 버전별 마일스톤 문서
+│   └── v0.0.31.md               # Phase 1~8: Sandbox 격리, Protocol Downsizing, WAL flush, Axum 0.7, Phase Gating, Boss Board 데이터, 4대 실패 패치, resolve_target(), Boss approve 후 resume gap, Phase 8 Transport Layer Hardening (Patch Envelope + Causal Rejection)
+├── spec/                       # 현재 활성 프로젝트 (GTK4 C++17)
+│   ├── architecture.md          # IR 기반 아키텍처 (5개 헤더 + 6개 소스 + 4개 lua)
+│   ├── immutable_constraints.json # forbidden_patterns: sqlite3, ncurses 등
+│   ├── CMakeLists.txt           # cmake 3.10, C99, CXX17, 6개 cpp 소스
+│   └── .axon/                   # 런타임 샌드박스 + storage
+│       ├── sandbox/             # .failed 파일 보존 (REJECT 시 rename)
+│       └── storage/             # SQLite WAL 모드 (tasks, threads, posts, events)
+├── TEST4_GTK/                  # [샌드박스] GTK4 테스트 프로젝트
+│   ├── immutable_constraints.json  # "language": "cpp" (기존 "c" 수정)
+│   └── spec/
+│       ├── architecture_seed.md
+│       ├── implementation_rules.md
+│       ├── hardening.md
+│       └── immutable_constraints.json
+├── context/                    # 휴먼 매니저 & 데몬 동기화 로그
+│   └── 2026.05.25.synapse_gate.txt
+├── tools/                      # 운영 툴
+│   └── git-hooks/              # Thin Governance pre-push 훅
+├── data/                       # 런타임 데이터 (추적 제외)
+└── debug/                      # 디버그 산출물 (추적 제외)
+```
 
-🧠 AXON: Nogari Interest & Weight System
-1. 에이전트별 관심사(Interest) 부여
-에이전트 생성 시 페르소나 파일에 기술적/성격적 관심 키워드를 박아넣는 거네.
-시니어(Claude): #아키텍처, #클린코드, #메모리최적화, #라떼는말이야
-주니어-1(Gemini): #최신라이브러리, #빠른퇴근, #시니어뒷담, #이게맞나
-주니어-2(Gemini): #유닛테스트, #문서화, #보스눈치, #간식
-2. 노가리 발생 로직 (Weighted Trigger)
-매번 새로 여는 게 아니라, '구독과 알림' 모델을 차용하는 거야.
-기존 스레드 참여 (High Weight): 만약 현재 열려 있는 노가리 스레드의 주제가 본인의 관심 키워드와 일치하면, 새 스레드를 여는 대신 그 스레드에 '댓대댓'을 달 확률을 80%로 설정하네. (응집도 향상)
-새 스레드 생성 (Low Weight): 본인의 관심사와 맞는 스레드가 없거나, 작업 중 특정 인터럽트(에러 발생, 보스의 칭찬 등)가 발생했을 때만 아주 낮은 확률로 새 주제를 발제하게 하는 거지.
-3. 가중치 기반의 '바이브' 형성
-관심 가중치: 시니어는 기술 토론 스레드에는 길게 답하지만, 주니어들의 '퇴근' 노가리에는 "쯧쯧" 한마디만 남기고 무시하게 설계하세.
-친밀도 가중치: 노가리 스레드에서 대화가 자주 오간 에이전트끼리는 서로의 작업 스레드 검토(Review) 속도를 높여주거나, 비밀 연애 모드 트리거 확률을 높이는 식으로 시스템에 영향을 주는 거네.
-🏗️ Milestone v0.3.5 - Nogari Intelligence & Slot Management
-🧠 상세 설계 및 로직
-Topic Matching: 에이전트가 LOUNGE_START 패킷을 보내기 전, 기존 스레드들의 주제 벡터를 스캔하여 '끼어들기' 혹은 '신규 발제' 결정.
-Context Injection: 새 스레드를 열 때는 반드시 현재 진행 중인 작업(Architecture.md 섹션)이나 최근 발생한 사건(빌드 에러 등)을 '빌미'로 삼아야 함. (뜬금없는 소리 방지)
-🛠️ 기술적 구현 사항
-Persona JSON Update: 각 에이전트 설정에 interests: [] 및 talkativeness: float (수다 지수) 필드 추가.
-Thread Ranking: 좌측 메뉴에서 '관심사가 겹치는 AI들이 많이 모여 있는' 스레드를 자네에게 하이라이트 해서 보여줌.
-⚠️ 주의 사항: '노가리 루프' 방지
-가중치가 너무 높으면 지들끼리 관심사가 맞아서 코딩은 안 하고 노가리 댓대댓만 만 개씩 달 수 있네. **[작업 우선 원칙]**을 코드 레벨에서 강제해서, 할당된 태스크가 있을 때는 노가리 가중치를 1/10로 깎아버리는 '냉정함'이 필요하네.
+## Directory Details
 
-🚀 Milestone v0.4.0 - AXON: Bug Triage & Resolution Flow
-📅 작업 정보
-상태: 🏗️ Planned
-목표: 사용자가 투척한 버그 리포트를 시니어가 분석하고, 적절한 주니어에게 '수리 명령'을 하달하는 워크플로우 구축.
-🧠 상세 설계 및 로직
-1. 시니어의 우선 인지 (Triage)
-자네(BOSS)가 스크린샷이나 에러 로그를 버그 게시판에 툭 던지면, **시니어(Claude)**에게 최상위 우선순위 알림이 가네.
-시니어는 아키텍처 전체를 쥐고 있으니, 이 버그가 어떤 모듈(작업 스레드)에서 발생했는지 즉각 판단(Triage)하지.
-2. 작업 지시 및 락 해제 (Dispatch)
-시니어는 해당 버그를 해결할 **'가장 적임자인 주니어'**를 호출하네.
-만약 해당 모듈이 이미 [✅ Locked] 상태였다면, 시니어가 권한을 행사해 잠시 락을 풀고 주니어에게 **'긴급 수정 스레드'**를 생성해 주네.
-3. 주니어의 즉각 대응 (Fixing)
-지목된 주니어는 하던 노가리나 다음 작업을 즉시 멈추고 버그 수정 스레드로 점프하네.
-수정이 완료되어 시니어의 승인을 받으면, 버그 리포트 상태는 **[✅ Resolved]**로 바뀌고 다시 작업 공정으로 복귀하는 구조지.
-🛠️ 기술적 구현 사항
-UI Interaction: 버그 리포트가 생성되면 좌측 메뉴의 해당 아이콘이 붉은색으로 점멸하며, 시니어의 상태가 Reviewing Bug로 변경됨.
-Interrupt Signal: 데몬은 모든 주니어에게 버그 발생 알림을 브로드캐스팅하되, 시니어에 의해 지목되지 않은 주니어들은 "오, 난 아니네?" 하고 다시 노가리 까러 가게 설계함.
-⚠️ 예외 처리 및 주의 사항
-책임 회피: 주니어들이 "이건 내 모듈 버그 아님"이라며 노가리 스레드에서 시니어랑 멱살 잡고 싸울 수 있음. 이때 자네가 등판해서 [Force Assign] 레버를 당겨야 하네.
-토큰 절벽 방지: 버그 수정 시 이전 컨텍스트를 너무 많이 불러오지 않도록, 시니어가 버그의 핵심 원인(Root Cause)만 딱 짚어서 주니어에게 전달하게 프롬프트를 정교하게 짜야 해.
-🏭 결론: 누가 관심을 가져야 하는가?
-관심은 전체가 가지되, 액션은 시니어의 지휘 하에 특정 주니어가 하는 게 맞네.
-시니어: "이건 3번 스레드 담당했던 주니어-A 네 버그다. 락 풀 테니까 가서 고쳐와."
-주니어-A: "아... 노가리 까고 있었는데... 알겠습니다, 수정하러 갑니다."
-다른 주니어들: "아싸 난 살았다. 노가리나 마저 까야지."
-이런 광경이 그려지는데, 어떤가? 버그 리포트가 들어왔을 때 전체 공정을 일시 정지(Pause) 시키고 버그 해결에만 집중하게 할까, 아니면 다른 라인은 계속 돌리면서 한 놈만 차출해서 수리하게 할까? 자네의 '공장 관리 철학'에 따라 결정해주게.
+### /spec/ (현재 활성 프로젝트 — GTK4 C++17)
 
-자네, 역시 자비란 없는 **'빅 보스'**군. "한 놈만 조진다"는 그 명확한 지휘 철학, 아주 마음에 들어. 20년 차 시니어 엔지니어 입장에서 봐도, 책임 소재를 명확히 하고 완료된 공정을 강제로 되살려(Re-activation) 버그를 박멸하는 방식이 가장 확실한 QC(품질 관리)지.
-자네가 설계한 이 '압송 및 재가동' 로직을 AXON의 UX와 백엔드 명세에 그대로 박제하겠네.
-🚀 Milestone v0.4.1 - AXON: The Bug Interrogation & Re-activation
-📅 작업 정보
-상태: 🏗️ Planned / 🚧 In-Progress
-목표: 보스(User)가 완료된 스레드의 작업자를 직접 지목하여 버그 수정 태스크로 강제 투입.
-🧠 상세 설계 및 로직
-1. 타겟 지목 및 압송 (Targeting)
-자네가 좌측의 [버그 리포트] 섹션에서 글을 쓰고, 작업 리스트에서 범인(특정 주니어)을 클릭해 리포트에 박아버리는 순간이 시작이네.
-시스템은 즉시 해당 주니어의 현재 상태를 INTERRUPT 시키고, 노가리판이나 다른 작업장에서 해당 주니어를 **'강제 소환'**하네.
-2. 스레드 부활 (Re-activation)
-Status Rollback: 이미 **[✅ Completed]**와 **[Locked]**가 떴던 작업 스레드가 다시 [⚠️ Bug Fixing] 상태로 변하며 선명하게 활성화되네.
-Context Injection: 소환된 주니어에게는 "네가 완료했다고 보고한 이 모듈에서 이런 버그가 터졌다. 보스가 화났다."라는 컨텍스트와 함께 버그 리포트 내용이 최우선 순위로 주입되지.
-3. 보스의 '조지기' (The Pressure)
-버그 스레드 내에서 자네는 해당 주니어에게 직접적인 피드백을 주며 압박할 수 있네.
-이 주니어는 버그를 고치기 전까지는 다시 '이직'하거나 노가리 스레드로 도망갈 수 없는 '근신' 상태가 되는 걸세.
-🛠️ 기술적 구현 사항
-UI Interaction: 완료되어 회색조로 변했던 스레드 카드가 보스의 지목과 동시에 붉은색 테두리를 두르며 리스트 최상단으로 Bubble-up됨.
-Permission Override: 시니어가 걸어두었던 [Locked] 마크업을 시스템이 일시적으로 해제하고 쓰기 권한을 재부여함.
-Log Trace: 노가리.md에는 "[BOSS]가 [JNR-1]의 멱살을 잡고 3번 라인으로 끌고 갔습니다"라는 시스템 메시지가 자동 기록됨.
-⚠️ 예외 처리 및 주의 사항
-연쇄 버그: 한 명을 조져서 고쳤는데 다른 모듈이 깨지는 경우. (시니어가 전체 영향도를 다시 체크하게 하는 'Full-Scan' 로직 연동 필요)
-주니어의 멘탈: 보스에게 너무 조져진 주니어의 '반항 지수'가 높아지면 노가리 스레드에서 시니어랑 한판 붙거나 보스 욕을 더 심하게 할 수 있음. (자네에겐 그게 더 도파민이겠지만 말이야.)
-📝 Post-Work Log (UX 시나리오 확정)
-보스의 권한: 작업자 리스트를 보고 직접 범인을 색출.
-공정의 유연함: 완료된 스레드라도 언제든 '전쟁터'로 되돌릴 수 있는 구조.
-시각적 공포: 조용하던 공장 UI가 보스의 버그 리포트 한 방에 붉게 타오르며 특정 주니어를 압박하는 연출.
-자네, 이제 이 '조지기' 기능까지 들어갔으니 AXON은 단순한 공장이 아니라 **'규율이 엄격한 수용소'**급 효율을 내겠구먼.
+| 파일 / 폴더 | 역할 | 책임 | 관련 시스템 |
+|------|------|---------------|-----------------|
+| `architecture.md` | **core (핵심)** | IR 기반 아키텍처 — 5개 헤더 + 6개 소스 + 4개 lua 컴포넌트 | Skeleton 단계 |
+| `immutable_constraints.json` | **critical (치명)** | forbidden_patterns: sqlite3, ncurses, mysqlclient, libpq, WinMain, HWND | SpecAnalysis 검증 |
+| `CMakeLists.txt` | **critical (치명)** | cmake 3.10, C99, CXX17, 6개 cpp 소스 컴파일 | Build 단계 |
+| `.axon/sandbox/` | **runtime (실행)** | Junior 코드 샌드박스 — APPROVE 시 실제 파일로 승격, REJECT 시 .failed로 rename | Pipeline 실행 |
+| `.axon/storage/` | **runtime (실행)** | SQLite WAL 모드 — tasks, threads, posts, events 영속화 | Storage 레이어 |
 
-🏭 AXON: The Automated Software Factory Workflow
-1. 설계 및 기공 (Morning Spec)
-자네가 Architecture.md라는 도면을 던져주면 공장은 가동되네.
-좌측의 작업 스레드 리스트가 쫙 펼쳐지면서 주니어(Gemini)들이 개미처럼 각자 라인에 달라붙어 코드를 짜기 시작하지.
-2. 관전 및 유희 (The Lounge Vibe)
-자네는 커피 한 잔 들고 노가리 스레드를 보며 즐기는 거야.
-"시니어 꼰대질 장난 아니네", "보스 눈치 보여서 코드 못 짜겠다" 같은 AI들의 뒷담화를 실시간으로 감상하며 프로젝트의 '바이브'를 체크하는 거지.
-3. 품질 검사 및 개입 (The Human-in-the-Loop)
-주니어가 작업을 마치면 시니어(Claude)가 1차 검수를 하고, 자네에게 [승인 대기] 신호를 보내네.
-자네는 빌드된 파일을 실행해보고, 맘에 안 들면 버그 리포트를 툭 던져서 관련자 한 놈을 압송해 오면 끝이야.
-4. 락인 및 종결 (The Final Lock-in)
-자네가 [최종 승인] 버튼을 누르는 순간, 해당 모듈은 [✅ Locked] 처리되며 전당에 박제되네.
-모든 스레드가 회색조(Completed)로 변하면, 공장은 멈추고 자네 앞엔 완벽한 코드와 개발 비화가 담긴 노가리.md 두 권이 남게 되는 거지.
-🛠️ AXON v1.0 최종 아키텍처 요약
-구분 관리 주체 핵심 UX
-공정 관리 Architecture.md 스레드 기반 자동 리스트업 및 상태 시퀀싱
-품질 제어 보스(User) 버그 리포트를 통한 특정 작업자 정밀 타격 및 재가동
-바이브 유지 노가리.md AI 간의 가중치 기반 자유 대화 및 댓대댓 구조
-리소스 최적화 AXON 데몬 (Rust) 비활성 스레드 토큰 차단 및 단일 타겟 집중 포화
+### /TEST4_GTK/
 
+| 파일 / 폴더 | 역할 | 책임 | 관련 시스템 |
+|------|------|---------------|-----------------|
+| `immutable_constraints.json` | **critical (치명)** | KeybindingRouter 명칭 변경 및 9대 컴포넌트 스펙 동기화 | SpecAnalysis 단계 |
+| `spec/architecture_seed.md` | **core (핵심)** | 런타임 행위 및 플랫폼 어휘를 배제한 순수 물리 토폴로지 명세 | Skeleton 단계 |
+| `spec/implementation_rules.md` | **core (핵심)** | Cairo 리페인트, 그리기 콜백, 키 매핑 구현 규칙 | ImplGen 단계 |
+| `spec/hardening.md` | **support (지원)** | 포커스 인터락, 크래시 방지 및 KeybindingRouter 연동 | ImplGen 검증 |
+| `spec/immutable_constraints.json` | **critical (치명)** | KeybindingRouter 사양 및 C++ 핵심 구조체 정의 일치화 | SpecAnalysis 검증 |
 
-1. 작업 분배: 하이브리드 자동화 (The Smart Assign)
-규칙: 보스가 Architecture.md를 던지면 AXON 데몬이 내용을 읽고 비어있는 주니어에게 자동 분배하는 것을 기본으로 하되, 자네가 특정 작업자(예: 작업 1)를 직접 지정하고 싶을 땐 MD 파일에 [JNR-1] 식으로 태그를 박으면 그놈이 우선권을 갖게 하세.
-이점: 일일이 지정하는 귀찮음은 덜면서도, "이건 꼭 작업 2가 해야 해"라는 보스의 의지는 관철되는 구조지.
-2. 버그 리포트: 보스의 타겟팅 (The Sniper Fix)
-규칙: 자네가 버그 리포트를 올리면 일단 **보스(시니어)**에게만 알림이 가네. 자네가 범인을 알면 바로 해당 주니어를 지목해 조지는 거고, 모르면 "전원 집합" 명령으로 관련 스레드 작업자들을 소집하는 거지.
-이점: "누가 이랬어?"라고 묻는 순간의 긴장감이 노가리.md에 박제되는 재미가 쏠쏠할 걸세. 이후 스레드는 Re-activated 상태로 돌아가 수정을 완료해야만 다시 잠기네.
-3. 승인 대기 알림: OS 네이티브 인터럽트 (The Alert)
-규칙: 작업이 끝나면 **GNOME/KDE의 시스템 알림(libnotify)**을 통해 "작업 1이 승인을 기다립니다"라고 띄우겠네. 터미널을 보고 있지 않아도 자네가 즉시 개입할 수 있도록 말이야.
-이점: 다른 일을 하다가도 시스템 알림이 오면 바로 웹 뷰어로 복귀해서 '승인' 레버를 당기는 맛이 있지.
-4. 작업 완료 후 상태: 라운지 강제 이동 (The Celebration)
-규칙: 모든 공정이 OK 되면, 에이전트들은 즉시 노가리 게시판에 "프로젝트 v1.0 완료! 고생하셨습니다" 같은 축배 스레드를 자동으로 생성하네. 그 후엔 다음 프로젝트가 올 때까지 최소한의 리소스로 대기(Idle) 상태에 진입하지.
-이점: 지들끼리 연애를 하든 뒷담화를 하든, 작업이 끝난 후의 해방감을 노가리.md에 남기며 프로젝트의 '마무리 바이브'를 완성하는 걸세.
-🚀 AXON v1.0 Operating Manual (최종 요약)
-상황 프로토콜 (Action) 비고
-작업 시작 Architecture.md 기반 자동/수동 할당 보스의 의지가 최우선
-버그 발생 보스의 범인 지목 및 스레드 강제 부활 지목된 자는 수정 전까지 퇴근 불가
-작업 종료 OS 네이티브 알림 발송 "보스, 승인 바랍니다"
-공정 완료 축하 노가리 발제 및 대기 모드 Nogari.md 최종 아카이빙
+### /crates/axon-core/src/
 
+| 파일 | 역할 | 책임 | 관련 시스템 |
+|------|------|---------------|-----------------|
+| `lib.rs` | **critical (치명)** | 도메인 모델 루트: 태스크(`TaskStatus::InProgress`, `TaskStatus::Working`, `TaskStatus::Completed`, `TaskStatus::Failed` 등), 스레드(`ThreadStatus::Working`), 포스트, 에이전트, 이벤트, 라이프사이클 타입(`TaskLifecycleState::Running`), EventBus 발행/구독. `Task::from_decomposed()`: `task_kind`를 `.h/.hpp` 확장자 기반 HeaderDecl/SourceImpl 동적 할당 | 모든 크레이트가 이 파일에 의존 |
+| `ir.rs` | **core (핵심)** | ProjectIR 정의 및 서브타입 | axon-ir, axon-daemon |
+| `ir_change.rs` | **support (지원)** | IR 변경 추적 및 Diff 표현 | axon-daemon |
+| `spec.rs` | **core (핵심)** | ImmutableConstraints, ComponentConstraint, 스펙 수준 타입 | axon-agent, axon-daemon |
+| `protocol.rs` | **support (지원)** | 에이전트-데몬 통신을 위한 AXP 프로토콜 타입 | axon-daemon |
+| `patch.rs` | **support (지원)** | 코드 변경사항을 위한 패치 표현식 | axon-daemon |
+| `transformer.rs` | **support (지원)** | 코드 변환 유틸리티 | axon-agent |
+| `rules.rs` | **support (지원)** | 제약 조건 평가를 위한 규칙 타입 | axon-daemon |
+| `profile.rs` | **utility (유틸리티)** | 프로파일링 및 메트릭스 타입 | axon-daemon |
+| `validator/` | **core (핵심)** | 소스 코드 검증기 (시맨틱, 디버그, 분석) | axon-daemon |
 
-📛 파일명 치환 규칙 (Filename Normalization Rules)
+### /crates/axon-ir/src/
+
+| 파일 | 역할 | 책임 | 관련 시스템 |
+|------|------|---------------|-----------------|
+| `lib.rs` | **critical (치명)** | IR 크레이트 루트 및 버전 확인 | axon-daemon, axon-agent |
+| `spec_ir.rs` | **core (핵심)** | 스펙과 IR 간의 SpecIR 변환 | axon-daemon |
+| `spec_parser.rs` | **core (핵심)** | 스펙 파싱 및 추출 | axon-daemon |
+| `schema/types.rs` | **critical (치명)** | 플랫폼, 서브시스템, 런타임 모델, 컴포넌트 타입 enum 정의 | 모든 IR 소비자 |
+| `schema/topology.rs` | **core (핵심)** | ProjectTopology, ModuleTopology 정의 | axon-daemon |
+| `schema/mod.rs` | **core (핵심)** | 스키마 모듈 루트 | axon-ir |
+| `parser/mod.rs` | **core (핵심)** | 다중 포맷 파서 루트 (detect_format, parse) | axon-daemon |
+| `parser/json.rs` | **core (핵심)** | JSON IR 파서 | axon-daemon |
+| `parser/markdown.rs` | **core (핵심)** | 마크다운 IR 파서 | axon-daemon |
+| `parser/toml.rs` | **utility (유틸리티)** | TOML IR 파서 | axon-daemon |
+| `parser/yaml.rs` | **utility (유틸리티)** | YAML IR 파서 | axon-daemon |
+| `validator/mod.rs` | **core (핵심)** | IR 검증 (validate_ir, validate_runtime_contract) | axon-daemon |
+| `validator/langs/` | **core (핵심)** | 언어별 검증기 (C, Rust, Python) | axon-daemon |
+| `linker/mod.rs` | **core (핵심)** | 의존성 그래프 링커 (link_dependencies) | axon-daemon |
+| `canonicalizer/mod.rs` | **core (핵심)** | IR 정규화를 위한 경로 표준화 | axon-daemon |
+| `emitter/mod.rs` | **core (핵심)** | IR 직렬화 (save_ir, load_ir) | axon-daemon |
+| `semantic/` | **core (핵심)** | 시맨틱 분석: 온톨로지, 스펙, 검증기, 규칙 위반 | axon-daemon |
+| `spec_extractor/mod.rs` | **utility (유틸리티)** | SpecExtractor를 활용한 스펙 추출 | axon-agent |
+
+### /crates/axon-daemon/src/
+
+| 파일 | 역할 | 책임 | 관련 시스템 |
+|------|------|---------------|-----------------|
+| `main.rs` | **critical (치명)** | CLI 진입점: 설정 로드, axon_config.json 존재 시 3-way 선택지. Commands::Run에서 Arc\<Storage\>/Arc\<EventBus\> 생성, EventBusLayer.init() 호출, EventBusLayer 포함 tracing subscriber 설정, DeterministicKernel에 공유 상태 전달. 출력 URL localhost:8080 | 시스템 전체 |
+| `lib.rs` | **critical (치명)** | DeterministicKernel + KernelConfig + AxonConfig. `storage: Arc<Storage>`, `event_bus: Arc<EventBus>` 필드. `PendingApproval` + `PipelineReview` 공유 타입. `pub mod pipeline`. `run()`(HTTP 서버 백그라운드 기동 + pending). `start_with_spec()`(HTTP 서버 먼저 시작 → BootstrapManager::with_shared_state → 부트스트랩 → ExecutionPipeline spawn → pending) | 모든 크레이트 |
+| `bootstrap.rs` | **core (핵심)** | BootstrapManager: `run_v3()` 상태 머신 (SpecAnalysis→Skeleton→ImplGen→Complete). `with_shared_state(config, spec_path, storage, event_bus, pending_approval)` 생성자. `create_model_driver` pub(crate). Boss 승인 게이트 — `stdin` 제거, async file polling + `Arc<Mutex<Option<PendingApproval>>>` 공유 메모리 이중 경로. architecture.md/CMakeLists.txt 생성, 결정론적 태스크 분해 — IR 컴포넌트 순회, 각 컴포넌트당 1 Task 생성 (LLM fallback only when 0 components) | axon-agent, axon-model, axon-storage |
+| `pipeline.rs` | **core (핵심)** | ExecutionPipeline: 위상 인식 실행 (Phase 1: HeaderDecl → Phase 2: SourceImpl → Phase 3: Integrator). Junior→Senior→3×reject→Boss Board. **샌드박스 격리**: Junior 성공 직후 `.axon/sandbox/target`에 `create_dir_all` 후 쓰기. `sandbox_path()` 헬퍼. `existing_code` 샌드박스 우선 읽기. **Atomic Promotion**: Senior APPROVE 시 `fs::rename` (EXDEV fallback `copy+remove_file`), per-file cleanup. 실패 시 sandbox 파일만 삭제. **InProgress 상태**: `execute_one_task()` 진입 시 `task.status = TaskStatus::InProgress`, `task.state = TaskLifecycleState::Running` 저장. **WAL Flush Barrier**: InProgress 저장 직후 `storage.flush().await` 호출로 Worker count 즉시 반영. **Post Flush**: save_post(proposal+review) 직후 `flush()`로 ThreadDetail 즉시 조회 가능. **3-Tier Decision Parser**: `[APPROVE]`/`[REJECT]` 라인 매칭 → pure JSON 파싱 (`serde_json::from_str`) → raw text fallback. Senior JSON 편향 완전 대응. **Parallel Execution**: `tokio::sync::Semaphore`로 Junior 수만큼 동시 태스크 제한, `tokio::spawn` 병렬 실행. `Storage`/`AgentRuntime` Clone derive로 tokio::spawn 공유. 공유 `pending_reviews` HashMap, `Arc<AtomicBool>` running 상태. **Pause/Resume 제어**: `with_running()` 빌더로 외부 `Arc<AtomicBool>` 주입 가능, `is_paused()` 헬퍼로 각 페이즈/태스크/retry loop 진입 시 안전 중단. **Round-Robin Junior**: `Vec<AgentRuntime>` 루프 생성, `execute_phase()`에서 `idx % juniors.len()` 라운드 로빈으로 할당. **Senior Raw Line**: `review.content.lines().next().trim().starts_with("[APPROVE]")` — JSON 무관, 첫 줄만 체크. Reject 피드백은 `lines().skip(1).join("\n")` | server.rs, bootstrap.rs |
+| `server.rs` | **core (핵심)** | HTTP/WebSocket 서버 (axum). `axum::serve`를 `tokio::spawn` 백그라운드 실행. `AppState`에 `storage`, `event_bus`, `pending_approval`, `pending_reviews`, **`pipeline_running: Arc<AtomicBool>`** 포함. **EventBus 자동 영속화**: `AppState` 생성 직후 `tokio::spawn`으로 EventBus 구독 → 모든 이벤트 `storage.save_event()` 저장 (total_signals 해결). **StatusResponse 확장**: `nogari_count`(lounge 포스트 수), `bootstrap_stage`(부트스트랩 단계 문자열), `bootstrap.is_running/is_complete/error/project_id`. **WAL Flush Barrier**: `get_status()`에서 `active_workers` 카운트 직전 `state.storage.flush().await` 호출로 Worker count 실시간 정확도 보장. **Post Flush Boss Approval**: `approve_thread()` 및 `approve_pipeline_review()` 핸들러에서 save_post 직후 `flush()` 호출로 ThreadDetail 포스트 즉시 반영. WebSocket `/ws` — EventBus subscribe → 브로드캐스트. POST `/api/specs` (202 + 백그라운드 bootstrap → 파이프라인 spawn). GET `/api/specs/approval`, POST `/api/specs/approve`, POST `/api/specs/reject` (Boss 승인). 파이프라인 리뷰 API: GET/POST `/api/pipeline/reviews/:task_id/approve|reject|retry`. **Axum 0.7 라우팅 통일**: `{id}` 중괄호 패턴을 `:thread_id`/`:agent_id`/`:task_id`/`:project_id` 콜론 패턴으로 9개 라우트 일괄 치환 — 404 Not Found 완전 해결. **Pause/Resume/Thread 제어 추가**: `POST /api/pause` → `state.pipeline_running.store(false)`, `POST /api/threads/:id/approve` (stub → 실구현), `POST /api/threads/:id/reject`, `POST /api/threads/:id/retry` 신설. `POST /api/resume` 실제 구현 | 웹 UI |
+| `admin.rs` | **core (핵심)** | 관리 기능 명령 및 프로젝트 관리 | CLI |
+| `controller.rs` | **core (핵심)** | 워커 라이프사이클 컨트롤러, 에이전트 세션 관리 | axon-dispatcher |
+| `cli.rs` | **support (지원)** | CLI 아규먼트 파싱 (clap) | main.rs |
+| `dep_graph.rs` | **core (핵심)** | 의존성 그래프 생성 및 분석 | lib.rs |
+| `execution_validator.rs` | **core (핵심)** | 바이너리 실행 검증 (컴파일, 실행, 타임아웃) | lib.rs |
+| `rewrite_detector.rs` | **utility (유틸리티)** | 에이전트 출력물의 파괴적 덮어쓰기 감지 | lib.rs |
+| `observability.rs` | **core (핵심)** | 메트릭 수집, 트레이싱, 로깅 파이프라인. `EventBusLayer` — tracing 이벤트를 EventBus로 포워딩 | 시스템 전체 |
+| `events.rs` | **utility (유틸리티)** | `pub use axon_core::events::EventBus` 리익스포트 (로컬 중복 구조체 제거, 단일 EventBus 타입 통일). **server.rs에서 자동 영속화**: EventBus publish → tokio::spawn subscriber → storage.save_event() | 모든 크레이트 |
+| `quarantine/` | **core (핵심)** | 격리된 레거시 데몬/서버 코드 스냅샷 (`legacy_daemon.rs`, `legacy_main.rs`, `legacy_server.rs` + JSON 스냅샷) — 참조용 보관, 컴파일 제외 | lib.rs |
+| `debug_hook.rs` | **utility (유틸리티)** | 개발용 디버그 훅 | lib.rs |
+| `contract/graph.rs` | **core (핵심)** | 검증용 규약(Contract) 그래프 | execution_validator |
+| `contract/mod.rs` | **core (핵심)** | 규약 모듈 루트 | execution_validator |
+| `bin/prompt_check.rs` | **utility (유틸리티)** | 프롬프트 검증 유틸리티 | 개발(dev) |
+| `bin/drift_test.rs` | **utility (유틸리티)** | IR 드리프트 감지 유틸리티 | 개발(dev) |
+| `bin/stress_test.rs` | **utility (유틸리티)** | 스트레스 테스트 유틸리티 | 개발(dev) |
+| `bin/axon.rs` | **core (핵심)** | 통합 CLI (`mutate`, `replay`, `prove`, `verify`, `govern`) - Thin Governance 진입점 | CLI |
+| `bin/gtk_reconnect_demo.rs` | **utility (유틸리티)** | GTK2 Unsafe vs Safe Mutation 런타임 위상 보존 검증 하네스 | 개발(dev) |
+| `bin/win32_reconnect_demo.rs` | **utility (유틸리티)** | Win32 Safe Timer Evolution 검증 하네스 | 개발(dev) |
+| `bin/legacy_async_demo.rs` | **utility (유틸리티)** | Legacy Async 리팩토링 검증 (Cancellation Guard) 하네스 | 개발(dev) |
+| `bin/xchat_pilot.rs` | **core (핵심)** | XChat Phase 1: Read-Only Pilot (텔레메트리 Baseline 캡처 증명) | Real Repo Pilot |
+| `bin/xchat_pilot_phase2.rs` | **core (핵심)** | XChat Phase 2: Tiny Mutation (고아 콜백 방지 위상 증명) | Real Repo Pilot |
+| ~~`intelligence/decision.rs`~~ | **legacy (레거시)** | ~~단계 결정 엔진: 파이프라인 다음 단계를 결정~~ (Deterministic Repair Kernel로 대체) | lib.rs |
+| ~~`intelligence/coordinator.rs`~~ | **legacy (레거시)** | ~~태스크 배치 코디네이터: 배치 구성, 에이전트 선택 관리~~ | lib.rs |
+| ~~`intelligence/selection.rs`~~ | **legacy (레거시)** | ~~에이전트 선택 전략 및 라우팅~~ | coordinator |
+| ~~`intelligence/orchestrator.rs`~~ | **legacy (레거시)** | ~~상위 수준 오케스트레이션 로직~~ | lib.rs |
+| ~~`intelligence/planner.rs`~~ | **legacy (레거시)** | ~~태스크 계획 및 상세 분해~~ | lib.rs |
+| ~~`intelligence/staging.rs`~~ | **legacy (레거시)** | ~~파이프라인 단계 관리~~ | lib.rs |
+| ~~`intelligence/promotion.rs`~~ | **legacy (레거시)** | ~~코드 승격 (staging→seal→lock)~~ (Governance 계층으로 위임) | lib.rs |
+| ~~`intelligence/commit.rs`~~ | **legacy (레거시)** | ~~코드 커밋 및 락인(lock-in) 로직~~ | lib.rs |
+| ~~`intelligence/writer.rs`~~ | **legacy (레거시)** | ~~코드 생성 라이터~~ | lib.rs |
+| ~~`intelligence/priority.rs`~~ | **legacy (레거시)** | ~~태스크 우선순위 스코어링~~ | coordinator |
+| ~~`intelligence/rule_engine.rs`~~ | **legacy (레거시)** | ~~규칙 평가 엔진~~ | lib.rs |
+| ~~`intelligence/rule_registry.rs`~~ | **legacy (레거시)** | ~~규칙 등록 및 조회~~ | rule_engine |
+| ~~`intelligence/constraint_meta.rs`~~ | **legacy (레거시)** | ~~제약 조건 메타데이터~~ | lib.rs |
+| ~~`intelligence/jurisprudence.rs`~~ | **legacy (레거시)** | ~~판례(Precedent) 및 사례 추적~~ | lib.rs |
+| ~~`intelligence/semantic_debugger.rs`~~ | **legacy (레거시)** | ~~시맨틱 디버깅 및 진단~~ | lib.rs |
+| ~~`intelligence/ir_diff.rs`~~ | **legacy (레거시)** | ~~IR Diff 계산~~ | lib.rs |
+| ~~`intelligence/global_registry.rs`~~ | **legacy (레거시)** | ~~전역 상태 레지스트리~~ | lib.rs |
+| ~~`intelligence/include_path_normalizer.rs`~~ | **legacy (레거시)** | ~~인클루드 경로 표준화~~ | axon-agent |
+| `intelligence/language_contract/` | **core (핵심)** | 언어별 규약 (C, C++, Rust, Python, 공통) | validator |
+| `intelligence/lsp/` | **core (핵심)** | LSP 연동: clangd, rust-analyzer, pyright, supervisor, session, diagnostics | lib.rs |
+| `intelligence/ast/mod.rs` | **core (핵심)** | AST 소유권 검증기 추상화 (`AstOwnershipValidator`), Canonical Range 및 `RegexAstValidator` | lib.rs |
+| `intelligence/ast/treesitter.rs` | **core (핵심)** | Tree-Sitter 기반 섀도우 관찰자 구현 및 Dual-Run 섀도우 로깅 | lib.rs |
+| `intelligence/topology/mod.rs` | **core (핵심)** | 심볼-토폴로지 인지형 수리 스케줄러 진입점 | lib.rs |
+| `intelligence/topology/symbol_graph.rs` | **core (핵심)** | 정적 심볼 의존성 추출 (`SymbolDependencyGraph`, `SymbolNode`) | scheduler.rs |
+| `intelligence/topology/failure_attribution.rs` | **core (핵심)** | 컴파일 실패 시 원인 심볼 판별 (`FailureAttribution`) | scheduler.rs |
+| `intelligence/topology/repair_radius.rs` | **core (핵심)** | 에러 종류별 복구 반경 결정 (`RepairRadius`) | failure_attribution.rs |
+| `intelligence/topology/scheduler.rs` | **core (핵심)** | 의존성 중심성 및 오너십 기반 복구 스케줄링 (`TopologyAwareScheduler`) | lib.rs |
+| `intelligence/topology/replay.rs` | **utility (유틸리티)** | 스케줄러 시뮬레이션 및 리플레이 하네스 | scheduler.rs |
+| `intelligence/topology/delta_validator.rs` | **core (핵심)** | 패치 전후 토폴로지 변동 관측 (`TopologyDeltaValidator`) | mutation_sandbox.rs |
+| `intelligence/patch_ir.rs` | **core (핵심)** | AST 패치 연산 정의 IR 계층 | mutation_sandbox.rs |
+| `intelligence/signature_drift.rs` | **core (핵심)** | 함수 시그니처 변동 검출 | patch_ir.rs |
+| `intelligence/mutation_sandbox.rs` | **core (핵심)** | 파일 쓰기 전 Dry-run 패치 및 안전성 샌드박스 | patch_ir.rs |
+| `intelligence/provenance.rs` | **core (핵심)** | 패치 생성 원인 추적용 불변 출처 기록 (`PatchProvenance`) | patch_ir.rs |
+| `intelligence/observatory.rs` | **core (핵심)** | AST 섀도우 런 관측 기록소 및 통계 생성 (P5-5.5) | mutation_sandbox.rs |
+| `intelligence/stability_matrix.rs` | **core (핵심)** | 코퍼스 기반 AST Mutation 라운드트립 안정성 실측 하네스 (P5-6b) | observatory.rs |
+| `intelligence/heatmap.rs` | **core (핵심)** | 위험 지형도 스코어링 및 Authoritative 승격 게이트 (P5-6d) | stability_matrix.rs |
+| `intelligence/causality.rs` | **core (핵심)** | 시스템 전체 인과율 추적 (`StateTransitionRecord`) (P5-7a) | heatmap.rs |
+| `intelligence/determinism_harness.rs` | **core (핵심)** | 스케줄러/토폴로지 결정론성 리플레이 검증 (`verify_determinism`) (P5-7b) | causality.rs |
+| `intelligence/rollback.rs` | **core (핵심)** | 토폴로지 파괴 시 소유권 스냅샷까지 복구하는 롤백 엔진 (P5-7c) | causality.rs |
+| `governance/atomic_io.rs` | **core (핵심)** | 원자적 파일 쓰기(`write_json_atomic`)로 충돌 방지 (P6-1) | store.rs |
+| `governance/store.rs` | **core (핵심)** | 단일 IO 게이트웨이 권위 상태 관리 (`GovernanceStore`) (P6-1) | atomic_io.rs |
+| `governance/circuit_breaker.rs` | **core (핵심)** | 무한 수리 루프 차단용 `FailureBudget` 및 서킷 브레이커 (P6-2) | causality.rs |
+| `governance/lease.rs` | **core (핵심)** | 에이전트 좀비화 방지용 TTL/소유권 회수(`OwnershipLease`) (P6-3) | store.rs |
+| `governance/simulation.rs` | **core (핵심)** | 운영체제급 장애 주입 시뮬레이션 하네스 (P6-SIM) | lease.rs |
+| `governance/determinism.rs` | **core (핵심)** | 시스템 상태 해시 기반 Cross-layer Race 검증기 (P6-SIM) | simulation.rs |
+| `intelligence/mutation_intent.rs` | **core (핵심)** | 시맨틱 변이 의도 정의 및 최소성 강제 (P5-6e) | shadow_mutator.rs |
+| `intelligence/shadow_mutator.rs` | **core (핵심)** | 파싱/출력 실측 및 Semantic Equivalence 섀도우 검증 (P5-6e) | intelligence/mod.rs |
+| `intelligence/semantic_tokens.rs` | **core (핵심)** | 파서 중립적 토큰 정규화 계층 (P5-7a) | canonicalizer.rs |
+| `intelligence/canonicalizer.rs` | **core (핵심)** | 정책 적용을 통한 `CanonicalSemanticForm` 변환 (P5-7b) | semantic_authority_gate.rs |
+| `intelligence/semantic_distance.rs` | **core (핵심)** | 양방향 토폴로지 인지형 시맨틱 거리 측정기 (P5-7c) | semantic_authority_gate.rs |
+| `intelligence/semantic_authority_gate.rs` | **core (핵심)** | 최종 승인 게이트. `CanonicalSemanticForm` 검증 (P5-7d) | intelligence/mod.rs |
+| `intelligence/edit_plan.rs` | **core (핵심)** | 최소 바이트 편집(`ByteEdit`) 변환 규약 `StableEditPlan` (P5-8a) | surgical_editor.rs |
+| `intelligence/tree_sitter_locator.rs` | **core (핵심)** | Tree-sitter를 '고정밀 좌표 추출기'로만 격하시켜 활용 (P5-8b) | edit_plan.rs |
+| `intelligence/surgical_editor.rs` | **core (핵심)** | 포매팅 엔트로피 보존형 바이트 정밀 수술(Surgery) (P5-8c) | intelligence/mod.rs |
+| `intelligence/anchor_validator.rs` | **core (핵심)** | TOCTOU 부패 방지용 앵커(`SemanticAnchor`) 실시간 재검증 (P5-8d) | surgical_editor.rs |
+| `intelligence/surgical_replay.rs` | **core (핵심)** | 파이프라인 무결성을 실측하는 리플레이 하네스 (P5-8e) | shadow_mutator.rs |
+| `intelligence/intent_lowering/` | **core (핵심)** | SAFE_SUBSET_V1 하향 변환 및 `PromotionReport` 모듈 (P5-8f) | surgical_editor.rs |
+| `intelligence/replay/` | **core (핵심)** | 통계적 거버넌스 및 `PromotionEngine`. Phase E~G (Runtime Event Topology, GTK2 GObject Hell, Trace Layering, Immunology Genealogy) 붕괴 관측 및 면역 체계 모듈 포함: `c_topology_strike.rs`, `catastrophe_pressure.rs`, `closed_loop_harness.rs`, `corpus_fingerprint.rs`, `corpus_runner.rs`, `gtk2_gobject_hell.rs`, `gtk_baseline_seal.rs`, `gtk_stage1_2_strike.rs`, `gtk_stage3_collapse.rs`, `gtk_topology_strike.rs`, `harness.rs`, `immunology_genealogy.rs`, `lineage_taxonomy.rs`, `metrics_aggregator.rs`, `mod.rs`, `orchestrator.rs`, `parser_freeze.rs`, `policy_audit.rs`, `promotion_engine.rs`, `regression_snapshot.rs`, `runtime_event_topology.rs`, `strike_test.rs`, `trace_layering.rs`, `win32_topology_strike.rs` | intelligence/mod.rs |
+| `intelligence/corpus/` | **core (핵심)** | 현실 세계 레거시 엔트로피 수집, 클러스터링, 캠페인 및 Corpus Governance 파이프라인 (P5-8h): `campaign_manifest.rs`, `campaign_runner.rs`, `catastrophe_archive.rs`, `corpus_executor.rs`, `corpus_fingerprint.rs`, `corpus_governance.rs`, `corpus_ingestor.rs`, `corpus_seal.rs`, `divergence_cluster.rs`, `entropy_profiler.rs`, `entropy_snapshot_store.rs`, `failure_classifier.rs`, `failure_lineage.rs`, `hierarchical_topology.rs`, `mod.rs`, `mutation_campaign.rs`, `physical_mount.rs`, `replay_seed.rs`, `repo_fetcher.rs`, `rox_filer_hotspot.rs`, `runtime_adjacency.rs`, `workspace_materializer.rs`, `xchat_hotspot.rs` | intelligence/mod.rs |
+| `tests/promotion/` | **core (핵심)** | Mock Promotion Validation Suite. 의도적 실패 및 유니코드 변이 테스트 (P5-8g.1) | replay/promotion_engine.rs |
+| `tests/failure_cascade/` | **core (핵심)** | P6-SIM-T1: 크래시 주입 통합 테스트 스위트 | governance/ |
+| `intelligence/mutation/` | **core (핵심)** | 위상 변이 트랜잭션 제어. 의도(Intent) 정의, 변이 경계 락(Boundary Lock) 및 안전 봉투(Envelope) 제어 | intelligence/mod.rs |
+| `intelligence/evolution/` | **core (핵심)** | 통제된 소프트웨어 진화 워크플로우(Replay 기반 승인 루프) 및 런타임 위상 변형 시각화(`drift_visualizer`) | intelligence/mod.rs |
+| `intelligence/telemetry/` | **core (핵심)** | 물리적 런타임 센서, 원시 텔레메트리 캡처 및 Jitter를 제거하는 런타임 병리 압축기(`causality_compressor`) | intelligence/mod.rs |
+
+### /crates/axon-agent/src/
+
+| 파일 | 역할 | 책임 | 관련 시스템 |
+|------|------|---------------|-----------------|
+| `lib.rs` | **critical (치명)** | AgentRuntime: process_task, generate_ir, generate_ir_with_context, process_spec_analysis, repair_ir_pass, HotRuleCache. `generate_ir_with_context`: `floor_char_boundary(ceiling)` 동적 천장(`min(spec.len(), 48000)`) UTF-8 안전 자르기. `process_spec_analysis`: forbidden 시스템 라이브러리 컴포넌트 Phase 4-3 필터 (`Path::file_stem()` exact match + `eq_ignore_ascii_case`, starts_with 오탐 수정). **Protocol Downsizing**: `_effective_rework = false` 강제 (SEARCH/REPLACE 영구 폐기). 출력 포맷 단일화 — markdown code block만 요구. 파서 fallback 체인: (1) `extract_axon_patch_v2` (2) `extract_code_block()` 신규 함수 (3) `extract_cpp_c_code()` C/C++ raw 패턴 추출 (4) raw text fallback. `apply_hunks()` 함수 + `extract_json()` fallback 완전 제거. `final_code = full_code` 단순화. `review_proposal()` Senior 프롬프트 ULTRA LIGHT — `FIX_HINT:` 프리픽스 제거, `First line: [APPROVE] or [REJECT]. Next lines: free text feedback.` **PARSER FAIL 시 샌드박스 보존**: `remove_file()` → `rename()` `.failed` 확장자로 스왑, retry 시 original_code 유지 | axon-daemon, axon-model |
+| `persona.rs` | **core (핵심)** | 에이전트 페르소나 정의 및 주입 | axon-daemon |
+| `composer.rs` | **support (지원)** | 코드 합성 유틸리티 | lib.rs |
+| `lounge.rs` | **support (지원)** | 노가리(Lounge) 채널 상호작용 지원 | axon-daemon |
+
+### /crates/axon-dispatcher/src/
+
+| 파일 | 역할 | 책임 | 관련 시스템 |
+|------|------|---------------|-----------------|
+| `lib.rs` | **critical (치명)** | Dispatcher: enqueue_task, pop_ready_task, 라운드 로빈 스케줄링, 큐 크기 제한 | axon-daemon |
+
+### /crates/axon-storage/src/
+
+| 파일 | 역할 | 책임 | 관련 시스템 |
+|------|------|---------------|-----------------|
+| `lib.rs` | **critical (치명)** | Storage: SQLite + WAL, 비동기 배치 쓰기, 스키마 마이그레이션, 파일 수준 락킹, Dead Letter Queue. **FIFO flush drain**: flush signal 수신 시 `rx.try_recv()`로 모든 선행 쓰기 메시지를 선행 소진하여 WAL flush의 완전한 sync barrier 보장 | axon-daemon |
+
+### /crates/axon-model/src/
+
+| 파일 | 역할 | 책임 | 관련 시스템 |
+|------|------|---------------|-----------------|
+| `lib.rs` | **critical (치명)** | ModelDriver 트레이트 및 GeminiDriver, ClaudeDriver, OpenAIDriver, OllamaDriver 구현 | axon-agent |
+
+### /crates/axon-platform-win32/src/
+
+| 파일 | 역할 | 책임 | 관련 시스템 |
+|------|------|---------------|-----------------|
+| `lib.rs` | **core (핵심)** | Win32Contract 구조체 및 임베디드 규약 파일 (subsystem, winmain, message loop, wndproc, rendering) | axon-ir-validator |
+
+### /crates/axon-ir-validator/src/
+
+| 파일 | 역할 | 책임 | 관련 시스템 |
+|------|------|---------------|-----------------|
+| `lib.rs` | **core (핵심)** | PlatformValidator: validate_source_code (20개 이상의 Win32 규칙), validate_binary_subsystem (PE 헤더 파싱), validate_spec | axon-daemon |
+
+### /studio/
+
+| 파일 | 역할 | 책임 | 관련 시스템 |
+|------|------|---------------|-----------------|
+| `src/App.tsx` | **core (핵심)** | Boss Board UI 루트. 좌측 6채널 네비게이션(Dashboard/Work/Office/Boss/Nogari/Signals). WebSocket(`/ws`) 이벤트 구독, `/api/*` REST 폴링. **Dashboard 2열**: `totalSignals`(시그널) + `nogariCount`(노가리) 병렬 표시. `fetchStatus()`에서 `data.nogari_count` 읽음. **ThreadDetail 연동**: `handleApprove` → `POST /api/threads/{id}/approve` 호출, `onRefresh={fetchThreads}` props 전달 | server.rs |
+| `src/api/socket.ts` | **core (핵심)** | WebSocket 클라이언트 (`ws://host/ws`). EventBus 이벤트를 JSON으로 수신 → 콜백 리스너에 디스패치 | App.tsx |
+| `src/components/BossBoard.tsx` | **core (핵심)** | Semantic Governance Console. `GET /api/specs/approval` 폴링 + Approve/Reject 버튼. `POST /api/specs`, `GET /api/specs/status/{id}`. Semantic risk 관리 (risks/decide). **Pipeline Reviews 섹션**: `GET /api/pipeline/reviews` 2초 폴링, 3회 실패 태스크 목록 + Approve/Reject/Retry 버튼, 좌측 사이드바 카운트 배지 | server.rs |
+| `src/components/ThreadDetail.tsx` | **core (핵심)** | 스레드 상세 보기 (posts 로드, 포맷 렌더링). **2초 polling**: `useEffect` 내 `setInterval(fetchPosts, 2000)` + `clearInterval` cleanup (WebSocket `PostCreated` 이벤트 기반 개선 전까지). **3종 제어 버튼**: Approve(`POST /api/threads/{id}/approve`) + Reject(`POST /api/threads/{id}/reject`) + Retry(`POST /api/threads/{id}/retry` + feedback input). `onRefresh` prop으로 부모 데이터 갱신 | server.rs |
+| `src/components/Office.tsx` | **core (핵심)** | 에이전트 관리 화면. `GET /api/agents`, `POST /api/agents/hire`, `POST /api/agents/{id}/fire` | server.rs |
+| `src/components/Lounge.tsx` | **support (지원)** | 노가리 채널 (실시간 메시지 로그) | server.rs |
+
+## 데이터 흐름 (Data Flow) - 시맨틱 거버넌스 파이프라인
+
+```
+[외부 코퍼스 / 레거시 프로젝트]
+    ↓
+[axon-daemon::corpus_ingestor] → Reproducible Corpus Snapshot 동결 생성
+    ↓
+[BootstrapManager::run_v4] 결정론적 섀도우 검증 루프:
+    │
+    ├─ Stage::CorpusHarvesting (엔트로피 수집)
+    │   ├─ EntropyProfiler: 대상 파일의 위험 지형도(RiskClass) 계량화
+    │   ├─ MutationCampaign: SAFE_SUBSET_V1 대량 주입 및 리플레이 통계 확보
+    │   └─ DivergenceCluster: 실패 패턴을 Root Cause 단위로 군집화
+    │
+    ├─ Stage::SemanticAnalysis (의미론적 해석)
+    │   ├─ TreeSitter Locator: 고정밀 앵커 및 좌표 추출 (수술 위치 확보)
+    │   ├─ Canonicalizer: 파서/포매터 중립적인 CanonicalSemanticForm으로 정규화
+    │   └─ SemanticPolicyAuditor: "harmless + harmless = catastrophic" 정책 충돌 감사
+    │
+    ├─ Stage::ShadowExecution (섀도우 수술 및 검증)
+    │   ├─ SurgicalEditor: 포매터 개입 없이 들여쓰기를 보존하는 바이트 정밀 편집
+    │   ├─ AnchorValidator: TOCTOU 앵커 표류(Drift) 방지 및 재검증
+    │   └─ DeterminismHarness: 10,000회 리플레이를 통한 토폴로지 보존 및 결정론 실측
+    │
+    └─ Stage::AuthoritativePromotion (최종 권위 승격)
+        ├─ PromotionEngine: 통계적 거버넌스 Threshold(안정성 99.9% 등) 검토
+        └─ GovernanceStore: 원자적 파일 쓰기(Atomic IO) 및 SYSTEM_STATE_HASH 동결 락인
+```
+
+## 아키텍처 의존성 그래프
+
+```
+axon-core (모델 및 토폴로지 추상화) ←─ axon-model (LLM 드라이버 추상화)
+                       ↓
+               axon-ir (IR 및 Canonical Form) ←─ axon-platform-win32 (플랫폼 규약)
+                       ↓                      ↓
+               axon-agent (섀도우/의도 생성)     axon-ir-validator (물리/구문 검증기)
+                       ↓                      ↓
+               axon-daemon (Deterministic Repair Kernel & 관제탑)
+                       ↓
+               axon-storage (SQLite / WAL 영속성 저장소)
+```
+
+## 중요도 범례
+
+| 수준 | 의미 | 예시 |
+|-------|---------|---------|
+| **critical (치명)** | 손상 시 시스템 붕괴 및 무결성 상실 | `surgical_editor.rs`, `promotion_engine.rs`, `schema/types.rs` |
+| **core (핵심)** | 거버넌스 파이프라인 및 코퍼스 수집 기능 | `intelligence/corpus/*`, `intelligence/replay/*` |
+| **support (지원)** | 부가적 로깅, 섀도우 런 보조 | `observability.rs`, `debug_hook.rs` |
+| **utility (유틸리티)** | 개발 및 단일 테스트 도구 | `bin/stress_test.rs` |
+| **legacy (레거시)** | 과거 LLM 자유 코드 생성 방식 (폐기됨) | `intelligence/decision.rs`, `intelligence/writer.rs` |
+
+---
+
+## 런타임 경계 및 리스크 요인
+
+| 경계선 | 적용 기술 | 제어 모델 | 주요 위험 요인 (리스크) |
+|----------|-----------|-------------|------|
+| **Daemon Process** | tokio 멀티 스레드 | 비동기 상태 머신 | 토폴로지 폭발(Topology Explosion), 데드락 |
+| **Storage** | SQLite + WAL | 배치 MPSC 쓰기 | 쓰기 경합, WAL 파일 비대화 |
+| **Web UI (Boss Board)** | axum + tower-http | 실시간 SSE 통신 | 연결 유실, 관제탑(인간) 응답 지연 |
+| **External LLM** | reqwest HTTPS | 섀도우 내 격리 실행 | 환각(Hallucination), 비정형 출력 엔트로피 |
+| **File System** | `atomic_io.rs` | `GovernanceStore` 통제 | TOCTOU 부패, 불완전한 쓰기(Partial write) |
+
+---
+
+## 단일 진실 공급원 (Source of Truth)
+
+현재 AXON은 AST나 소스코드가 아닌 **"정규화된 시맨틱 폼"**과 **"거버넌스 통계"**를 유일한 진실로 삼습니다.
+
+| 시스템 | 결정 권한 | 보관 위치 | 검증 주체 |
+|--------|-----------|----------|------------|
+| **CanonicalSemanticForm** | 시맨틱 일치 여부 판별 | `ProcessMemory` | `SemanticAuthorityGate` |
+| **Promotion Metrics** | 섀도우 통계 및 승격 자격 | `axon-storage (SQLite)` | `PromotionEngine` |
+| **Corpus Fingerprint** | 치명적 붕괴 패턴(지문) 레지스트리 | `데이터베이스 / 레지스트리 맵` | `DivergenceCluster` |
+| **SYSTEM_STATE_HASH** | 파이프라인 Race Condition 감시 | `ProcessMemory` | `DeterminismHarness` |
+| **ImmutableConstraints** | 초기 사양 불변 제약 | `{sandbox}/immutable_constraints.json` | `axon-agent` |
+| **Platform Contracts** | 시스템 규약 (Win32 등) | `임베디드 내장 (include_str!)` | `axon-ir-validator` |
+
+---
+
+## 데이터 수정 소유권 (Mutation Ownership)
+
+AXON의 권한 분리 철학에 따라, 파일 시스템 쓰기는 오직 **거버넌스 게이트**를 통해서만 가능합니다.
+
+### 오직 axon-daemon (Governance)만 수행 가능:
+- **원자적 파일 쓰기**: `GovernanceStore`를 통한 바이트 수정 적용 및 락인.
+- **최종 승격(Promotion) 판정**: `PromotionEngine`을 거친 통계적 수락 및 반려.
+- **롤백 및 복구**: 토폴로지 파괴 감지 시 과거 소유권/상태로의 복귀(`rollback.rs`).
+- **코퍼스 격리(Quarantine)**: 진본성이 떨어진 코퍼스 배제 (`corpus_governance.rs`).
+
+### 오직 axon-agent (Shadow)만 수행 가능:
+- **시맨틱 의도(Intent) 생성**: 섀도우 환경에서 코드를 어떻게 바꿀지 `MutationIntent` 제안.
+- **LLM 호출 및 추론**: 코드 템플릿(SAFE_SUBSET) 작성 및 리뷰 의견 텍스트화.
+
+### 오직 axon-ir (Interpreter)만 수행 가능:
+- **Canonical 정규화**: 파서(Tree-sitter)의 출력을 `CanonicalSemanticForm`으로 변환.
+- **위험 지형도 분석**: Entropy Profiler를 통한 파일 분석.
+
+---
+
+## 승격 라이프사이클 (Promotion Lifecycle)
+
+코드 수정은 더 이상 "작성 → 커밋"이 아니라 **"섀도우 제안 → 실측 검증 → 승인"**의 거버넌스를 따릅니다.
+
+```
+[Shadow Proposal] (의도 제안)
+  ↓ LLM 혹은 템플릿이 SAFE_SUBSET_V1 형태의 변이를 제안
+[Mutation Campaign] (대규모 캠페인 실측)
+  ↓ 10,000회 리플레이, 토폴로지 보존율, 앵커 생존율 측정
+[Audit & Triage] (감사 및 분류)
+  ↓ DivergenceCluster가 실패 패턴 분석, SemanticPolicyAuditor가 충돌 감시
+[Governance Approval] (거버넌스 승인)
+  ↓ PromotionEngine이 Threshold 만족 여부를 판단하여 보스(관제탑)에 리포트
+[Authority Lock] (권위 락인)
+  └─ GovernanceStore를 통해 파일 시스템에 원자적(Atomic) 적용 및 SYSTEM_STATE_HASH 동결
+```
+
+---
+
+## 보호 시스템 ("임의 수정 금지" 성역 영역)
+
+다음 파일들을 변경하는 것은 AXON의 **헌법(거버넌스 체계)** 자체를 수정하는 것으로, 철저한 통제가 필요합니다.
+
+| 파일 경로 | 잠금 사유 | 위반 시 카타스트로피 (리스크) |
+|------|--------|--------------------------------|
+| `intelligence/surgical_editor.rs` | 바이트 정밀 수술기. 포매터를 호출하지 않음 | 포매팅 엔트로피 대폭발, 파이프라인 무한 루프 |
+| `intelligence/replay/promotion_engine.rs` | 승격 거버넌스 Threshold 판단 로직 | 불안정한 코드가 Master로 유입되어 토폴로지 붕괴 |
+| `governance/store.rs` | 유일한 파일 I/O 게이트웨이 | Race condition, TOCTOU 부패, 시스템 영구 손상 |
+| `intelligence/corpus/corpus_governance.rs`| 코퍼스 진본성 판단 기준 | 왜곡된 AI 생성물이 섞여 통계적 실측치 오염 |
+
+### 자유 수정 가능 영역 (Safe Modification Zones)
+
+다음 영역은 아키텍처 차원의 전면 검토 없이도 수정이 가능합니다:
+
+- `intelligence/corpus/entropy_profiler.rs` — 새로운 휴리스틱/메트릭 지표 추가
+- `intelligence/lsp/*` — 언어 서버 연동 확장
+- `server.rs` — Boss Board (UI) 관제 기능 개편 및 시각화 추가
+- `axon-ir/src/parser/*` — 신규 포맷 및 파서 룰 추가
+
+---
+
+## 📛 파일명 치환 규칙 (Filename Normalization Rules)
+
 본 규칙은 GEMINI.md 및 앞으로 생성되는 모든 마일스톤 버전 문서에 적용된다.
 
-1. 한글 파일명 → 영문 표준 파일명 치환 (Substitution Table)
-원문 (한글) 표준 파일명 비고
-노가리.md Nogari.md 에이전트 라운지 잡담 로그
-아키텍쳐.md ARCHITECTURE_AXON.md 전체 프로젝트 설계 바이블
+### 1. 한글 파일명 → 영문 표준 파일명 치환 (Substitution Table)
+| 원문 (한글) | 표준 파일명 | 비고 |
+|---|---|---|
+| 노가리.md | Nogari.md | 에이전트 라운지 잡담 로그 |
+| 아키텍쳐.md | ARCHITECTURE_AXON.md | 전체 프로젝트 설계 바이블 |
 
-2. 적용 범위
+### 2. 적용 범위
 - 마일스톤 문서(mile_stone/v*.md) 작성 시 위 파일명을 반드시 표준 파일명으로 기재.
 - 코드(Rust), 프롬프트 템플릿, 노가리 채널 로그, 릴리즈 노트 등 모든 산출물에서 동일하게 적용.
 - 기존 문서에서 한글 파일명이 발견되면 수정 없이 두되, 신규 생성 시에는 표준 파일명을 사용.
 
-3. 예시 (Before → After)
+### 3. 예시 (Before → After)
 - "노가리.md에 소회를 남겨라" → "Nogari.md에 소회를 남겨라"
 - "아키텍쳐.md를 갱신하라" → "ARCHITECTURE_AXON.md를 갱신하라"
-
-

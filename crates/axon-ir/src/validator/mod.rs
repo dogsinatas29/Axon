@@ -31,24 +31,22 @@ pub fn validate_ir(ir: &ProjectIR) -> Result<(), Vec<ValidationError>> {
     errors.extend(validate_structure(ir));
     errors.extend(validate_semantic(ir));
     
-    // Automatic language-specific validation based on file extensions
-    for comp in ir.components.values() {
-        let ext = std::path::Path::new(&comp.file_path)
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
-            
-        let lang = match ext {
-            "c" | "h" | "cpp" | "hpp" => "c",
-            "py" => "python",
-            "rs" => "rust",
-            _ => "",
-        };
-        
-        if let Some(validator) = langs::get_validator(lang) {
-            errors.extend(validator.validate(ir));
-            break; // Currently assuming one primary language per IR
-        }
+    // v0.0.31: Explicit language semantic binding
+    let lang_str = match ir.language {
+        crate::schema::Language::C => "c",
+        crate::schema::Language::Cpp => "cpp",
+        crate::schema::Language::Rust => "rust",
+        crate::schema::Language::Python => "python",
+    };
+    
+    if let Some(validator) = langs::get_validator(lang_str) {
+        errors.extend(validator.validate(ir));
+    } else {
+        errors.push(ValidationError {
+            kind: ValidationKind::InvalidBackend,
+            target: "ProjectIR".to_string(),
+            message: format!("No validator found for language: {:?}", ir.language),
+        });
     }
 
     // Circular Dependency check
@@ -182,6 +180,10 @@ mod tests {
             tier: crate::schema::ComponentTier::Core,
             is_blocking: true,
             locked: false,
+            component_type: crate::schema::ComponentType::ProjectModule,
+            subsystem: None,
+            dll_imports: std::collections::BTreeSet::new(),
+            ownership: crate::schema::OwnershipMetadata::generator_patchable(),
         });
 
         let result = validate_ir(&ir);
@@ -206,6 +208,10 @@ mod tests {
             tier: crate::schema::ComponentTier::Core,
             is_blocking: true,
             locked: false,
+            component_type: crate::schema::ComponentType::ProjectModule,
+            subsystem: None,
+            dll_imports: std::collections::BTreeSet::new(),
+            ownership: crate::schema::OwnershipMetadata::generator_patchable(),
         });
 
         let result = validate_ir(&ir);

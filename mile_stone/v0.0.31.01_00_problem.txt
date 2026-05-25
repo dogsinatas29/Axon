@@ -1,0 +1,402 @@
+# AXON v0.0.31.01 Problem Definition
+
+## 1. 현재 상태 진단
+
+v0.0.31 작업을 통해 AXON은 기존의:
+
+```text id="r7m2ka"
+C-centric generic runtime
+```
+
+구조에서 상당 부분 벗어났다.
+
+특히 다음 작업들이 완료되었다:
+
+* Language enum 도입
+* ProjectIR.language 선언적 semantic binding
+* LanguageProfile 시스템 구축
+* generation-time semantic firewall
+* language-aware decomposition
+* language-aware build runtime
+* topology formalization
+
+즉:
+
+```text id="k8q5tv"
+late validator architecture
+```
+
+에서:
+
+```text id="c4m1ez"
+language-aware semantic runtime
+```
+
+방향으로 구조 전환이 시작되었다.
+
+이것은 매우 큰 진전이다.
+
+---
+
+# 2. 하지만 아직 완성된 상태는 아니다
+
+현재 상태는:
+
+```text id="d5n9qw"
+semantic contamination recovery
+```
+
+에 가깝다.
+
+즉:
+
+* invalid artifact emission
+* invalid topology emission
+* wrong build runtime
+
+등은 차단할 수 있다.
+
+하지만 아직:
+
+```text id="j3f7vu"
+semantic contamination impossibility
+```
+
+수준에는 도달하지 못했다.
+
+---
+
+# 3. 가장 중요한 미완성 계층
+
+현재 구현 상태:
+
+| 계층                             | 상태   |
+| ------------------------------ | ---- |
+| Spec-level semantic validation | ❌ 없음 |
+| IR structural validation       | ✅ 있음 |
+| Emission firewall validation   | ✅ 있음 |
+
+즉:
+
+```text id="s2w8oy"
+spec semantic authority layer
+```
+
+가 아직 존재하지 않는다.
+
+---
+
+# 4. 현재 구조의 한계
+
+현재 pipeline:
+
+```text id="t9x1el"
+Spec
+↓
+LLM JSON
+↓
+RawIR
+↓
+Semantic Firewall
+↓
+IR 생성
+```
+
+즉 semantic firewall은:
+
+```text id="u8c4kr"
+IR materialization 직전
+```
+
+에만 동작한다.
+
+이 말은:
+
+```text id="q7d5ma"
+spec 자체의 semantic legality
+```
+
+는 아직 검증되지 않는다는 뜻이다.
+
+---
+
+# 5. 현재 막을 수 있는 것
+
+예:
+
+```text id="v1k6od"
+Rust project에서 .h 생성
+```
+
+→ 차단 가능.
+
+```text id="n4e2qy"
+Rust project에서 CMakeLists.txt 생성
+```
+
+→ 차단 가능.
+
+즉:
+
+```text id="f8m7sl"
+physical artifact contamination
+```
+
+은 상당 부분 방어 가능하다.
+
+---
+
+# 6. 하지만 아직 막지 못하는 것
+
+예:
+
+```text id="h2p9vc"
+Rust spec인데 HeaderDecl vocabulary 사용
+```
+
+혹은:
+
+```text id="g6x4za"
+translation unit
+linker stage
+CMake workflow
+```
+
+같은:
+
+```text id="k5n1rd"
+C semantic ontology
+```
+
+가 spec 내부에 존재하는 상황.
+
+현재는 이것을:
+
+```text id="m8v2tf"
+IR 생성 이전에 차단하지 못한다
+```
+
+---
+
+# 7. 이것이 중요한 이유
+
+현재 구조는:
+
+```text id="z3q8wu"
+semantic contamination recovery
+```
+
+구조다.
+
+즉 contamination 발생 이후:
+
+```text id="v6c9xa"
+firewall reject
+```
+
+하는 구조.
+
+하지만 진짜 목표는:
+
+```text id="d1f4mr"
+semantic contamination impossible
+```
+
+이어야 한다.
+
+즉:
+
+```text id="a9p7te"
+invalid semantic intent 자체가 IR projection 이전에 차단
+```
+
+되어야 한다.
+
+---
+
+# 8. 따라서 필요한 다음 단계
+
+새로운 계층 필요:
+
+```text id="r5m3lx"
+Spec Semantic Validator Layer
+```
+
+구조:
+
+```text id="q2y8fo"
+Spec
+↓
+Language Resolution
+↓
+Spec Semantic Validation
+↓
+Semantic Contract Bind
+↓
+IR Projection
+↓
+IR Validation
+↓
+Emission Firewall
+```
+
+---
+
+# 9. 이 계층의 역할
+
+Spec Semantic Validator는:
+
+```text id="n1w7jb"
+semantic ontology legality
+```
+
+를 검증한다.
+
+즉:
+
+* language vocabulary legality
+* topology legality
+* decomposition legality
+* build-system legality
+* semantic worldview consistency
+
+를 검사한다.
+
+---
+
+# 10. 중요한 차이
+
+이것은 단순:
+
+```text id="c8t5yd"
+keyword blacklist
+```
+
+가 아니다.
+
+핵심은:
+
+```text id="g4x9ns"
+language semantic universe consistency
+```
+
+를 보장하는 것이다.
+
+즉 Rust semantic world 안에서는:
+
+```text id="f7m1dz"
+HeaderDecl
+translation unit
+CMake workflow
+```
+
+자체가 semantic violation이어야 한다.
+
+---
+
+# 11. 왜 v0.0.31 내부에서 해결해야 하는가
+
+현재 상태는 아직:
+
+```text id="q6j2ep"
+테스트 가능한 안정 상태
+```
+
+가 아니다.
+
+왜냐면:
+
+```text id="t5v8hn"
+spec-level contamination
+```
+
+이 아직 runtime 진입 가능하기 때문이다.
+
+즉 지금 테스트를 진행하면:
+
+```text id="y9n4ro"
+semantic runtime 검증
+```
+
+이 아니라:
+
+```text id="w3k7lv"
+spec contamination recovery 테스트
+```
+
+가 되어버린다.
+
+---
+
+# 12. 따라서 버전 전략
+
+현재 판단:
+
+```text id="s7e1cp"
+v0.0.31 작업은 아직 semantic closure 미완성 상태
+```
+
+로 보는 것이 맞다.
+
+하지만:
+
+```text id="b4u6my"
+major architectural pivot
+```
+
+은 이미 완료되었다.
+
+따라서:
+
+```text id="x8c3za"
+v0.0.31 → v0.0.31.01
+```
+
+마이너 승격이 가장 적절하다.
+
+---
+
+# 13. v0.0.31.01의 핵심 목표
+
+핵심 목표:
+
+```text id="n6k2qo"
+spec semantic authority 완성
+```
+
+즉:
+
+```text id="h5r9yu"
+semantic closure를 spec 단계까지 끌어올리는 것
+```
+
+이다.
+
+---
+
+# 14. 최종 정의
+
+v0.0.31이:
+
+```text id="m1x8kr"
+language-aware semantic runtime foundation
+```
+
+이었다면,
+
+v0.0.31.01은:
+
+```text id="u4d7cp"
+spec-level semantic authority completion
+```
+
+단계다.
+
+즉 최종 목표는:
+
+```text id="z2p6vf"
+semantic contamination impossible runtime
+```
+
+에 한 단계 더 가까워지는 것이다.
+

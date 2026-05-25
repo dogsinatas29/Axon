@@ -1,0 +1,8 @@
+[Core CoT]
+1. 사용자 피드백 "성공보다 실패 궤적의 고정(Replay Identity)이 목표" 완벽 동의. AI의 변이 시도가 실패하는 것은 정상이지만, 그 실패의 원인과 궤적이 매번 달라지는 것(Non-deterministic)은 커널의 붕괴를 의미함.
+2. STAGE 0 (Baseline Seal)을 최우선 구동하여 동일 seed, 동일 corpus에서 100회 리플레이 시 `trace_hash`와 `parser_boundary_variance`가 완전히 고정됨을 증명.
+3. 이후 STAGE 1 (Ownership Intrusion), STAGE 2 (Parser Drift Strike), STAGE 3 (Runtime Lifecycle Collapse) 등 의도적 실패(Hostile test) 시나리오에서도 "기능 동작"이 아닌 "동일한 Violation Hash 산출"에만 집중.
+4. Auto retry, silent fallback, random temp path 등 모든 비결정론적 복구 로직의 개입을 원천 차단 유지.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/replay/gtk_baseline_seal.rs (신설)

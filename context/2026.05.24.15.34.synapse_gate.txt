@@ -1,0 +1,7 @@
+[Core CoT]
+1. 사용자 지침에 따라 기능 추가(Making more)를 중단하고, GTK Hostile Corpus를 대상으로 하는 실증적 붕괴 데이터 수집(Validation & Data Collection) 단계로 진입함.
+2. "GTK Manual Validation Plan" 5단계 완벽 동의. AI의 코드 생성 능력이 아니라, "수동 개입 + 레거시 환경 내에서도 100% 결정론과 위상 보존이 유지되는가"를 수학적으로 증명하는 것이 목표.
+3. STAGE 2 & 3 대응을 위해, GTK의 고유한 위상 생태계(`g_signal_connect` 순서, `gtk_widget_destroy` 소유권 등)를 통제하는 `GtkTopologyGate` 하네스를 즉각 구축하여 붕괴 데이터 수집을 위한 센서망 준비.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/replay/gtk_topology_strike.rs (신설)

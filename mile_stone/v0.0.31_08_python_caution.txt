@@ -1,0 +1,356 @@
+# AXON v0.0.31 Python Semantic Caution
+
+# 1. 핵심 결론
+
+현재 단계에서:
+
+```text
+Python runtime 전체 구현
+```
+
+이 필요한 것은 아니다.
+
+하지만 반드시:
+
+```text
+Python이 들어와도 구조가 붕괴하지 않는가
+```
+
+는 고려해야 한다.
+
+즉 Python은:
+
+```text
+future semantic pressure test
+```
+
+역할을 수행한다.
+
+---
+
+# 2. 왜 Python을 지금 고려해야 하는가
+
+Python은:
+
+```text
+C/Rust와 완전히 다른 semantic universe
+```
+
+를 가진다.
+
+예:
+
+* header 없음
+* compile unit 없음
+* linker 없음
+* Cargo 없음
+* CMake 없음
+* runtime import semantics
+* package/runtime topology
+* dynamic module loading
+
+즉 Python이 들어오는 순간:
+
+```text
+compilation-centric assumptions
+```
+
+전체가 붕괴한다.
+
+---
+
+# 3. 중요한 인식
+
+현재 AXON의 generic runtime은 실제로:
+
+```text
+C-compatible compilation model
+```
+
+에 가깝다.
+
+즉:
+
+* generic decomposition
+* generic artifact emission
+* generic topology
+
+전체가:
+
+```text
+compile-time semantics
+```
+
+를 암묵적으로 전제한다.
+
+Python은 이 전제를 가장 빠르게 붕괴시키는 language다.
+
+---
+
+# 4. Python은 오히려 좋은 테스트 케이스다
+
+Python이 중요한 이유는:
+
+```text
+semantic isolation 검증
+```
+
+에 매우 강력하기 때문이다.
+
+예:
+
+```text
+HeaderDecl
+SourceImpl
+Integrator
+```
+
+같은 vocabulary는 Python semantic world에서 즉시 무의미해진다.
+
+즉 Python은:
+
+```text
+C semantics leakage detector
+```
+
+역할을 수행한다.
+
+---
+
+# 5. 하지만 지금 Python runtime 전체 구현하면 안 된다
+
+현재 목표는:
+
+```text
+semantic architecture stabilization
+```
+
+이다.
+
+따라서 지금:
+
+* Python emitter 완성
+* Python dependency resolver
+* Python runtime topology
+* Python package orchestrator
+
+까지 구현하려 하면:
+
+```text
+scope explosion
+```
+
+이 발생한다.
+
+---
+
+# 6. 현재 필요한 수준
+
+지금 필요한 것은:
+
+```text
+Python-compatible abstraction validation
+```
+
+수준이다.
+
+즉:
+
+* decomposition이 compile-centric인가
+* emitter assumptions가 C-centric인가
+* topology assumptions가 Rust/C-centric인가
+* artifact legality가 compile-language 기반인가
+
+를 검증하는 역할.
+
+즉 Python은:
+
+```text
+semantic stress test
+```
+
+역할을 수행한다.
+
+---
+
+# 7. 권장 전략
+
+현재 권장 방향:
+
+---
+
+## v0.0.31에서 구현할 것
+
+반드시:
+
+* Language enum
+* LanguageProfile
+* semantic firewall
+* decomposition separation
+* topology ownership
+
+전체를 먼저 구축.
+
+즉:
+
+```text
+language-pluggable semantic runtime
+```
+
+기반을 먼저 완성.
+
+---
+
+## Python은 minimal placeholder만 추가
+
+현재는:
+
+```rust
+Language::Python
+```
+
+그리고:
+
+```rust
+PythonProfile
+```
+
+placeholder 정도만 추가.
+
+내부 구현은 최소화.
+
+즉:
+
+```text
+future-compatible semantic slot
+```
+
+만 준비.
+
+---
+
+# 8. 중요한 이유
+
+만약 지금:
+
+```text
+C + Rust only architecture
+```
+
+관점으로 설계하면,
+
+나중에 Python 도입 순간:
+
+```text
+compilation-centric contamination explosion
+```
+
+이 발생한다.
+
+예:
+
+* compile-unit assumptions
+* linker assumptions
+* static artifact assumptions
+* entrypoint assumptions
+
+전체가 runtime에 퍼져 있기 때문이다.
+
+즉 지금:
+
+```text
+Python compatibility pressure
+```
+
+를 고려하지 않으면:
+
+```text
+future architecture collapse
+```
+
+가능성이 매우 높다.
+
+---
+
+# 9. 중요한 semantic 차이
+
+예:
+
+### C
+
+```text
+translation units
+header ownership
+linker semantics
+```
+
+### Rust
+
+```text
+crate/module graph
+Cargo topology
+ownership-aware module semantics
+```
+
+### Python
+
+```text
+runtime package graph
+import semantics
+dynamic module loading
+```
+
+즉:
+
+```text
+universal task model
+```
+
+혹은:
+
+```text
+generic compilation pipeline
+```
+
+같은 개념은 실제로 존재하지 않는다.
+
+---
+
+# 10. 최종 결론
+
+현재 단계에서 Python은:
+
+```text
+구현 대상
+```
+
+이라기보다:
+
+```text
+semantic architecture validation pressure
+```
+
+에 가깝다.
+
+즉 중요한 것은:
+
+```text
+Python runtime 구현
+```
+
+이 아니라:
+
+```text
+Python이 들어와도 semantic runtime이 안 깨지는 구조
+```
+
+를 만드는 것이다.
+
+따라서 v0.0.31의 진짜 목표는:
+
+```text
+multi-language semantic isolation runtime
+```
+
+구축이라고 볼 수 있다.
+

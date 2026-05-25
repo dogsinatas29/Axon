@@ -70,6 +70,7 @@ impl SpecExtractor {
             "<axon-spec>",
             "<!-- axonspec",    // lowercase scan
             "<!-- axo:n:spec",
+            "<!-- axon:spec",   // v0.0.31.02: Standard AXON:SPEC comment support
             "```spec",
             "```axonspec",
         ];
@@ -238,6 +239,7 @@ impl SpecExtractor {
             "```json",
             "spec block",
             "architecture:",
+            "axon:spec", // v0.0.31.02: Support case-insensitive AXON:SPEC tag detection
         ];
 
         for pattern in patterns {

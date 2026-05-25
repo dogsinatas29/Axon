@@ -172,6 +172,10 @@ mod tests {
             tier: crate::schema::ComponentTier::Core,
             is_blocking: true,
             locked: false,
+            component_type: crate::schema::ComponentType::ProjectModule,
+            subsystem: None,
+            dll_imports: std::collections::BTreeSet::new(),
+            ownership: crate::schema::OwnershipMetadata::generator_patchable(),
         });
         ir.components.insert("b.c".to_string(), Component {
             name: "B".to_string(),
@@ -188,6 +192,10 @@ mod tests {
             tier: crate::schema::ComponentTier::Core,
             is_blocking: true,
             locked: false,
+            component_type: crate::schema::ComponentType::ProjectModule,
+            subsystem: None,
+            dll_imports: std::collections::BTreeSet::new(),
+            ownership: crate::schema::OwnershipMetadata::generator_patchable(),
         });
 
         let graph = DependencyGraph::from_ir(&ir);

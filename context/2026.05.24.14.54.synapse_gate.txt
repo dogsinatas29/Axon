@@ -1,0 +1,8 @@
+[Core CoT]
+1. 사용자가 "AXON 작업 방향 재정리"라는 방대한 핵심 철학 및 비전 데이터를 제공함.
+2. AXON이 "범용 코드 생성기(Copilot/Cursor)"가 아니라 "Deterministic Software Repair Kernel"로 진화했음을 명확히 선언함.
+3. 이를 시스템의 영구 기억 장치인 `AXON_VISION.md`로 프로젝트 루트에 저장하여, 향후 모든 의사결정과 개발의 나침반(Manifesto)으로 활용하도록 박제함.
+4. Rust(Skeleton 강제), C(심볼 Ownership), Win32(OS ABI 제어)의 언어별 핵심 제약사항을 문서화하여 향후 Prompting 및 Validator 설계 시 즉시 참조할 수 있게 함.
+
+[Affected Files Diff]
++ AXON_VISION.md (새로 작성됨)

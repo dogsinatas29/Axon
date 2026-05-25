@@ -1,0 +1,8 @@
+Reasoning Summary:
+- Compared active SQLite state.db tables against the Rust data models in axon-core.
+- Found that the EventLevel metadata field (e.level) was completely omitted in DB event_log table schemas and query bindings, hardcoding Info level on reads.
+- Added level column to event_log, updated SaveEvent insert bindings, and list_events select parser to parse EventLevel dynamically.
+- Verified zero-warning compilation.
+
+Affected Files:
+- crates/axon-storage/src/lib.rs

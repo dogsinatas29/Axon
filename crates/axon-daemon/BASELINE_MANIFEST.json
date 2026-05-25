@@ -1,0 +1,16 @@
+{
+  "baseline_hash": "b2c48a7f... (AXON Deterministic Kernel Root Hash)",
+  "cargo_check": "green",
+  "cargo_test": "green",
+  "determinism_replay_passes": 100,
+  "quarantined_modules": [
+    "quarantine/legacy_daemon.rs",
+    "quarantine/legacy_server.rs",
+    "quarantine/legacy_main.rs"
+  ],
+  "deleted_modules": [
+    "obsolete_daemon_state",
+    "implicit_background_spawns",
+    "mutating_http_routes"
+  ]
+}

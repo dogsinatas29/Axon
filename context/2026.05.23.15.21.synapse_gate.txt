@@ -1,0 +1,25 @@
+# 🧠 Synapse Gate Log - 2026.05.23.15.21
+
+## 1. Core CoT (추론 과정 요약)
+- **목표:** `axon-daemon` 내 `Daemon` 구조체와 최신 `SandboxRegistry` 아키텍처 및 `Thread`, `Task`, `Component` 구조 간의 불일치를 완벽히 수정하여 컴파일 오류를 해결하고 거버넌스 파이프라인의 안정성을 회복한다.
+- **분석:**
+  - `Daemon` 구조체 내에 `sandbox_registry`, `stage_notify`, `commit_generation` 필드 누락으로 인해 `server.rs` 및 `lib.rs` 내부에서의 참조 실패 현상 발생.
+  - `axon_core::Thread`, `axon_core::Task` 에 새로운 필드들(`rejection` 관련 카운터, `error_feedback` 등)이 추가되었으나 `lib.rs` 내 생성식에는 해당 필드들이 누락되어 컴파일 에러 발생.
+  - `TaskKind` 에늄의 변화로 `axon_core::TaskKind::HeaderDecl`과 같은 구문이 `axon_core::LanguageTaskKind::C(CTaskKind::HeaderDecl)`로 랩핑되어야 함.
+  - `Component` 생성식에 `component_type`, `subsystem`, `dll_imports`, `ownership` 필드 정의 시 `axon_core::ir` 가 아닌 `axon_ir` 크레이트 타입을 직접 매칭해 주어야 함.
+  - `coord.build_batch` 호출 시 두 번째 인자인 `completed_titles` 집합(`&HashSet<String>`)을 인라인으로 조회해서 전달하도록 수정 필요.
+- **해결책:**
+  - `lib.rs` 의 `DaemonState`, `Daemon` 구조체 정의와 생성자 초기화 로직에 누락 필드를 추가.
+  - 파이썬 블록 파싱 스크립트(`fix_code.py`)를 통해 `lib.rs` 파일의 `Component`, `Thread`, `Task` 생성부 및 `TaskKind` 에늄 변환을 정밀 치환.
+  - `build_batch` 인자 개수를 인라인 데이터 셋으로 해결.
+  - 최종 `cargo check`를 수행하여 컴파일 통과 검증 완료.
+
+## 2. Affected Files Diff
+- **Modified File:** `crates/axon-daemon/src/lib.rs`
+- **Diff Summary:**
+  - `DaemonState::Committing` variant 에 `task_id: String` 및 `started_at: Instant` 필드 추가.
+  - `Daemon` struct 내 `sandbox_registry`, `stage_notify`, `commit_generation` 추가 및 `Daemon::new` 생성자에서 이들을 각각 초기화.
+  - `Component` 생성식에 `component_type`, `subsystem`, `dll_imports`, `ownership` 필드 추가 (`axon_ir` 활용).
+  - `Thread` 생성식에 누락된 validator/senior/architecture/cargo/lsp rejection 및 error_feedback, reason 추가.
+  - `Task` 생성식에 `lifecycle_state: TaskLifecycleState::Queued` 및 관련 카운터들 추가.
+  - `coord.build_batch(&graph)` 호출 시 `completed_titles` 인라인 조회를 포함하는 `build_batch(&graph, &completed_titles)` 형태로 수정.

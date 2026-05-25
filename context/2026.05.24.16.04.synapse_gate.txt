@@ -1,0 +1,10 @@
+[Core CoT]
+1. 사용자 지침 완벽 수용. F-5 단계의 목표는 "파싱 성공"이 아니라 텍스트가 처참하게 오염된 상태(CRLF 혼합, UTF-8 주석 테러, 매크로 팽창)에서도 "동일한 parser boundary를 100% 영구 재현"하는 데 있음.
+2. 붕괴 인과 분리 원칙에 따라 캐노니컬 트레이스를 2계층으로 분리.
+   - `TOPOLOGY_TRACE_HASH` (파서, 의존성, 소유권 위상)
+   - `RUNTIME_TRACE_HASH` (이벤트 큐, 콜백 재진입, 생명주기)
+   ➔ 두 레이어를 합쳐 `COMBINED_STATE_HASH`를 산출하여, 정확히 어느 레이어에서 붕괴가 밀렸는지(Drift) 판별.
+3. AXON의 정체성 추가 진화: Deterministic Kernel을 넘어, 과거의 실패 혈통(Genealogy)을 군집화하고 판별하는 **PHASE G — Catastrophe Immunology (결정론적 붕괴 관측소)** 단계로 승격 준비.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/replay/trace_layering.rs (신설)

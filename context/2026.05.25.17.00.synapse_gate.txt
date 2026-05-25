@@ -1,0 +1,19 @@
+# Synapse Gate — 2026.05.25
+
+## Core CoT (추론 과정 요약)
+1. 사용자 요청: GEMINI.md를 읽고 Phase 5.8 (ThreadDetail Post Visibility + Senior Feedback Fallback) 작업 내용을 v0.0.31.md에 추가하고, GEMINI.md의 Root Structure를 업데이트.
+2. 분석 결과: Phase 5.8 작업 내용이 이미 v0.0.31.md 말미 (라인 933-966)에 기록되어 있음. 중복 추가 불필요.
+3. GEMINI.md의 Repository Index는 실제 파일 구조와 일부 차이 발견:
+   - `quarantine/` 디렉토리 누락 (legacy_daemon.rs, legacy_main.rs, legacy_server.rs 등 격리 코드 보관)
+   - `intelligence/corpus/` 파일 목록 미상세 (24개 파일)
+   - `intelligence/replay/` 파일 목록 미상세 (25개 파일)
+   - `intelligence/telemetry/`, `intelligence/mutation/`, `intelligence/evolution/` 순서 재정렬 필요
+4. 수정: GEMINI.md의 Root Structure에 Phase 5.8 반영 문구 추가, quarantine/ 디렉토리 항목 추가, corpus/replay 파일 목록 상세화.
+5. v0.0.31.md는 기존 내용 유지 (이미 Phase 5.8 기록 완료).
+
+## Affected Files Diff
+| 파일 | 변경 내용 |
+|------|----------|
+| `GEMINI.md` | 업데이트 일시 추가 (2026-05-25), Root Structure에 Phase 5.8 반영, quarantine/ 디렉토리 항목 추가, intelligence/corpus/ 파일 목록 24개 상세화, intelligence/replay/ 파일 목록 25개 상세화, telemetry/mutation/evolution 순서 재정렬 |
+| `mile_stone/v0.0.31.md` | 변경 없음 (이미 Phase 5.8 기록 완료) |
+| `context/2026.05.25.synapse_gate.txt` | 신규 생성 — 본 기록 |

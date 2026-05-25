@@ -1,0 +1,7 @@
+1. 추론 과정 요약 (Core CoT)
+- 사용자가 어제 지운 TEST1~TEST5_win32 폴더를 되살려달라고 요청함.
+- Git으로 트래킹되던 파일들(TEST/spec.md, TEST2/spec.md 등)은 git restore를 통해 복구가 가능함.
+- 다만, Git에 기록되지 않았던 untracked 폴더(TEST3, TEST4_GTK, TEST5_win32 및 TEST2 하위 일부)는 물리적 삭제(rm -rf)로 인해 일반적인 Git 복구는 불가능하므로, 우선 Git 복구 가능한 파일들을 복구하고 상태를 확인하여 사용자에게 현황을 보고하고자 함.
+
+2. 변경 파일 목록 (Affected Files Diff)
+- /home/dogsinatas/rust_project/axon/context/2026.05.22.14.19.synapse_gate.txt (생성)

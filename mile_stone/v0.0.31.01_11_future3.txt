@@ -1,0 +1,373 @@
+AXON v0.0.31.01 — Preemptive Semantic Operating System 승격 작업 정리
+
+현재 AXON은:
+
+post-validation runtime
+
+이다.
+
+즉:
+
+일단 생성
+→ 이후 검증
+→ 나중에 거부
+
+구조다.
+
+1. 왜 현재 구조가 위험한가
+
+현재 구조는 본질적으로:
+
+semantic contamination tolerant architecture
+
+다.
+
+즉 contamination이:
+
+생성되고
+IR에 들어가고
+topology까지 형성된 뒤
+마지막에 reject
+
+된다.
+
+이건 이미 늦다.
+
+2. 목표 구조
+
+최종 목표는:
+
+preemptive semantic operating system
+
+이다.
+
+즉:
+
+invalid semantic intent 자체를 생성 전에 차단
+
+하는 구조다.
+
+3. 핵심 철학 변화
+
+현재:
+
+validation as cleanup
+
+목표:
+
+validation as governance
+4. AXON의 새로운 역할
+
+AXON은 더 이상:
+
+generic pipeline orchestrator
+
+가 아니다.
+
+목표는:
+
+semantic law enforcement runtime
+
+이다.
+
+5. 가장 중요한 구조 변화
+
+현재:
+
+language inferred from artifacts
+
+목표:
+
+language defines artifacts
+
+즉:
+
+semantic authority inversion
+
+이 일어나야 한다.
+
+6. 핵심 작업 분류
+
+작업은 총 6개 계층으로 나뉜다.
+
+계층	목적
+SemanticOntology	언어 semantic law 정의
+SpecSemanticValidator	semantic intent 검사
+Pre-IR Rejection	invalid semantic projection 차단
+SemanticViolation System	semantic failure formalization
+Semantic Repair Loop	worldview correction
+Contamination Test Runtime	semantic regression 방지
+7. Phase A — SemanticOntology 구축
+
+가장 먼저 해야 한다.
+
+목표
+
+언어를:
+
+semantic civilization
+
+으로 formalize.
+
+필요한 것
+RustOntology
+
+금지:
+
+.h
+HeaderDecl
+CMakeLists.txt
+translation unit
+
+허용:
+
+.rs
+Cargo.toml
+mod
+crate
+COntology
+
+허용:
+
+.h
+.c
+translation unit
+CMakeLists.txt
+PythonOntology
+
+허용:
+
+.py
+requirements.txt
+import graph
+
+금지:
+
+Cargo.toml
+HeaderDecl
+translation unit
+8. Phase B — SpecSemanticValidator
+
+핵심 계층.
+
+목표
+
+LLM이 만든 spec 자체를 검사.
+
+즉:
+
+semantic worldview legality
+
+검사.
+
+검사 대상
+vocabulary legality
+build system legality
+topology legality
+decomposition legality
+예시
+
+Rust spec인데:
+
+HeaderDecl
+
+등장 시:
+
+즉시 reject
+9. Phase C — Pre-IR Semantic Rejection
+
+매우 중요.
+
+현재
+JSON → RawIR
+목표
+JSON
+↓
+Semantic Validation
+↓
+RawIR
+의미
+
+invalid semantic projection 자체를 차단.
+
+10. Phase D — SemanticViolation Hierarchy
+
+필수 formalization 작업.
+
+필요한 타입
+SemanticViolation
+ ├── ForbiddenVocabulary
+ ├── InvalidTopologyIntent
+ ├── CrossLanguageContamination
+ ├── InvalidBuildOntology
+ └── InvalidTaskVocabulary
+목적
+
+semantic repair와 observability 지원.
+
+11. Phase E — Semantic Repair Loop
+
+현재 repair는:
+
+syntax repair
+
+수준이다.
+
+목표
+semantic worldview repair
+예시
+Rust ontology forbids HeaderDecl.
+Use module-oriented decomposition.
+12. Phase F — Semantic Contamination Tests
+
+반드시 필요.
+
+목적
+
+semantic regression 방지.
+
+필요한 테스트
+Rust contamination
+
+입력:
+
+Rust + HeaderDecl
+
+기대:
+
+Pre-IR reject
+Python contamination
+
+입력:
+
+Python + Cargo.toml
+
+기대:
+
+SemanticViolation
+C preservation
+
+입력:
+
+legacy C project
+
+기대:
+
+NO regression
+
+매우 중요.
+
+13. 반드시 유지해야 하는 것
+C semantic preservation
+
+절대 깨지면 안 된다.
+
+즉:
+
+semantic sovereignty
+≠
+legacy destruction
+
+이다.
+
+14. 중요한 위험 요소
+
+절대 하면 안 되는 것:
+
+generic semantic validator
+
+그 순간 다시:
+
+hidden C ontology
+
+로 회귀한다.
+
+15. 진짜 목표
+
+최종적으로 AXON은:
+
+언어별 semantic civilization runtime
+
+이 되어야 한다.
+
+16. 최종 구조
+Spec
+↓
+Language Resolution
+↓
+Ontology Binding
+↓
+Spec Semantic Validation
+↓
+Pre-IR Rejection
+↓
+RawIR Projection
+↓
+IR Validation
+↓
+Artifact Firewall
+↓
+Topology Runtime
+↓
+Execution Runtime
+17. 핵심 승격 포인트
+
+현재 AXON:
+
+pipeline with validators
+
+목표 AXON:
+
+semantic operating system
+18. 가장 중요한 변화
+
+validator가 더 이상:
+
+cleanup tool
+
+이 아니다.
+
+이제 validator는:
+
+semantic gatekeeper
+
+가 된다.
+
+19. 최종 목표 정의
+
+최종 목표는:
+
+언어별 semantic sovereignty를
+IR 이전 단계에서 강제
+
+하는 것이다.
+
+즉:
+
+semantic contamination impossible architecture
+
+를 만드는 작업이다.
+
+20. 최종 결론
+
+지금부터 해야 하는 작업의 본질은:
+
+validator 추가
+
+가 아니다.
+
+진짜 목적은:
+
+AXON을 semantic governance runtime으로 승격
+
+시키는 것이다.
+
+즉:
+
+post-validation architecture
+
+를 끝내고:
+
+preemptive semantic operating system
+
+으로 진화시키는 작업이다.

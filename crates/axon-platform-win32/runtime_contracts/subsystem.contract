@@ -1,0 +1,4 @@
+# Win32 Subsystem Constraint Contract
+EXPECTED_SUBSYSTEM: WINDOWS
+FORBIDDEN_PATTERNS: SDL_Init, gtk_init, ncurses, glutInit
+DESCRIPTION: Win32 native applications must target the Windows GUI subsystem (subsystem 2). Console allocation or cross-platform GUI wrappers are forbidden.

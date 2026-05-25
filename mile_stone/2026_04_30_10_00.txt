@@ -1,0 +1,9 @@
+/home/dogsinatas/다운로드/axon/v0.0.22_end_to_end_pipeline.md
+/home/dogsinatas/다운로드/axon/v0.0.22_bootstrap.md
+/home/dogsinatas/다운로드/axon/v0.0.22_repair_prompt.md
+/home/dogsinatas/다운로드/axon/v0.0.22_schema_design.md
+/home/dogsinatas/다운로드/axon/v0.0.22_validator_rust.md
+/home/dogsinatas/다운로드/axon/v0.0.22_deterministic_llm.md
+/home/dogsinatas/다운로드/axon/v0.0.22_spec.md
+까지 완료 
+검증 남음

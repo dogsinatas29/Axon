@@ -21,14 +21,39 @@ pub struct FunctionSpec {
 pub enum ComponentStatus {
     Core,
     Optional,
+    Experimental,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComponentConstraint {
     pub name: String,
     pub status: ComponentStatus,
+    
+    // v0.0.31 Session 14: 파일 경로 및 함수 시그니처 락인!
+    pub file_path: Option<String>,
+    pub interface_signature: Option<String>,
+    
     pub promotion_forbidden: bool,
     pub blocking_forbidden: bool,
+
+    // v0.0.31.15: Semantic Criticality Contract Layer
+    #[serde(default)]
+    pub criticality: Option<String>,
+    #[serde(default)]
+    pub failure_allowed: Option<bool>,
+}
+
+fn default_language() -> String { "c".to_string() }
+fn default_language_family() -> String { "systems".to_string() }
+fn default_build_system() -> String { "cmake".to_string() }
+fn default_module_system() -> String { "c_header".to_string() }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct LockedRange {
+    pub file_path: String,
+    pub start_line: usize,
+    pub end_line: usize,
+    pub reason: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -39,6 +64,34 @@ pub struct ImmutableConstraints {
     pub ambiguity_detected: bool,
     pub ambiguity_details: Vec<String>,
     pub recommended_action: String,
+    
+    // v0.0.31 Session 14: 최상위 의존성 및 흐름 전이 매칭!
+    pub dependencies: Option<Vec<String>>,
+    pub transitions: Option<Vec<String>>,
+
+    // v0.0.31.02: Language Semantic Binding Root
+    #[serde(default = "default_language")]
+    pub language: String,
+    #[serde(default = "default_language_family")]
+    pub language_family: String,
+    #[serde(default = "default_build_system")]
+    pub build_system: String,
+    #[serde(default = "default_module_system")]
+    pub module_system: String,
+
+    // v0.0.31.13: Constrained Repair Lock-in
+    pub human_locked_ranges: Option<Vec<LockedRange>>,
+    pub dynamic_locked_ranges: Option<Vec<LockedRange>>,
+
+    // v0.0.31.14: Platform Personality Layer
+    pub platform: Option<String>,
+    pub runtime_model: Option<String>,
+
+    // v0.0.31.15: Semantic Criticality Contract Layer
+    #[serde(default)]
+    pub runtime_core: Option<Vec<String>>,
+    #[serde(default)]
+    pub contract_tier: Option<String>,
 }
 
 impl ImmutableConstraints {
@@ -50,6 +103,18 @@ impl ImmutableConstraints {
             ambiguity_detected: false,
             ambiguity_details: Vec::new(),
             recommended_action: "PROCEED".to_string(),
+            dependencies: Some(Vec::new()),
+            transitions: Some(Vec::new()),
+            language: "c".to_string(),
+            language_family: "systems".to_string(),
+            build_system: "cmake".to_string(),
+            module_system: "c_header".to_string(),
+            human_locked_ranges: Some(Vec::new()),
+            dynamic_locked_ranges: Some(Vec::new()),
+            platform: None,
+            runtime_model: None,
+            runtime_core: Some(Vec::new()),
+            contract_tier: None,
         }
     }
 }
@@ -169,4 +234,13 @@ fn extract_fn_name(signature: &str) -> String {
         .next()
         .unwrap_or(signature)
         .to_string()
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FrozenArtifact {
+    pub file_path: String,
+    pub checksum: String,
+    pub approved_at: chrono::DateTime<chrono::Utc>,
+    pub compiler_validated: bool,
+    pub contract_hash: String,
 }

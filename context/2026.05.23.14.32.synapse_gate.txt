@@ -1,0 +1,9 @@
+Reasoning Summary:
+- Addressed user query: "Is architecture.md not generated?"
+- Traced the exact lifecycle of `architecture.md` in `crates/axon-daemon/src/lib.rs`.
+- Clarified that `architecture.md` is not generated during the early `SpecAnalysis` spec purification phase inside `spec/`.
+- Explained that it is generated during the `Stage::Skeleton` and `Stage::Sync` phases after the boss approval gate is cleared.
+- Kept the explanation in Korean as required by rules.
+
+Affected Files:
+- None (Query response only)

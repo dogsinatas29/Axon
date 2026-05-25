@@ -1,0 +1,9 @@
+1. 이번 프롬프트로 인해 수행한 추론 과정 요약 (Core CoT)
+- 현상 분석: submit_semantic_decision을 통한 승인 처리 시 물리적인 락과 파일 및 DB 상태 갱신은 성공하지만, 백그라운드의 run_v3 루프가 즉각적으로 깨어나지 못해 지연/동결되는 파이프라인 정체 현상 식별.
+- 해결 방안 1: run_v3 SpecAnalysis의 승인 대기 루프 및 에러 중재(arbitration) 루프에 tokio::select!를 도입하여 daemon.stage_notify.notified() 이벤트를 대기하도록 조치.
+- 해결 방안 2: server.rs의 submit_semantic_decision axum HTTP 핸들러가 검증을 최종 통과(Idle 전환)하거나 롤백(Failed 전환) 또는 반려(Failed 전환)될 때 daemon.stage_notify.notify_waiters()를 호출하여 대기 루프를 즉시 깨우도록 구현.
+- 해결 방안 3: LLM이 JSON array 대신 단일 object를 반환할 때의 파싱 복원력 확보를 위해 Vec<SemanticFragment> 및 단일 SemanticFragment 모두를 유연하게 핸들링할 수 있도록 json_text 파서 수정.
+
+2. 수정 및 생성된 변경 파일 목록 (Affected Files Diff)
+- crates/axon-daemon/src/lib.rs (수정 - LLM JSON parsing, SpecAnalysis polling select!, error arbitration select!)
+- crates/axon-daemon/src/server.rs (수정 - submit_semantic_decision 내 notify_waiters 호출 추가)

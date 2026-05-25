@@ -48,6 +48,18 @@ fn build_component(name: String, path: String, code: &str) -> Component {
         functions.insert(f.name.clone(), f);
     }
 
+    let mut comp_type = ComponentType::ProjectModule;
+    let file_lower = path.to_lowercase();
+    let base_name = std::path::Path::new(&file_lower)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+    let name_lower = name.to_lowercase();
+    let system_libs = ["user32", "gdi32", "kernel32", "shell32", "comdlg32", "gdi"];
+    if system_libs.contains(&base_name) || system_libs.contains(&name_lower.as_str()) {
+        comp_type = ComponentType::SystemLibrary;
+    }
+
     Component {
         name,
         file_path: path,
@@ -63,6 +75,10 @@ fn build_component(name: String, path: String, code: &str) -> Component {
         tier: ComponentTier::Core,
         is_blocking: true,
         locked: false,
+        component_type: comp_type,
+        subsystem: None,
+        dll_imports: BTreeSet::new(),
+        ownership: OwnershipMetadata::generator_patchable(),
     }
 }
 

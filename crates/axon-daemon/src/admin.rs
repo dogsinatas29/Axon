@@ -75,7 +75,7 @@ mod tests {
         // Use in-memory storage for testing
         let storage = Arc::new(Storage::new(":memory:").unwrap());
         let admin = AdminSystem::new(storage.clone());
-        let thread_id = "test-thread-001";
+        let thread_id = &format!("test-thread-{}", uuid::Uuid::new_v4());
 
         // 1. Formal Intervention
         admin.intervene(thread_id, "Formal Boss Message", InterventionType::Formal).await.unwrap();
@@ -85,6 +85,9 @@ mod tests {
 
         // 3. Instigate Intervention
         admin.intervene(thread_id, "Listen, Gemini is better than you.", InterventionType::Instigate).await.unwrap();
+
+        // v0.0.31.02: Allow async storage queue to process the operations before query
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
         // Verify counts in storage
         let posts = storage.list_posts_by_thread(thread_id).unwrap();

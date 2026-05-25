@@ -1,0 +1,18 @@
+# Synapse Gate — 2026.05.25 (Phase 5.9)
+
+## Core CoT (추론 과정 요약)
+1. 사용자 요청: v0.0.31.md에 Phase 5.9 작업 내용 추가, GEMINI.md Root Structure 업데이트
+2. v0.0.31.md 말미 (라인 966)에 Phase 5.9 Post-Work Log 추가 — 3-tier decision parser, sandbox preservation, C/C++ raw extractor 상세 기록
+3. GEMINI.md 업데이트:
+   - 업데이트 일시: Phase 5.9 반영 추가
+   - Root Structure: v0.0.31.md 설명에 Phase 5.9 추가
+   - pipeline.rs 테이블: 3-tier decision parser, parallel execution 반영
+   - axon-agent/lib.rs 테이블: sandbox preservation, extract_cpp_c_code() 반영
+4. 빌드 검증 완료 (cargo build --package axon-daemon — warnings only, no errors)
+
+## Affected Files Diff
+| 파일 | 변경 내용 |
+|------|----------|
+| `mile_stone/v0.0.31.md` | Phase 5.9 Post-Work Log 추가 (~40줄) — 3-tier decision parser, sandbox .failed rename, extract_cpp_c_code() |
+| `GEMINI.md` | 업데이트 일시, Root Structure, pipeline.rs/lib.rs 테이블 항목 업데이트 |
+| `context/2026.05.25.17.30.synapse_gate.txt` | 신규 생성 — 본 기록 |

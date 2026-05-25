@@ -1,0 +1,8 @@
+[Core CoT]
+1. 사용자의 "Slash and Burn에도 규칙이 필요 (KEEP/QUARANTINE/DELETE)" 지시 수용.
+2. 현재 `lib.rs`의 `worker_loop` 및 거대 `Task`/`Thread` 생성 로직과, `server.rs`의 죽은 HTTP 라우팅 블록은 **"Implicit default state, lazy fallback"**의 전형이므로 완전히 도려내야 함.
+3. 삭제하되 인과관계 추적을 위해 `crates/axon-daemon/src/quarantine/` 디렉토리를 생성하여 레거시 오케스트레이터 코드를 격리 보관할 예정.
+4. 새로운 커널 부트스트랩인 `Kernel::new(governance_store, ownership_registry, replay_harness, scheduler)` 명시적 생성 구조로 `lib.rs`를 깎아내어, 100% Green State 획득을 다음 목표로 확정.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/quarantine/ (디렉토리 신설)

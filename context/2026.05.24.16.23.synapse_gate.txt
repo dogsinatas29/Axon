@@ -1,0 +1,11 @@
+[Core CoT]
+1. 사용자 지침 수용. 코퍼스(ROX-Filer 등)를 확장하는 대신, 현재 확보된 가장 밀도 높은 XChat Hotspot 내에서 **"예측 정밀도(Prediction Precision)"**를 극한으로 끌어올리는 `PHASE I-3 — Collapse Prediction Hardening`에 진입함.
+2. Collapse Family Boundary Refinement: 단순히 `GtkSignalReentrancy`로 뭉뚱그리던 붕괴를 `reconnect_emit_reentry`, `nested_idle_emit_reentry` 등의 인접성 패턴(Adjacency pattern) 및 소유권 타이밍(Ownership timing) 기준으로 세밀하게 재분류.
+3. Runtime Adjacency Weighting: `RUNTIME_ADJACENCY_GRAPH`의 Edge에 가중치(weight)와 붕괴 혈통 정보(collapse_family)를 추가하여, 단순 위상 캡처에서 `catastrophe probability graph(붕괴 확률 그래프)`로 진화시킴.
+4. Prediction Drift Replay: 면역 계층 자체의 비결정적 오염(nondeterministic contamination)을 막기 위해, 동일한 위상과 혈통이 입력되면 1,000회 재현 동안 100% 동일한 예측(Prediction)을 도출해야 함을 증명하는 하네스(`catastrophe_observatory.rs`에 통합) 구축.
+
+[Affected Files Diff]
+M crates/axon-daemon/src/intelligence/replay/immunology_genealogy.rs
+M crates/axon-daemon/src/intelligence/corpus/runtime_adjacency.rs
+M crates/axon-daemon/src/intelligence/corpus/xchat_hotspot.rs
+M crates/axon-daemon/src/bin/catastrophe_observatory.rs

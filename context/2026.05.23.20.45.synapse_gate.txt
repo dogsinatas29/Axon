@@ -1,0 +1,9 @@
+[Core CoT]
+P2-1a(SymbolOwnershipRegistry Materialization) 구현 완료.
+axon-core에 SymbolOwnership 및 Registry 자료 구조 추가.
+axon-daemon의 Stage::Skeleton 시점에서 IR을 분석하여 초기 Registry를 생성하고, debug/symbol_registry.json 파일로 즉시 덤프(Materialize)하는 로직 추가 완료.
+컴파일 에러 없이 성공적으로 적용됨.
+
+[Affected Files Diff]
+* crates/axon-core/src/lib.rs (SymbolOwnership, SymbolKind, SymbolOwnershipRegistry 추가)
+* crates/axon-daemon/src/lib.rs (Stage::Skeleton 내 registry 파일 생성 및 저장 로직 추가)

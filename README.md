@@ -86,7 +86,33 @@
   <img src="./asset/axon개념.png" alt="AXON Concept" width="800">
 </p>
 
+### ⚖️ The LSP Semantic Gate & Auto-Repair Loop (v0.0.31+)
+
+To eliminate the "LLM-to-LLM Self-Contradiction" (where Senior agents degrade into hallucination pattern-validators during cross-language compilation), AXON v0.0.31 introduces the **LSP Semantic Gate** as the absolute authority of language legality.
+
+<p align="center">
+  <img src="./asset/axon_lsp.png" alt="AXON LSP Pipeline Diagram" width="800">
+</p>
+
+*   **Decoupled Governance**: The compile-level physical validation is decoupled from LLM reasoning. LSP servers (`rust-analyzer` for Rust, `pyright/ruff` for Python, `clangd` for C) act as the final, deterministic judges of syntax, types, and ownership *before* build.
+*   **The Pipeline Flow**:
+    `Junior Gen ➔ LSP Diagnostic Pass [NEW] ➔ Auto-Repair Loop [NEW] ➔ Compiler Pass ➔ Senior Architectural Review ➔ Build`
+*   **Architectural Reviewer Return**: The Senior Agent is completely relieved of microscopic syntax check burdens, returning to its true role as a strategic **Architectural Reviewer** ensuring specification and topology compliance.
+
+### 🔌 IDE-Independent LSP Orchestration & Zero-Config Operation
+AXON is structurally decoupled from specific editors (Neovim, VSCode, Zed). Instead of talking to the IDE frontend, AXON directly coordinates with the underlying **LSP (Language Server Protocol)** ecosystem (`IDE ↔ LSP Server ↔ AXON`).
+*   **The 5-Step Bootstrap Sequence**:
+    1.  **Select Primary Languages**: Detect system language and secure the target project stack.
+    2.  **LSP Server Auto-Discovery**: Scan system PATH for `rust-analyzer`, `clangd`, and `pyright-langserver`, saving the configurations in `axon_lsp.json`.
+    3.  **Configure Semantic Validation**: Link LSP diagnostics directly to the LLM self-repair pass (`repair_ir_pass`).
+    4.  **Configure LLM Providers**: Map API keys (Gemini, Claude) or local Ollama endpoints.
+    5.  **Workspace Manager Scaffolding**:
+        *   **C (clangd)**: Dynamically injects `set(CMAKE_EXPORT_COMPILE_COMMANDS ON)` into generated `CMakeLists.txt` files so that CMake outputs `compile_commands.json` for 100% zero-configuration `clangd` diagnostics.
+        *   **Rust**: Pre-scaffolds `Cargo.toml` workspace configurations to prevent `rust-analyzer` initialization crashes.
+        *   **Python**: Automatically falls back to `npx pyright-langserver --stdio` to guarantee zero-configuration python analysis in lightweight workspaces.
+
 AXON is a high-performance, deterministic AI agent factory designed to transform architectural specifications into production-ready code with 100% physical integrity.
+
 
 ### 🌍 Language-Agnostic Factory Engine
 AXON is built to be technologically neutral. It doesn't just generate code; it orchestrates entire software ecosystems regardless of the underlying language.

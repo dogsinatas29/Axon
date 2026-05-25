@@ -1,0 +1,17 @@
+1. 추론 과정 요약 (Core CoT)
+- Core 컴포넌트(예: main.cpp)가 `status: Core` 임에도 불구하고 데몬의 검증 로직(`crates/axon-daemon/src/lib.rs`)이 `constraint.blocking_forbidden` 과 `comp.is_blocking` 이 참인 경우 Optional 여부 검사 없이 무조건 시맨틱 위반 에러(`⚠️ [SEMANTIC_VIOLATION] Component ... set to Blocking despite being Optional in spec.`)를 촉발하는 치명적인 논리 결함을 발견함.
+- 동시에 에이전트의 명세 분석기(`crates/axon-agent/src/lib.rs`)가 명세에 명시되지 않은 필드에 대해 일괄적으로 `blocking_forbidden: true` 를 기본값으로 주입하여, 모든 Core 컴포넌트들까지 오폭 대상에 들어가 무한 부트스트랩 `SKELETON_FAIL` 루프에 빠뜨리는 데드락을 유발함을 확인함.
+- 따라서 데몬의 시맨틱 검증기에서 컴포넌트 상태가 `Optional` 일 때만 `blocking_forbidden` 에러를 던지도록 수정하고, 에이전트 분석기에서도 컴포넌트의 status가 `Core` 이면 `blocking_forbidden: false`, `Optional` 이면 `true` 로 주입되도록 디폴트 상태 모델을 개선하여 오폭 데드락을 완벽히 종식시킴.
+- 또한 이전 replace 과정에서 미세 훼손된 `mile_stone/v0.0.31.md` 파일의 두 개 영역을 파이썬 스크립트를 통해 바이트 단위 및 라인 단위로 원상 복구하고, 사용자 요청에 맞춰 v0.0.31 릴리즈 노트와 마일스톤에 해당 패치 내역을 모두 병합하여 기록함.
+
+2. 수정 및 생성된 변경 파일 목록 (Affected Files Diff)
+- [M] crates/axon-daemon/src/lib.rs (Line 2149-2153)
+  - `blocking_forbidden` 검사 시 `constraint.status == Optional` 가드 추가.
+- [M] crates/axon-agent/src/lib.rs (Line 1249-1250, Line 1270-1273)
+  - `blocking_forbidden` 디폴트 주입 시 컴포넌트 status 인지형으로 리팩토링.
+- [M] mile_stone/v0.0.31.md
+  - 훼손되었던 L2863 및 L4810 부근의 복구 및 v0.0.31.30 마일스톤 최종 갱신.
+- [M] release_note/v0.0.31_release_notes.md
+  - v0.0.31.30 릴리즈 노트 패치 내역 추가.
+- [A] context/2026.05.22.12.15.synapse_gate.txt
+  - synapse_gate 추적 파일 생성.

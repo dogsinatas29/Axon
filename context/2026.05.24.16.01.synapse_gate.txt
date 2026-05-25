@@ -1,0 +1,12 @@
+[Core CoT]
+1. 사용자 지침 "GTK2 + GObject macro hell 우선순위 배정" 수용. ABI가 명시적인 Win32와 달리, GTK2는 매크로 확장 객체지향, 묵시적 소유권 이전(floating reference), 콜백 재진입(reentry) 등 위상과 런타임의 괴리가 가장 극심한 극한의 적대적 환경임.
+2. PHASE F-1 ~ F-5 아키텍처 확립. 
+   - F-1: GObject Type Registration Topology (매크로 사이드 이펙트 캡처)
+   - F-2: Signal Graph Determinism (Nested emit, Reentrant callback 붕괴 추적)
+   - F-3: Floating Reference Ownership Hell (컨테이너 add 시점의 묵시적 소유권 이전)
+   - F-4: Idle / Timeout Queue Runtime Drift (스케줄러 큐의 캐노니컬화)
+   - F-5: Hostile Formatting (CRLF/LF 혼용, UTF-8 주석 테러 상황에서의 파서 안정성)
+3. 기능 구현(Generation)이 아니라 위상 밀림(Topology Drift)을 단 1비트의 오차도 없이 검출하고 캐노니컬 붕괴 로그(`REENTRANT_SIGNAL_COLLAPSE`, `DESTROY_DURING_EMIT` 등)로 박제하는 하네스 준비 개시.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/intelligence/replay/gtk2_gobject_hell.rs (신설 예정)

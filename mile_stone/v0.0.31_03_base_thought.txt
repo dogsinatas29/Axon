@@ -1,0 +1,403 @@
+# AXON v0.0.31 Base Thought
+
+## 1. 핵심 인식
+
+Rust 지원 문제는 단순 validator 부족 문제가 아니다.
+
+근본 원인은 현재 AXON의 IR 구조가:
+
+```text
+filesystem-oriented IR
+```
+
+에 가깝기 때문이다.
+
+현재 시스템은 주로:
+
+* file_path
+* functions
+* dependencies
+
+중심으로 동작한다.
+
+하지만 Rust는:
+
+```text
+semantic graph-oriented language
+```
+
+다.
+
+즉 Rust에서는:
+
+* module topology
+* ownership
+* visibility
+* trait coherence
+* crate structure
+* Cargo topology
+
+전체가 언어 의미론과 직접 연결된다.
+
+따라서 단순 파일 생성 기반 접근으로는 안정적인 Rust generation이 불가능하다.
+
+---
+
+# 2. 왜 C는 상대적으로 버텼는가
+
+현재 AXON 구조가 C에서 그나마 동작한 이유는:
+
+```text
+C 자체의 semantic freedom
+```
+
+이 매우 높기 때문이다.
+
+C는:
+
+* main.c 위치 자유
+* include 구조 자유
+* build system 자유
+* ABI 수동 관리
+* naming convention 자유
+
+등 loose semantic 구조를 가진다.
+
+즉 generator가 일부 잘못된 topology를 생성해도:
+
+```text
+compile은 되는 경우
+```
+
+가 많다.
+
+---
+
+# 3. 왜 Rust는 즉시 붕괴했는가
+
+Rust는:
+
+```text
+언어 구조 자체가 semantic contract
+```
+
+다.
+
+예:
+
+```text
+Cargo.toml
+src/main.rs
+src/lib.rs
+mod tree
+pub visibility
+crate boundaries
+```
+
+이 전체가 컴파일 의미론의 일부다.
+
+즉 Rust에서는:
+
+```text
+프로젝트 구조 자체가 language semantics
+```
+
+다.
+
+그래서 현재 AXON처럼:
+
+```text
+generic decomposition
+```
+
+을 수행하면:
+
+```text
+HeaderDecl
+module.h
+CMakeLists.txt
+```
+
+같은 contamination이 즉시 드러난다.
+
+---
+
+# 4. 현재 AXON 구조의 실제 상태
+
+현재 AXON은:
+
+```text
+Universal IR
+```
+
+을 목표로 하지만 실제로는:
+
+```text
+C semantics disguised as language-neutral IR
+```
+
+상태에 가깝다.
+
+즉:
+
+* decomposition vocabulary
+* task topology
+* scaffold assumptions
+* artifact generation
+
+전체에 C compilation semantics가 스며들어 있다.
+
+Rust contamination은 hallucination이 아니라:
+
+```text
+C-centric architecture contamination
+```
+
+이다.
+
+---
+
+# 5. 현재 가장 중요한 구조적 문제
+
+현재 구조:
+
+```text
+IR
+ ↓
+generic decomposition
+ ↓
+generic task emission
+ ↓
+later validator
+```
+
+문제:
+
+* generator는 언어를 모른다
+* validator는 너무 늦게 동작한다
+* language semantics가 runtime 후반부에 결정된다
+* semantic authority가 시스템 초반부에 존재하지 않는다
+
+즉 현재는:
+
+```text
+semantic inference architecture
+```
+
+상태다.
+
+---
+
+# 6. v0.0.31에서 가장 중요한 방향
+
+v0.0.31의 핵심 목표는 단순 validator 강화가 아니다.
+
+진짜 목표는:
+
+```text
+언어 semantic authority를 시스템 초반부에 고정
+```
+
+하는 것이다.
+
+즉:
+
+```text
+language-locked execution path
+```
+
+를 시스템 전체에 강제해야 한다.
+
+---
+
+# 7. 필요한 구조 변화
+
+현재:
+
+```text
+validator가 language를 찾음
+```
+
+구조.
+
+반드시:
+
+```text
+language가 validator를 선택
+```
+
+하는 구조로 뒤집어야 한다.
+
+즉:
+
+```text
+Project → declare language
+```
+
+가 되어야 한다.
+
+예:
+
+```rust
+pub enum Language {
+    C,
+    Cpp,
+    Rust,
+    Python,
+}
+```
+
+그리고:
+
+```rust
+pub struct ProjectIR {
+    pub language: Language,
+}
+```
+
+같은 구조가 필요하다.
+
+---
+
+# 8. Rust는 더 강한 의미론적 모델이 필요하다
+
+C semantic model:
+
+```text
+header/source
+entrypoint
+include graph
+```
+
+반면 Rust semantic model은 최소:
+
+```text
+crate topology
+module tree
+ownership boundary
+trait implementation scope
+visibility graph
+error propagation model
+Cargo dependency graph
+```
+
+수준까지 모델링해야 한다.
+
+즉 Rust는 사실상:
+
+```text
+mini runtime semantics
+```
+
+를 언어 내부에 포함하고 있다.
+
+---
+
+# 9. 향후 Rust IR 방향
+
+현재:
+
+```text
+file_path + functions
+```
+
+중심 구조.
+
+하지만 Rust를 제대로 지원하려면:
+
+```text
+language-aware semantic graph IR
+```
+
+방향으로 진화해야 한다.
+
+예:
+
+```rust
+pub enum RustItem {
+    Struct,
+    Enum,
+    Trait,
+    Impl,
+    Module,
+    Function,
+}
+```
+
+그리고:
+
+```rust
+pub visibility: Visibility
+```
+
+같은 semantic metadata가 필요해질 가능성이 높다.
+
+---
+
+# 10. Cargo는 단순 build artifact가 아니다
+
+C에서는:
+
+* Make
+* Ninja
+* CMake
+* Bazel
+
+등 build system이 상대적으로 독립적이다.
+
+하지만 Rust에서는:
+
+```text
+Cargo topology
+```
+
+자체가 language semantics의 일부다.
+
+즉:
+
+```text
+Cargo.toml 생성
+```
+
+은 단순 artifact emission이 아니라:
+
+```text
+semantic topology generation
+```
+
+이다.
+
+---
+
+# 11. 최종 결론
+
+Rust 지원은 단순 validator 추가 수준으로 해결되지 않는다.
+
+필요한 것은:
+
+```text
+language-aware semantic graph IR
+```
+
+구조다.
+
+즉:
+
+* validator
+* decomposer
+* emitter
+* topology
+* task vocabulary
+* artifact generation
+* runtime execution path
+
+전체를 language semantic contract 기반으로 재설계해야 한다.
+
+v0.0.31의 본질은:
+
+```text
+언어별 semantic closure를 시스템 전체에 강제
+```
+
+하는 것이다.
+

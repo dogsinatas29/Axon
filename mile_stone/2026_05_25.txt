@@ -1,0 +1,155 @@
+문제 진단
+
+A. TOTAL SIGNALS = 0
+
+- get_status()가 list_events(200).len()을 반환 — bootstrap이 event를 storage.save_event()로 저장하지만 list_events()가 해당 저장소의 이벤트를 제대로 카운트하지 못하는 경우.
+
+- 노가리(lounge thread posts) 카운트가 아예 없음 — StatusResponse에 nogari_count 필드 미존재.
+
+B. 모든 스레드 DRAFT + 파이프라인 활동 안 보임
+
+- 현재 bootstrap이 Boss 승인 대기 중이므로 Skeleton/ImplGen이 아직 실행되지 않음 → 파이프라인 시작 안 됨
+
+- 하지만 UI에서 유저가 볼 수 있는 건 "DRAFT" 상태만 보이고, "지금 어떤 단계에서 멈췄는지" 표시가 없음
+
+통합 수정안
+
+Backend (server.rs):
+
+1. StatusResponse에 nogari_count, bootstrap_stage 필드 추가:
+
+struct StatusResponse {
+
+    is_running: bool,
+
+    active_threads: usize,
+
+    total_signals: usize,
+
+    nogari_count: usize,        // 신규: lounge thread posts 수
+
+    bootstrap_stage: String,    // 신규: 현재 bootstrap 단계 (SpecAnalysis/Skeleton/ImplGen/Complete)
+
+    locale: String,
+
+    bootstrap: BootstrapStatus,
+
+}
+
+2. get_status()에서 lounge posts 카운트 + pipeline 현재 상태 조회:
+
+let nogari_count = state.storage.list_posts_by_thread("lounge")
+
+    .map(|p| p.len()).unwrap_or(0);
+
+let bs = state.bootstrap_status.lock().await;
+
+let stage = if bs.is_complete { "Complete" } else if bs.is_running { "Running" } else { "Idle" };
+
+3. total_signals가 0인 문제 진단 필요 — list_events() 쿼리 확인 또는 EventBus 기반 카운터로 전환
+
+Frontend (App.tsx):
+
+Dashboard 상단:
+
+[시그널]          [노가리]          [부트스트랩]
+
+  42               17                SpecAnalysis (대기 중)
+
+추가: 파이프라인 상태 표시
+
+- GET /api/pipeline/status 엔드포인트 신설 → { current_task, phase, retry_count } 반환
+
+- Work Board가 WebSocket /ws 구독 → 실시간 이벤트 기반으로 Working/SeniorReview 등 상태 표시
+
+우선순위 제안
+
+1. (지금 즉시) Boss Board에서 Approve → bootstrap 완료 → 파이프라인 기동 → InProgress/Working 표시 확인
+
+2. StatusResponse 확장 — nogari_count, bootstrap_stage 추가 (이슈 A+B 동시 해결)
+
+3. WebSocket UI 연동 — 실시간 파이프라인 이벤트를 Work Board에 반영
+
+1번은 이미 approve만 하면 바로 확인 가능합니다. 지금 Approve하고 진행해볼까요? 아니면 2번을 먼저 수정할까요? 
+
+
+
+디버깅과 상황 판단이 아주 날카롭다. 특히 `B. 모든 스레드 DRAFT + 파이프라인 활동 안 보임` 현상에 대한 진단은 정확히 이 시스템의 아키텍처적 특성을 찌르고 있다.
+
+사용자 입장에서는 백엔드가 살아서 꿈틀거리는지, 아니면 데드락(Deadlock)에 걸려 뻗은 건지 알 길이 없으니 눈을 가리고 운전하는 답답함을 느꼈을 터다. `StatusResponse` 확장과 `WebSocket` 실시간 파이프라인 상태 시각화는 무조건 들어가야 하는 필수 모듈이 맞다.
+
+---
+
+## 🚦 매니저 시니어의 우선순위 결정: **1번(지금 즉시 Approve)이 무조건 먼저다**
+
+질문한 것에 대해 답을 주자면, **고민할 것도 없이 1번(Approve 승인 후 기동)부터 수행해야 한다.** 2번 코드를 고치는 건 잠시 멈춰라.
+
+이유는 엔지니어링 관점에서 명확하다.
+
+1. **테스트 데이터(런타임 상태)의 확보:** 현재 시스템이 `Idle` 상태(Boss 대기)로 멈춰 있기 때문에, 지금 2번(상태 확장) 코드를 짜서 배포해 봤자 프론트엔드 UI에는 `SpecAnalysis (대기 중)`이라는 정적인 텍스트밖에 안 찍힌다.
+2. **동적 파이프라인 검증:** 주니어가 코드를 짜고, 패치를 만들고, 시니어가 리젝트하고 승인하는 동적인 파이프라인 런타임 상태(Working, SeniorReview, Retry 등)가 실제로 유기적으로 변하는지 보려면, 일단 봉인을 풀고 시스템을 굴려야 한다. 그래야 상태 API를 팠을 때 실시간 데이터가 제대로 파싱되는지 검증(Validation)할 수 있다.
+3. **`TOTAL SIGNALS = 0` 이슈 추적:** 부트스트랩이 완료되고 실제 태스크 파이프라인이 구동되면서 이벤트 버스(`EventBus`)에 시그널이 쏟아져 들어오기 시작해야, `list_events()`가 왜 0을 뱉는지 데이터베이스/스토리지 쿼리를 핀포인트로 디버깅할 수 있다.
+
+---
+
+## 📝 2번, 3번 설계안에 대한 피드백 (구현 시 참고)
+
+1번을 실행하기 전에, 네가 정리한 2, 3번 설계안에 대해 아키텍처 가이드라인을 딱 두 가지만 주지.
+
+* **`total_signals` 카운터 (이슈 A):** 스토리지에서 매번 `list_events().len()`을 전체 카운트하는 방식은 이벤트가 수만 개로 쌓이면 심각한 I/O 병목을 유발한다. 네 제안대로 백엔드 메모리(또는 데몬 상태 변수)에 `AtomicUsize` 기반의 **EventBus 카운터**를 두고, 시그널이 발행될 때마다 인크리멘트(`fetch_add`)하는 구조로 전환하는 게 훨씬 리눅스 철학(KISS, 고성능)에 맞다.
+* **`nogari_count` 네이밍 유머:** `lounge` 스레드의 포스트 수를 `nogari_count`라는 필드명으로 매핑한 센스는 아주 마음에 든다. 이대로 가자.
+
+---
+
+## 🚀 결론 및 실행 지시
+
+> "지금 즉시 **Boss Board에서 Approve를 때려서 부트스트랩 봉인부터 풀어라.** 파이프라인이 기동되면서 `Skeleton` -> `ImplGen`으로 넘어가는 걸 먼저 확인한 뒤, 시스템이 움직이는 상태에서 2번(`StatusResponse` 확장)과 3번(`WebSocket` 연동) 설계안을 하나씩 핀포인트로 이식한다. 주저하지 말고 승인 버튼 누르고 로그 넘겨라."
+
+추가 사항. 터미널 로그에 현재 작업중인 워커의 수가 몇개인지 안 나온다. 실제로 주니어를 몇개를 달았는지 설정 단계에 확인하고 그 수에 맞춰 워커를 유동적으로 변동 시켜야 해. 또한 화면에서도 워커가 나오지 않는다. 하지만 이 워커의 수는 활성화된 스레드의 개수로 확인가능하다. 즉, 활성화된 작업 스레드의 개수 = 고용된 주니어의 수 = 활동하는 워커의 수
+로 만들면 된다. 
+
+🪵 1. 초기 부트스트랩 단계 로그 설계 (초반 확인용)
+데몬이 처음 구동될 때 설정 파일(config)이나 아규먼트로 입력받은 주니어(워커)의 풀 크기를 확정 짓고, 이를 아주 명시적인 시스템 로그로 찍어줘야 한다.
+
+crates/axon-daemon/src/main.rs 또는 초기화 루틴(bootstrap)의 메인 라인에 다음과 같은 핀포인트 로깅을 심는다.
+
+Rust
+// 초기 런타임 설정 로드 시점
+let configured_juniors = config.workers.max_threads; // 설정된 최대 주니어 수
+tracing::info!("==================================================");
+tracing::info!("🚀 아키텍트 모델 명 : ");
+tracing::info!("🚀 시니어 모델 명 : 모델 1 이름, 모델 2 이름....  ");
+tracing::info!("🚀 주니어 모델 명 : 모델 1 이름, 모델 2 이름 ");
+tracing::info!("👥 Total Employed Junior Workers (Thread Pool): {}" , configured_juniors);
+tracing::info!("==================================================");
+
+이렇게 해두면 터미널 창을 열자마자 "아, 내가 이번에 주니어를 4마리 고용했구나, 8마리 고용했구나" 하는 스펙을 오차 없이 텍스트로 딱 박아두고 시작할 수 있다.
+또한 각 직책에 맞는 모델명을 써주면서 확인할 수 있다. 
+
+🔄 2. 런타임 활성 스레드 동적 변동 로직 (get_status)
+네가 진단한 대로, 화면에서 워커 수가 안 나왔던 건 active_threads가 고정되어 있거나 상단 풀의 카운트와 연동되지 않았기 때문이다. 백엔드 상태를 반환하는 get_status() 로직에서 현재 스레드 풀의 런타임 활성 스레드 수를 동적으로 쿼리하도록 매핑해야 한다.
+
+만약 내부 스레드 풀로 rayon이나 tokio 런타임, 혹은 자체 스레드 매니저를 쓰고 있다면 아래와 같은 방식으로 동적 카운트를 집계해서 StatusResponse에 실어 보내야 한다.
+
+Rust
+// server.rs 내부의 get_status() 핸들러 예시
+let active_workers = state.thread_pool.active_thread_count(); // 👈 커널/풀에서 직접 읽어옴
+
+let status_response = StatusResponse {
+    is_running: true,
+    active_threads: active_workers, // 고용된 주니어 중 '실제 일하고 있는' 워커 수
+    total_signals: state.event_bus.get_count(),
+    nogari_count: lounge_posts_len,
+    // ...
+};
+이렇게 세팅해 두면 주니어가 일을 시작할 때 스레드가 살아나면서 active_threads가 0 -> 1 -> 4로 유동적으로 변하고, 일이 끝나면 다시 내려간다.
+
+🎨 3. UI 시각화 가이드라인
+백엔드가 실시간 활성 스레드 수(active_threads)를 주면, 프론트엔드(App.tsx)는 그 숫자를 기반으로 상단 인디케이터에 반영하면 된다.
+
+보내준 스크린샷 화면 기준, 우측 상단 [RESUME FACTORY] 버튼 왼쪽에 "👷 Active Workers: 1" 같은 형태로 숫자가 실시간 변동되게 매핑해 두면 터미널 로그를 매번 쳐다보지 않아도 직관적으로 멀티에이전트 가동률을 모니터링할 수 있다.
+
+📝 매니저 시니어의 최종 컨펌
+"복잡한 동기화 로직 다 걷어내고 **'OS 스레드 수 = 워커 수'**로 단순화 시킨 판단은 아주 치명적이고 영리했다.
+
+초기 로깅 레이아웃에 Total Employed Junior 개수 시원하게 한 줄 찍어주고, 런타임 상태 API가 실제 활성 스레드 카운트를 동적으로 리턴하게 락을 풀어줘라. 그럼 터미널 로그로 초기 설정값 검증 끝나고, 화면에서도 실시간으로 워커들이 일하는 모습이 수치로 보일 거다. 아주 좋아, 이 방향으로 백엔드 스레드 카운팅 룰 수정해서 빌드 깎아보자고."

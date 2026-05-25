@@ -1,0 +1,9 @@
+[Core CoT]
+사용자의 파이프라인 진단과 향후 로드맵 제안을 완벽히 수용함.
+AXON은 현재 "파일 단위 공장"에서 "심볼 단위 공장"으로 진입하는 과도기에 있으며,
+가장 핵심이 되는 전환점은 `SymbolOwnershipRegistry`의 도입임을 확인함.
+이에 따라 다음 최우선 과제를 P2-1(SymbolOwnershipRegistry)로 확정하고,
+그다음으로 Immutable Region Protection, Project ID 중복 결정 제거, AST patch merge 순으로 진행할 계획임.
+
+[Affected Files Diff]
+* 변경 파일 없음 (현재는 로드맵 기획 및 동기화 단계)

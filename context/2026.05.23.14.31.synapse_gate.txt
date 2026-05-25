@@ -1,0 +1,8 @@
+Reasoning Summary:
+- Analysed user request regarding how many parsed/divided spec files are generated from `/TEST4_GTK/spec.md` into the `/TEST4_GTK/spec/` folder.
+- Traced `axon-daemon::lib::BootstrapManager::run_v3` and the semantic parser logic.
+- Identified that spec.md is purifed and split into exactly 4 Markdown files: constitution.md, architecture_seed.md, implementation_rules.md, and hardening.md.
+- Prepared response based on Korean language consistency guidelines.
+
+Affected Files:
+- None (Query response only)

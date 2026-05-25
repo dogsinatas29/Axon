@@ -1,0 +1,4 @@
+# Win32 Entry Point Contract
+REQUIRED_ENTRY: wWinMain
+FORBIDDEN_ENTRY: main
+DESCRIPTION: Win32 GUI applications must start with the standard wWinMain entry point instead of standard console main.

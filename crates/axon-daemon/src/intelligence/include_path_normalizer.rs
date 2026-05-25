@@ -48,8 +48,8 @@ pub fn normalize_includes(file_path: &str, content: &str) -> (String, Vec<Includ
 }
 
 fn parse_include_line(line: &str) -> (String, String) {
-    let parts: Vec<&str> = line.splitn(2, '"').collect();
-    if parts.len() >= 2 {
+    let parts: Vec<&str> = line.split('"').collect();
+    if parts.len() >= 3 {
         (format!("\"{}\"", parts[1]), parts[1].to_string())
     } else {
         let parts2: Vec<&str> = line.splitn(2, '<').collect();
@@ -140,11 +140,26 @@ mod tests {
 
     #[test]
     fn test_relative_include() {
+        // v0.0.31.02: Safely switch current directory to a temp folder to make resolution 100% deterministic
+        let original_dir = std::env::current_dir().unwrap();
+        let temp_dir = original_dir.join("debug").join("tmp_test_include");
+        let _ = std::fs::create_dir_all(&temp_dir);
+        std::env::set_current_dir(&temp_dir).unwrap();
+
+        let _ = std::fs::create_dir_all("src/src");
+        let _ = std::fs::write("src/core.h", "");
+        let _ = std::fs::write("src/src/core.h", "");
+
         let content = r#"
 #include "src/core.h"
 void foo() {}
 "#;
         let (fixed, _) = normalize_includes("src/main.c", content);
+
+        // Restore dir first
+        std::env::set_current_dir(original_dir).unwrap();
+        let _ = std::fs::remove_dir_all(&temp_dir);
+
         assert!(fixed.contains("#include \"core.h\""));
     }
 }

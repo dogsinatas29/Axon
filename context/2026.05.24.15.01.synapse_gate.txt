@@ -1,0 +1,9 @@
+[Core CoT]
+1. AXON이 "코드 생성기"가 아닌 "수정 권한을 배포하는 운영체제"로 거듭나는 가장 핵심적인 단계(Step 3: Ownership Freeze)를 구현함.
+2. `crates/axon-daemon/src/governance/ownership.rs`를 신설하여 사용자가 지시한 P1~P5 아키텍처를 물리적 코드로 고정함.
+3. P1(Skeleton Seal), P2(Signature Canonicalization & Hash), P3(Ownership Lock), P4(ImmutableUntilImplGen Policy), P5(Replay Snapshot Export)를 모두 `OwnershipRegistry`와 `SkeletonReplaySnapshot` 구조체에 녹여냄.
+4. 이제 Phase 1(Skeleton)이 끝나는 즉시 심볼들은 국가(Registry)에 등록되며, 타 태스크의 수정이나 위상 변경(Signature Mutation)이 완전히 차단되는 진정한 의미의 "주권 영역 수술 시스템" 기반이 마련됨.
+
+[Affected Files Diff]
++ crates/axon-daemon/src/governance/ownership.rs (신설)
+* crates/axon-daemon/src/governance/mod.rs (ownership 모듈 추가)

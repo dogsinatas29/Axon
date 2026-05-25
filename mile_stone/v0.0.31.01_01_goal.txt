@@ -1,0 +1,386 @@
+# AXON v0.0.31.01 Goal Definition
+
+## 1. 핵심 목표
+
+v0.0.31.01의 핵심 목표는:
+
+```text id="f1a9ur"
+Spec Semantic Authority 완성
+```
+
+이다.
+
+즉:
+
+```text id="r7d2kx"
+semantic closure를 spec 단계까지 끌어올리는 것
+```
+
+이 이번 버전의 본질이다.
+
+---
+
+# 2. 현재 상태
+
+v0.0.31에서 AXON은 이미:
+
+* Language enum
+* LanguageProfile
+* generation-time semantic firewall
+* language-aware decomposition
+* topology formalization
+
+등을 통해:
+
+```text id="p8n4wh"
+language-aware semantic runtime foundation
+```
+
+구축에는 성공했다.
+
+하지만 현재 구조는 아직:
+
+```text id="z3v9mt"
+semantic contamination recovery
+```
+
+단계에 머물러 있다.
+
+---
+
+# 3. 현재 구조의 문제
+
+현재 pipeline:
+
+```text id="n5y1ce"
+Spec
+↓
+LLM JSON
+↓
+RawIR
+↓
+Semantic Firewall
+↓
+IR 생성
+```
+
+즉 semantic firewall은:
+
+```text id="k4x8bj"
+IR materialization 직전
+```
+
+에만 동작한다.
+
+따라서:
+
+```text id="c7q2vm"
+spec 자체의 semantic legality
+```
+
+는 아직 검증하지 못한다.
+
+---
+
+# 4. 현재 막을 수 있는 것
+
+현재는:
+
+* Rust 프로젝트에서 `.h` 생성
+* Rust 프로젝트에서 `CMakeLists.txt` 생성
+* invalid artifact emission
+* invalid build runtime
+
+등은 차단 가능하다.
+
+즉:
+
+```text id="t2m7qk"
+artifact-level contamination
+```
+
+은 상당 부분 방어 가능하다.
+
+---
+
+# 5. 하지만 아직 막지 못하는 것
+
+예:
+
+```text id="g9r1xz"
+Rust spec인데 HeaderDecl vocabulary 사용
+```
+
+혹은:
+
+```text id="j6w3pa"
+translation unit
+linker stage
+CMake workflow
+```
+
+같은:
+
+```text id="v4d8hy"
+C semantic ontology
+```
+
+가 spec 내부에 존재하는 상황.
+
+현재는 이를:
+
+```text id="s1p7qe"
+IR projection 이전에 차단하지 못한다
+```
+
+---
+
+# 6. 진짜 목표
+
+진짜 목표는:
+
+```text id="u5k9rt"
+semantic contamination impossible
+```
+
+상태다.
+
+즉:
+
+```text id="x8c2vd"
+잘못된 semantic intent 자체가
+IR 세계에 진입 불가능
+```
+
+해야 한다.
+
+---
+
+# 7. 따라서 필요한 구조
+
+새로운 계층 필요:
+
+```text id="w3f6mb"
+Spec Semantic Validator Layer
+```
+
+최종 목표 pipeline:
+
+```text id="m7z4ka"
+Spec
+↓
+Language Resolution
+↓
+Spec Semantic Validation
+↓
+Semantic Contract Bind
+↓
+RawIR Projection
+↓
+IR Validation
+↓
+Emission Firewall
+↓
+Build
+```
+
+핵심은:
+
+```text id="q2v8sy"
+IR 생성 이전에 semantic legality 결정
+```
+
+이다.
+
+---
+
+# 8. Spec Semantic Validator의 역할
+
+validator 대상은:
+
+```text id="b6x1pf"
+IR
+```
+
+이 아니라:
+
+```text id="d9n5re"
+Spec semantic intent
+```
+
+다.
+
+즉 다음을 검사한다:
+
+* vocabulary legality
+* topology legality
+* build-system legality
+* decomposition legality
+* semantic worldview consistency
+
+---
+
+# 9. 중요한 설계 원칙
+
+이것은 단순:
+
+```text id="t5m2zc"
+keyword blacklist
+```
+
+가 아니다.
+
+핵심은:
+
+```text id="r8k4wj"
+language semantic ontology validation
+```
+
+이다.
+
+즉 Rust semantic universe에서는:
+
+```text id="n1c7vy"
+HeaderDecl
+translation unit
+CMake workflow
+```
+
+자체가 semantic violation이어야 한다.
+
+---
+
+# 10. 필요한 핵심 구조
+
+## (1) SpecSemanticValidator Trait
+
+```rust id="f4q9ke"
+pub trait SpecSemanticValidator {
+    fn validate_spec(&self, spec: &str) -> Vec<SemanticViolation>;
+}
+```
+
+---
+
+## (2) 언어별 Validator
+
+필수:
+
+```text id="k7w3ta"
+RustSpecValidator
+CSpecValidator
+PythonSpecValidator
+```
+
+---
+
+## (3) Semantic Ontology
+
+예:
+
+```rust id="x5v2ns"
+RustSemanticOntology {
+    forbidden_terms: ...
+    required_terms: ...
+}
+```
+
+언어 semantic worldview를 명시적으로 정의해야 한다.
+
+---
+
+# 11. LanguageProfile과의 연결
+
+최종적으로:
+
+```rust id="s9r1bx"
+profile.spec_validator()
+```
+
+가 가능해야 한다.
+
+즉:
+
+```text id="j4v8pz"
+LanguageProfile이 semantic authority의 root owner
+```
+
+가 되어야 한다.
+
+---
+
+# 12. 구현 목표
+
+v0.0.31.01의 구현 목표:
+
+| 항목                                 | 목표 |
+| ---------------------------------- | -- |
+| Spec-level semantic validation     | 추가 |
+| IR 이전 semantic legality 판단         | 구현 |
+| Semantic ontology model            | 구축 |
+| Language semantic contamination 차단 | 구현 |
+| LanguageProfile ↔ SpecValidator 연결 | 구현 |
+
+---
+
+# 13. 중요한 제한 사항
+
+현재 목표는:
+
+```text id="v2k6rw"
+full NLP semantic engine
+```
+
+가 아니다.
+
+지금 필요한 것은:
+
+```text id="u7n3xe"
+semantic contamination baseline firewall
+```
+
+이다.
+
+즉:
+
+* lightweight semantic ontology
+* deterministic validation
+* explicit forbidden/required semantic rules
+
+기반으로 구축한다.
+
+---
+
+# 14. 최종 정의
+
+v0.0.31이:
+
+```text id="p1m9oz"
+language-aware runtime foundation
+```
+
+이었다면,
+
+v0.0.31.01은:
+
+```text id="g6x2kh"
+spec-level semantic authority completion
+```
+
+단계다.
+
+즉 최종 목표는:
+
+```text id="c3v7wy"
+semantic contamination preemption
+```
+
+구조를 완성하여:
+
+```text id="y8r4nt"
+잘못된 semantic intent가
+IR 생성 단계에 진입 자체를 못 하게 만드는 것
+```
+
+이다.
+

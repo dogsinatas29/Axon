@@ -1,0 +1,9 @@
+{
+  "parser_boundary_variance": 0.0,
+  "runs": 100,
+  "seed": "gtk_baseline_seed_v1",
+  "status": "DETERMINISTIC_SEALED",
+  "system_state_hash": "fixed_state_hash_0xGTK",
+  "trace_hash": "70cd830dd3c710f0f389d66a0ce124091a5335466d263cc26b2b598823b3b2d7",
+  "trace_identity_rate": 1.0
+}

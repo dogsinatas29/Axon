@@ -1,0 +1,54 @@
+[Synapse Gate Log — 2026.05.27.16.23]
+==========================================
+
+[Core CoT Summary]:
+- CoT/ToT 추론 과정 주입이 AXON 커널의 결정론적 파이프라인(Deterministic SSOT)을 해치지 않음을 물리적으로 증명.
+- 현행 시니어 노드의 무지성 JSON 환각 배설 현상을 진짜 결정론 위반 주범으로 저격 및 규명.
+- <THOUGHT> / <REASONING> 마커 캡슐화를 통해 추론은 UI 영역으로 Eviction 격리하고, 컴파일러 게이트에는 순수 Envelope 바이트만 흘려보내는 독재적 제어 프로토콜 수립.
+
+[Affected Files Diff]:
+- M crates/axon-agent/src/lib.rs (Parser Marker Split Interlock)
+- M crates/axon-daemon/src/pipeline.rs (Senior Decision Parser Reasoning Strip)
+
+[Implementation Details]:
+
+1. Junior Output Format (lib.rs ~line 518-547):
+   - REWORK MODE: <THOUGHT> block → Transaction Envelope 순서 강제
+   - SIMPLE MODE: <THOUGHT> block → Transaction Envelope 순서 강제
+   - <THOUGHT> 내부: 피드백 분석 → 수정 대상 라인 → 변경 계획
+
+2. Senior Output Format (lib.rs ~line 2268-2291):
+   - <REASONING> block → [APPROVE]/[REJECT] → 피드백 순서 강제
+   - <REASONING> 내부: [CoT] 바이트 검사 → [ToT] 다각적 평가 요약
+   - JSON 환각 방지: 명시적 텍스트 포맷 예시 제공
+
+3. extract_thought 함수 (lib.rs ~line 191-217):
+   - <THOUGHT>...</THOUGHT> 마커 파싱 우선
+   - <REASONING>...</REASONING> 마커 파싱 차순위
+   - 레거시 패턴(THOUGHT:, Reasoning:, ### Thought) 폴백 유지
+
+4. strip_thought_markers 함수 (lib.rs ~line 2775-2806):
+   - extract_patch_envelope 호출 전 <THOUGHT>/<REASONING> 블록 제거
+   - Envelope body에는 순수 코드만 포함 보장
+
+5. strip_reasoning_block 함수 (pipeline.rs ~line 71-94):
+   - normalize_senior_output 호출 전 <REASONING> 블록 제거
+   - [APPROVE]/[REJECT] 결정 추출 정확도 향상
+
+6. extract_patch_envelope 함수 (lib.rs ~line 2808):
+   - strip_thought_markers(raw)로 전처리 후 파싱
+   - 코드 컴파일 레이어와 추론 UI 레이어 완전 격리
+
+[Architecture Isolation Model]:
+<THOUGHT>/<REASONING> → UI/Lounge 표시 (resp.thought)
+     ↓ strip
+===AXON_PATCH_BEGIN=== → 컴파일러 게이트 (envelope.body)
+     ↓
+[APPROVE]/[REJECT] → 상태 머신 (NormalizedOutput.decision)
+
+[Build Status]: ✅ cargo build --release -p axon-daemon SUCCESS
+
+[Next Steps]:
+- Phase A: 실패 히스토리 보존 시스템
+- Phase B: SEARCH/REPLACE 핀포인트 패치 복원
+- Phase C: 빌드 검증 게이트

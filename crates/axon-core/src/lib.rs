@@ -22,6 +22,7 @@ pub struct Thread {
     pub architecture_rejections: u32,
     pub cargo_rejections: u32,
     pub lsp_rejections: u32,
+    pub boss_interventions: u32,
     pub error_feedback: Option<String>,
     pub reason: Option<String>,
     pub created_at: DateTime<Local>,
@@ -496,6 +497,9 @@ pub enum EventType {
     AgentAction,
     AgentAssigned,
     AgentResponse,
+    AgentHired,
+    AgentFired,
+    AgentUpdated,
     
     // System Events
     SystemLog,
@@ -670,6 +674,7 @@ impl Default for Thread {
             architecture_rejections: 0,
             cargo_rejections: 0,
             lsp_rejections: 0,
+            boss_interventions: 0,
             error_feedback: None,
             reason: None,
             created_at: chrono::Local::now(),

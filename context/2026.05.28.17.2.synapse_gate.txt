@@ -1,0 +1,8 @@
+[Core CoT]
+사용자의 요청에 따라 /TEST4_GTK/spec.md 와 생성된 architecture.md, CMakeLists.txt 를 비교함.
+- architecture.md: spec.md의 §50(프로젝트 구조)에 정의된 C++, 헤더, Lua 파일 목록이 빠짐없이 포함됨. 각 컴포넌트의 책임(Responsibility)과 허용된 인클루드(Allowed Includes)가 정확히 맵핑되었으며 하단 JSON `AXON:SPEC:COMPONENTS` 에 잘 변환되어 들어갔음.
+- CMakeLists.txt: spec.md §40(GTK4 빌드 구조)과 §28(Lua 정적 링킹)이 합쳐져서 생성됨. GCC 17 표준, GTK4 4.6 이상 요구조건 등이 정상적으로 반영됨.
+- 문제점: CMakeLists.txt에서 `add_executable()`의 타겟 이름이 명세된 `MyLightIDE`가 아닌 `spec`으로 들어감(아마도 디렉토리 이름 기반으로 자동 생성된 것으로 추측). `target_link_libraries`도 `spec`에 연결됨.
+
+[Affected Files Diff]
+- 신규 생성: context/2026.05.28.17.2.synapse_gate.txt

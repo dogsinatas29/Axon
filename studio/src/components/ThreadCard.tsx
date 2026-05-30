@@ -153,9 +153,9 @@ const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onClick, t }) => {
             gap: '4px'
           }}>
             {thread.validator_rejections && thread.validator_rejections > 0 ? (
-              <>🚨 ALERT!!! <span style={{ textDecoration: 'underline' }}>{thread.validator_rejections} 회 반려됨</span></>
+              <>{t.alertPrefix} <span style={{ textDecoration: 'underline' }}>{thread.validator_rejections}{t.rejections}</span></>
             ) : (
-              '0 회'
+              t.zeroCount
             )}
           </span>
         </div>
@@ -174,9 +174,9 @@ const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onClick, t }) => {
             gap: '4px'
           }}>
             {thread.senior_rejections && thread.senior_rejections > 0 ? (
-              <>🚨 ALERT!!! <span style={{ textDecoration: 'underline' }}>{thread.senior_rejections} 회 반려됨</span></>
+              <>{t.alertPrefix} <span style={{ textDecoration: 'underline' }}>{thread.senior_rejections}{t.rejections}</span></>
             ) : (
-              '0 회'
+              t.zeroCount
             )}
           </span>
         </div>
@@ -195,9 +195,9 @@ const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onClick, t }) => {
             gap: '4px'
           }}>
             {thread.architecture_rejections && thread.architecture_rejections > 0 ? (
-              <>🚨 ALERT!!! <span style={{ textDecoration: 'underline' }}>{thread.architecture_rejections} 회 반려됨</span></>
+              <>{t.alertPrefix} <span style={{ textDecoration: 'underline' }}>{thread.architecture_rejections}{t.rejections}</span></>
             ) : (
-              '0 회'
+              t.zeroCount
             )}
           </span>
         </div>
@@ -216,9 +216,9 @@ const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onClick, t }) => {
             gap: '4px'
           }}>
             {thread.cargo_rejections && thread.cargo_rejections > 0 ? (
-              <>🚨 ALERT!!! <span style={{ textDecoration: 'underline' }}>{thread.cargo_rejections} 회 반려됨</span></>
+              <>{t.alertPrefix} <span style={{ textDecoration: 'underline' }}>{thread.cargo_rejections}{t.rejections}</span></>
             ) : (
-              '0 회'
+              t.zeroCount
             )}
           </span>
         </div>
@@ -237,9 +237,9 @@ const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onClick, t }) => {
             gap: '4px'
           }}>
             {thread.lsp_rejections && thread.lsp_rejections > 0 ? (
-              <>🚨 ALERT!!! <span style={{ textDecoration: 'underline' }}>{thread.lsp_rejections} 회 반려됨</span></>
+              <>{t.alertPrefix} <span style={{ textDecoration: 'underline' }}>{thread.lsp_rejections}{t.rejections}</span></>
             ) : (
-              '0 회'
+              t.zeroCount
             )}
           </span>
         </div>
@@ -261,7 +261,7 @@ const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onClick, t }) => {
             alignItems: 'center',
             gap: '4px'
           }}>
-            👑 사장 복구
+            {t.bossIntervention}
           </span>
           <span style={{ 
             fontSize: '0.7rem', 
@@ -280,10 +280,10 @@ const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onClick, t }) => {
                 border: '1px solid rgba(168, 85, 247, 0.4)',
                 boxShadow: '0 0 8px rgba(168, 85, 247, 0.3)'
               }}>
-                {thread.boss_interventions} 회 복구됨
+                {thread.boss_interventions}{t.interventionsRestored}
               </span>
             ) : (
-              '0 회'
+              t.zeroCount
             )}
           </span>
         </div>

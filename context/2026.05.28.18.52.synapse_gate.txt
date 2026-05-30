@@ -1,0 +1,27 @@
+1. 추론 과정 요약 (Core CoT)
+- Junior 에이전트의 환각(SQLite, Love2D 코드 생성)의 근본 원인 5가지 가설 분석 수행
+- 핵심 단절 확인: pipeline.rs에서 architecture.md를 텍스트로만 읽고 ProjectIR::from_md()를 호출하지 않으며, with_ir() 주입도 전혀 없음
+  → AgentRuntime.ir = None(항상), constraint_block = 빈 문자열(항상)
+- 직접 트리거 확인: lib.rs L662에 "MUST use SQLite3" 하드코딩 문구가 전체 프로젝트 공통으로 주입됨
+  → Lua 렌더러에서 sqlite3 = require("sqlite3") 출력의 직접 원인
+- IR 스키마 불일치 확인: from_md()는 symbols: Vec<String>을 기대하나 architecture.md는 functions: [{name, signature}] 형식으로 기록됨
+  → Lua 컴포넌트는 파싱 시 항상 함수 목록이 비어있음
+
+2. 수정 및 생성된 변경 파일 목록 (Affected Files Diff)
+
+[crates/axon-daemon/src/pipeline.rs]
+- use axon_ir::schema::ProjectIR 임포트 추가
+- 에이전트 생성 전(L554 블록) ProjectIR::from_md() 조기 파싱 수행
+- 모든 Junior AgentRuntime에 agent.with_ir(ir.clone()) 주입 추가
+- Senior AgentRuntime에도 senior.with_ir(ir.clone()) 주입 추가
+- run_pipeline() 내부에서도 architecture_guide → ProjectIR 파싱 로그 추가
+
+[crates/axon-agent/src/lib.rs]
+- L662: "MUST use SQLite3 for persistence" → "Use ONLY the libraries explicitly listed in ARCHITECTURE GUIDE" 로 교체
+
+[TEST4_GTK/spec/architecture.md]
+- Lua 컴포넌트 4개(editor.lua, motion.lua, renderer.lua, init.lua)에 다음 추가:
+  - "symbols": [...] (from_md() 파서가 기대하는 형식)
+  - "allowed_includes": []
+  - "forbidden_symbols": ["sqlite3", "love", "require('sqlite3')", "#include", ...]
+  - 함수 시그니처도 Lua 문법으로 정정 (const char* → local function)

@@ -2,6 +2,67 @@ use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 use regex::Regex;
 
+// v0.0.31.xx: AXON:SPEC:CMAKE block parser — reads structured CMake config from spec.md
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CMakeSpec {
+    pub cmake_minimum_required: Option<String>,
+    pub project_name: Option<String>,
+    pub cxx_standard: Option<u32>,
+    pub cxx_compiler: Option<String>,
+    pub pkg_config_modules: Vec<PkgConfigModule>,
+    pub find_packages: Vec<FindPackage>,
+    pub link_libraries: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PkgConfigModule {
+    pub name: String,
+    pub version: String,
+    pub link_target: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FindPackage {
+    pub name: String,
+    pub version: String,
+    pub required: bool,
+}
+
+// v0.0.31.xx: AXON:SPEC:LUA block parser
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LuaSpec {
+    pub lua_version: String,
+    pub linking: String,
+    pub scripts: Vec<LuaScript>,
+    pub c_bindings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LuaScript {
+    pub file: String,
+    pub role: String,
+}
+
+/// Parses <!-- AXON:SPEC:CMAKE { ... } --> block from spec.md
+pub fn parse_cmake_spec(spec: &str) -> Option<CMakeSpec> {
+    let start_marker = "<!-- AXON:SPEC:CMAKE";
+    let end_marker = "-->";
+    let start = spec.find(start_marker)?;
+    let end = spec[start..].find(end_marker)?;
+    let json_str = spec[start + start_marker.len()..start + end].trim();
+    serde_json::from_str(json_str).ok()
+}
+
+/// Parses <!-- AXON:SPEC:LUA { ... } --> block from spec.md
+pub fn parse_lua_spec(spec: &str) -> Option<LuaSpec> {
+    let start_marker = "<!-- AXON:SPEC:LUA";
+    let end_marker = "-->";
+    let start = spec.find(start_marker)?;
+    let end = spec[start..].find(end_marker)?;
+    let json_str = spec[start + start_marker.len()..start + end].trim();
+    serde_json::from_str(json_str).ok()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum NodeType {
     File,
@@ -185,30 +246,46 @@ impl DepGraph {
         }
     }
 
-    pub fn generate_cmake(&self, project_name: &str, locale: &str, sandbox_root: &std::path::Path) -> String {
+    pub fn generate_cmake(&self, project_name: &str, locale: &str, sandbox_root: &std::path::Path, cmake_spec: Option<&CMakeSpec>) -> String {
         let mut out = String::new();
         let header = if locale == "ko_KR" {
-            "# AXON v0.0.29.25 SOVEREIGN 빌드 스크립트 (PRUNING_ENABLED)\n"
+            "# AXON v0.0.31 SOVEREIGN 빌드 스크립트 (SPEC-DRIVEN)\n"
         } else if locale == "ja_JP" {
-            "# AXON v0.0.29.25 SOVEREIGN ビルドスクリプト (PRUNING_ENABLED)\n"
+            "# AXON v0.0.31 SOVEREIGN ビルドスクリプト (SPEC-DRIVEN)\n"
         } else {
-            "# AXON v0.0.29.25 SOVEREIGN BUILD SCRIPT (PRUNING_ENABLED)\n"
+            "# AXON v0.0.31 SOVEREIGN BUILD SCRIPT (SPEC-DRIVEN)\n"
         };
         out.push_str(header);
-        out.push_str("cmake_minimum_required(VERSION 3.10)\n");
-        out.push_str(&format!("project({})\n\n", project_name));
-        out.push_str("set(CMAKE_C_STANDARD 99)\n");
-        out.push_str("set(CMAKE_CXX_STANDARD 17)\n\n");
+
+        // Use spec-driven values if available, otherwise fallback to defaults
+        let cmake_ver = cmake_spec
+            .and_then(|s| s.cmake_minimum_required.as_deref())
+            .unwrap_or("3.16");
+        out.push_str(&format!("cmake_minimum_required(VERSION {})\n", cmake_ver));
+
+        let proj = cmake_spec
+            .and_then(|s| s.project_name.as_deref())
+            .unwrap_or(project_name);
+        out.push_str(&format!("project({})\n\n", proj));
+
+        if let Some(cxx_std) = cmake_spec.and_then(|s| s.cxx_standard) {
+            out.push_str(&format!("set(CMAKE_CXX_STANDARD {})\n", cxx_std));
+        } else {
+            out.push_str("set(CMAKE_C_STANDARD 99)\n");
+            out.push_str("set(CMAKE_CXX_STANDARD 17)\n");
+        }
+        if let Some(ref compiler) = cmake_spec.and_then(|s| s.cxx_compiler.clone()) {
+            out.push_str(&format!("set(CMAKE_CXX_COMPILER {})\n", compiler));
+        }
+        out.push('\n');
 
         let mut source_files = HashSet::new();
-        let mut has_sqlite = false;
         let mut link_libraries = HashSet::new();
 
         for (node_id, node) in &self.nodes {
             if let NodeType::File = node.node_type {
                 let file_path = node_id.replace("file:", "");
                 
-                // SystemLibrary 및 ExternalRuntime은 빌드 소스 대상에서 제외하고 링크 목록에 추가
                 if node.component_type == axon_ir::schema::types::ComponentType::SystemLibrary {
                     let base_name = std::path::Path::new(&file_path)
                         .file_stem()
@@ -222,16 +299,12 @@ impl DepGraph {
                 }
 
                 if file_path.ends_with(".c") || file_path.ends_with(".cpp") {
-                    // v0.0.29.25: Physical Pruning
                     let full_path = sandbox_root.join(&file_path);
                     if node.is_blocking || full_path.exists() {
                         source_files.insert(file_path.clone());
                     } else {
                         out.push_str(&format!("# [PRUNED] Optional file missing: {}\n", file_path));
                     }
-                }
-                if file_path.contains("database") || file_path.contains("sqlite") {
-                    has_sqlite = true;
                 }
             }
 
@@ -243,47 +316,60 @@ impl DepGraph {
             }
         }
 
+        // v0.0.31: Spec-driven pkg-config and find_package
+        if let Some(spec) = cmake_spec {
+            if !spec.pkg_config_modules.is_empty() {
+                out.push_str("find_package(PkgConfig REQUIRED)\n");
+                for pkg in &spec.pkg_config_modules {
+                    out.push_str(&format!(
+                        "pkg_check_modules({} REQUIRED IMPORTED_TARGET \"{} {}\")\n",
+                        pkg.name, pkg.name.to_lowercase(), pkg.version
+                    ));
+                }
+                out.push('\n');
+            }
+            for fp in &spec.find_packages {
+                let req = if fp.required { " REQUIRED" } else { "" };
+                out.push_str(&format!("find_package({} {}{})\n", fp.name, fp.version, req));
+            }
+            if !spec.find_packages.is_empty() {
+                out.push('\n');
+            }
+        }
+
+        // v0.0.31: Spec-driven include directories
+        out.push_str("include_directories(include)\n\n");
+
+        // v0.0.31: Build Personality Layer
+        let is_win32 = self.platform.as_deref() == Some("win32")
+            || self.runtime_model.as_deref() == Some("win32_gui")
+            || proj.to_lowercase().contains("win32");
+        let win32_flag = if is_win32 { " WIN32" } else { "" };
+
         let mut sources: Vec<String> = source_files.into_iter().collect();
         sources.sort();
 
-        out.push_str("include_directories(include)\n\n");
-
-        if has_sqlite {
-            out.push_str("find_package(PkgConfig REQUIRED)\n");
-            out.push_str("pkg_check_modules(SQLITE3 REQUIRED sqlite3)\n");
-            out.push_str("include_directories(${SQLITE3_INCLUDE_DIRS})\n\n");
-        }
-
-        // v0.0.31.14: Build Personality Layer - WIN32 Subsystem executable flag injection
-        let is_win32 = self.platform.as_deref() == Some("win32")
-            || self.runtime_model.as_deref() == Some("win32_gui")
-            || project_name.to_lowercase().contains("win32");
-        let win32_flag = if is_win32 { " WIN32" } else { "" };
-
         if !sources.is_empty() {
-            out.push_str(&format!("add_executable({}{} {})\n", project_name, win32_flag, sources.join(" ")));
+            out.push_str(&format!("add_executable({}{} {})\n", proj, win32_flag, sources.join(" ")));
         } else {
-            let err_msg = if locale == "ko_KR" {
-                "# 오류: 아키텍처 명세에 소스 파일이 정의되지 않았거나 모두 Pruning 되었습니다.\n"
-            } else if locale == "ja_JP" {
-                "# エラー: アーキテクチャ仕様にソースファイルが定義されていないか、すべて剪定されました。\n"
-            } else {
-                "# ERROR: Architectural Spec defines no source files or all have been pruned.\n"
-            };
-            out.push_str(err_msg);
-            out.push_str(&format!("add_executable({}{} src/main.c)\n", project_name, win32_flag));
+            out.push_str(&format!("add_executable({}{} src/main.c)\n", proj, win32_flag));
         }
 
-        if has_sqlite {
-            out.push_str(&format!("target_link_libraries({} PRIVATE ${{SQLITE3_LIBRARIES}})\n", project_name));
+        // v0.0.31: Spec-driven link libraries
+        if let Some(spec) = cmake_spec {
+            // Add spec-defined link libraries
+            for lib in &spec.link_libraries {
+                link_libraries.insert(lib.clone());
+            }
         }
 
+        // v0.0.31: Win32 subsystem libraries
         if is_win32 {
             link_libraries.insert("user32".to_string());
             link_libraries.insert("gdi32".to_string());
             link_libraries.insert("kernel32".to_string());
             out.push_str("if(MSVC)\n");
-            out.push_str(&format!("    set_target_properties({} PROPERTIES WIN32_EXECUTABLE TRUE)\n", project_name));
+            out.push_str(&format!("    set_target_properties({} PROPERTIES WIN32_EXECUTABLE TRUE)\n", proj));
             out.push_str("else()\n");
             out.push_str("    set(CMAKE_EXE_LINKER_FLAGS \"${CMAKE_EXE_LINKER_FLAGS} -mwindows\")\n");
             out.push_str("endif()\n\n");
@@ -292,7 +378,7 @@ impl DepGraph {
         if !link_libraries.is_empty() {
             let mut libs: Vec<String> = link_libraries.into_iter().collect();
             libs.sort();
-            out.push_str(&format!("target_link_libraries({} PRIVATE {})\n", project_name, libs.join(" ")));
+            out.push_str(&format!("target_link_libraries({} PRIVATE {})\n", proj, libs.join(" ")));
         }
 
         out

@@ -1,0 +1,105 @@
+SYNAPSE GATE LOG — v0.0.32 [Dynamic HR & Infrastructure Swapping Kernel]
+Timestamp: 2026-05-27T00:00:00KST
+Author: Factory Manager (dogs in atas)
+Status: ARCHITECTURE LOCKED / PRE-IMPLEMENTATION
+
+================================================================================
+1. LLM Provider(Ollama vs Gemini) Hot-Swap Session Deadlock Prevention
+================================================================================
+
+[Problem]
+- 기존: AgentConfig.runtime ("local"/"cloud") 문자열 매칭으로 드라이버 생성
+- 문제점: 파이프라인 실행 중 에이전트 풀 변경 시, 실행 중인 태스크의 HTTP 세션과
+  새 태스크의 세션이 충돌하여 데드락 발생 가능
+- 특히 Ollama(localhost:11434) → Gemini(API endpoint) 전환 시 연결 풀 재사용 불가
+
+[Solution]
+- AgentConfig에 provider_type: Option<LlmProvider> enum 필드 추가
+  LlmProvider::Local { endpoint: String }
+  LlmProvider::Cloud { api_key_env: String }
+- create_model_driver() 함수가 provider_type을 우선 검사, 없으면 runtime 문자열 fallback
+- AgentPool은 Arc<AsyncRwLock<AgentPool>>로 감싸져 있어,
+  write() 잠금 획득 시 모든 파이프라인의 다음 태스크 디스패치부터 새 드라이버 적용
+- 실행 중인 태스크는 기존 드라이버 인스턴스를 계속 사용 (Drop 시 세션 정리)
+- 다음 큐 할당 시점에만 새 드라이버 바인딩 → 세션 데드락 원천 차단
+
+[Verification]
+- pipeline.rs:304-320에서 pool.read().await로 스냅샷 획득 후 drop(pool)
+- 각 태스크 시작 시점에 드라이버 생성 → 실행 중 교체 불가 (Graceful Handoff)
+- SYSTEM_STATE_HASH 무결성: 드라이버 교체는 풀 메타데이터만 변경, 실행 컨텍스트 불변
+
+================================================================================
+2. 페르소나 컨텍스트의 코드 구현부 침투 차단 (Nogari.md 격리 프롬프트 사양)
+================================================================================
+
+[Problem]
+- 기존: AgentPersona가 모든 프롬프트에 주입되어 코드 생성 시 "말투"가 코드에 오염
+- 증상: LLM이 생성한 코드에 "틀딱 시니어 또 시작이네" 같은 유령 주석 삽입
+- 원인: Surgical Prompt(코드 생성)와 Lounge Prompt(잡담)의 스코프 미분리
+
+[Solution]
+- Dual-Prompting Architecture 도입:
+  1. Surgical Prompt (코드/리뷰 생성용):
+     - KISS 원칙, LSP 계약, Surgical Plan만 주입
+     - persona 컨텍스트 완전 제거 (Purge)
+     - 오직 바이트 정확성과 토폴로지 무결성만 고려
+  
+  2. Lounge Prompt (Nogari.md 텍스트 덤프용):
+     - 인사게시판에서 주입된 나이, 성별, 성격, 말투 에셋 결합
+     - 스코프를 lounge.rs의 compile_to_nogari_md()로 제한
+     - 코드 생성 파이프라인과 물리적 격리
+
+- PersonaRegistry 구조체 도입:
+  pub struct PersonaRegistry {
+      pub personas: HashMap<String, PersonaConfig>,
+  }
+  - agent_id → PersonaConfig 매핑
+  - lounge 포스트 생성 시에만 참조
+  - 코드 생성 경로에서는 절대 접근 불가
+
+[Verification]
+- axon-agent/src/lib.rs의 generate_surgical_prompt()에서 persona 참조 제거
+- lounge.rs의 compile_to_nogari_md()에서만 persona_registry 읽기 허용
+- 프롬프트 템플릿 분리: surgical_template.md / lounge_template.md
+- SYSTEM_STATE_HASH: 페르소나 변경은 lounge 스코프만 영향, 코드 생성 해시 불변
+
+================================================================================
+3. forget_permits 집행 직후 지연 회수(Graceful Eviction)로 인한 파일 락(fd-lock) 충돌 유실 제어 정책
+================================================================================
+
+[Problem]
+- fire_agent() 호출 시 task_semaphore.forget_permits(1) 즉시 실행
+- 문제: 현재 WORKING 중인 Junior가 파일 쓰기 중일 때 세마포어 감소
+- 잠재적 충돌: 새 Junior가 같은 파일에 접근하려고 할 때 fd-lock 경합
+
+[Solution]
+- Graceful Eviction Barrier 3단계 프로토콜:
+  1. forget_permits(1) 즉시 실행 → 시스템 Cap 감소 (새 할당 차단)
+  2. 실행 중 태스크는 취소되지 않음 (AtomicBool 체크 없음)
+  3. 태스크 완료 시:
+     - .axon/sandbox/target으로 원자적 승격 처리 완료
+     - 다음 큐 폴링에서 agent_pool에 없으므로 할당 받지 못함
+     - 인스턴스 자율 소멸 (Zombie화 방지)
+
+- 파일 락 보호:
+  - write_json_atomic()은 이미 파일 단위 exclusive 락 구현
+  - 세마포어 감소와 파일 락은 독립적 (Semaphore ≠ FileLock)
+  - forget_permits는 큐 할당만 제한, 실행 중 IO에는 영향 없음
+
+- 시스템 상태 일관성:
+  - fire 후 SYSTEM_STATE_HASH 재계산 시:
+    - agent_pool.juniors.len() 감소 반영
+    - task_semaphore.available_permits() 감소 반영
+    - 실행 중 태스크 수는 hash에 포함되지 않음 (일시적 상태)
+  - 다음 파이프라인 사이클부터 일관된 스냅샷 보장
+
+[Verification]
+- server.rs:fire_agent()에서 retain() 후 forget_permits(1) 순서 보장
+- pipeline.rs:execute_phase()에서 pool.read().await로 매 사이클 스냅샷 갱신
+- 실행 중 Junior는 현재 permit 보유 → 완료 후 permit 자동 반환 → forget_permits로 인해
+  반환된 permit은 즉시 소멸 (재할당 불가)
+- fd-lock 테스트: chaos/fd_lock_race.rs에서 동시 쓰기 경합 검증
+
+================================================================================
+END OF CoT LOG
+================================================================================

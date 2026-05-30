@@ -1,0 +1,112 @@
+Core CoT:
+1. 사용자의 요청(GEMINI.md 읽고 파일/트리/프로젝트 구조 파악 및 v0.0.31.md 읽고 작업 과정 분석)을 분석.
+2. GEMINI.md의 원칙에 따라 언어 일관성(한국어)을 유지하며, 조사 성격의 태스크이므로 별도의 Implementation Plan이나 task.md는 요구되지 않음을 식별.
+3. milestone/v0.0.31.md와 mile_stone/v0.0.31.md 파일을 대조하여 각각의 의의(비동기 WAL Flush Barrier 및 Phase 3 Integrator 구축 vs Semantic Equivalence Kernel 및 Failure Cascade Simulation)를 파악하고 정리.
+4. 강제 파일 투사 규칙에 따라 context/2026.05.30.tt.synapse_gate.txt를 작성하여 데몬 및 인간 매니저가 확인 가능한 추론 기록을 남김.
+
+Affected Files Diff:
+[NEW] context/2026.05.30.tt.synapse_gate.txt
+
+---
+Session 2 CoT:
+1. 사용자의 새로운 요청(소스 스캔하여 실제 프로젝트 구조와 GEMINI.md의 ## Root Structure 이하 항목 비교)을 수신.
+2. 실제 crates/ 하위 9개 멤버 크레이트의 디렉토리 구조(axon-core, axon-ir, axon-daemon, axon-agent 등)를 list_dir로 탐색.
+3. studio/ 및 spec/ 디렉토리의 실제 파일 목록을 대조 분석.
+4. GEMINI.md 명세와 실제 파일의 불일치 사항(spec/spec.md 파일의 부재 등)을 식별하여 비교 리포트 작성 준비.
+5. 강제 파일 투사 규칙에 따라 context/2026.05.30.tt.synapse_gate.txt에 추론 과정을 덧붙여(Append) 기록함.
+
+Affected Files Diff:
+[MOD] context/2026.05.30.tt.synapse_gate.txt
+
+---
+Session 3 CoT:
+1. 사용자의 추가 요청(TEST1~5 등의 테스트 폴더를 제외하고 나머지 루트 수준 파일 및 서브디렉토리 검증)을 수신.
+2. release_note/, docs/, asset/, intelligence/, tools/, data/, runtime/ 디렉토리 목록을 list_dir로 탐색하고, 루트에 실존하는 설정 파일(axon_config.json, Cargo.toml 등)을 비교 분석.
+3. GEMINI.md 트리 명세에는 누락되었으나 실제 존재하는 data/ 및 runtime/ 디렉토리, 그리고 명세와 실존 위치가 상이한 이미지 파일들(asset/ 폴더 내에만 실존하는 이미지들)을 대조 분석.
+4. 강제 파일 투사 규칙에 따라 context/2026.05.30.tt.synapse_gate.txt에 3회차 분석 추론 기록을 추가함.
+
+Affected Files Diff:
+[MOD] context/2026.05.30.tt.synapse_gate.txt
+
+---
+Session 4 CoT:
+1. 사용자의 질문(데몬 실행 시 runtime 등 런타임 결과물 디렉토리들이 루트에서 실행되어 생긴 것인지 여부)을 수신.
+2. axon-daemon/src/main.rs 소스 코드를 분석하여 DB("runtime/state.db"), 임시 디렉토리("runtime/temp"), personas(".axon/personas") 등 런타임 경로가 현재 실행 디렉토리(CWD) 기준 상대 경로로 하드코딩되어 있음을 확인.
+3. 이로 인해 프로젝트 루트 디렉토리(/home/dogsinatas/rust_project/axon)에서 데몬이 실행되면서 runtime/, data/, .axon/ 등의 디렉토리가 루트에 흩어지게 생성된 오작동 정황을 논리적으로 정리.
+4. 강제 파일 투사 규칙에 따라 context/2026.05.30.tt.synapse_gate.txt에 4회차 분석 추론 기록을 추가함.
+
+Affected Files Diff:
+[MOD] context/2026.05.30.tt.synapse_gate.txt
+
+---
+Session 5 CoT:
+1. 사용자의 질문(studio 폴더의 역할에 대한 설명 요구)을 수신.
+2. studio/ 디렉토리가 React 19 + Vite 8 기반으로 구축된 AXON의 관제탑인 'Boss Board Web UI'임을 확인.
+3. 데몬과의 WebSocket 통신 및 API 호출을 통해 에이전트의 진행 상태, Nogari Lounge(잡담 스레드), 반려 카운터 시각화, 인사 관리(고용/해고) 및 파이프라인 일시정지/재개 등을 제어하는 프론트엔드 시스템임을 논리적으로 정리하여 답변을 준비함.
+4. 강제 파일 투사 규칙에 따라 context/2026.05.30.tt.synapse_gate.txt에 5회차 분석 추론 기록을 추가함.
+
+Affected Files Diff:
+[MOD] context/2026.05.30.tt.synapse_gate.txt
+
+---
+Session 6 CoT:
+1. 사용자의 질문(studio 폴더가 데몬 실행 시 생성되는 동적 디렉토리인지 여부)을 수신.
+2. studio/는 데몬이 생성하는 런타임 폴더가 아니며, 원래 소스코드에 내장된 프론트엔드 프로젝트(React/Vite)임을 검증.
+3. 단, studio/dist/ 폴더는 npm run build 등의 빌드 프로세스에 의해 동적으로 생성/업데이트되는 빌드 결과물 산출물임을 구체적으로 구분하여 설명 준비.
+4. 강제 파일 투사 규칙에 따라 context/2026.05.30.tt.synapse_gate.txt에 6회차 분석 추론 기록을 추가함.
+
+Affected Files Diff:
+[MOD] context/2026.05.30.tt.synapse_gate.txt
+
+---
+Session 7 CoT:
+1. 사용자의 질문(프로젝트 루트 디렉토리 재확인 및 데몬 실행 시 생성되는 구체적인 파일들 유무 확인)을 수신.
+2. 데몬 소스 코드 전반의 fs::write 관련 쓰기 연산(axon_config.json, spec.md, architecture.md, CMakeLists.txt, immutable_constraints.json, .axon_approval_pending, last_compiler_error.txt 등)을 추적.
+3. 루트 디렉토리(CWD)에서 데몬이 실행될 때, 이러한 설정 및 빌드 명세 파일들이 실제 루트 하위에 복사/생성되는 메커니즘을 규명함.
+4. 강제 파일 투사 규칙에 따라 context/2026.05.30.tt.synapse_gate.txt에 7회차 분석 추론 기록을 추가함.
+
+Affected Files Diff:
+[MOD] context/2026.05.30.tt.synapse_gate.txt
+
+---
+Session 8 CoT:
+1. 사용자의 질문(/home/dogsinatas/rust_project/axon/data 디렉토리의 역할과 정체 설명 요구)을 수신.
+2. data/ 디렉토리 내 project_state.json 및 synapse_history.json 파일의 데이터를 파싱/분석.
+3. project_state.json이 프로젝트의 폴더 및 파일 노드 트리, 레이아웃 좌표 정보를 저장하는 시각화 맵 데이터이며, synapse_history.json은 작업 이력 및 시그널의 시간축 로그 기록을 누적하는 히스토리 데이터임을 규명.
+4. 해당 디렉토리와 파일들이 Synapse 에이전트 관제/시각화 도구의 동작 상태 캐시임을 한국어로 설명 준비.
+5. 강제 파일 투사 규칙에 따라 context/2026.05.30.tt.synapse_gate.txt에 8회차 분석 추론 기록을 추가함.
+
+Affected Files Diff:
+[MOD] context/2026.05.30.tt.synapse_gate.txt
+
+---
+Session 9 CoT:
+1. 사용자의 요청(일부 디렉토리 삭제 후 프로젝트 루트 재스캔 및 GEMINI.md of ## Root Structure 대조 비교)을 수신.
+2. list_dir로 루트를 재탐색하여 .axon/, runtime/, spec/ 디렉토리와 axon_config.json, axon_lsp.json 파일이 삭제/정리된 정황을 파악.
+3. 지시된 테스트 폴더들이 보존되었음을 검증하고, GEMINI.md 명세 상의 필수 요소인 spec/ 디렉토리가 부재하게 된 불일치 차이점을 분석.
+4. data/ 디렉토리는 여전히 남아 있어 명세와의 잔여 차이점을 검토하고 리포트 전개 준비.
+5. 강제 파일 투사 규칙에 따라 context/2026.05.30.tt.synapse_gate.txt에 9회차 분석 추론 기록을 추가함.
+
+Affected Files Diff:
+[MOD] context/2026.05.30.tt.synapse_gate.txt
+
+---
+Session 10 CoT:
+1. 사용자의 질문(Root Structure 명세의 수정 불필요성 재확인 및 소스 전체 코드와 명세 비교)을 수신.
+2. 런타임 결과물의 일시적 삭제는 명세서의 장기적인 트리 구조(Architecture Navigation Layer)를 영구 훼손하는 성격이 아니므로, GEMINI.md 수정이 불필요함을 확인.
+3. crates/axon-core/src/lib.rs, server.rs, pipeline.rs, bootstrap.rs, Office.tsx 등 핵심 파일들의 세부 소스 내용을 10대 명세(Integrator, Flush Barrier, LlmProvider, swap-provider 등)와 교차 검증.
+4. 실제 구현 코드가 명세서의 설명과 100% 일치하며 괴리가 없음을 실증적으로 파악하고, 소스 수정 불필요 진단을 도출함.
+5. 강제 파일 투사 규칙에 따라 context/2026.05.30.tt.synapse_gate.txt에 10회차 분석 추론 기록을 추가함.
+
+Affected Files Diff:
+[MOD] context/2026.05.30.tt.synapse_gate.txt
+
+---
+Session 11 CoT:
+1. 사용자의 요청(GEMINI.md에서 데몬 실행 시 생성되는 동적 파일 및 .axon/, runtime/ 폴더를 명세 및 트리에서 취소선 처리/삭제하고, 소스 코드 구성 비교 검증 단계 개시)을 수신.
+2. GEMINI.md의 351-352라인, 435-436라인, 480-481라인, 862-863라인의 런타임 아티팩트 및 설정 명세(axon_config.json, axon_lsp.json, .axon/, runtime/, .axon_approval_pending)에 취소선(~~) 처리를 입혀 명세 정규화 수정을 수행하기로 결정.
+3. 강제 파일 투사 규칙에 따라 context/2026.05.30.tt.synapse_gate.txt에 11회차 추론 과정을 추가(Append)함.
+
+Affected Files Diff:
+[MOD] context/2026.05.30.tt.synapse_gate.txt
+[MOD] GEMINI.md (수정 예정)

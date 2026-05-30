@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 use tokio::sync::Semaphore;
+use tokio::sync::RwLock as AsyncRwLock;
 use tokio::task::JoinHandle;
 use axon_core::{
     AgentRole, Event, EventLevel, EventType, Task, TaskLifecycleState,
@@ -12,9 +13,11 @@ use axon_core::{
 };
 use axon_core::events::EventBus;
 use axon_agent::AgentRuntime;
+use axon_ir::schema::ProjectIR;
 use axon_storage::Storage;
 use crate::bootstrap::create_model_driver;
-use crate::{AxonConfig, PipelineReview};
+use crate::{AxonConfig, PipelineReview, AgentConfig};
+use crate::server::AgentPool;
 
 // Phase 7-C: Sandbox State Machine — tracks file lifecycle to prevent memory-loss retry loops
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,8 +69,257 @@ pub fn normalize_output(raw: &str, is_senior_review: bool) -> NormalizedOutput {
     }
 }
 
+// Phase CoT/ToT: Strip <REASONING>...</REASONING> blocks from Senior output
+// This isolates reasoning from the decision — only [APPROVE]/[REJECT] reaches the state machine
+fn strip_reasoning_block(raw: &str) -> String {
+    let mut result = String::with_capacity(raw.len());
+    let mut skip = false;
+
+    for line in raw.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("<REASONING>") {
+            skip = true;
+            continue;
+        }
+        if trimmed.starts_with("</REASONING>") {
+            skip = false;
+            continue;
+        }
+        if !skip {
+            if !result.is_empty() {
+                result.push('\n');
+            }
+            result.push_str(line);
+        }
+    }
+
+    result
+}
+
+/// v0.0.31.37: [HALLUCINATION_GUARD] Senior Header Review Validation
+/// When Senior rejects a header file, verify if the proposed code actually contains
+/// function bodies ({ ... } patterns). If the code only has declarations, flag it as
+/// Senior hallucination. Pure logic — no hardcoded keywords.
+pub fn detect_senior_header_hallucination(
+    target_file: &str,
+    _feedback: &str,
+    proposed_code: &str,
+) -> bool {
+    // Only applies to header files
+    if !target_file.ends_with(".h") && !target_file.ends_with(".hpp") {
+        return false;
+    }
+
+    // Verify: does the proposed code actually contain function bodies?
+    // A function body in C/C++ is identified by { ... } at the top level.
+    // Declarations end with ; — definitions have { ... }.
+    let has_function_body = proposed_code.lines().any(|line| {
+        let trimmed = line.trim();
+        // Skip preprocessor directives, comments, and empty lines
+        if trimmed.starts_with('#') || trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with("*") || trimmed.is_empty() {
+            return false;
+        }
+        // A line that contains both a function-like pattern AND an opening brace
+        if trimmed.contains('{') {
+            let before_brace: String = trimmed.split('{').next().unwrap_or("").to_string();
+            // Function definitions typically have ) before {
+            if before_brace.contains(')') && !before_brace.trim().starts_with("struct") && !before_brace.trim().starts_with("enum") && !before_brace.trim().starts_with("union") && !before_brace.trim().starts_with("class") {
+                return true;
+            }
+        }
+        false
+    });
+
+    if !has_function_body {
+        tracing::warn!(
+            "🛡️ [HALLUCINATION_GUARD] Senior rejected header {}, but proposed code has NO function bodies (declarations only). Auto-approving.",
+            target_file
+        );
+        return true;
+    }
+
+    false
+}
+
+/// v0.0.31.38: [AUTONOMOUS_SLICER] Header Contamination Pre-Senior Review
+/// When a Junior submits a header file (.h/.hpp) containing function bodies ({ ... }),
+/// automatically extract the function bodies into a companion .cpp file,
+/// leaving only declarations in the header.
+/// This prevents the "Junior writes implementation in header → Senior REJECT → deadlock" loop.
+/// Returns: Some((cleaned_header, cpp_content, cpp_path)) if contamination detected, None otherwise.
+pub fn autonomous_header_slicer(
+    target_file: &str,
+    proposed_code: &str,
+    sandbox_root: &std::path::Path,
+) -> Option<(String, String, std::path::PathBuf)> {
+    // Only applies to header files
+    if !target_file.ends_with(".h") && !target_file.ends_with(".hpp") {
+        return None;
+    }
+
+    // Parse the code to detect and extract function bodies
+    let lines: Vec<&str> = proposed_code.lines().collect();
+    let mut header_lines: Vec<String> = Vec::new();
+    let mut cpp_body_lines: Vec<String> = Vec::new();
+    let mut in_function_body = false;
+    let mut brace_depth: i32 = 0;
+    let mut current_function_sig: Option<String> = None;
+    let mut function_buffer: Vec<String> = Vec::new();
+    let mut has_cpp_import = false;
+
+    // Determine the corresponding .cpp file path
+    let cpp_path = target_file
+        .replace("include/", "src/")
+        .replace(".h", ".cpp")
+        .replace(".hpp", ".cpp");
+    let cpp_full_path = sandbox_root.join(&cpp_path);
+
+    for line in &lines {
+        let trimmed = line.trim();
+
+        // Skip preprocessor and empty lines outside function bodies
+        if !in_function_body {
+            if trimmed.starts_with('#') || trimmed.is_empty() {
+                header_lines.push(line.to_string());
+                continue;
+            }
+
+            // Detect function definition: line has ) and { on same line (or { on next)
+            // e.g., "char* safe_read_line(int max_length) {"
+            let looks_like_func_def = trimmed.contains(')') && (trimmed.contains('{') || {
+                // Check if next non-empty line starts with {
+                let idx = lines.iter().position(|l| l == line).unwrap_or(0);
+                lines.iter().skip(idx + 1).find(|l| !l.trim().is_empty() && !l.trim().starts_with("//"))
+                    .map(|next| next.trim().starts_with('{')).unwrap_or(false)
+            });
+
+            if looks_like_func_def {
+                // Extract the function signature (everything before {)
+                let sig: String = if let Some(pos) = trimmed.find('{') {
+                    trimmed[..pos].trim().to_string()
+                } else {
+                    trimmed.trim().to_string()
+                };
+
+                // Add declaration to header: replace { body } with ;
+                let decl_line = if sig.ends_with(')') {
+                    format!("{};", sig)
+                } else {
+                    format!("{};", sig.trim_end_matches('{').trim())
+                };
+                header_lines.push(decl_line);
+
+                // Start capturing function body
+                in_function_body = true;
+                brace_depth = 0;
+                current_function_sig = Some(sig.clone());
+                function_buffer.clear();
+
+                // If the opening brace is on this line, capture it
+                if trimmed.contains('{') {
+                    function_buffer.push(line.to_string());
+                    brace_depth += 1;
+                    // Check for closing brace on same line
+                    for ch in trimmed.chars() {
+                        if ch == '{' { brace_depth += 1; }
+                        if ch == '}' { brace_depth -= 1; }
+                    }
+                    // Adjust: we counted { twice above, fix
+                    brace_depth = 0;
+                    let open_count = trimmed.matches('{').count();
+                    let close_count = trimmed.matches('}').count();
+                    brace_depth = (open_count as i32) - (close_count as i32);
+
+                    if brace_depth <= 0 {
+                        // Single-line function body (rare but possible)
+                        in_function_body = false;
+                        cpp_body_lines.push(format!("{} {{", sig));
+                        // Extract body between braces
+                        if let Some(start) = trimmed.find('{') {
+                            if let Some(end) = trimmed[start..].rfind('}') {
+                                let body = &trimmed[start + 1..start + end];
+                                if !body.trim().is_empty() {
+                                    cpp_body_lines.push(format!("    {}", body.trim()));
+                                }
+                            }
+                        }
+                        cpp_body_lines.push("}".to_string());
+                        current_function_sig = None;
+                    }
+                }
+                continue;
+            }
+
+            // Regular header line (declaration, comment, etc.)
+            header_lines.push(line.to_string());
+        } else {
+            // Inside function body
+            function_buffer.push(line.to_string());
+            let open_count = trimmed.matches('{').count();
+            let close_count = trimmed.matches('}').count();
+            brace_depth += (open_count as i32) - (close_count as i32);
+
+            if brace_depth <= 0 {
+                // Function body complete
+                in_function_body = false;
+                if let Some(ref sig) = current_function_sig {
+                    cpp_body_lines.push(format!("{} {{", sig));
+                    // Add body lines (skip the opening/closing brace lines we already handled)
+                    for buf_line in &function_buffer {
+                        let bt = buf_line.trim();
+                        if !bt.starts_with('#') && !bt.is_empty() {
+                            cpp_body_lines.push(buf_line.to_string());
+                        }
+                    }
+                    cpp_body_lines.push("}".to_string());
+                }
+                current_function_sig = None;
+            }
+        }
+    }
+
+    // If no function bodies were extracted, no contamination
+    if cpp_body_lines.is_empty() {
+        return None;
+    }
+
+    // Build the cleaned header
+    let cleaned_header = header_lines.join("\n");
+
+    // Build the companion .cpp file
+    let header_include = std::path::Path::new(target_file)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| target_file.to_string());
+    let mut cpp_content = String::new();
+    cpp_content.push_str(&format!("#include \"{}\"\n", header_include));
+    if !has_cpp_import {
+        cpp_content.push_str("#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n");
+    }
+    cpp_content.push_str("\n");
+    cpp_content.push_str(&cpp_body_lines.join("\n"));
+    cpp_content.push('\n');
+
+    tracing::warn!(
+        "🔪 [AUTONOMOUS_SLICER] Header contamination detected in {}: extracted {} function body(ies) → {}",
+        target_file,
+        cpp_body_lines.iter().filter(|l| l.trim() == "{").count(),
+        cpp_path
+    );
+
+    // Write the .cpp file to sandbox
+    if let Some(parent) = cpp_full_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(&cpp_full_path, &cpp_content);
+
+    Some((cleaned_header, cpp_content, cpp_full_path))
+}
+
 fn normalize_senior_output(raw: &str) -> NormalizedOutput {
-    let trimmed = raw.trim();
+    // Phase CoT/ToT: Strip <REASONING>...</REASONING> blocks before parsing decision
+    let stripped = strip_reasoning_block(raw);
+    let trimmed = stripped.trim();
 
     // Phase 8: Empty validator detection — silent failure is unsafe
     if trimmed.is_empty() || trimmed == "{}" || trimmed == "{ }" {
@@ -232,6 +484,8 @@ pub struct ExecutionPipeline {
     pipeline_handle: Option<JoinHandle<()>>,
     pub running: Arc<AtomicBool>,
     pub pending_reviews: Arc<Mutex<HashMap<String, PipelineReview>>>,
+    pub task_semaphore: Arc<Semaphore>,
+    pub agent_pool: Arc<AsyncRwLock<AgentPool>>,
 }
 
 impl ExecutionPipeline {
@@ -241,6 +495,7 @@ impl ExecutionPipeline {
         event_bus: Arc<EventBus>,
         project_id: String,
         sandbox_root: PathBuf,
+        agent_pool: Arc<AsyncRwLock<AgentPool>>,
     ) -> Self {
         Self {
             config,
@@ -251,6 +506,8 @@ impl ExecutionPipeline {
             pipeline_handle: None,
             running: Arc::new(AtomicBool::new(false)),
             pending_reviews: Arc::new(Mutex::new(HashMap::new())),
+            task_semaphore: Arc::new(Semaphore::new(1)),
+            agent_pool,
         }
     }
 
@@ -268,6 +525,16 @@ impl ExecutionPipeline {
         self
     }
 
+    pub fn with_task_semaphore(mut self, semaphore: Arc<Semaphore>) -> Self {
+        self.task_semaphore = semaphore;
+        self
+    }
+
+    pub fn with_agent_pool(mut self, pool: Arc<AsyncRwLock<AgentPool>>) -> Self {
+        self.agent_pool = pool;
+        self
+    }
+
     pub fn run_background(&mut self) {
         if self.running.load(Ordering::SeqCst) {
             tracing::warn!("Pipeline already running for project '{}'", self.project_id);
@@ -282,34 +549,61 @@ impl ExecutionPipeline {
         let sandbox_root = self.sandbox_root.clone();
         let running = self.running.clone();
         let pending_reviews = self.pending_reviews.clone();
+        let task_semaphore = self.task_semaphore.clone();
+        let agent_pool = self.agent_pool.clone();
 
         let handle = tokio::spawn(async move {
-            let senior_driver = create_model_driver(&config.agents.seniors[0]);
+            let pool = agent_pool.read().await;
+            
+            let senior_config = &pool.seniors[0];
+            let senior_driver = create_model_driver(senior_config);
+
+            // [HALLUCINATION_FIX] architecture.md를 ProjectIR로 파싱 (에이전트 생성 전)
+            let arch_path_early = sandbox_root.join("architecture.md");
+            let arch_text_early = std::fs::read_to_string(&arch_path_early).unwrap_or_default();
+            let project_ir_early = ProjectIR::from_md(&arch_text_early);
+            if project_ir_early.is_none() {
+                tracing::warn!("⚠️ [IR_PARSE_FAIL] 에이전트 생성 단계에서 ProjectIR 파싱 실패 — constraint_block 비활성화 상태로 진행");
+            } else {
+                tracing::info!("✅ [IR_INJECTED] 에이전트에 ProjectIR 주입 준비 완료 — {} 컴포넌트", project_ir_early.as_ref().unwrap().components.len());
+            }
 
             let mut juniors: Vec<AgentRuntime> = Vec::new();
-            for (i, jconf) in config.agents.juniors.iter().enumerate() {
+            for (i, jconf) in pool.juniors.iter().enumerate() {
                 let driver = create_model_driver(jconf);
+                let default_id = format!("junior-agent-{:03}", i + 1);
+                let agent_id = jconf.id.as_deref().unwrap_or(&default_id);
                 let mut agent = AgentRuntime::new(
-                    format!("junior-agent-{:03}", i + 1),
+                    agent_id.to_string(),
                     AgentRole::Junior,
                     jconf.model.clone(),
                     driver,
                 )
                 .with_timeout(600)
                 .with_project(project_id.clone());
+                // [HALLUCINATION_FIX] IR 계약 주입 — constraint_block 활성화
+                if let Some(ref ir) = project_ir_early {
+                    agent = agent.with_ir(ir.clone());
+                }
                 agent.set_locale(&config.locale);
                 juniors.push(agent);
             }
 
             let mut senior = AgentRuntime::new(
-                "senior-agent-001".to_string(),
+                senior_config.id.as_deref().unwrap_or("senior-agent-001").to_string(),
                 AgentRole::Senior,
-                config.agents.seniors[0].model.clone(),
+                senior_config.model.clone(),
                 senior_driver,
             )
             .with_timeout(300)
             .with_project(project_id.clone());
+            // [HALLUCINATION_FIX] 시니어에게도 IR 계약 주입
+            if let Some(ref ir) = project_ir_early {
+                senior = senior.with_ir(ir.clone());
+            }
             senior.set_locale(&config.locale);
+            
+            drop(pool);
 
             Self::run_pipeline(
                 storage,
@@ -321,6 +615,7 @@ impl ExecutionPipeline {
                 &pending_reviews,
                 &config,
                 running.clone(),
+                task_semaphore,
             )
             .await;
 
@@ -346,6 +641,7 @@ impl ExecutionPipeline {
         pending_reviews: &Arc<Mutex<HashMap<String, PipelineReview>>>,
         config: &AxonConfig,
         running: Arc<AtomicBool>,
+        task_semaphore: Arc<Semaphore>,
     ) {
         tracing::info!("🚀 Execution pipeline started for project '{}'", project_id);
 
@@ -371,6 +667,14 @@ impl ExecutionPipeline {
             String::new()
         });
 
+        // [HALLUCINATION_FIX] architecture.md → ProjectIR 파싱 (constraint_block 활성화)
+        let project_ir = ProjectIR::from_md(&architecture_guide);
+        if project_ir.is_none() {
+            tracing::warn!("⚠️ [IR_PARSE_FAIL] architecture.md에서 ProjectIR 파싱 실패 — allowed_includes/forbidden_symbols 계약이 LLM에 전달되지 않습니다.");
+        } else {
+            tracing::info!("✅ [IR_PARSED] ProjectIR 파싱 성공 — {} 컴포넌트 계약 활성화", project_ir.as_ref().unwrap().components.len());
+        }
+
         let all_tasks = storage.list_all_tasks().unwrap_or_default();
         let project_tasks: Vec<Task> = all_tasks
             .into_iter()
@@ -380,6 +684,7 @@ impl ExecutionPipeline {
                     && t.lifecycle_state != TaskLifecycleState::Rejected
                     && t.lifecycle_state != TaskLifecycleState::Superseded
                     && t.lifecycle_state != TaskLifecycleState::Fatal
+                    && t.lifecycle_state != TaskLifecycleState::Aborted
             })
             .collect();
 
@@ -435,7 +740,7 @@ impl ExecutionPipeline {
             tracing::info!("🏗️ Phase 1: Header declarations ({} tasks)", phase1.len());
             Self::execute_phase(
                 storage.clone(), event_bus.clone(), juniors.clone(), senior.clone(), &phase1, &architecture_guide,
-                sandbox_root, project_id, pending_reviews, config, running.clone(),
+                sandbox_root, project_id, pending_reviews, config, running.clone(), task_semaphore.clone(),
             )
             .await;
             if Self::is_paused(&running) { return; }
@@ -462,15 +767,21 @@ impl ExecutionPipeline {
                     "⛔ Phase 1 NOT fully completed. Skipping Phase 2/3 until Boss resolves: {:?}",
                     failed_ids
                 );
+                running.store(false, Ordering::SeqCst);
                 return;
             }
+
+            // v0.0.31.21: [SSOT_PHASE_STATE] Persist Phase 1 completion to project_state
+            let _ = storage.update_project_state(&project_id, "Phase1_Completed", "completed").await;
+            let _ = storage.flush().await;
+            tracing::info!("🔒 Phase 1 completion locked in project_state for project '{}'", project_id);
         }
 
         if !phase2.is_empty() {
             tracing::info!("🏗️ Phase 2: Source implementations ({} tasks)", phase2.len());
             Self::execute_phase(
                 storage.clone(), event_bus.clone(), juniors.clone(), senior.clone(), &phase2, &architecture_guide,
-                sandbox_root, project_id, pending_reviews, config, running.clone(),
+                sandbox_root, project_id, pending_reviews, config, running.clone(), task_semaphore.clone(),
             )
             .await;
             if Self::is_paused(&running) { return; }
@@ -497,18 +808,29 @@ impl ExecutionPipeline {
                     "⛔ Phase 2 NOT fully completed. Skipping Phase 3 until Boss resolves: {:?}",
                     failed_ids
                 );
+                running.store(false, Ordering::SeqCst);
                 return;
             }
+
+            // v0.0.31.21: [SSOT_PHASE_STATE] Persist Phase 2 completion to project_state
+            let _ = storage.update_project_state(&project_id, "Phase2_Completed", "completed").await;
+            let _ = storage.flush().await;
+            tracing::info!("🔒 Phase 2 completion locked in project_state for project '{}'", project_id);
         }
 
         if !phase3.is_empty() {
             tracing::info!("🏗️ Phase 3: Integrators ({} tasks)", phase3.len());
             Self::execute_phase(
                 storage.clone(), event_bus.clone(), juniors.clone(), senior.clone(), &phase3, &architecture_guide,
-                sandbox_root, project_id, pending_reviews, config, running.clone(),
+                sandbox_root, project_id, pending_reviews, config, running.clone(), task_semaphore.clone(),
             )
             .await;
             if Self::is_paused(&running) { return; }
+
+            // v0.0.31.21: [SSOT_PHASE_STATE] Persist Phase 3 completion to project_state
+            let _ = storage.update_project_state(&project_id, "Phase3_Completed", "completed").await;
+            let _ = storage.flush().await;
+            tracing::info!("🔒 Phase 3 completion locked in project_state for project '{}'", project_id);
         }
 
         let phase1_completed = phase1.iter().all(|t| {
@@ -548,6 +870,8 @@ impl ExecutionPipeline {
                 project_id
             );
         }
+
+        running.store(false, Ordering::SeqCst);
     }
 
     async fn execute_phase(
@@ -562,8 +886,8 @@ impl ExecutionPipeline {
         pending_reviews: &Arc<Mutex<HashMap<String, PipelineReview>>>,
         config: &AxonConfig,
         running: Arc<AtomicBool>,
+        task_semaphore: Arc<Semaphore>,
     ) {
-        let semaphore = Arc::new(Semaphore::new(juniors.len()));
         let mut handles: Vec<JoinHandle<()>> = Vec::new();
 
         for (idx, task) in tasks.iter().enumerate() {
@@ -577,7 +901,7 @@ impl ExecutionPipeline {
 
             let junior = juniors[idx % juniors.len()].clone();
             let senior = senior.clone();
-            let permit = semaphore.clone();
+            let permit = task_semaphore.clone();
             let storage = storage.clone();
             let event_bus = event_bus.clone();
             let task = (*task).clone();
@@ -768,6 +1092,7 @@ impl ExecutionPipeline {
             };
 
             // Write proposal to sandbox BEFORE Senior review (ensures target_original_code exists for retry)
+            let mut modified_proposal = proposal.clone();
             if let Some(ref code) = proposal.full_code {
                 if let Some(ref target) = task.target_file {
                     let sandbox_path = Self::sandbox_path(sandbox_root, target);
@@ -776,11 +1101,40 @@ impl ExecutionPipeline {
                     }
                     let _ = std::fs::write(&sandbox_path, code);
                     Self::log_sandbox_transition(SandboxState::Clean, SandboxState::Proposed, target, "Junior proposal written");
+
+                    // v0.0.31.38: [AUTONOMOUS_SLICER] Pre-Senior Review Header Contamination Fix
+                    // If Junior submitted function bodies in a header file, auto-extract them to .cpp
+                    if let Some((cleaned_header, _cpp_content, _cpp_path)) =
+                        autonomous_header_slicer(target, code, sandbox_root)
+                    {
+                        // Overwrite sandbox with cleaned header (declarations only)
+                        let _ = std::fs::write(&sandbox_path, &cleaned_header);
+                        // Update proposal's full_code so Senior reviews the cleaned version
+                        modified_proposal.full_code = Some(cleaned_header);
+                        tracing::info!("🔪 [AUTONOMOUS_SLICER] Header cleaned before Senior review: {}", target);
+                    }
                 }
             }
 
+            // Immediately save Junior's proposal and broadcast the event
+            if let Err(e) = storage.save_post_sync(modified_proposal.clone()) {
+                tracing::error!("❌ Failed to save Junior proposal: {}", e);
+            }
+            event_bus.publish(Event {
+                id: uuid::Uuid::new_v4().to_string(),
+                project_id: project_id.to_string(),
+                thread_id: Some(task.id.clone()),
+                agent_id: Some(modified_proposal.author_id.clone()),
+                event_type: EventType::PostAdded,
+                level: EventLevel::Info,
+                source: "pipeline".to_string(),
+                content: format!("Junior agent proposed changes for {}", resolved_target.as_deref().unwrap_or("unknown")),
+                payload: Some(serde_json::to_value(&modified_proposal).unwrap_or_default()),
+                timestamp: chrono::Local::now(),
+            });
+
             let review = match senior
-                .review_proposal(task, &proposal, None, Some(event_bus.clone()))
+                .review_proposal(task, &modified_proposal, None, Some(event_bus.clone()))
                 .await
             {
                 Ok(r) => r,
@@ -797,14 +1151,50 @@ impl ExecutionPipeline {
                 }
             };
 
-            let _ = storage.save_post(proposal.clone()).await;
-            let _ = storage.save_post(review.clone()).await;
-            let _ = storage.flush().await;
+            // Immediately save Senior's review and broadcast the event
+            if let Err(e) = storage.save_post_sync(review.clone()) {
+                tracing::error!("❌ Failed to save Senior review: {}", e);
+            }
+            event_bus.publish(Event {
+                id: uuid::Uuid::new_v4().to_string(),
+                project_id: project_id.to_string(),
+                thread_id: Some(task.id.clone()),
+                agent_id: Some(review.author_id.clone()),
+                event_type: EventType::PostAdded,
+                level: EventLevel::Info,
+                source: "pipeline".to_string(),
+                content: format!("Senior agent completed review for {}", resolved_target.as_deref().unwrap_or("unknown")),
+                payload: Some(serde_json::to_value(&review).unwrap_or_default()),
+                timestamp: chrono::Local::now(),
+            });
 
             // Phase 7-B: Output Normalization Layer — single convergence point for all Senior output formats
             let normalized = normalize_output(&review.content, true);
-            let is_approve = normalized.is_approve();
-            let feedback = normalized.feedback.unwrap_or_default();
+            let mut is_approve = normalized.is_approve();
+            let mut feedback = normalized.feedback.unwrap_or_default();
+
+            // v0.0.31.37: [HALLUCINATION_GUARD] Verify Senior's rejection for header files
+            // If Senior claims "function body in header" but code only has declarations,
+            // override REJECT → APPROVE to prevent hallucination deadlock loops.
+            if !is_approve {
+                let target = task.target_file.as_deref().unwrap_or("");
+                let proposed_code = modified_proposal.full_code.clone().unwrap_or_else(|| {
+                    if let Some(ref t) = task.target_file {
+                        let sandbox_path = Self::sandbox_path(sandbox_root, t);
+                        std::fs::read_to_string(&sandbox_path).unwrap_or_default()
+                    } else {
+                        String::new()
+                    }
+                });
+                if detect_senior_header_hallucination(target, &feedback, &proposed_code) {
+                    tracing::warn!(
+                        "🛡️ [HALLUCINATION_GUARD] Senior hallucination detected for task '{}'. Forcing APPROVE.",
+                        task.title
+                    );
+                    is_approve = true;
+                    feedback = "[HALLUCINATION_GUARD] Senior rejection overridden: proposed header code has declarations only (no function bodies). Auto-approved.".to_string();
+                }
+            }
 
             if is_approve {
                 if let Some(ref target) = task.target_file {
@@ -970,7 +1360,20 @@ impl ExecutionPipeline {
         if let Ok(Some(mut thread)) = storage.get_thread(thread_id) {
             thread.status = status;
             thread.updated_at = chrono::Local::now();
+
+            if let Ok(Some(task)) = storage.get_task(thread_id) {
+                thread.validator_rejections = task.validator_rejections;
+                thread.senior_rejections = task.senior_rejections;
+                thread.architecture_rejections = task.architecture_rejections;
+                thread.cargo_rejections = task.cargo_rejections;
+                thread.lsp_rejections = task.lsp_rejections;
+                thread.boss_interventions = task.boss_interventions;
+                thread.rejection_count = task.rework_count;
+                thread.error_feedback = task.error_feedback.clone();
+            }
+
             let _ = storage.save_thread(thread).await;
+            let _ = storage.flush().await;
         }
     }
 }

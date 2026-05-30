@@ -138,7 +138,7 @@ impl AgentRuntime {
             agent, 
             model: model_driver,
             locale: "en_US".to_string(), // Default
-            timeout: std::time::Duration::from_secs(300),
+            timeout: std::time::Duration::from_secs(900),
             throttler: None,
             hot_cache: Arc::new(Mutex::new(HotRuleCache::new())),
             project_id: "default-project".to_string(),
@@ -189,12 +189,25 @@ impl AgentRuntime {
     }
 
     fn extract_thought(&self, raw: &str) -> Option<String> {
+        // Phase CoT/ToT: Parse <THOUGHT>...</THOUGHT> and <REASONING>...</REASONING> markers
+        let marker_pairs = [("<THOUGHT>", "</THOUGHT>"), ("<REASONING>", "</REASONING>")];
+        for (open, close) in marker_pairs {
+            if let Some(start_idx) = raw.find(open) {
+                let content_start = start_idx + open.len();
+                if let Some(end_idx) = raw[content_start..].find(close) {
+                    let thought = raw[content_start..content_start + end_idx].trim().to_string();
+                    if !thought.is_empty() {
+                        return Some(thought);
+                    }
+                }
+            }
+        }
+        // Fallback: legacy patterns
         let patterns = ["THOUGHT:", "Reasoning:", "### Thought", "### Reasoning"];
         for pattern in patterns {
             if let Some(idx) = raw.find(pattern) {
                 let start = idx + pattern.len();
                 let rest = &raw[start..];
-                // Take until the next section or end of text
                 let end = rest.find("\n###").or_else(|| rest.find("<JSON_START>")).unwrap_or(rest.len());
                 let thought = rest[..end].trim().to_string();
                 if !thought.is_empty() { return Some(thought); }
@@ -477,13 +490,13 @@ impl AgentRuntime {
         let mut c_rule_block = String::new();
         if target_file.ends_with(".c") {
             c_rule_block.push_str("\n### ⚠️ [CRITICAL_C_CONSTITUTION - MANDATORY] ###\n");
-            c_rule_block.push_str("1. **MANDATORY INCLUDES**: You MUST include `<stdio.h>`, `<stdlib.h>`, and `<string.h>` at the top. ALSO include your corresponding .h file (e.g., `#include \"database.h\"`) FIRST before other logic.\n");
-            c_rule_block.push_str("2. **ABI INTEGRITY**: You MUST use EXACT function names and signatures from the architecture. NO variations allowed (e.g., `init_db` vs `init_database` is a FAILURE).\n");
-            c_rule_block.push_str("3. **SQLITE3 SAFETY**: NEVER use `strncpy` or `memcpy` into `sqlite3_column_text()` results. These are READ-ONLY. Copy to a local buffer instead. `sqlite3_exec` must pass `&zErrMsg` for error reporting.\n");
-            c_rule_block.push_str("4. **NO HALLUCINATED LIBRARIES**: ONLY include headers defined in the architecture or standard C headers. Do NOT add `sqlite3.h` to non-database modules.\n");
+            c_rule_block.push_str("1. **MANDATORY INCLUDES**: You MUST include `<stdio.h>`, `<stdlib.h>`, and `<string.h>` at the top. ALSO include your corresponding .h file (e.g., `#include \"text_buffer.h\"`) FIRST before other logic.\n");
+            c_rule_block.push_str("2. **ABI INTEGRITY**: You MUST use EXACT function names and signatures from the architecture. NO variations allowed (e.g., `init_buffer` vs `buffer_init` is a FAILURE).\n");
+            c_rule_block.push_str("3. **STRICT DEPENDENCY ALLOWLIST**: ONLY include headers that are (a) explicitly listed in the EXECUTABLE CONTRACT CONSTRAINTS `ALLOWED INCLUDES` section, or (b) part of the C standard library (stdio.h, stdlib.h, string.h, etc.). Any #include not from these two sources is FORBIDDEN.\n");
+            c_rule_block.push_str("4. **NO INFERENCE**: Do NOT infer or assume any dependency that is not explicitly named in the ARCHITECTURE GUIDE or ALLOWED INCLUDES above. If unsure, ask via 'ERROR: MISSING_CONTRACT'.\n");
             c_rule_block.push_str("5. **STRING LITERALS**: Do NOT break string literals with newlines in the source. Use `\\n` within a single line literal.\n");
-            c_rule_block.push_str("6. **STRUCT VISIBILITY**: If the IR defines a struct (e.g., `struct user_record`), you MUST define it or include the header that defines it. Do NOT invent new struct names.\n");
-            c_rule_block.push_str("7. **SEMANTIC SEALING (v0.0.29)**: If the architecture lacks a strict 'struct' definition or 'ownership' policy for a function you need to implement, DO NOT GUESS. Output 'ERROR: INSUFFICIENT_SEMANTICS - Missing [Struct/Policy Name]' and terminate.\n");
+            c_rule_block.push_str("6. **STRUCT VISIBILITY**: If the IR defines a struct (e.g., `struct text_buffer`), you MUST define it or include the header that defines it. Do NOT invent new struct names.\n");
+            c_rule_block.push_str("7. **SEMANTIC SEALING (v0.0.29)**: If the architecture lacks a strict 'struct' definition or 'ownership' policy, DO NOT GUESS. Output 'ERROR: INSUFFICIENT_SEMANTICS - Missing [Struct/Policy Name]' and terminate.\n");
             c_rule_block.push_str("VIOLATION OF THIS CONSTITUTION WILL TRIGGER AN IMMEDIATE REJECT SIGNAL.\n");
         } else if target_file.ends_with(".h") {
             c_rule_block.push_str("\n### ⚠️ [CRITICAL WARNING - MANDATORY C HEADER RULE] ###\n");
@@ -491,15 +504,90 @@ impl AgentRuntime {
             c_rule_block.push_str("2. MUST include Header Guards (#ifndef, #define, #endif).\n");
             c_rule_block.push_str("3. DECLARATIONS ONLY. ABSOLUTELY NO FUNCTION BODIES ( { ... } ).\n");
             c_rule_block.push_str("4. ONLY signatures with a semicolon at the end (e.g., int func(int);).\n");
+            c_rule_block.push_str("5. **STRICT DEPENDENCY ALLOWLIST**: ONLY include headers that are (a) explicitly listed in the EXECUTABLE CONTRACT CONSTRAINTS `ALLOWED INCLUDES` section, or (b) part of the C standard library. Any #include not from these two sources is FORBIDDEN.\n");
+            c_rule_block.push_str("6. **NO INFERENCE**: Do NOT assume any library or framework not explicitly in the ARCHITECTURE GUIDE. If unsure, output 'ERROR: MISSING_CONTRACT'.\n");
+            // v0.0.31.38: Pre-emptive Strike — HeaderDecl task_kind awareness
+            if let Some(kind) = task.task_kind {
+                let is_header_decl = match kind {
+                    axon_core::LanguageTaskKind::C(axon_core::CTaskKind::HeaderDecl) => true,
+                    _ => false,
+                };
+                if is_header_decl {
+                    c_rule_block.push_str("7. **HEADER DECLARATION MODE**: This task is a HeaderDecl — you MUST ONLY write function signatures ending with semicolons. NEVER write { } blocks. NEVER implement function logic. The implementation belongs in the .cpp file.\n");
+                    c_rule_block.push_str("8. **ZERO BRACE RULE**: If your output contains ANY opening brace '{' that is NOT part of #ifndef/#define, your submission will be REJECTED and auto-cleaned by the pipeline.\n");
+                }
+            }
             c_rule_block.push_str("If you include a function body in this header, the Senior will reject it and you will be penalized.\n");
+        } else if target_file.ends_with(".cpp") {
+            c_rule_block.push_str("\n### ⚠️ [CRITICAL_CXX_CONSTITUTION - MANDATORY] ###\n");
+            c_rule_block.push_str("1. **MANDATORY INCLUDES**: You MUST include your corresponding .h file (e.g., `#include \"text_buffer.h\"`) FIRST before other logic.\n");
+            c_rule_block.push_str("2. **ABI INTEGRITY**: You MUST use EXACT function names and signatures from the architecture. NO variations allowed.\n");
+            c_rule_block.push_str("3. **STRICT DEPENDENCY ALLOWLIST**: ONLY include headers that are (a) explicitly listed in the EXECUTABLE CONTRACT CONSTRAINTS `ALLOWED INCLUDES` section, or (b) part of the C/C++ standard library. Any #include not from these two sources is FORBIDDEN.\n");
+            c_rule_block.push_str("4. **NO INFERENCE**: Do NOT assume any library or framework not explicitly named in the ARCHITECTURE GUIDE. If unsure, output 'ERROR: MISSING_CONTRACT'.\n");
+            c_rule_block.push_str("5. **STRING LITERALS**: Do NOT break string literals with newlines in the source. Use `\\n` within a single line literal.\n");
+            c_rule_block.push_str("6. **STRUCT VISIBILITY**: If the IR defines a struct, you MUST define it or include the header that defines it. Do NOT invent new struct names.\n");
+            c_rule_block.push_str("7. **SEMANTIC SEALING (v0.0.29)**: If the architecture lacks a strict definition or ownership policy, DO NOT GUESS. Output 'ERROR: INSUFFICIENT_SEMANTICS' and terminate.\n");
+            c_rule_block.push_str("VIOLATION OF THIS CONSTITUTION WILL TRIGGER AN IMMEDIATE REJECT SIGNAL.\n");
+        } else if target_file.ends_with(".hpp") {
+            c_rule_block.push_str("\n### ⚠️ [CRITICAL WARNING - MANDATORY C++ HEADER RULE] ###\n");
+            c_rule_block.push_str("1. You are writing a PURE C++ HEADER FILE (.hpp).\n");
+            c_rule_block.push_str("2. MUST include Header Guards (#ifndef, #define, #endif) or `#pragma once`.\n");
+            c_rule_block.push_str("3. DECLARATIONS ONLY. ABSOLUTELY NO FUNCTION BODIES ( { ... } ) except inline/template functions.\n");
+            c_rule_block.push_str("4. ONLY signatures with a semicolon at the end.\n");
+            c_rule_block.push_str("5. **STRICT DEPENDENCY ALLOWLIST**: ONLY include headers that are (a) explicitly listed in the EXECUTABLE CONTRACT CONSTRAINTS `ALLOWED INCLUDES` section, or (b) part of the C/C++ standard library. Any #include not from these two sources is FORBIDDEN.\n");
+            c_rule_block.push_str("6. **NO INFERENCE**: Do NOT assume any library or framework not explicitly in the ARCHITECTURE GUIDE. If unsure, output 'ERROR: MISSING_CONTRACT'.\n");
+            // v0.0.31.38: Pre-emptive Strike — HeaderDecl task_kind awareness
+            if let Some(kind) = task.task_kind {
+                let is_header_decl = match kind {
+                    axon_core::LanguageTaskKind::C(axon_core::CTaskKind::HeaderDecl) => true,
+                    _ => false,
+                };
+                if is_header_decl {
+                    c_rule_block.push_str("7. **HEADER DECLARATION MODE**: This task is a HeaderDecl — you MUST ONLY write function signatures ending with semicolons. NEVER write { } blocks. NEVER implement function logic.\n");
+                    c_rule_block.push_str("8. **ZERO BRACE RULE**: If your output contains ANY opening brace '{' that is NOT part of #ifndef/#define/#pragma once, your submission will be REJECTED.\n");
+                }
+            }
+            c_rule_block.push_str("If you include a function body in this header, the Senior will reject it and you will be penalized.\n");
+        } else if target_file.ends_with(".lua") {
+            c_rule_block.push_str("\n### ⚠️ [CRITICAL_LUA_CONSTITUTION - MANDATORY] ###\n");
+            // P2-D: G_CALLBACK 제거 (GTK 특정 심볼 — Lua 규칙에 존재 이유 없음)
+            c_rule_block.push_str("1. **LUA SYNTAX ONLY**: You MUST write valid Lua script. NEVER write C/C++ syntax like #include or C-style braces for blocks.\n");
+            c_rule_block.push_str("2. **COMPLETE FUNCTIONS**: All functions MUST be fully implemented with correct `end` statements. Do NOT leave empty or placeholder functions.\n");
+            c_rule_block.push_str("3. **MODULE DEPS**: Use local variable imports or `require` if referencing other Lua modules. Do NOT use C++ include directives.\n");
+            c_rule_block.push_str("4. **NO COMPILER DIRECTIVES**: Do NOT write header guards, #define, or #ifndef in Lua files.\n");
+            c_rule_block.push_str("5. **STRICT MODULE ALLOWLIST**: Only `require` modules that are (a) explicitly listed in ALLOWED INCLUDES, or (b) part of the Lua standard library. Any require not from these sources is FORBIDDEN.\n");
+            c_rule_block.push_str("VIOLATION OF THIS CONSTITUTION WILL TRIGGER AN IMMEDIATE REJECT SIGNAL.\n");
+        } else if target_file.ends_with(".rs") {
+            // P1-A: Rust 파일 타입 규칙 (완전 누락 상태였음)
+            c_rule_block.push_str("\n### ⚠️ [CRITICAL_RUST_CONSTITUTION - MANDATORY] ###\n");
+            c_rule_block.push_str("1. **CRATE ALLOWLIST**: Only use crates listed in the EXECUTABLE CONTRACT CONSTRAINTS `ALLOWED INCLUDES` section or the Rust std library. Any `use` or `extern crate` not from these two sources is FORBIDDEN.\n");
+            c_rule_block.push_str("2. **ABI INTEGRITY**: You MUST use EXACT function names and signatures defined in the ARCHITECTURE GUIDE. NO variations allowed.\n");
+            c_rule_block.push_str("3. **NO INFERENCE**: Do NOT assume any crate or module not explicitly named in the ARCHITECTURE GUIDE. If unsure, output 'ERROR: MISSING_CONTRACT'.\n");
+            c_rule_block.push_str("4. **SEMANTIC SEALING**: If the architecture lacks a type, trait, or ownership policy you need, DO NOT GUESS. Output 'ERROR: INSUFFICIENT_SEMANTICS' and terminate.\n");
+            c_rule_block.push_str("VIOLATION OF THIS CONSTITUTION WILL TRIGGER AN IMMEDIATE REJECT SIGNAL.\n");
+        } else if target_file.ends_with(".py") {
+            // P1-A: Python 파일 타입 규칙 (완전 누락 상태였음)
+            c_rule_block.push_str("\n### ⚠️ [CRITICAL_PYTHON_CONSTITUTION - MANDATORY] ###\n");
+            c_rule_block.push_str("1. **MODULE ALLOWLIST**: Only import modules listed in the EXECUTABLE CONTRACT CONSTRAINTS `ALLOWED INCLUDES` section or the Python standard library. Any import not from these two sources is FORBIDDEN.\n");
+            c_rule_block.push_str("2. **ABI INTEGRITY**: You MUST use EXACT function names and signatures defined in the ARCHITECTURE GUIDE. NO variations allowed.\n");
+            c_rule_block.push_str("3. **NO INFERENCE**: Do NOT assume any package or framework not explicitly named in the ARCHITECTURE GUIDE. If unsure, output 'ERROR: MISSING_CONTRACT'.\n");
+            c_rule_block.push_str("4. **SEMANTIC SEALING**: If the architecture lacks a class, type, or ownership policy you need, DO NOT GUESS. Output 'ERROR: INSUFFICIENT_SEMANTICS' and terminate.\n");
+            c_rule_block.push_str("VIOLATION OF THIS CONSTITUTION WILL TRIGGER AN IMMEDIATE REJECT SIGNAL.\n");
         }
 
         let output_format = if effective_rework {
             format!(
-                "### 🔒 OUTPUT FORMAT (REWORK MODE — TRANSACTION ENVELOPE REQUIRED) ###\n\
+                "### 🔒 OUTPUT FORMAT (REWORK MODE — REASONING + TRANSACTION ENVELOPE) ###\n\
                  You are fixing existing code based on Senior feedback.\n\
                  Review the EXISTING CODE and PREVIOUS FEEDBACK sections above.\n\
-                 You MUST wrap your output in a Transaction Envelope:\n\n\
+                 You MUST output in this EXACT order:\n\n\
+                 1. <THOUGHT> block: Your step-by-step reasoning (what went wrong, what to fix)\n\
+                 2. Transaction Envelope with the corrected code:\n\n\
+                 <THOUGHT>\n\
+                 [Feedback analysis] ...\n\
+                 [Target lines] ...\n\
+                 [Change plan] ...\n\
+                 </THOUGHT>\n\n\
                  ===AXON_PATCH_BEGIN===\n\
                  PATCH_ID: {patch_id}\n\
                  TARGET: {target_file}\n\
@@ -512,8 +600,14 @@ impl AgentRuntime {
             )
         } else {
             format!(
-                "### 🔒 OUTPUT FORMAT (SIMPLE — TRANSACTION ENVELOPE REQUIRED) ###\n\
-                 You MUST wrap your output in a Transaction Envelope:\n\n\
+                "### 🔒 OUTPUT FORMAT (SIMPLE — REASONING + TRANSACTION ENVELOPE) ###\n\
+                 You MUST output in this EXACT order:\n\n\
+                 1. <THOUGHT> block: Your implementation plan\n\
+                 2. Transaction Envelope with the source code:\n\n\
+                 <THOUGHT>\n\
+                 [Architecture analysis] ...\n\
+                 [Implementation plan] ...\n\
+                 </THOUGHT>\n\n\
                  ===AXON_PATCH_BEGIN===\n\
                  PATCH_ID: {patch_id}\n\
                  TARGET: {target_file}\n\
@@ -581,22 +675,37 @@ impl AgentRuntime {
             String::new()
         };
 
+        // P2-A: 언어별 조건부 규칙 생성 — C 전용 규칙이 Rust/Python/Lua에 주입되지 않도록
+        let is_c_family = target_file.ends_with(".c") || target_file.ends_with(".h")
+            || target_file.ends_with(".cpp") || target_file.ends_with(".hpp");
+        let c_standards_rule = if is_c_family {
+            "2. **C STANDARDS**: MUST follow C99/C++17. Use 'strncpy', 'strncat', 'snprintf' for security.\n\
+             3. **HEADER FREEZE**: Headers (.h/.hpp) are for DECLARATIONS ONLY. NO function bodies allowed.\n"
+        } else {
+            "2. **LANGUAGE STANDARDS**: Follow the idiomatic standards of the target language. Implement FULL logic — no stubs.\n"
+        };
+        let c_ir_rules = if is_c_family {
+            "4. **C/C++ INTERFACE RULE**: Implementation files (.c/.cpp) MUST #include their corresponding .h file FIRST.\n\
+             5. **C SYNTAX SAFETY**: No multiline string breaks without escapes. Ensure proper null termination.\n\
+             6. **NO STUBS**: Implement FULL functional logic. No placeholders or TODOs allowed.\n\n"
+        } else {
+            "4. **NO STUBS**: Implement FULL functional logic. No placeholders or TODOs allowed.\n\n"
+        };
+
         let system_prompt = format!(
             "### 🏛️ SOVEREIGN CONSTITUTION (v0.0.29 GLOBAL MANDATES) ###\n\
-             1. **TECH STACK**: MUST use SQLite3 for persistence as defined in spec.md. NO local arrays or files unless specified.\n\
-             2. **C STANDARDS**: MUST follow C99. Use 'strncpy', 'strncat', 'snprintf' for security.\n\
-             3. **HEADER FREEZE**: Headers (.h) are for DECLARATIONS ONLY. NO function bodies allowed.\n\n\
+             1. **TECH STACK**: Use ONLY the libraries and dependencies explicitly listed in the ARCHITECTURE GUIDE and EXECUTABLE CONTRACT CONSTRAINTS. DO NOT assume SQLite, any database, or external runtime unless explicitly named in the contract.\n\
+             {c_standards_rule}\
              ### [ROLE: AI JUNIOR AGENT - {persona_name}] ###\n\
              LANGUAGE: {lang_name}\n\
              {lang_instruction}\n\n\
              {c_rule_block}\
              ### 🏛️ IR CONTRACT ENFORCEMENT (ABSOLUTE SSOT) ###\n\
-             1. **EXACT MAPPING**: You MUST use the EXACT function names and signatures defined in the ARCHITECTURE GUIDE below. Renaming is FORBIDDEN.\n\
-             2. **CONSISTENCY > QUALITY**: Even if you think a different name or structure is 'better', YOU MUST NOT CHANGE THE IR. You are an EXECUTOR, not an architect.\n\
-             3. **DEPENDENCY LOCK**: ONLY #include files listed in the IR or Standard Library. NEVER invent headers (like 'main.h') if they are not in the IR.\n\
-             4. **C/C++ INTERFACE RULE**: Implementation files (.c/.cpp) MUST #include their corresponding .h file FIRST.\n\
-             5. **C SYNTAX SAFETY**: No multiline string breaks without escapes. Ensure proper null termination.\n\
-             6. **NO STUBS**: Implement FULL functional logic. No placeholders or TODOs allowed.\n\n\
+             1. **EXACT MAPPING**: You MUST use the EXACT function names and signatures defined in the ARCHITECTURE GUIDE. Renaming is FORBIDDEN.\n\
+             2. **CONSISTENCY > QUALITY**: Even if you think a different name is 'better', YOU MUST NOT CHANGE THE IR. You are an EXECUTOR, not an architect.\n\
+             3. **DEPENDENCY LOCK**: ONLY use items listed in the IR or standard library. NEVER invent identifiers not in the IR.\n\
+             {c_ir_rules}
+
              {constraint_block}\n\
              ### 🗺️ ARCHITECTURE GUIDE (YOUR CONTRACT) ###\n\
              {short_guide}\n\n\
@@ -604,14 +713,21 @@ impl AgentRuntime {
              Target File: {target_file}\n\
              Task Title: {t_title}\n\
              Task Description: {t_desc}\n\n\
-             ### ⚠️ PREVIOUS FEEDBACK ###\n\
-             {feedback_block}\n\n\
-              ### 📄 EXISTING CODE ###\n\
-              ```\n\
-              {existing_code_patch}\n\
-              ```\n\n\
-              {patch_block}\
-              {output_format}",
+              ### ⚠️ PREVIOUS FEEDBACK ###\n\
+              {feedback_block}\n\n\
+              ### 🧠 THINKING PROCESS (CHAIN OF THOUGHTS) ###\n\
+              BEFORE generating code, you MUST follow this reasoning sequence:\n\
+              1. Compare the PREVIOUS FEEDBACK line-by-line against the EXISTING CODE.\n\
+              2. Identify the EXACT line numbers and function scope that require modification.\n\
+              3. Plan the MINIMAL change required — DO NOT rewrite the entire file.\n\
+              4. If this is a rework (retries > 0), review your previous .failed versions and ensure you do NOT repeat the same mistakes.\n\
+              5. Generate ONLY the corrected code section, preserving ALL unrelated code byte-for-byte.\n\n\
+               ### 📄 EXISTING CODE ###\n\
+               ```\n\
+               {existing_code_patch}\n\
+               ```\n\n\
+               {patch_block}\
+               {output_format}",
             persona_name = self.agent.persona.name,
             lang_name = lang_name,
             lang_instruction = lang_instruction,
@@ -797,7 +913,7 @@ impl AgentRuntime {
                  - CMake MUST use: add_executable(... WIN32) and set(CMAKE_EXE_LINKER_FLAGS \"-mwindows\")\n\
                  - DLL imports: user32, gdi32, kernel32, shell32, comdlg32\n\
                  - FORBIDDEN: main.c, int main(void), src/main.c\n\n".to_string(),
-                "### EXPECTED JSON SCHEMA (Win32 GUI - MANDATORY) ###\n\
+                 "### EXPECTED JSON SCHEMA (Win32 GUI - MANDATORY) ###\n\
                  <JSON_START>\n\
                  {\n\
                    \"node_mapping\": { \"SPEC_NODE\": \"file\" },\n\
@@ -813,19 +929,34 @@ impl AgentRuntime {
                        \"type\": \"win32_message_loop\",\n\
                        \"functions\": [{ \"name\": \"wWinMain\", \"signature\": \"int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)\" }],\n\
                        \"is_entrypoint\": true,\n\
-                       \"dll_imports\": [\"user32\", \"gdi32\", \"kernel32\"]\n\
+                       \"dll_imports\": [\"user32\", \"gdi32\", \"kernel32\"],\n\
+                       \"allowed_includes\": [\"windows.h\", \"winuser.h\"],\n\
+                       \"metadata\": {\n\
+                         \"ownership\": \"Application entry point, message loop, WNDCLASSEX registration\",\n\
+                         \"spec_reference\": \"§3\"\n\
+                       }\n\
                      },\n\
                      {\n\
                        \"name\": \"src/window.cpp\",\n\
                        \"file\": \"src/window.cpp\",\n\
                        \"type\": \"win32_wndproc\",\n\
-                       \"functions\": [{ \"name\": \"WndProc\", \"signature\": \"LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM)\" }]\n\
+                       \"functions\": [{ \"name\": \"WndProc\", \"signature\": \"LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM)\" }],\n\
+                       \"allowed_includes\": [\"windows.h\", \"window.h\"],\n\
+                       \"metadata\": {\n\
+                         \"ownership\": \"Window procedure, message handling, WM_PAINT rendering\",\n\
+                         \"spec_reference\": \"§4\"\n\
+                       }\n\
                      },\n\
                      {\n\
                        \"name\": \"src/windowclass.cpp\",\n\
                        \"file\": \"src/windowclass.cpp\",\n\
                        \"type\": \"win32_window_class\",\n\
-                       \"functions\": [{ \"name\": \"register_window_class\", \"signature\": \"ATOM register_window_class(HINSTANCE)\" }]\n\
+                       \"functions\": [{ \"name\": \"register_window_class\", \"signature\": \"ATOM register_window_class(HINSTANCE)\" }],\n\
+                       \"allowed_includes\": [\"windows.h\", \"windowclass.h\"],\n\
+                       \"metadata\": {\n\
+                         \"ownership\": \"WNDCLASSEX registration, icon/cursor setup\",\n\
+                         \"spec_reference\": \"§5\"\n\
+                       }\n\
                      }\n\
                    ]\n\
                  }\n\
@@ -837,7 +968,8 @@ impl AgentRuntime {
                  4. CMakeLists.txt MUST have `add_executable(... WIN32)` and link user32, gdi32, kernel32\n\
                  5. Rendering MUST only happen inside `case WM_PAINT:` block in WndProc\n\
                  6. FORBIDDEN files: src/main.c, user32.c, gdi32.c, kernel32.c, comdlg32.c\n\
-                 7. Win32 API declarations like CreateWindow/DispatchMessage must come ONLY from windows.h\n\n"
+                  7. Win32 API declarations like CreateWindow/DispatchMessage must come ONLY from windows.h\n\
+                  8. HEADER/SOURCE SEPARATION: Each header (include/*.h) MUST be a SEPARATE component with its own \"file\" field ending in .h or .hpp. NEVER set a header component's \"file\" to a .cpp or .c source path.\n\n"
             )
         } else if is_win32 {
             (
@@ -846,7 +978,7 @@ impl AgentRuntime {
                  SUBSYSTEM: Console\n\
                  - Win32 API allowed, but GUI subsystem not required.\n\
                  - Use C++ source files.\n\n".to_string(),
-                "### EXPECTED JSON SCHEMA (Win32 - MANDATORY) ###\n\
+                 "### EXPECTED JSON SCHEMA (Win32 - MANDATORY) ###\n\
                  <JSON_START>\n\
                  {\n\
                    \"node_mapping\": { \"SPEC_NODE\": \"file\" },\n\
@@ -861,7 +993,12 @@ impl AgentRuntime {
                        \"file\": \"src/main.cpp\",\n\
                        \"type\": \"project_module\",\n\
                        \"functions\": [{ \"name\": \"wmain\", \"signature\": \"int wmain(int argc, wchar_t* argv[])\" }],\n\
-                       \"is_entrypoint\": true\n\
+                       \"is_entrypoint\": true,\n\
+                       \"allowed_includes\": [\"windows.h\", \"stdio.h\"],\n\
+                       \"metadata\": {\n\
+                         \"ownership\": \"Application entry point\",\n\
+                         \"spec_reference\": \"§3\"\n\
+                       }\n\
                      }\n\
                    ]\n\
                  }\n\
@@ -869,7 +1006,8 @@ impl AgentRuntime {
                 "### WIN32 CONSTITUTIONAL RULES ###\n\
                  1. Entry point MUST be `wmain` or `wWinMain` (NOT `main`)\n\
                  2. FORBIDDEN: `int main(void)`, `int main(int argc, char** argv)`\n\
-                 3. Win32 API calls must come from windows.h\n\n"
+                  3. Win32 API calls must come from windows.h\n\
+                  4. HEADER/SOURCE SEPARATION: Each header (include/*.h) MUST be a SEPARATE component with its own \"file\" field ending in .h or .hpp. NEVER set a header component's \"file\" to a .cpp or .c source path.\n\n"
             )
         } else if is_rust {
             (
@@ -878,7 +1016,7 @@ impl AgentRuntime {
                  SUBSYSTEM: Console\n\
                  - Use .rs files and Cargo.toml. DO NOT use .c, .h, or CMake.\n\
                  - Entry point: `fn main()` in src/main.rs\n\n".to_string(),
-                "### EXPECTED JSON SCHEMA (Rust - MANDATORY) ###\n\
+                 "### EXPECTED JSON SCHEMA (Rust - MANDATORY) ###\n\
                  <JSON_START>\n\
                  {\n\
                    \"language\": \"rust\",\n\
@@ -892,7 +1030,12 @@ impl AgentRuntime {
                        \"file\": \"src/main.rs\",\n\
                        \"type\": \"project_module\",\n\
                        \"functions\": [{ \"name\": \"main\", \"signature\": \"fn main()\" }],\n\
-                       \"is_entrypoint\": true\n\
+                       \"is_entrypoint\": true,\n\
+                       \"allowed_includes\": [],\n\
+                       \"metadata\": {\n\
+                         \"ownership\": \"Application entry point\",\n\
+                         \"spec_reference\": \"§1\"\n\
+                       }\n\
                      }\n\
                    ]\n\
                  }\n\
@@ -900,7 +1043,7 @@ impl AgentRuntime {
                 "### RUST CONSTITUTIONAL RULES ###\n\
                  1. NEVER write .c, .h, CMakeLists.txt files for Rust projects\n\
                  2. ALWAYS use Cargo.toml and .rs files only\n\
-                 3. FORBIDDEN: #include, malloc, printf, stdio.h, sqlite3.h (use crates instead)\n\n"
+                  3. FORBIDDEN: #include, malloc, printf, stdio.h (use crates instead)\n\n"
             )
         } else if is_python {
             (
@@ -909,7 +1052,7 @@ impl AgentRuntime {
                  SUBSYSTEM: Console\n\
                  - Use .py files and requirements.txt. DO NOT use .c, .rs, CMake.\n\
                  - Entry point: `main()` function in main.py\n\n".to_string(),
-                "### EXPECTED JSON SCHEMA (Python - MANDATORY) ###\n\
+                 "### EXPECTED JSON SCHEMA (Python - MANDATORY) ###\n\
                  <JSON_START>\n\
                  {\n\
                    \"language\": \"python\",\n\
@@ -923,7 +1066,12 @@ impl AgentRuntime {
                        \"file\": \"main.py\",\n\
                        \"type\": \"project_module\",\n\
                        \"functions\": [{ \"name\": \"main\", \"signature\": \"def main()\" }],\n\
-                       \"is_entrypoint\": true\n\
+                       \"is_entrypoint\": true,\n\
+                       \"allowed_includes\": [],\n\
+                       \"metadata\": {\n\
+                         \"ownership\": \"Application entry point\",\n\
+                         \"spec_reference\": \"§1\"\n\
+                       }\n\
                      }\n\
                    ]\n\
                  }\n\
@@ -954,26 +1102,53 @@ impl AgentRuntime {
                        \"file\": \"src/main.c\",\n\
                        \"type\": \"project_module\",\n\
                        \"functions\": [{ \"name\": \"main\", \"signature\": \"int main(void)\" }],\n\
-                       \"is_entrypoint\": true\n\
+                       \"is_entrypoint\": true,\n\
+                       \"tier\": \"core\",\n\
+                       \"is_blocking\": true,\n\
+                       \"allowed_includes\": [\"stdio.h\", \"stdlib.h\"],\n\
+                       \"metadata\": {\n\
+                         \"ownership\": \"Application entry point, initializes all subsystems\",\n\
+                         \"spec_reference\": \"§3\"\n\
+                       }\n\
                      },\n\
                      {\n\
                        \"name\": \"include/module.h\",\n\
                        \"file\": \"include/module.h\",\n\
                        \"type\": \"project_module\",\n\
-                       \"functions\": [{ \"name\": \"func\", \"signature\": \"int func(int a)\" }]\n\
+                       \"functions\": [{ \"name\": \"func\", \"signature\": \"int func(int a)\" }],\n\
+                       \"tier\": \"core\",\n\
+                       \"is_blocking\": true,\n\
+                       \"allowed_includes\": [],\n\
+                       \"metadata\": {\n\
+                         \"ownership\": \"Public interface declarations for module\",\n\
+                         \"spec_reference\": \"§16\"\n\
+                       }\n\
                      },\n\
                      {\n\
                        \"name\": \"src/module.c\",\n\
                        \"file\": \"src/module.c\",\n\
                        \"type\": \"project_module\",\n\
-                       \"functions\": [{ \"name\": \"func\", \"signature\": \"int func(int a)\" }]\n\
+                       \"functions\": [{ \"name\": \"func\", \"signature\": \"int func(int a)\" }],\n\
+                       \"tier\": \"core\",\n\
+                       \"is_blocking\": true,\n\
+                       \"allowed_includes\": [\"module.h\", \"stdio.h\", \"stdlib.h\"],\n\
+                       \"metadata\": {\n\
+                         \"ownership\": \"Implementation of module logic\",\n\
+                         \"spec_reference\": \"§16\"\n\
+                       }\n\
                      }\n\
                    ]\n\
                  }\n\
                  <JSON_END>\n\n".to_string(),
                 "### C PROJECT RULES ###\n\
-                 1. Every module (except main) MUST have a .h header in include/ and a .c source in src/\n\
-                 2. Entry point MUST be `int main(void)` or `int main(int argc, char** argv)`\n\n"
+                  1. Every module (except main) MUST have a .h header in include/ and a .c source in src/\n\
+                  2. Entry point MUST be `int main(void)` or `int main(int argc, char** argv)`\n\
+                  3. HEADER/SOURCE SEPARATION: Each header (include/*.h) MUST be a SEPARATE component with its own \"file\" field ending in .h or .hpp. NEVER set a header component's \"file\" to a .c or .cpp source path. Example: {{\"name\": \"include/foo.h\", \"file\": \"include/foo.h\"}} AND {{\"name\": \"src/foo.c\", \"file\": \"src/foo.c\"}}\n\
+                  4. METADATA EXTRACTION: For EACH component, you MUST extract from spec.md:\n\
+                     - allowed_includes: headers this file MUST #include (from spec's build toolchain, API contracts, dependency tables)\n\
+                     - metadata.ownership: what this file is responsible for (from spec's responsibility tables)\n\
+                     - metadata.spec_reference: which spec section defines this component (e.g., \"§48\", \"§49\", \"§50\")\n\
+                  5. DO NOT leave allowed_includes or metadata empty — analyze the spec and populate them.\n\n"
             )
         };
 
@@ -983,9 +1158,18 @@ impl AgentRuntime {
              {}\
              ### [LANGUAGE: {lang_name}] ###\n\
              - {}\n\n\
-             ### ROLE: CTO & CHIEF ARCHITECT (L-DDP Isolation Mode) ###\n\
-             Design the system SKELETON. OUTPUT ONLY VALID JSON.\n\n\
-             ### OUTPUT CONTRACT (STRICT) ###\n\
+              ### ROLE: CTO & CHIEF ARCHITECT (L-DDP Isolation Mode) ###\n\
+              Design the system SKELETON. OUTPUT ONLY VALID JSON.\n\n\
+              ### 🧠 REASONING PROCESS (TREE OF THOUGHTS) ###\n\
+              BEFORE outputting JSON, you MUST follow this reasoning sequence:\n\
+              1. Generate 3 alternative architecture topologies that satisfy the spec requirements.\n\
+              2. Evaluate each topology against:\n\
+                 - Modularity: Are components cleanly separated?\n\
+                 - Dependency isolation: Are system libraries not implemented as local modules?\n\
+                 - Build feasibility: Will this structure compile and link without circular dependencies?\n\
+              3. Select the SINGLE optimal topology through tournament-style comparison.\n\
+              4. Output ONLY the final JSON of the selected design — no explanations.\n\n\
+              ### OUTPUT CONTRACT (STRICT) ###\n\
              1. **RETURN ONLY VALID JSON**.\n\
              2. **NO EXPLANATIONS**.\n\
              3. **ENVELOPE**: Wrap your JSON between <JSON_START> and <JSON_END> tokens.\n\n\
@@ -998,6 +1182,12 @@ impl AgentRuntime {
              {}\n\
              {}\n\
              CRITICAL: You MUST analyze the SOURCE SPEC and extract EVERY module, EVERY function, and EVERY header defined there.\n\
+             For EACH component, you MUST populate:\n\
+             - allowed_includes: headers this file MUST #include (extract from spec's build toolchain, API contracts, system dependency tables)\n\
+             - metadata.ownership: what this file is responsible for (extract from spec's responsibility/ownership tables)\n\
+             - metadata.spec_reference: which spec section defines this component (e.g., \"§48\", \"§49\", \"§50\")\n\
+             DO NOT leave allowed_includes or metadata empty — analyze the spec and populate them for every component.\n\
+             If the spec mentions lua/ directory or .lua files, you MUST create components for each lua script (e.g., lua/init.lua, lua/core/editor.lua, lua/core/renderer.lua, lua/core/motion.lua).\n\
              {}\n\
              Generate JSON Specification NOW:",
             feedback_block, constraint_block, platform_block,
@@ -1146,6 +1336,18 @@ impl AgentRuntime {
             let comp = &ir.components[name];
             md.push_str(&format!("### Component: {}\n", comp.name));
             md.push_str(&format!("- **File**: {}\n", comp.file_path));
+
+            // Emit ownership metadata if available
+            if let Some(ownership) = comp.metadata.get("ownership") {
+                md.push_str(&format!("- **Responsibility**: {}\n", ownership));
+            }
+            if let Some(spec_ref) = comp.metadata.get("spec_reference") {
+                md.push_str(&format!("- **Spec Reference**: {}\n", spec_ref));
+            }
+            if !comp.allowed_includes.is_empty() {
+                md.push_str(&format!("- **Allowed Includes**: {}\n", comp.allowed_includes.iter().cloned().collect::<Vec<_>>().join(", ")));
+            }
+
             md.push_str("- **Functions**:\n");
             
             // Sort functions alphabetically
@@ -1165,14 +1367,21 @@ impl AgentRuntime {
             md.push_str("\n");
             
             // Build the mandatory marker data
-            components_json["components"].as_array_mut().unwrap().push(serde_json::json!({
+            let mut comp_json = serde_json::json!({
                 "name": comp.name,
                 "file": comp.file_path,
                 "functions": json_functions,
                 "type": if comp.name.contains("main") { "entry" } else { "module" },
                 "tier": comp.tier,
                 "is_blocking": comp.is_blocking
-            }));
+            });
+            if !comp.allowed_includes.is_empty() {
+                comp_json["allowed_includes"] = serde_json::json!(comp.allowed_includes.iter().cloned().collect::<Vec<_>>());
+            }
+            if !comp.metadata.is_empty() {
+                comp_json["metadata"] = serde_json::json!(&comp.metadata);
+            }
+            components_json["components"].as_array_mut().unwrap().push(comp_json);
         }
         
         md.push_str("\n### AXON:SPEC:COMPONENTS\n");
@@ -1219,12 +1428,11 @@ let system_prompt = format!(
                    \"blocking_forbidden\": true,\n\
                    \"criticality\": \"CORE\" | \"OPTIONAL\" | \"EXPERIMENTAL\" | \"AUXILIARY\",\n\
                    \"failure_allowed\": true | false\n                 }}\n               ],\n\
-               \"forbidden_patterns\": [\"sqlite3\", \"libpq\", \"mysqlclient\", \"ncurses\", \"WinMain\", \"HWND\"]\n\
-             }}\n\
-             4. EXPLICITLY FORBIDDEN (DO NOT ALLOW):\n\
-             - sqlite3, sqlite, libpq, mysqlclient, mysql, mariadb - No database in v0.0.1\n\
-             - ncurses, curses, termcap - GTK4 uses Cairo, not terminal\n\
-             - WinMain, wWinMain, HWND, WNDCLASS, CreateWindowExW - Win32-specific\n\
+                \"forbidden_patterns\": [\"WinMain\", \"HWND\"]\n\
+              }}\n\
+              4. EXPLICITLY FORBIDDEN (DO NOT ALLOW):\n\
+              - ncurses, curses, termcap - GTK4 uses Cairo, not terminal\n\
+              - WinMain, wWinMain, HWND, WNDCLASS, CreateWindowExW - Win32-specific\n\
              - ORM layers, persistence frameworks, session caches\n\
              - std::thread if not explicitly required\n\
              5. OPTIONAL VS CORE: If the spec mentions 'Choice', 'Optional', '선택', '가변', or 'If needed', mark as 'Optional' or 'Experimental'.\n\
@@ -1348,9 +1556,58 @@ let system_prompt = format!(
                 }
             }
         }
+        // Phase 4-3: Surgical Slicer — Header/Source Parasitic Component Split
+        // Detects components where name is a header (include/*.h) but file_path is a source (.cpp/.c)
+        // and splits them into two independent components: HeaderDecl + SourceImpl
+        let mut header_splits = Vec::new();
+        let mut parasitic_keys = Vec::new();
+        for (name, comp) in &merged_components {
+            let file = comp["file_path"].as_str().unwrap_or("");
+            let name_str = comp["name"].as_str().unwrap_or("");
+            let is_header_name = name_str.ends_with(".h") || name_str.ends_with(".hpp");
+            let is_source_file = file.ends_with(".cpp") || file.ends_with(".c");
+            if is_header_name && is_source_file {
+                // Derive the source file name from the header name
+                let header_path = name_str.to_string();
+                let source_stem = std::path::Path::new(&header_path)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("unknown");
+                // Determine source path: if file already points to a valid src/*.cpp, use it
+                let source_path = if file.starts_with("src/") {
+                    file.to_string()
+                } else {
+                    format!("src/{}.cpp", source_stem)
+                };
+                // Create a proper header component
+                let mut header_comp = comp.clone();
+                header_comp["file_path"] = serde_json::json!(header_path);
+                header_comp["name"] = serde_json::json!(header_path);
+                header_splits.push((header_path.clone(), header_comp));
+                // Mark the parasitic entry for removal; we'll re-insert a source-only component
+                parasitic_keys.push((name.clone(), source_path.clone(), comp.clone()));
+                tracing::info!("🔪 [SURGICAL_SLICER] Split parasitic component: '{}' (name=header, file=source) → header='{}', source='{}'", name, header_path, source_path);
+            }
+        }
+        // Remove parasitic merged entries and replace with split header + source
+        for (key, _source_path, _orig) in &parasitic_keys {
+            merged_components.remove(key);
+        }
+        for (key, comp) in header_splits {
+            merged_components.insert(key, comp);
+        }
+        // Re-insert source-only components for each split
+        for (_key, source_path, orig_comp) in &parasitic_keys {
+            let mut source_comp = orig_comp.clone();
+            let source_name = source_path.clone();
+            source_comp["file_path"] = serde_json::json!(source_path);
+            source_comp["name"] = serde_json::json!(source_name);
+            merged_components.insert(source_path.clone(), source_comp);
+        }
+
         val["components"] = serde_json::json!(merged_components.values().collect::<Vec<_>>());
 
-        // Phase 4-3: Remove hallucinated system library components (e.g. src/gtk.cpp, src/libc.cpp)
+        // Phase 4-4: Remove hallucinated system library components (e.g. src/gtk.cpp, src/libc.cpp)
         let forbidden_system_files: &[&str] = &[
             "libc", "gtk", "cairo", "pthread", "ncurses",
         ];
@@ -1386,7 +1643,7 @@ let system_prompt = format!(
             }
         }
         // Force inject constitutional patterns
-        let default_forbidden = &["sqlite3", "libpq", "mysqlclient", "ncurses", "WinMain", "HWND"];
+        let default_forbidden = &["WinMain", "HWND"];
         for pat in default_forbidden {
             forbidden.insert(pat.to_string());
         }
@@ -2036,13 +2293,6 @@ let system_prompt = format!(
             _ => "English",
         };
 
-        let log_msg = match self.locale.as_str() {
-            "ko_KR" => format!("요원 {} (아키텍트) 2단계: 태스크 분해 중...", self.agent.id),
-            "ja_JP" => format!("エージェント {} (アーキテクト) ステージ2: タスク分解中...", self.agent.id),
-            _ => format!("Agent {} (Architect) Stage 2: Extracting Tasks...", self.agent.id),
-        };
-        tracing::info!("{}", log_msg);
-        
         let system_prompt = format!(
             "### TASK DISPATCHER (L-DDP Isolation Phase) ###\n\
              ROLE: CTO & CHIEF ARCHITECT. DECOMPOSE INTO ATOMIC TASKS.\n\
@@ -2060,18 +2310,18 @@ let system_prompt = format!(
              8. SCOPE: ONE TASK PER FILE. DO NOT create separate tasks for individual functions. One task MUST cover the entire file implementation.\n\
              9. TYPE DEFINITION: Every custom struct/enum defined in the architecture MUST be included in full in its corresponding .h task.\n\
              10. ENVELOPE: Wrap your JSON array between <JSON_START> and <JSON_END> tokens.\n\n\
-             ### ARCHITECTURE GUIDE ###\n\
-             {}\n\n\
-             ### EXPECTED OUTPUT EXAMPLE ###\n\
-             <JSON_START>\n\
-             [\n\
-               {{ \"id\": \"task_001\", \"title\": \"Implement calculator.h\", \"description\": \"Core interface\", \"component_id\": \"include/calculator.h\" }},\n\
-               {{ \"id\": \"task_002\", \"title\": \"Implement calculator.c\", \"description\": \"Core logic\", \"component_id\": \"src/calculator.c\" }},\n\
-               {{ \"id\": \"task_003\", \"title\": \"Implement database.h\", \"description\": \"Database interface\", \"component_id\": \"include/database.h\" }},\n\
-               {{ \"id\": \"task_004\", \"title\": \"Implement database.c\", \"description\": \"Database logic\", \"component_id\": \"src/database.c\" }}\n\
-             ]\n\
-             <JSON_END>\n\n\
-             Generate Decomposed Tasks NOW:",
+              ### ARCHITECTURE GUIDE ###\n\
+              {}\n\n\
+              ### EXPECTED OUTPUT EXAMPLE ###\n\
+              <JSON_START>\n\
+              [\n\
+                {{ \"id\": \"task_001\", \"title\": \"Implement gtk_app.h\", \"description\": \"Core interface\", \"component_id\": \"include/gtk_app.h\" }},\n\
+                {{ \"id\": \"task_002\", \"title\": \"Implement gtk_app.cpp\", \"description\": \"Core logic\", \"component_id\": \"src/gtk_app.cpp\" }},\n\
+                {{ \"id\": \"task_003\", \"title\": \"Implement text_buffer.h\", \"description\": \"Text buffer interface\", \"component_id\": \"include/text_buffer.h\" }},\n\
+                {{ \"id\": \"task_004\", \"title\": \"Implement text_buffer.cpp\", \"description\": \"Text buffer logic\", \"component_id\": \"src/text_buffer.cpp\" }}\n\
+              ]\n\
+              <JSON_END>\n\n\
+              Generate Decomposed Tasks NOW:",
             lang_name,
             architecture_content
         );
@@ -2175,35 +2425,74 @@ let system_prompt = format!(
             _ => "English",
         };
 
+        // === FILE TYPE DETECTION: Header vs Source ===
+        let target = task.target_file.as_deref().unwrap_or("");
+        let is_header = target.ends_with(".h") || target.ends_with(".hpp");
+        let is_lua = target.ends_with(".lua");
+        let is_integrator = matches!(task.task_kind, Some(axon_core::LanguageTaskKind::C(axon_core::CTaskKind::Integrator)));
+
+        let review_context = if is_header {
+            "\n\n[REVIEW CONTEXT: HEADER FILE DETECTED]\nThis is a HEADER file (.h/.hpp). Apply HEADER rules:\n- ONLY declarations (semicolon-terminated) are valid.\n- Function bodies {{ ... }} are FORBIDDEN → REJECT.\n- Forward declarations preferred over #include.\n- DO NOT reject for missing function bodies — headers don't implement.\n- DO NOT reject for 'no implementation' — that's the point of headers.\n".to_string()
+        } else if is_lua {
+            "\n\n[REVIEW CONTEXT: LUA SCRIPT DETECTED]\nThis is a LUA script (.lua). Apply LUA rules:\n- MUST contain valid Lua syntax.\n- C/C++ style #include or G_CALLBACK are FORBIDDEN. Do NOT ask for #include or header files.\n- Use 'require' instead of #include if loading external modules.\n- Functions MUST have complete implementation bodies with matching 'end' statements.\n- DO NOT reject for missing C/C++ header files or headers.\n".to_string()
+        } else if is_integrator {
+            "\n\n[REVIEW CONTEXT: SOURCE FILE (INTEGRATOR/ENTRYPOINT) DETECTED]\nThis is an ENTRYPOINT source file (main.c). Apply SOURCE rules:\n- Full function bodies {{ ... }} are REQUIRED.\n- #include of all dependent headers is MANDATORY.\n- #include of system headers (stdio, stdlib, gtk, etc.) is EXPECTED.\n- Focus on module linking, symbol interlocking, and correct main() signature.\n- DO NOT apply header-only rules (forward declaration minimization) to this file.\n".to_string()
+        } else {
+            "\n\n[REVIEW CONTEXT: SOURCE FILE DETECTED]\nThis is a SOURCE file (.c/.cpp). Apply SOURCE rules:\n- Function bodies {{ ... }} are REQUIRED — empty functions are a bug.\n- #include of corresponding .h is MANDATORY.\n- #include of system/third-party headers is EXPECTED and ALLOWED.\n- DO NOT apply header-only rules (forward declaration minimization) to source files.\n- DO NOT reject for 'unnecessary includes' in source — source files need their dependencies.\n- DO NOT claim 'function body in header' for a source file.\n".to_string()
+        };
+
         let system_prompt = format!(
             "### SYSTEM: AI SENIOR AGENT: {} ###\n\
              [CRITICAL CONSTRAINT]\n\
              NEVER output any markdown code blocks (```cpp ... ```).\n\
              If you need to reject, ONLY output [REJECT] followed by a short textual description of the error.\n\
              If you approve, ONLY output [APPROVE] with optional brief praise.\n\n\
-             --- 중요: 반드시 아래 지정된 언어로만 답변하십시오 (FORCE LANGUAGE) ---\n\
-             언어: {}\n\n\
-             주니어의 제안을 검토하고 승인 여부를 결정하십시오.\n\n\
-             --- 태스크 ---\n\
-             제목: {}\n\
-             설명: {}\n\n\
-             --- 주니어 제안 ---\n\
-             {}\n\
-             {}\n\n\
-             --- 검토 규격 (CRITICAL) ---\n\
-              1. **Strict Reject Rules**: 논리적 중복(예: x - x), 하드코딩(예: 2023, 2024), 비효율적 조건문 발견 시 **즉시 REJECT**하고 날카로운 독설을 섞은 피드백을 남기십시오.\n\
-              2. **KISS 원칙 강제**: '가장 단순한 코드가 최고의 코드'입니다. 불필요하게 복잡하게 꼬아놓은 로직은 지능의 부족을 가리기 위한 기만으로 간주하고 엄격히 평가하십시오.\n\
-              3. **C/C++ STAGE 1 Enforcement**: \n\
-                 - 헤더(.h) 파일: 전방 선언(Forward Declaration)으로 해결 가능한 타입을 불필요하게 `#include` 했는지 확인하십시오. 위반 시 **즉시 REJECT** 하십시오.\n\
-                 - 헤더 내 구현: 함수 본문(Body)이 헤더에 포함되어 있다면 **무조건 REJECT** 하십시오.\n\
-                 - 구현(.c/.cpp) 파일: 대응하는 헤더(.h)를 최상단에서 인클루드 하지 않았거나, 암시적 선언(Implicit Declaration)을 방치했다면 **REJECT** 하십시오.\n\
-              4. 코드 및 의존성 검증: 코드가 완성된 상태인지, 실행 가능한지, 환각 라이브러리가 없는지 확인하십시오.\n\
-               --- OUTPUT FORMAT (ULTRA LIGHT) ---\n\
-               First line: [APPROVE] or [REJECT].\n\
-               Next lines: free text feedback in {lang_name} (1-2 lines maximum).\n\
-               NO JSON. NO MARKDOWN. JUST THE FIRST LINE DECISION.",
+              --- 중요: 반드시 아래 지정된 언어로만 답변하십시오 (FORCE LANGUAGE) ---\n\
+              언어: {}\n\n\
+              주니어의 제안을 검토하고 승인 여부를 결정하십시오.\n{}\n\n\
+               ### 🧠 REVIEW PROCESS (CORRECTNESS FIRST → STYLE SECOND) ###\n\
+               BEFORE making your decision, you MUST follow this reasoning sequence:\n\
+               1. **[CoT] Correctness Verification (FIRST)**:\n\
+                  - Does the code compile conceptually? Are all symbols defined or included?\n\
+                  - For C/C++ SOURCE (.c/.cpp) files: Are function bodies {{ ... }} present? Are headers #included?\n\
+                  - For C/C++ HEADER (.h/.hpp) files: Are declarations properly formed? Any {{ }} bodies (FORBIDDEN)?\n\
+                  - For LUA (.lua) files: Is it valid Lua syntax? Are functions fully implemented with 'end' (NO C++ style #include or curly braces)?\n\
+                  - ONLY after correctness passes, proceed to style review.\n\
+               2. **[ToT] Style & Architecture Review (SECOND)**:\n\
+                  - KISS principle: Is the implementation unnecessarily complex?\n\
+                  - Layer isolation: Are dependencies properly separated?\n\
+                  - If correctness fails → REJECT with specific guidance.\n\
+                  - If correctness passes, only REJECT if there are severe bugs, logic errors, or direct violations of the [REVIEW CONTEXT] rules. Do NOT reject for minor stylistic differences or if the code is simple — simplicity is preferred. If correctness passes and it fulfills the task requirements, you MUST APPROVE.\n\
+               3. Summarize your CoT➔ToT reasoning BRIEFLY before the final decision.\n\
+               4. Output [APPROVE] or [REJECT] on the FIRST LINE after your reasoning.\n\
+               5. Follow with specific guidance (2-4 lines maximum).\n\n\
+               --- 태스크 ---\n\
+              제목: {}\n\
+              설명: {}\n\n\
+              --- 주니어 제안 ---\n\
+              {}\n\
+              {}\n\n\
+              --- 검토 규격 (CRITICAL) ---\n\
+               1. **Strict Reject Rules**: 논리적 중복(예: x - x), 하드코딩(예: 2023, 2024), 비효율적 조건문 발견 시 **즉시 REJECT**하고 날카로운 독설을 섞은 피드백을 남기십시오.\n\
+               2. **KISS 원칙 강제**: '가장 단순한 코드가 최고의 코드'입니다. 불필요하게 복잡하게 꼬아놓은 로직은 지능의 부족을 가리기 위한 기만으로 간주하고 엄격히 평가하십시오.\n\
+               3. **File-Type-Aware Rules**: 위의 [REVIEW CONTEXT] 블록에서 감지된 파일 타입의 규칙을 엄격히 따르십시오. 헤더 규칙을 소스에, 소스 규칙을 헤더에 절대 적용하지 마십시오.\n\
+               4. 코드 및 의존성 검증: 코드가 완성된 상태인지, 실행 가능한지, 환각 라이브러리가 없는지 확인하십시오.\n\
+               5. **실측 인용 제약 (MANDATORY)**: REJECT 피드백을 작성할 때, 너는 오직 인풋 버퍼에 **실제로 존재하는 라인 번호와 함수명만** 인용할 수 있다. 본문 구현부가 실재하지 않음에도 가상의 라인 번호(예: 45-52라인)를 조작하여 서술하는 순간, 커널 거버넌스에 의해 너의 모든 출력은 무효화(Purge)될 것이다.\n\
+               --- OUTPUT FORMAT (ULTRA LIGHT — WITH REASONING) ---\n\
+               You MUST output in this EXACT order:\n\
+               1. <REASONING> block: Your CoT➔ToT analysis summary (3-5 lines)\n\
+               2. [APPROVE] or [REJECT] on its own line\n\
+               3. Brief feedback in {lang_name} (2-4 lines maximum)\n\n\
+               Example (Clean Pass — Pure Declaration Header):\n\
+               <REASONING>\n\
+               [CoT] 전수 스캔 결과 세미콜론 종단 확인. 중괄호 {{ }} 구현 본문 발견되지 않음.\n\
+               [ToT] 인터페이스의 순결성 유지됨. 불필요한 include 누수 없음.\n\
+               </REASONING>\n\
+               [APPROVE]\n\
+               제출된 파일은 무결한 순수 헤더 규격을 충족함. 승격 수락.",
             self.agent.persona.name,
             lang_name,
+            review_context,
             task.title,
             task.description,
             proposal.content,
@@ -2306,6 +2595,10 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
         is_blocking: bool,
         #[serde(rename = "type", default)]
         _type: Option<String>,
+        #[serde(default)]
+        allowed_includes: Option<Vec<String>>,
+        #[serde(default)]
+        metadata: Option<std::collections::BTreeMap<String, String>>,
     }
 
     #[derive(serde::Deserialize)]
@@ -2371,6 +2664,7 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
 
         // v0.0.29: Use physical file_path as the primary key for IR components
         // This ensures deterministic lookup from DecomposedTasks that use paths as IDs.
+        // v0.0.31 Phase 6: Map allowed_includes and metadata from LLM output
         components.insert(file.clone(), Component {
             name: c.name,
             file_path: file,
@@ -2379,8 +2673,8 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
             associated_files: Vec::new(),
             is_entrypoint: c.is_entrypoint,
             data_models: Vec::new(),
-            metadata: BTreeMap::new(),
-            allowed_includes: BTreeSet::new(),
+            metadata: c.metadata.unwrap_or_default(),
+            allowed_includes: c.allowed_includes.unwrap_or_default().into_iter().collect(),
             forbidden_includes: BTreeSet::new(),
             forbidden_symbols: BTreeSet::new(),
             tier: c.tier,
@@ -2682,16 +2976,49 @@ fn extract_cpp_c_code(raw: &str) -> Option<String> {
     None
 }
 
+/// Phase CoT/ToT: Strip <THOUGHT>...</THOUGHT> and <REASONING>...</REASONING> blocks
+/// This isolates reasoning from the code payload — only envelope body reaches the compiler
+fn strip_thought_markers(raw: &str) -> String {
+    let mut result = String::with_capacity(raw.len());
+    let mut skip = false;
+    let mut depth = 0u32;
+
+    for line in raw.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("<THOUGHT>") || trimmed.starts_with("<REASONING>") {
+            skip = true;
+            depth += 1;
+            continue;
+        }
+        if trimmed.starts_with("</THOUGHT>") || trimmed.starts_with("</REASONING>") {
+            skip = false;
+            if depth > 0 { depth -= 1; }
+            continue;
+        }
+        if !skip {
+            if !result.is_empty() {
+                result.push('\n');
+            }
+            result.push_str(line);
+        }
+    }
+
+    result
+}
+
 /// Phase 8: Transaction Envelope Parser
 /// Validates: BEGIN marker, END marker, BODY presence
 /// Returns PatchEnvelope with integrity_errors if any structural check fails
 pub fn extract_patch_envelope(raw: &str) -> axon_core::patch::PatchEnvelope {
     use axon_core::patch::PatchEnvelope;
 
+    // Phase CoT/ToT: Strip <THOUGHT>...</THOUGHT> and <REASONING>...</REASONING> blocks before parsing
+    let cleaned = strip_thought_markers(raw);
+
     let mut envelope = PatchEnvelope::new();
     let mut state = "seeking_begin"; // seeking_begin, reading_header, reading_body, done
 
-    for line in raw.lines() {
+    for line in cleaned.lines() {
         let trimmed = line.trim();
 
         match state {
@@ -3362,6 +3689,26 @@ pub fn extract_axon_patch_v2(input: &str) -> Option<axon_core::patch::Patch> {
 fn auto_repair_v2(input: &str) -> String {
     let mut working_text = input.to_string();
     
+    // --- Level -1: Repetition loop / Hallucination Guard ---
+    let repeat_patterns = [
+        "### 🧠 THINKING PROCESS",
+        "### 📄 EXISTING CODE",
+        "### ⚠️ PREVIOUS FEEDBACK",
+        "===AXON_PATCH_BEGIN===",
+        "===AXON_PATCH_START===",
+        "<THOUGHT>",
+    ];
+    
+    for pattern in &repeat_patterns {
+        if let Some(first_idx) = working_text.find(pattern) {
+            let remaining = &working_text[first_idx + pattern.len()..];
+            if let Some(second_idx) = remaining.find(pattern) {
+                tracing::warn!("🛡️ [HALLUCINATION_GUARD] Repetitive pattern '{}' detected. Truncating response to prevent recursive loops.", pattern);
+                working_text = working_text[..first_idx + pattern.len() + second_idx].to_string();
+            }
+        }
+    }
+
     // --- Level 0: JSON Unwrapping (for Llama3 style hallucinations) ---
     if working_text.trim().starts_with("[") || working_text.trim().starts_with("{") {
         if let Some(json_str) = extract_json(&working_text) {

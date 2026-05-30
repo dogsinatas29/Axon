@@ -243,7 +243,20 @@ impl Storage {
                 }
 
                 tx.execute(
-                    "INSERT OR REPLACE INTO tasks (id, project_id, title, description, status, lifecycle_state, target_file, dependencies, error_feedback, senior_comment, rework_count, base_hash, parent_task, reason, kind, retries, assigned_worker, created_at, ir_path, task_kind, signature, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections, boss_interventions) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)",
+                    "INSERT INTO tasks (id, project_id, title, description, status, lifecycle_state, target_file, dependencies, error_feedback, senior_comment, rework_count, base_hash, parent_task, reason, kind, retries, assigned_worker, created_at, ir_path, task_kind, signature, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections, boss_interventions) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)
+                     ON CONFLICT(id) DO UPDATE SET
+                       project_id=excluded.project_id, title=excluded.title, description=excluded.description,
+                       status=excluded.status, lifecycle_state=excluded.lifecycle_state, target_file=excluded.target_file,
+                       dependencies=excluded.dependencies, error_feedback=excluded.error_feedback,
+                       senior_comment=excluded.senior_comment, rework_count=excluded.rework_count,
+                       base_hash=excluded.base_hash, parent_task=excluded.parent_task, reason=excluded.reason,
+                       kind=excluded.kind, retries=excluded.retries, assigned_worker=excluded.assigned_worker,
+                       created_at=excluded.created_at, ir_path=excluded.ir_path, task_kind=excluded.task_kind,
+                       signature=excluded.signature, validator_rejections=excluded.validator_rejections,
+                       senior_rejections=excluded.senior_rejections, architecture_rejections=excluded.architecture_rejections,
+                       cargo_rejections=excluded.cargo_rejections, lsp_rejections=excluded.lsp_rejections,
+                       boss_interventions=excluded.boss_interventions
+                     WHERE tasks.status != 'Completed'",
                     params![
                         t.id, 
                         t.project_id, 
@@ -277,7 +290,7 @@ impl Storage {
             },
             WriteOp::SaveThread(th) => {
                 tx.execute(
-                    "INSERT OR REPLACE INTO threads (id, project_id, title, status, author, milestone_id, task_kind, rejection_count, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections, error_feedback, reason, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
+                    "INSERT OR REPLACE INTO threads (id, project_id, title, status, author, milestone_id, task_kind, rejection_count, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections, boss_interventions, error_feedback, reason, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
                     params![
                         th.id, 
                         th.project_id, 
@@ -292,6 +305,7 @@ impl Storage {
                         th.architecture_rejections,
                         th.cargo_rejections,
                         th.lsp_rejections,
+                        th.boss_interventions,
                         th.error_feedback,
                         th.reason,
                         th.created_at.to_rfc3339(), 
@@ -572,6 +586,11 @@ impl Storage {
             let _ = conn.execute("ALTER TABLE threads ADD COLUMN reason TEXT", []);
         }
 
+        if !table_info_threads.contains(&"boss_interventions".to_string()) {
+            tracing::info!("🛠️ [DB_MIGRATION:threads] Adding missing column: boss_interventions");
+            let _ = conn.execute("ALTER TABLE threads ADD COLUMN boss_interventions INTEGER DEFAULT 0", []);
+        }
+
         // 3. Auxiliary Tables
         conn.execute(
             "CREATE TABLE IF NOT EXISTS agents (
@@ -698,13 +717,37 @@ impl Storage {
         Ok(())
     }
 
+    pub fn save_task_sync(&self, task: axon_core::Task) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let tx = conn.unchecked_transaction()?;
+        Self::apply_op_internal(&tx, &WriteOp::SaveTask(task));
+        tx.commit()?;
+        Ok(())
+    }
+
     pub async fn save_thread(&self, thread: axon_core::Thread) -> Result<()> {
         let _ = self.enqueue_durable(WriteOp::SaveThread(thread)).await;
         Ok(())
     }
 
+    pub fn save_thread_sync(&self, thread: axon_core::Thread) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let tx = conn.unchecked_transaction()?;
+        Self::apply_op_internal(&tx, &WriteOp::SaveThread(thread));
+        tx.commit()?;
+        Ok(())
+    }
+
     pub async fn save_post(&self, post: axon_core::Post) -> Result<()> {
         let _ = self.enqueue_durable(WriteOp::SavePost(post)).await;
+        Ok(())
+    }
+
+    pub fn save_post_sync(&self, post: axon_core::Post) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let tx = conn.unchecked_transaction()?;
+        Self::apply_op_internal(&tx, &WriteOp::SavePost(post));
+        tx.commit()?;
         Ok(())
     }
 
@@ -715,7 +758,7 @@ impl Storage {
 
     pub fn list_runnable_threads(&self) -> Result<Vec<axon_core::Thread>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at, task_kind, rejection_count, error_feedback, reason, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections FROM threads WHERE status != 'Completed' AND status != 'Paused'")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at, task_kind, rejection_count, error_feedback, reason, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections, boss_interventions FROM threads WHERE status != 'Completed' AND status != 'Paused'")?;
         let thread_iter = stmt.query_map([], |row| {
             Ok(axon_core::Thread {
                 id: row.get(0)?,
@@ -731,6 +774,7 @@ impl Storage {
                 architecture_rejections: row.get(14).unwrap_or(0),
                 cargo_rejections: row.get(15).unwrap_or(0),
                 lsp_rejections: row.get(16).unwrap_or(0),
+                boss_interventions: row.get(17).unwrap_or(0),
                 error_feedback: row.get(10)?,
                 reason: row.get(11)?,
                 created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),
@@ -747,7 +791,7 @@ impl Storage {
 
     pub fn list_all_threads(&self) -> Result<Vec<axon_core::Thread>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at, task_kind, rejection_count, error_feedback, reason, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections FROM threads ORDER BY updated_at DESC")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at, task_kind, rejection_count, error_feedback, reason, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections, boss_interventions FROM threads ORDER BY updated_at DESC")?;
         let thread_iter = stmt.query_map([], |row| {
             Ok(axon_core::Thread {
                 id: row.get(0)?,
@@ -763,6 +807,7 @@ impl Storage {
                 architecture_rejections: row.get(14).unwrap_or(0),
                 cargo_rejections: row.get(15).unwrap_or(0),
                 lsp_rejections: row.get(16).unwrap_or(0),
+                boss_interventions: row.get(17).unwrap_or(0),
                 error_feedback: row.get(10)?,
                 reason: row.get(11)?,
                 created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),
@@ -859,6 +904,17 @@ impl Storage {
             project_id: project_id.to_string(), stage: stage.to_string(), status: status.to_string() 
         }).await;
         Ok(())
+    }
+
+    pub fn get_project_state(&self, project_id: &str) -> Result<Option<(String, String)>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT current_stage, status FROM project_state WHERE project_id = ?1"
+        )?;
+        let result = stmt.query_row(params![project_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        }).ok();
+        Ok(result)
     }
 
     pub async fn log_execution(&self, project_id: &str, stage: &str, status: &str, raw: &str, result: &str) -> anyhow::Result<()> {
@@ -1060,7 +1116,7 @@ impl Storage {
 
     pub fn get_thread(&self, id: &str) -> Result<Option<axon_core::Thread>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at, task_kind, rejection_count, error_feedback, reason, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections FROM threads WHERE id = ?1")?;
+        let mut stmt = conn.prepare("SELECT id, project_id, title, status, author, milestone_id, created_at, updated_at, task_kind, rejection_count, error_feedback, reason, validator_rejections, senior_rejections, architecture_rejections, cargo_rejections, lsp_rejections, boss_interventions FROM threads WHERE id = ?1")?;
         let mut thread_iter = stmt.query_map(params![id], |row| {
             Ok(axon_core::Thread {
                 id: row.get(0)?,
@@ -1076,6 +1132,7 @@ impl Storage {
                 architecture_rejections: row.get(14).unwrap_or(0),
                 cargo_rejections: row.get(15).unwrap_or(0),
                 lsp_rejections: row.get(16).unwrap_or(0),
+                boss_interventions: row.get(17).unwrap_or(0),
                 error_feedback: row.get(10)?,
                 reason: row.get(11)?,
                 created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?).unwrap().with_timezone(&Local),

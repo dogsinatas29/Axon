@@ -44,7 +44,33 @@ const App: React.FC = () => {
   const [activeChannel, setActiveChannel] = useState<'dashboard' | 'work' | 'office' | 'boss' | 'nogari' | 'signals'>('dashboard');
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [completedPhase, setCompletedPhase] = useState<number | null>(null);
-  const [shownPopups, setShownPopups] = useState<{ [key: number]: boolean }>({ 1: false, 2: false, 3: false });
+  const [shownPopups, setShownPopups] = useState<{ [key: number]: boolean }>({});
+
+  const [projectFolder, setProjectFolder] = useState<string>('');
+
+  // 프로젝트별 팝업 상태 분리 (localStorage 키에 projectFolder 포함)
+  useEffect(() => {
+    fetch('/api/status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.project_folder) {
+          setProjectFolder(data.project_folder);
+          const key = `axon_shown_popups_${data.project_folder}`;
+          const saved = localStorage.getItem(key);
+          setShownPopups(saved ? JSON.parse(saved) : { 1: false, 2: false, 3: false });
+        }
+      });
+  }, []);
+
+  const markPopupShown = (phase: number) => {
+    const next = { ...shownPopups, [phase]: true };
+    setShownPopups(next);
+    localStorage.setItem(`axon_shown_popups_${projectFolder}`, JSON.stringify(next));
+  };
+
+  const [bossPendingCount, setBossPendingCount] = useState(0);
+  const [workInProgressCount, setWorkInProgressCount] = useState(0);
+  const [currentPhase, setCurrentPhase] = useState(0);
   
   const t = getTranslation(locale);
 
@@ -66,7 +92,28 @@ const App: React.FC = () => {
       } else if (phase === 2) {
         return kindStr === 'SourceImpl' || kindStr === 'ModuleImpl';
       } else {
-        // Phase 3: IntegratorGen — 백엔드 CTaskKind::Integrator 직렬화 결과와 정렬
+        return kindStr === 'Integrator' || kindStr === 'IntegratorGen';
+      }
+    });
+  };
+
+  const getPhaseTasksFromList = (threads: Thread[], phase: number) => {
+    return threads.filter(th => {
+      const kind = th.task_kind;
+      let kindStr = '';
+      if (typeof kind === 'string') {
+        kindStr = kind;
+      } else if (typeof kind === 'object' && kind !== null) {
+        const values = Object.values(kind);
+        if (values.length > 0) {
+          kindStr = values[0] as string;
+        }
+      }
+      if (phase === 1) {
+        return kindStr === 'HeaderDecl' || kindStr === 'ModuleDecl';
+      } else if (phase === 2) {
+        return kindStr === 'SourceImpl' || kindStr === 'ModuleImpl';
+      } else {
         return kindStr === 'Integrator' || kindStr === 'IntegratorGen';
       }
     });
@@ -80,15 +127,15 @@ const App: React.FC = () => {
     if (isPhase3Complete && !shownPopups[3]) {
       setCompletedPhase(3);
       setShowSuccessPopup(true);
-      setShownPopups(prev => ({ ...prev, 3: true }));
+      markPopupShown(3);
     } else if (isPhase2Complete && !shownPopups[2]) {
       setCompletedPhase(2);
       setShowSuccessPopup(true);
-      setShownPopups(prev => ({ ...prev, 2: true }));
+      markPopupShown(2);
     } else if (isPhase1Complete && !shownPopups[1]) {
       setCompletedPhase(1);
       setShowSuccessPopup(true);
-      setShownPopups(prev => ({ ...prev, 1: true }));
+      markPopupShown(1);
     }
   }, [isPhase1Complete, isPhase2Complete, isPhase3Complete, shownPopups]);
 
@@ -128,7 +175,7 @@ const App: React.FC = () => {
 
   const fetchThreads = async () => {
     try {
-      const res = await fetch(`http://localhost:${window.location.port}/api/threads`);
+      const res = await fetch(`/api/threads`);
       const data: Thread[] = await res.json();
       
       // v0.0.23: Priority Sorting (Active Threads at Top)
@@ -177,7 +224,7 @@ const App: React.FC = () => {
 
   const fetchAgents = async () => {
     try {
-      const res = await fetch(`http://localhost:${window.location.port}/api/agents`);
+      const res = await fetch(`/api/agents`);
       const data = await res.json();
       setAgents(data);
     } catch (err) {
@@ -187,7 +234,7 @@ const App: React.FC = () => {
 
   const fetchStatus = async () => {
     try {
-      const res = await fetch(`http://localhost:${window.location.port}/api/status`);
+      const res = await fetch(`/api/status`);
       const data = await res.json();
       setIsRunning(data.is_running);
       setTotalSignals(data.total_signals);
@@ -204,7 +251,7 @@ const App: React.FC = () => {
 
   const fetchEvents = async () => {
     try {
-      const res = await fetch(`http://localhost:${window.location.port}/api/events`);
+      const res = await fetch(`/api/events`);
       const data = await res.json();
       // Reverse the data if backend returns DESC order (we want newest at top in UI)
       setEvents(data);
@@ -219,8 +266,9 @@ const App: React.FC = () => {
     fetchStatus();
     fetchEvents();
     
-    // v0.0.30: Fixed redundant /ws suffix
-    const socket = initSocket(`${window.location.protocol}//${window.location.hostname}:${window.location.port}`);
+    // v0.0.30: Fixed redundant /ws suffix — use Vite proxy
+    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = initSocket(`${wsProto}//${window.location.hostname}:${window.location.port}`);
     
     socket.onEvent((ev: any) => {
       if (ev.event_type) {
@@ -247,23 +295,63 @@ const App: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const checkBossPending = async () => {
+      let count = 0;
+      try {
+        const specRes = await fetch(`/api/specs/approval`);
+        if (specRes.ok) {
+          const specData = await specRes.json();
+          if (!specData.approved && !specData.rejected) {
+            count += 1;
+          }
+        }
+      } catch {}
+      
+      try {
+        const reviewRes = await fetch(`/api/pipeline/reviews`);
+        if (reviewRes.ok) {
+          const reviews = await reviewRes.json();
+          count += reviews.length;
+        }
+      } catch {}
+      
+      try {
+        const threadsRes = await fetch(`/api/threads`);
+        if (threadsRes.ok) {
+          const threadsData: Thread[] = await threadsRes.json();
+          const bossApprovalCount = threadsData.filter(t => t.status === 'BossApproval').length;
+          count += bossApprovalCount;
+          
+          const inProgressCount = threadsData.filter(t => t.status === 'Working').length;
+          setWorkInProgressCount(inProgressCount);
+          
+          const phase1Done = getPhaseTasksFromList(threadsData, 1).length > 0 && getPhaseTasksFromList(threadsData, 1).every(t => t.status === 'Completed');
+          const phase2Done = getPhaseTasksFromList(threadsData, 2).length > 0 && getPhaseTasksFromList(threadsData, 2).every(t => t.status === 'Completed');
+          const phase3Done = getPhaseTasksFromList(threadsData, 3).length > 0 && getPhaseTasksFromList(threadsData, 3).every(t => t.status === 'Completed');
+          if (phase3Done) setCurrentPhase(3);
+          else if (phase2Done) setCurrentPhase(2);
+          else if (phase1Done) setCurrentPhase(1);
+          else if (getPhaseTasksFromList(threadsData, 2).length > 0) setCurrentPhase(2);
+          else if (getPhaseTasksFromList(threadsData, 1).length > 0) setCurrentPhase(1);
+        }
+      } catch {}
+      
+      setBossPendingCount(count);
+    };
+    
+    checkBossPending();
+    const interval = setInterval(checkBossPending, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleTogglePause = async () => {
     try {
         const endpoint = isRunning ? 'pause' : 'resume';
-        await fetch(`http://localhost:${window.location.port}/api/${endpoint}`, { method: 'POST' });
+        await fetch(`/api/${endpoint}`, { method: 'POST' });
         setIsRunning(!isRunning);
     } catch (err) {
         console.error('Toggle pause failed', err);
-    }
-  };
-
-  const handleApprove = async (id: string) => {
-    try {
-      await fetch(`http://localhost:${window.location.port}/api/threads/${id}/approve`, { method: 'POST' });
-      setSelectedThreadId(null);
-      fetchThreads();
-    } catch (err) {
-      console.error('Approval failed', err);
     }
   };
 
@@ -329,16 +417,52 @@ const App: React.FC = () => {
             <button 
               className={`nav-item ${activeChannel === 'dashboard' ? 'active' : ''}`}
               onClick={() => setActiveChannel('dashboard')}
+              style={{ position: 'relative' }}
             >
               <LayoutIcon size={18} />
               <span>{t.dashboard}</span>
+              {currentPhase > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '4px',
+                  right: '8px',
+                  background: 'rgba(255,255,255,0.1)',
+                  color: '#aaa',
+                  fontSize: '0.55rem',
+                  fontWeight: 'bold',
+                  padding: '1px 4px',
+                  borderRadius: '6px'
+                }}>
+                  P{currentPhase}/3
+                </span>
+              )}
             </button>
             <button 
               className={`nav-item ${activeChannel === 'work' ? 'active' : ''}`}
               onClick={() => setActiveChannel('work')}
+              style={{ position: 'relative' }}
             >
               <ClipboardList size={18} />
               <span>{t.workBoard}</span>
+              {workInProgressCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '4px',
+                  right: '8px',
+                  background: '#3b82f6',
+                  color: '#fff',
+                  fontSize: '0.6rem',
+                  fontWeight: 'bold',
+                  padding: '1px 5px',
+                  borderRadius: '10px',
+                  minWidth: '16px',
+                  textAlign: 'center',
+                  animation: 'workPulse 2s ease-in-out infinite',
+                  boxShadow: '0 0 8px rgba(59, 130, 246, 0.6)'
+                }}>
+                  {workInProgressCount}
+                </span>
+              )}
             </button>
             <button 
               className={`nav-item ${activeChannel === 'office' ? 'active' : ''}`}
@@ -350,9 +474,29 @@ const App: React.FC = () => {
             <button 
               className={`nav-item ${activeChannel === 'boss' ? 'active' : ''}`}
               onClick={() => setActiveChannel('boss')}
+              style={{ position: 'relative' }}
             >
               <Shield size={18} />
               <span>{t.boss}</span>
+              {bossPendingCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '4px',
+                  right: '8px',
+                  background: '#ff4444',
+                  color: '#fff',
+                  fontSize: '0.6rem',
+                  fontWeight: 'bold',
+                  padding: '1px 5px',
+                  borderRadius: '10px',
+                  minWidth: '16px',
+                  textAlign: 'center',
+                  animation: 'bossPulse 1.5s ease-in-out infinite',
+                  boxShadow: '0 0 8px rgba(255, 68, 68, 0.6)'
+                }}>
+                  {bossPendingCount}
+                </span>
+              )}
             </button>
             <button 
               className={`nav-item ${activeChannel === 'nogari' ? 'active' : ''}`}
@@ -571,7 +715,6 @@ const App: React.FC = () => {
           <ThreadDetail 
             thread={selectedThread} 
             onClose={() => setSelectedThreadId(null)} 
-            onApprove={handleApprove}
             onRefresh={fetchThreads}
             t={t}
           />

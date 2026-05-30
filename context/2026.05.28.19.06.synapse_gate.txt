@@ -1,0 +1,19 @@
+1. 추론 과정 요약 (Core CoT)
+- 이번 세션 전체 작업 내역(GTK 빌드 수리, C++ 구현, Lua 모듈, state.db 정합성 복구)을
+  v0.0.31.md에 기존 내용 삭제 없이 추가 요청
+- 두 개의 Post-Work Log 섹션으로 분리하여 Append 방식으로 기록:
+  1. TEST4_GTK 빌드 정상화 및 파이프라인 안정화 (19:06)
+  2. Junior 에이전트 환각 근본원인 수리 (18:59, 이미 추가됨)
+
+2. 수정 및 생성된 변경 파일 목록 (Affected Files Diff)
+
+[mile_stone/v0.0.31.md]
+- 기존 2286줄 유지 + 100줄 추가 (총 2386줄)
+- 추가 섹션: "Post-Work Log — 2026-05-28 (TEST4_GTK 빌드 정상화 및 파이프라인 안정화)"
+  - Fix 1: GTK4 헤더 경로 수정 (4개 파일)
+  - Fix 2: CMakeLists.txt LUA_INCLUDE_DIR 추가
+  - Fix 3: C++ 소스 구현 (lua_runtime.cpp, input.cpp, gtk_app.cpp)
+  - Fix 4: Lua 모듈 구현 (init.lua, editor.lua, motion.lua, renderer.lua)
+  - Fix 5: state.db SQL 직접 수정으로 파이프라인 블로킹 해제
+  - 빌드 검증 결과 (MyLightIDE 바이너리 생성 성공)
+  - 관찰된 환각 패턴 → 후속 수리 항목으로 연결

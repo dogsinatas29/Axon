@@ -24,19 +24,19 @@ import type { Thread, Post } from '../types';
 interface ThreadDetailProps {
   thread: Thread;
   onClose: () => void;
-  onApprove: (id: string) => void;
+  // onApprove: (id: string) => void;
   t: any;
   onRefresh?: () => void;
 }
 
-const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, onApprove, t, onRefresh }) => {
+const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, t, onRefresh }) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [retryFeedback, setRetryFeedback] = useState('');
 
   useEffect(() => {
     const fetchPosts = () => {
-      fetch(`http://localhost:${window.location.port}/api/threads/${thread.id}/posts`)
+      fetch(`/api/threads/${thread.id}/posts`)
         .then(res => res.json())
         .then(data => {
           setPosts(data);

@@ -440,6 +440,16 @@ button:active::after, .btn-primary:active::after, .btn-secondary:active::after, 
   100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
 }
 
+@keyframes bossPulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(255, 68, 68, 0.6); }
+  50% { opacity: 0.6; box-shadow: 0 0 16px rgba(255, 68, 68, 0.9); }
+}
+
+@keyframes workPulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(59, 130, 246, 0.6); }
+  50% { opacity: 0.7; box-shadow: 0 0 14px rgba(59, 130, 246, 0.8); }
+}
+
 @keyframes ripple {
   0% { transform: scale(0, 0); opacity: 0.5; }
   100% { transform: scale(40, 40); opacity: 0; }

@@ -1,0 +1,23 @@
+1. 추론 과정 요약 (Core CoT)
+- 유저의 핵심 지적: "spec.md에 sqlite3가 없는데 왜 system prompt에 sqlite3가 언급되는가?"
+- denylist(금지 목록 나열) 방식 vs allowlist(허용 목록만 명시) 방식의 구조적 차이 분석
+- spec이 SSOT이므로 spec에 없는 개념은 system prompt에 등장해선 안 된다는 원칙 확립
+- c_rule_block 4개 섹션의 "sqlite3.h" 금지 나열 → allowlist 방식으로 전환
+- architecture.md의 forbidden_symbols에 "sqlite3" 추가는 같은 문제를 반복하는 것 → 제거
+- v0.0.31.md 마일스톤 파일에 기존 내용 삭제 없이 Post-Work Log 추가
+
+2. 수정 및 생성된 변경 파일 목록 (Affected Files Diff)
+
+[crates/axon-agent/src/lib.rs]
+- L312: 선두 "." 오타 제거 (compile error 수정)
+- L492-500 (.c 섹션): "NEVER use sqlite3.h..." → "STRICT DEPENDENCY ALLOWLIST"
+- L502-508 (.h 섹션): 동일 전환
+- L522-530 (.cpp 섹션): 동일 전환
+- L532-538 (.hpp 섹션): 동일 전환
+
+[TEST4_GTK/spec/architecture.md]
+- Lua 컴포넌트 4개에서 "forbidden_symbols" 키 전체 제거
+  (allowed_includes가 빈 배열이면 이미 implicit denylist)
+
+[mile_stone/v0.0.31.md]
+- 기존 2223줄 유지 + 63줄 Post-Work Log 추가 (총 2286줄)

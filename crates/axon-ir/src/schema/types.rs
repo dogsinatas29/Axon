@@ -397,13 +397,14 @@ impl ProjectIR {
 
                         let canonical_key = crate::canonicalizer::canonicalize_path(&c.file);
                         let comp_name = c.name.clone();
+                        let is_entrypoint = c._type.to_lowercase() == "entry";
                         components.insert(canonical_key.clone(), Component {
                             name: comp_name.clone(),
                             file_path: c.file,
                             functions,
                             imports: BTreeSet::new(),
                             associated_files: Vec::new(),
-                            is_entrypoint: false,
+                            is_entrypoint,
                             data_models: Vec::new(),
                             metadata: BTreeMap::new(),
                             allowed_includes: BTreeSet::new(),

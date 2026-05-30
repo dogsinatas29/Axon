@@ -1,0 +1,7 @@
+[Core CoT]
+사용자의 요청에 따라 GEMINI.md와 mile_stone/v0.0.31.md 파일을 읽고 분석함.
+1. GEMINI.md를 통해 AXON 프로젝트가 단순한 AI 코딩 툴을 넘어 '결정론적 런타임-안전 소프트웨어 진화 커널(Deterministic Runtime-Safe Software Evolution Kernel)'로 정의되었음을 파악함. 프로젝트는 9개의 Rust 크레이트(axon-core, axon-daemon, axon-agent 등)와 React 기반의 웹 UI(studio), 스펙 정의(spec)로 구성됨.
+2. v0.0.31.md를 통해 Semantic Equivalence Kernel 확립, P6-SIM-T1 통합 크래시 스위트 구축, 샌드박스 격리 파이프라인(Sandbox Transaction Isolation) 및 WAL Flush Barrier를 통한 Race Condition 해결 등의 진척 사항을 확인함. 이후 v0.0.34까지의 시맨틱 대통합 완료 사실을 확인함.
+
+[Affected Files Diff]
+- 신규 생성: context/2026.05.28.17.synapse_gate.txt

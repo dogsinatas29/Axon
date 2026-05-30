@@ -48,9 +48,15 @@ pub struct BootstrapManager {
     pub event_bus: Arc<EventBus>,
     pub architect_runtime: AgentRuntime,
     pub pending_approval: Option<Arc<Mutex<Option<PendingApproval>>>>,
+    pub resume_phase: u32,
 }
 
 impl BootstrapManager {
+    pub fn with_resume_phase(mut self, phase: u32) -> Self {
+        self.resume_phase = phase;
+        self
+    }
+
     pub fn new(config: AxonConfig, spec_path: &str) -> Result<Self, String> {
         let storage = Arc::new(Storage::new("runtime/state.db").map_err(|e| e.to_string())?);
         let event_bus = Arc::new(EventBus::new(256));
@@ -70,9 +76,10 @@ impl BootstrapManager {
             .unwrap_or("default-project")
             .to_string();
 
-        let sandbox_root = std::env::current_dir()
-            .unwrap_or_else(|_| PathBuf::from("."))
-            .join(&project_id);
+        let spec_parent = std::path::Path::new(spec_path)
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."));
+        let sandbox_root = spec_parent.join(&project_id);
         std::fs::create_dir_all(&sandbox_root).map_err(|e| e.to_string())?;
         std::fs::create_dir_all(".axon/personas").map_err(|e| e.to_string())?;
 
@@ -94,13 +101,25 @@ impl BootstrapManager {
             event_bus,
             architect_runtime,
             pending_approval,
+            resume_phase: 0,
         })
     }
 
     pub async fn run_v3(&self, spec_content: String) -> Result<(), String> {
         tracing::info!("🚀 BootstrapManager state machine started for project '{}'", self.project_id);
 
-        let mut stage = BootstrapStage::SpecAnalysis;
+        // v0.0.31.21: [RESUME_PHASE] Short-circuit entry based on project_state SSOT
+        let mut stage = match self.resume_phase {
+            n if n >= 2 => {
+                tracing::info!("⏭️ [RESUME] Phase 2+ completed, starting from Skeleton for IR regeneration");
+                BootstrapStage::Skeleton
+            }
+            1 => {
+                tracing::info!("⏭️ [RESUME] Phase 1 completed, skipping SpecAnalysis");
+                BootstrapStage::Skeleton
+            }
+            _ => BootstrapStage::SpecAnalysis,
+        };
         let mut ir_opt: Option<axon_core::ir::ProjectIR> = None;
         let mut attempts = 0;
         let max_retries = 3;
@@ -204,6 +223,7 @@ impl BootstrapManager {
             *approval = Some(PendingApproval {
                 project_id: self.project_id.clone(),
                 constraints_path: constraints_path.to_string_lossy().to_string(),
+                approval_file_path: approval_file.to_string_lossy().to_string(),
                 ambiguity_detected: constraints.ambiguity_detected,
                 components: constraints.components.iter().map(|c| c.name.clone()).collect(),
                 approved: false,
@@ -247,28 +267,102 @@ impl BootstrapManager {
             .await
             .map_err(|e| format!("LLM Skeleton generation failed: {}", e))?;
 
-        // Write architecture.md
-        let arch_md = self.architect_runtime
-            .generate_architecture_from_ir(&ir, Some(self.event_bus.clone()))
-            .await
-            .map_err(|e| format!("Failed to generate architecture.md: {}", e))?;
+        // v0.0.31.xx: Parse AXON:SPEC:CMAKE block from spec.md
+        let cmake_spec = crate::dep_graph::parse_cmake_spec(spec_content);
+        if cmake_spec.is_some() {
+            tracing::info!("✅ [SPEC-DRIVEN] AXON:SPEC:CMAKE block parsed from spec.md");
+        }
 
-        let arch_path = self.sandbox_root.join("architecture.md");
-        std::fs::write(&arch_path, &arch_md)
-            .map_err(|e| format!("Failed to write architecture.md: {}", e))?;
+        // v0.0.31.xx: Parse AXON:SPEC:LUA block and inject lua components into IR
+        if let Some(lua_spec) = crate::dep_graph::parse_lua_spec(spec_content) {
+            tracing::info!("✅ [SPEC-DRIVEN] AXON:SPEC:LUA block parsed: {} scripts", lua_spec.scripts.len());
+            // Inject lua components into IR (bypass LLM — deterministic extraction)
+            let mut ir_mut = ir.clone();
+            for script in &lua_spec.scripts {
+                let key = script.file.clone();
+                if !ir_mut.components.contains_key(&key) {
+                    let mut functions = std::collections::BTreeMap::new();
+                    functions.insert("main".to_string(), axon_core::ir::Function {
+                        name: "main".to_string(),
+                        signature: format!("-- {} (Lua script)", script.role),
+                        dependencies: std::collections::BTreeSet::new(),
+                        body_hash: None,
+                        locked: false,
+                    });
+                    let mut metadata = std::collections::BTreeMap::new();
+                    metadata.insert("ownership".to_string(), script.role.clone());
+                    metadata.insert("spec_reference".to_string(), "§50, §28".to_string());
+                    ir_mut.components.insert(key.clone(), axon_core::ir::Component {
+                        name: script.file.clone(),
+                        file_path: script.file.clone(),
+                        functions,
+                        imports: std::collections::BTreeSet::new(),
+                        associated_files: Vec::new(),
+                        is_entrypoint: false,
+                        data_models: Vec::new(),
+                        metadata,
+                        allowed_includes: std::collections::BTreeSet::new(),
+                        forbidden_includes: std::collections::BTreeSet::new(),
+                        forbidden_symbols: std::collections::BTreeSet::new(),
+                        tier: axon_ir::schema::types::ComponentTier::Core,
+                        is_blocking: true,
+                        locked: false,
+                        component_type: axon_ir::schema::types::ComponentType::ExternalRuntime,
+                        subsystem: None,
+                        dll_imports: std::collections::BTreeSet::new(),
+                        ownership: axon_core::ir::OwnershipMetadata::generator_patchable(),
+                    });
+                    tracing::info!("  ➕ Injected lua component: {}", key);
+                }
+            }
+            // Use the enriched IR
+            let ir = ir_mut;
 
-        // Generate CMakeLists.txt from dep graph
-        let mut graph = crate::dep_graph::DepGraph::new();
-        graph.build_from_ir(&serde_json::to_value(&ir).unwrap_or_default());
-        let cmake_content = graph.generate_cmake(&self.project_id, &self.config.locale, &self.sandbox_root);
-        let cmake_path = self.sandbox_root.join("CMakeLists.txt");
-        std::fs::write(&cmake_path, &cmake_content)
-            .map_err(|e| format!("Failed to write CMakeLists.txt: {}", e))?;
+            // Write architecture.md
+            let arch_md = self.architect_runtime
+                .generate_architecture_from_ir(&ir, Some(self.event_bus.clone()))
+                .await
+                .map_err(|e| format!("Failed to generate architecture.md: {}", e))?;
 
-        tracing::info!("✅ Architecture written to {:?}, CMakeLists.txt to {:?}", arch_path, cmake_path);
-        self.publish_event(EventType::ArtifactCreated, &format!("Architecture IR generated: {:?}", arch_path));
+            let arch_path = self.sandbox_root.join("architecture.md");
+            std::fs::write(&arch_path, &arch_md)
+                .map_err(|e| format!("Failed to write architecture.md: {}", e))?;
 
-        Ok(ir)
+            // Generate CMakeLists.txt with spec-driven cmake data
+            let mut graph = crate::dep_graph::DepGraph::new();
+            graph.build_from_ir(&serde_json::to_value(&ir).unwrap_or_default());
+            let cmake_content = graph.generate_cmake(&self.project_id, &self.config.locale, &self.sandbox_root, cmake_spec.as_ref());
+            let cmake_path = self.sandbox_root.join("CMakeLists.txt");
+            std::fs::write(&cmake_path, &cmake_content)
+                .map_err(|e| format!("Failed to write CMakeLists.txt: {}", e))?;
+
+            tracing::info!("✅ Architecture written to {:?}, CMakeLists.txt to {:?}", arch_path, cmake_path);
+            self.publish_event(EventType::ArtifactCreated, &format!("Architecture IR generated: {:?}", arch_path));
+
+            Ok(ir)
+        } else {
+            // Fallback: no LUA spec block found, proceed with original IR
+            let arch_md = self.architect_runtime
+                .generate_architecture_from_ir(&ir, Some(self.event_bus.clone()))
+                .await
+                .map_err(|e| format!("Failed to generate architecture.md: {}", e))?;
+
+            let arch_path = self.sandbox_root.join("architecture.md");
+            std::fs::write(&arch_path, &arch_md)
+                .map_err(|e| format!("Failed to write architecture.md: {}", e))?;
+
+            let mut graph = crate::dep_graph::DepGraph::new();
+            graph.build_from_ir(&serde_json::to_value(&ir).unwrap_or_default());
+            let cmake_content = graph.generate_cmake(&self.project_id, &self.config.locale, &self.sandbox_root, cmake_spec.as_ref());
+            let cmake_path = self.sandbox_root.join("CMakeLists.txt");
+            std::fs::write(&cmake_path, &cmake_content)
+                .map_err(|e| format!("Failed to write CMakeLists.txt: {}", e))?;
+
+            tracing::info!("✅ Architecture written to {:?}, CMakeLists.txt to {:?}", arch_path, cmake_path);
+            self.publish_event(EventType::ArtifactCreated, &format!("Architecture IR generated: {:?}", arch_path));
+
+            Ok(ir)
+        }
     }
 
     async fn run_impl_gen(&self, ir: &axon_core::ir::ProjectIR) -> Result<(), String> {
@@ -300,19 +394,82 @@ impl BootstrapManager {
 
             Self::save_tasks_from_decomposed(&self.storage, &self.project_id, &self.event_bus, d_tasks).await?;
         } else {
-            tracing::info!("🏗️ Deterministic task extraction from {} IR components", comps.len());
+            tracing::info!("🏗️ Deterministic task extraction from {} IR components (resume_phase={})", comps.len(), self.resume_phase);
             let mut created_count = 0;
 
+            // v0.0.31.35: [FIX_ID_COLLISION] Find max existing task_id to avoid collision with Completed Phase 1 tasks
+            let existing_tasks = self.storage.list_all_tasks().unwrap_or_default();
+            let max_existing_id = existing_tasks
+                .iter()
+                .filter(|t| t.project_id == self.project_id)
+                .filter_map(|t| {
+                    t.id.strip_prefix("task_")
+                        .and_then(|s| s.parse::<u32>().ok())
+                })
+                .max()
+                .unwrap_or(0);
+            tracing::info!("🔍 Max existing task ID for project '{}': {} (found {} total tasks)", self.project_id, max_existing_id, existing_tasks.len());
+
+            // v0.0.31.36: [SURGICAL_SLICER_RUNTIME] Detect and split parasitic header+source merged components
+            // If a component's name is a header (include/*.h) but file_path is a source (.cpp/.c),
+            // the Normalizer missed it — we split it here at the bootstrap level.
+            let mut split_header_comps: Vec<axon_core::ir::Component> = Vec::new();
+            let mut original_file_overrides: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+            for comp in &comps {
+                let name_is_header = comp.name.ends_with(".h") || comp.name.ends_with(".hpp");
+                let file_is_source = comp.file_path.ends_with(".cpp") || comp.file_path.ends_with(".c");
+                if name_is_header && file_is_source {
+                    let header_path = comp.name.clone();
+                    let source_path = comp.file_path.clone();
+                    let mut header_comp = (**comp).clone();
+                    header_comp.file_path = header_path.clone();
+                    split_header_comps.push(header_comp);
+                    original_file_overrides.insert(comp.name.clone(), source_path);
+                    tracing::warn!("🔪 [SURGICAL_SLICER_RUNTIME] Parasitic component detected: name='{}' file='{}' → splitting", comp.name, comp.file_path);
+                }
+            }
+
             for comp in comps {
+                // Skip if this component was split (header part handled separately)
+                if original_file_overrides.contains_key(&comp.name) {
+                    tracing::info!("⏭️ Skipping parasitic merged component '{}' (split into header + source tasks)", comp.name);
+                    continue;
+                }
+
                 let target_file = &comp.file_path;
                 if target_file.is_empty() {
                     continue;
                 }
 
-                let task_id = format!("task_{:03}", created_count + 1);
                 let is_header = target_file.ends_with(".h") || target_file.ends_with(".hpp");
-                let title = format!("Implement {}", target_file);
-                let description = format!("Implement the {} module", target_file);
+                let is_entry = comp.is_entrypoint;
+
+                let task_kind = if is_entry {
+                    Some(axon_core::LanguageTaskKind::C(axon_core::CTaskKind::Integrator))
+                } else if is_header {
+                    Some(axon_core::LanguageTaskKind::C(axon_core::CTaskKind::HeaderDecl))
+                } else {
+                    Some(axon_core::LanguageTaskKind::C(axon_core::CTaskKind::SourceImpl))
+                };
+
+                let phase_num = if is_entry { 3 } else if is_header { 1 } else { 2 };
+                if phase_num <= self.resume_phase {
+                    tracing::info!("⏭️ Skipping Phase {} task for {} (already completed)", phase_num, target_file);
+                    continue;
+                }
+
+                let task_id = format!("task_{:03}", max_existing_id + created_count + 1);
+                let (title, description) = if is_entry {
+                    (
+                        format!("Implement {} (Entrypoint)", target_file),
+                        format!("Implement the {} entrypoint module, connect all components, and verify linker symbols", target_file),
+                    )
+                } else {
+                    (
+                        format!("Implement {}", target_file),
+                        format!("Implement the {} module", target_file),
+                    )
+                };
 
                 let task = Task {
                     id: task_id.clone(),
@@ -338,8 +495,7 @@ impl BootstrapManager {
                     assigned_worker: None,
                     created_at: chrono::Local::now(),
                     ir_path: None,
-                    task_kind: if is_header { Some(axon_core::LanguageTaskKind::C(axon_core::CTaskKind::HeaderDecl)) }
-                               else { Some(axon_core::LanguageTaskKind::C(axon_core::CTaskKind::SourceImpl)) },
+                    task_kind,
                     signature: None,
                     validator_rejections: 0,
                     senior_rejections: 0,
@@ -367,6 +523,7 @@ impl BootstrapManager {
                     architecture_rejections: 0,
                     cargo_rejections: 0,
                     lsp_rejections: 0,
+                    boss_interventions: 0,
                     error_feedback: None,
                     reason: None,
                     created_at: chrono::Local::now(),
@@ -385,15 +542,109 @@ impl BootstrapManager {
                     created_at: chrono::Local::now(),
                 };
 
-                self.storage.save_task(task).await
+                // v0.0.31.35: Direct SQLite write to avoid WAL queue race condition
+                self.storage.save_task_sync(task)
                     .map_err(|e| format!("Failed to save task: {}", e))?;
-                self.storage.save_thread(thread).await
+                self.storage.save_thread_sync(thread)
                     .map_err(|e| format!("Failed to save thread: {}", e))?;
-                self.storage.save_post(new_post).await
+                self.storage.save_post_sync(new_post)
                     .map_err(|e| format!("Failed to save post: {}", e))?;
 
                 created_count += 1;
             }
+
+            // Create HeaderDecl tasks for split parasitic components
+            for header_comp in &split_header_comps {
+                let header_path = &header_comp.file_path;
+                let phase_num = 1u32;
+                if phase_num <= self.resume_phase {
+                    tracing::info!("⏭️ Skipping Phase 1 header task for {} (already completed)", header_path);
+                    continue;
+                }
+
+                let task_id = format!("task_{:03}", max_existing_id + created_count + 1);
+                let task = Task {
+                    id: task_id.clone(),
+                    project_id: self.project_id.clone(),
+                    title: format!("Implement {} (Header)", header_path),
+                    description: format!("Declare all public interfaces, structs, and function prototypes for {}", header_path),
+                    status: axon_core::TaskStatus::Pending,
+                    dependencies: Vec::new(),
+                    result: None,
+                    target_file: Some(header_path.clone()),
+                    lock_files: Vec::new(),
+                    error_feedback: None,
+                    senior_comment: None,
+                    rework_count: 0,
+                    base_hash: None,
+                    parent_task: None,
+                    reason: None,
+                    kind: "c".to_string(),
+                    retries: 0,
+                    assigned_worker: None,
+                    created_at: chrono::Local::now(),
+                    ir_path: None,
+                    task_kind: Some(axon_core::LanguageTaskKind::C(axon_core::CTaskKind::HeaderDecl)),
+                    signature: None,
+                    validator_rejections: 0,
+                    senior_rejections: 0,
+                    architecture_rejections: 0,
+                    cargo_rejections: 0,
+                    lsp_rejections: 0,
+                    boss_interventions: 0,
+                    lifecycle_state: axon_core::TaskLifecycleState::Queued,
+                    patch_contract: None,
+                    repair_mode: None,
+                    repair_origin: None,
+                };
+
+                let thread = Thread {
+                    id: task_id.clone(),
+                    project_id: self.project_id.clone(),
+                    title: task.title.clone(),
+                    status: axon_core::ThreadStatus::Draft,
+                    author: "Architect".to_string(),
+                    milestone_id: None,
+                    task_kind: task.task_kind,
+                    rejection_count: 0,
+                    validator_rejections: 0,
+                    senior_rejections: 0,
+                    architecture_rejections: 0,
+                    cargo_rejections: 0,
+                    lsp_rejections: 0,
+                    boss_interventions: 0,
+                    error_feedback: None,
+                    reason: None,
+                    created_at: chrono::Local::now(),
+                    updated_at: chrono::Local::now(),
+                };
+
+                let new_post = Post {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    thread_id: task_id.clone(),
+                    author_id: "Architect".to_string(),
+                    content: task.description.clone(),
+                    thought: None,
+                    full_code: None,
+                    post_type: PostType::Instruction,
+                    metrics: None,
+                    created_at: chrono::Local::now(),
+                };
+
+                self.storage.save_task_sync(task)
+                    .map_err(|e| format!("Failed to save split header task: {}", e))?;
+                self.storage.save_thread_sync(thread)
+                    .map_err(|e| format!("Failed to save split header thread: {}", e))?;
+                self.storage.save_post_sync(new_post)
+                    .map_err(|e| format!("Failed to save split header post: {}", e))?;
+
+                created_count += 1;
+                tracing::info!("✅ Created Phase 1 HeaderDecl task for split component: {}", header_path);
+            }
+
+            // v0.0.31.35: Flush all tasks before pipeline reads them
+            self.storage.flush().await
+                .map_err(|e| format!("Failed to flush tasks to storage: {}", e))?;
 
             tracing::info!("✅ Created {} tasks from IR component decomposition.", created_count);
             self.publish_event(EventType::SystemLog, &format!("Created {} tasks from IR components", created_count));
@@ -431,6 +682,7 @@ impl BootstrapManager {
                 architecture_rejections: 0,
                 cargo_rejections: 0,
                 lsp_rejections: 0,
+                boss_interventions: 0,
                 error_feedback: None,
                 reason: None,
                 created_at: chrono::Local::now(),

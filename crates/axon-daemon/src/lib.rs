@@ -29,6 +29,7 @@ use axon_storage::Storage;
 pub struct PendingApproval {
     pub project_id: String,
     pub constraints_path: String,
+    pub approval_file_path: String,
     pub ambiguity_detected: bool,
     pub components: Vec<String>,
     pub approved: bool,
@@ -51,12 +52,31 @@ pub struct LspConfig {
     pub args: Vec<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub enum LlmProvider {
+    Local { endpoint: String },
+    Cloud { api_key_env: String },
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AgentConfig {
+    pub id: Option<String>,
     pub runtime: String,
     pub provider: Option<String>,
     pub endpoint: Option<String>,
     pub model: String,
+    #[serde(default)]
+    pub provider_type: Option<LlmProvider>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PersonaConfig {
+    pub name: String,
+    pub age: Option<u8>,
+    pub gender: String,
+    pub personality: String,
+    pub speech_style: String,
+    pub catchphrase: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -64,6 +84,8 @@ pub struct AgentsConfig {
     pub architect: AgentConfig,
     pub seniors: Vec<AgentConfig>,
     pub juniors: Vec<AgentConfig>,
+    #[serde(default)]
+    pub personas: std::collections::HashMap<String, PersonaConfig>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -128,6 +150,7 @@ impl DeterministicKernel {
             self.config.axon_config.clone(),
             self.storage.clone(),
             self.event_bus.clone(),
+            ".",
         ).await?;
 
         pending::<()>().await;
@@ -159,7 +182,47 @@ impl DeterministicKernel {
             self.config.axon_config.clone(),
             self.storage.clone(),
             self.event_bus.clone(),
+            spec_path,
         ).await?;
+
+        // v0.0.31.21: [RESUME_PHASE] Check project_state for completed phases
+        let project_id = std::path::Path::new(spec_path)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("default-project")
+            .to_string();
+
+        let resume_phase = match self.storage.get_project_state(&project_id) {
+            Ok(Some((stage, status))) if status == "completed" => {
+                if stage == "Phase3_Completed" {
+                    tracing::info!("🔄 [RESUME] Phase 3 already completed for project '{}'. Starting pipeline from existing tasks...", project_id);
+                    let mut pipeline = crate::pipeline::ExecutionPipeline::new(
+                        self.config.axon_config.clone(),
+                        self.storage.clone(),
+                        self.event_bus.clone(),
+                        project_id.clone(),
+                        std::path::Path::new(spec_path).parent().unwrap_or_else(|| std::path::Path::new(".")).join(&project_id),
+                        app_state.agent_pool.clone(),
+                    )
+                    .with_pending_reviews(app_state.pending_reviews.clone())
+                    .with_task_semaphore(app_state.task_semaphore.clone());
+                    pipeline.run_background();
+
+                    pending::<()>().await;
+                    return Ok(());
+                } else if stage == "Phase2_Completed" {
+                    tracing::info!("🔄 [RESUME] Phase 2 completed for project '{}'. Resuming from Phase 3...", project_id);
+                    2
+                } else if stage == "Phase1_Completed" {
+                    tracing::info!("🔄 [RESUME] Phase 1 completed for project '{}'. Resuming from Phase 2...", project_id);
+                    1
+                } else {
+                    tracing::info!("🔄 [RESUME] Unknown stage '{}', starting full bootstrap", stage);
+                    0
+                }
+            }
+            _ => 0,
+        };
 
         let manager = bootstrap::BootstrapManager::with_shared_state(
             self.config.axon_config.clone(),
@@ -167,7 +230,8 @@ impl DeterministicKernel {
             self.storage.clone(),
             self.event_bus.clone(),
             Some(app_state.pending_approval.clone()),
-        )?;
+        )?
+        .with_resume_phase(resume_phase);
 
         manager.run_v3(spec_content).await?;
         tracing::info!("Bootstrap complete. Server continues serving.");
@@ -184,8 +248,10 @@ impl DeterministicKernel {
             self.event_bus.clone(),
             manager.project_id.clone(),
             manager.sandbox_root.clone(),
+            app_state.agent_pool.clone(),
         )
-        .with_pending_reviews(app_state.pending_reviews.clone());
+        .with_pending_reviews(app_state.pending_reviews.clone())
+        .with_task_semaphore(app_state.task_semaphore.clone());
         pipeline.run_background();
 
         pending::<()>().await;

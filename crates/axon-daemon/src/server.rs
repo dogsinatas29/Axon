@@ -7,15 +7,27 @@ use serde::{Serialize, Deserialize};
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex as AsyncMutex;
+use tokio::sync::Semaphore;
 use tower_http::services::ServeDir;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
+use tokio::sync::RwLock as AsyncRwLock;
 use crate::AxonConfig;
-use crate::bootstrap::BootstrapManager;
+use crate::bootstrap::{BootstrapManager, create_model_driver};
 use crate::events::EventBus;
 use crate::pipeline::ExecutionPipeline;
-use crate::{PendingApproval, PipelineReview};
+use crate::{PendingApproval, PipelineReview, AgentConfig, PersonaConfig};
 use axon_storage::Storage;
+
+pub struct AgentPool {
+    pub juniors: Vec<AgentConfig>,
+    pub seniors: Vec<AgentConfig>,
+    pub architect: AgentConfig,
+}
+
+pub struct PersonaRegistry {
+    pub personas: std::collections::HashMap<String, PersonaConfig>,
+}
 
 #[derive(Clone)]
 pub(crate) struct AppState {
@@ -26,10 +38,14 @@ pub(crate) struct AppState {
     pub pipeline_running: Arc<AtomicBool>,
     pub storage: Arc<Storage>,
     pub event_bus: Arc<EventBus>,
+    pub task_semaphore: Arc<Semaphore>,
+    pub agent_pool: Arc<AsyncRwLock<AgentPool>>,
+    pub persona_registry: Arc<AsyncRwLock<PersonaRegistry>>,
+    pub project_folder: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-struct BootstrapStatus {
+pub(crate) struct BootstrapStatus {
     stage: String,
     message: String,
     is_running: bool,
@@ -60,6 +76,7 @@ struct StatusResponse {
     bootstrap_stage: String,
     locale: String,
     bootstrap: BootstrapStatus,
+    project_folder: String,
 }
 
 #[derive(Deserialize)]
@@ -102,6 +119,7 @@ async fn get_status(State(state): State<Arc<AppState>>) -> Json<StatusResponse> 
         bootstrap_stage,
         locale: state.axon_config.locale.clone(),
         bootstrap: bs.clone(),
+        project_folder: state.project_folder.clone(),
     })
 }
 
@@ -198,6 +216,12 @@ async fn approve_thread(
             if let Ok(Some(mut thread)) = state.storage.get_thread(&thread_id) {
                 thread.status = axon_core::ThreadStatus::Completed;
                 thread.updated_at = chrono::Local::now();
+                thread.boss_interventions = updated.boss_interventions;
+                thread.senior_rejections = updated.senior_rejections;
+                thread.validator_rejections = updated.validator_rejections;
+                thread.architecture_rejections = updated.architecture_rejections;
+                thread.cargo_rejections = updated.cargo_rejections;
+                thread.lsp_rejections = updated.lsp_rejections;
                 let _ = state.storage.save_thread(thread).await;
             }
 
@@ -220,6 +244,50 @@ async fn approve_thread(
                 content: format!("Boss approved task '{}'", updated.title),
                 payload: None,
                 timestamp: chrono::Local::now(),
+            });
+
+            // Boss Approve 후 Phase Gating 재체크: 모든 Phase 1 task가 Completed면 Phase 2 자동 재시작
+            let project_id = updated.project_id.clone();
+            let state_for_spawn = state.clone();
+            tokio::spawn(async move {
+                // Phase 1 header task들이 모두 Completed인지 확인
+                let all_tasks = state_for_spawn.storage.list_all_tasks().unwrap_or_default();
+                let phase1_tasks: Vec<_> = all_tasks.iter().filter(|t| {
+                    t.project_id == project_id &&
+                    t.target_file.as_deref().map(|f| f.ends_with(".h") || f.ends_with(".hpp")).unwrap_or(false)
+                }).collect();
+
+                if !phase1_tasks.is_empty() {
+                    let all_completed = phase1_tasks.iter().all(|t| t.status == axon_core::TaskStatus::Completed);
+                    if all_completed {
+                        // Phase 2에 pending task가 있는지 확인
+                        let phase2_pending: Vec<_> = all_tasks.iter().filter(|t| {
+                            t.project_id == project_id &&
+                            t.status != axon_core::TaskStatus::Completed &&
+                            t.lifecycle_state != axon_core::TaskLifecycleState::Rejected &&
+                            t.lifecycle_state != axon_core::TaskLifecycleState::Fatal &&
+                            !t.target_file.as_deref().map(|f| f.ends_with(".h") || f.ends_with(".hpp")).unwrap_or(false)
+                        }).collect();
+
+                        if !phase2_pending.is_empty() && !state_for_spawn.pipeline_running.load(Ordering::SeqCst) {
+                            tracing::info!("🔄 Boss approved all Phase 1 tasks. Auto-resuming pipeline for Phase 2...");
+
+                            let sandbox_root = std::path::PathBuf::from(&project_id);
+                            let mut pipeline = ExecutionPipeline::new(
+                                state_for_spawn.axon_config.clone(),
+                                state_for_spawn.storage.clone(),
+                                state_for_spawn.event_bus.clone(),
+                                project_id.clone(),
+                                sandbox_root,
+                                state_for_spawn.agent_pool.clone(),
+                            )
+                            .with_pending_reviews(state_for_spawn.pending_reviews.clone())
+                            .with_running(state_for_spawn.pipeline_running.clone())
+                            .with_task_semaphore(state_for_spawn.task_semaphore.clone());
+                            pipeline.run_background();
+                        }
+                    }
+                }
             });
 
             (StatusCode::OK, Json(serde_json::json!({"status": "approved", "thread_id": thread_id}))).into_response()
@@ -250,6 +318,12 @@ async fn reject_thread(
             if let Ok(Some(mut thread)) = state.storage.get_thread(&thread_id) {
                 thread.status = axon_core::ThreadStatus::Completed;
                 thread.updated_at = chrono::Local::now();
+                thread.boss_interventions = updated.boss_interventions;
+                thread.senior_rejections = updated.senior_rejections;
+                thread.validator_rejections = updated.validator_rejections;
+                thread.architecture_rejections = updated.architecture_rejections;
+                thread.cargo_rejections = updated.cargo_rejections;
+                thread.lsp_rejections = updated.lsp_rejections;
                 let _ = state.storage.save_thread(thread).await;
             }
 
@@ -300,6 +374,12 @@ async fn retry_thread(
             if let Ok(Some(mut thread)) = state.storage.get_thread(&thread_id) {
                 thread.status = axon_core::ThreadStatus::Draft;
                 thread.updated_at = chrono::Local::now();
+                thread.boss_interventions = updated.boss_interventions;
+                thread.senior_rejections = updated.senior_rejections;
+                thread.validator_rejections = updated.validator_rejections;
+                thread.architecture_rejections = updated.architecture_rejections;
+                thread.cargo_rejections = updated.cargo_rejections;
+                thread.lsp_rejections = updated.lsp_rejections;
                 let _ = state.storage.save_thread(thread).await;
             }
 
@@ -322,20 +402,210 @@ async fn retry_thread(
     }
 }
 
+#[derive(Deserialize)]
+struct HireRequest {
+    role: String,
+    model: String,
+    runtime: String,
+    provider: Option<String>,
+    endpoint: Option<String>,
+    persona: Option<PersonaConfig>,
+}
+
 async fn hire_agent(
-    State(_state): State<Arc<AppState>>,
-    Json(body): Json<serde_json::Value>,
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<HireRequest>,
 ) -> impl IntoResponse {
-    tracing::info!("Hiring agent: {:?}", body);
-    (StatusCode::OK, Json(serde_json::json!({"status": "hired", "id": uuid::Uuid::new_v4().to_string()})))
+    let new_id = format!("{}-agent-{}", body.role.to_lowercase(), uuid::Uuid::new_v4().simple());
+    
+    let new_config = AgentConfig {
+        id: Some(new_id.clone()),
+        runtime: body.runtime,
+        provider: body.provider,
+        endpoint: body.endpoint,
+        model: body.model,
+        provider_type: None,
+    };
+    
+    match body.role.as_str() {
+        "Junior" | "junior" => {
+            let mut pool = state.agent_pool.write().await;
+            pool.juniors.push(new_config);
+            state.task_semaphore.add_permits(1);
+            tracing::info!("Junior hired: {} (semaphore +1, total: {})", new_id, pool.juniors.len());
+        }
+        "Senior" | "senior" => {
+            let mut pool = state.agent_pool.write().await;
+            pool.seniors.push(new_config);
+            tracing::info!("Senior hired: {} (total: {})", new_id, pool.seniors.len());
+        }
+        "Architect" | "architect" => {
+            let mut pool = state.agent_pool.write().await;
+            pool.architect = new_config;
+            tracing::info!("Architect replaced: {}", new_id);
+        }
+        _ => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": "Invalid role"}))),
+    }
+    
+    if let Some(persona) = body.persona {
+        let mut registry = state.persona_registry.write().await;
+        registry.personas.insert(new_id.clone(), persona);
+    }
+    
+    state.event_bus.publish(axon_core::Event {
+        id: uuid::Uuid::new_v4().to_string(),
+        project_id: String::new(),
+        thread_id: None,
+        agent_id: Some(new_id.clone()),
+        event_type: axon_core::EventType::AgentHired,
+        level: axon_core::EventLevel::Info,
+        source: "hr_board".to_string(),
+        content: format!("Agent {} hired as {}", new_id, body.role),
+        payload: None,
+        timestamp: chrono::Local::now(),
+    });
+    
+    (StatusCode::OK, Json(serde_json::json!({
+        "status": "hired",
+        "id": new_id,
+        "role": body.role
+    })))
 }
 
 async fn fire_agent(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Path(agent_id): Path<String>,
+    Json(body): Json<serde_json::Value>,
 ) -> impl IntoResponse {
-    tracing::info!("Firing agent: {}", agent_id);
-    (StatusCode::OK, Json(serde_json::json!({"status": "fired"})))
+    let role = body.get("role").and_then(|v| v.as_str()).unwrap_or("junior");
+    
+    match role {
+        "Junior" | "junior" => {
+            let mut pool = state.agent_pool.write().await;
+            if pool.juniors.len() <= 1 {
+                return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+                    "error": "Cannot fire last junior worker"
+                })));
+            }
+            
+            let before_len = pool.juniors.len();
+            pool.juniors.retain(|a| a.id.as_deref() != Some(&agent_id));
+            
+            if pool.juniors.len() < before_len {
+                state.task_semaphore.forget_permits(1);
+                tracing::info!("Junior fired: {} (semaphore -1, remaining: {})", agent_id, pool.juniors.len());
+                
+                state.event_bus.publish(axon_core::Event {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    project_id: String::new(),
+                    thread_id: None,
+                    agent_id: Some(agent_id.clone()),
+                    event_type: axon_core::EventType::AgentFired,
+                    level: axon_core::EventLevel::Warning,
+                    source: "hr_board".to_string(),
+                    content: format!("Agent {} fired. Graceful eviction: current task completes, no new assignments.", agent_id),
+                    payload: None,
+                    timestamp: chrono::Local::now(),
+                });
+                
+                (StatusCode::OK, Json(serde_json::json!({
+                    "status": "fired",
+                    "id": agent_id,
+                    "eviction": "graceful"
+                })))
+            } else {
+                (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Agent not found"})))
+            }
+        }
+        "Senior" | "senior" => {
+            let mut pool = state.agent_pool.write().await;
+            if pool.seniors.is_empty() {
+                return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+                    "error": "Cannot fire last senior reviewer"
+                })));
+            }
+            
+            let before_len = pool.seniors.len();
+            pool.seniors.retain(|a| a.id.as_deref() != Some(&agent_id));
+            
+            if pool.seniors.len() < before_len {
+                tracing::info!("Senior fired: {} (remaining: {})", agent_id, pool.seniors.len());
+                (StatusCode::OK, Json(serde_json::json!({
+                    "status": "fired",
+                    "id": agent_id
+                })))
+            } else {
+                (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Agent not found"})))
+            }
+        }
+        _ => (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": "Invalid role"}))),
+    }
+}
+
+#[derive(Deserialize)]
+struct SwapProviderRequest {
+    runtime: String,
+    provider: String,
+    model: String,
+}
+
+async fn swap_provider(
+    State(state): State<Arc<AppState>>,
+    Path(agent_id): Path<String>,
+    Json(body): Json<SwapProviderRequest>,
+) -> impl IntoResponse {
+    let mut pool = state.agent_pool.write().await;
+    
+    let swap_runtime = body.runtime.clone();
+    let swap_provider = body.provider.clone();
+    let swap_model = body.model.clone();
+    
+    let mut found = false;
+    for j in &mut pool.juniors {
+        if j.id.as_deref() == Some(&agent_id) {
+            j.runtime = body.runtime.clone();
+            j.provider = Some(body.provider.clone());
+            j.model = body.model.clone();
+            found = true;
+            break;
+        }
+    }
+    if !found {
+        for s in &mut pool.seniors {
+            if s.id.as_deref() == Some(&agent_id) {
+                s.runtime = body.runtime.clone();
+                s.provider = Some(body.provider.clone());
+                s.model = body.model.clone();
+                found = true;
+                break;
+            }
+        }
+    }
+    if !found && pool.architect.id.as_deref() == Some(&agent_id) {
+        pool.architect.runtime = body.runtime.clone();
+        pool.architect.provider = Some(body.provider.clone());
+        pool.architect.model = body.model.clone();
+        found = true;
+    }
+    
+    if found {
+        tracing::info!("Provider swapped for {}: runtime={}, provider={}, model={}", agent_id, swap_runtime, swap_provider, swap_model);
+        state.event_bus.publish(axon_core::Event {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: String::new(),
+            thread_id: None,
+            agent_id: Some(agent_id.clone()),
+            event_type: axon_core::EventType::AgentUpdated,
+            level: axon_core::EventLevel::Info,
+            source: "hr_board".to_string(),
+            content: format!("Agent {} provider hot-swapped to {}/{}", agent_id, swap_runtime, swap_model),
+            payload: None,
+            timestamp: chrono::Local::now(),
+        });
+        (StatusCode::OK, Json(serde_json::json!({"status": "swapped", "id": agent_id})))
+    } else {
+        (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Agent not found"})))
+    }
 }
 
 async fn get_semantics_risks() -> Json<serde_json::Value> {
@@ -366,10 +636,8 @@ async fn approve_spec_analysis(
     match approval.as_mut() {
         Some(ref mut p) => {
             p.approved = true;
-            // Also write to the file in case bootstrap polls it
-            let path = format!("{}/.axon_approval_pending", p.project_id);
             let content = serde_json::json!({"status": "APPROVED", "approved": true});
-            let _ = std::fs::write(&path, serde_json::to_string(&content).unwrap());
+            let _ = std::fs::write(&p.approval_file_path, serde_json::to_string(&content).unwrap());
             (StatusCode::OK, Json(serde_json::json!({"status": "approved"}))).into_response()
         }
         None => (StatusCode::CONFLICT, "No pending approval").into_response(),
@@ -383,9 +651,8 @@ async fn reject_spec_analysis(
     match approval.as_mut() {
         Some(ref mut p) => {
             p.rejected = true;
-            let path = format!("{}/.axon_approval_pending", p.project_id);
             let content = serde_json::json!({"status": "REJECTED", "approved": false});
-            let _ = std::fs::write(&path, serde_json::to_string(&content).unwrap());
+            let _ = std::fs::write(&p.approval_file_path, serde_json::to_string(&content).unwrap());
             (StatusCode::OK, Json(serde_json::json!({"status": "rejected"}))).into_response()
         }
         None => (StatusCode::CONFLICT, "No pending approval").into_response(),
@@ -468,6 +735,12 @@ async fn approve_pipeline_review(
             if let Ok(Some(mut thread)) = state.storage.get_thread(&task_id) {
                 thread.status = axon_core::ThreadStatus::Completed;
                 thread.updated_at = chrono::Local::now();
+                thread.boss_interventions = updated.boss_interventions;
+                thread.senior_rejections = updated.senior_rejections;
+                thread.validator_rejections = updated.validator_rejections;
+                thread.architecture_rejections = updated.architecture_rejections;
+                thread.cargo_rejections = updated.cargo_rejections;
+                thread.lsp_rejections = updated.lsp_rejections;
                 let _ = state.storage.save_thread(thread).await;
             }
 
@@ -490,6 +763,38 @@ async fn approve_pipeline_review(
                 content: format!("Boss approved task '{}'", updated.title),
                 payload: None,
                 timestamp: chrono::Local::now(),
+            });
+
+            // Auto-resume pipeline after Boss approval
+            let state_clone = state.clone();
+            let project_id = updated.project_id.clone();
+            tokio::spawn(async move {
+                state_clone.pipeline_running.store(false, Ordering::SeqCst);
+                if let Ok(tasks) = state_clone.storage.list_all_tasks() {
+                    let has_pending = tasks.iter().any(|t| {
+                        t.project_id == project_id &&
+                        t.status != axon_core::TaskStatus::Completed &&
+                        t.lifecycle_state != axon_core::TaskLifecycleState::Rejected &&
+                        t.lifecycle_state != axon_core::TaskLifecycleState::Fatal &&
+                        t.lifecycle_state != axon_core::TaskLifecycleState::Superseded
+                    });
+                    if has_pending {
+                        tracing::info!("🔄 Boss approved task. Auto-resuming pipeline for remaining tasks...");
+                        let sandbox_root = std::path::PathBuf::from(&project_id);
+                        let mut pipeline = ExecutionPipeline::new(
+                            state_clone.axon_config.clone(),
+                            state_clone.storage.clone(),
+                            state_clone.event_bus.clone(),
+                            project_id.clone(),
+                            sandbox_root,
+                            state_clone.agent_pool.clone(),
+                        )
+                        .with_pending_reviews(state_clone.pending_reviews.clone())
+                        .with_running(state_clone.pipeline_running.clone())
+                        .with_task_semaphore(state_clone.task_semaphore.clone());
+                        pipeline.run_background();
+                    }
+                }
             });
 
             (StatusCode::OK, Json(serde_json::json!({"status": "approved", "task_id": task_id}))).into_response()
@@ -518,6 +823,12 @@ async fn reject_pipeline_review(
             if let Ok(Some(mut thread)) = state.storage.get_thread(&task_id) {
                 thread.status = axon_core::ThreadStatus::Completed;
                 thread.updated_at = chrono::Local::now();
+                thread.boss_interventions = updated.boss_interventions;
+                thread.senior_rejections = updated.senior_rejections;
+                thread.validator_rejections = updated.validator_rejections;
+                thread.architecture_rejections = updated.architecture_rejections;
+                thread.cargo_rejections = updated.cargo_rejections;
+                thread.lsp_rejections = updated.lsp_rejections;
                 let _ = state.storage.save_thread(thread).await;
             }
 
@@ -532,6 +843,38 @@ async fn reject_pipeline_review(
                 content: format!("Boss rejected task '{}'", updated.title),
                 payload: None,
                 timestamp: chrono::Local::now(),
+            });
+
+            // Auto-resume pipeline after Boss reject
+            let state_clone = state.clone();
+            let project_id = updated.project_id.clone();
+            tokio::spawn(async move {
+                state_clone.pipeline_running.store(false, Ordering::SeqCst);
+                if let Ok(tasks) = state_clone.storage.list_all_tasks() {
+                    let has_pending = tasks.iter().any(|t| {
+                        t.project_id == project_id &&
+                        t.status != axon_core::TaskStatus::Completed &&
+                        t.lifecycle_state != axon_core::TaskLifecycleState::Rejected &&
+                        t.lifecycle_state != axon_core::TaskLifecycleState::Fatal &&
+                        t.lifecycle_state != axon_core::TaskLifecycleState::Superseded
+                    });
+                    if has_pending {
+                        tracing::info!("🔄 Boss rejected task. Auto-resuming pipeline for remaining tasks...");
+                        let sandbox_root = std::path::PathBuf::from(&project_id);
+                        let mut pipeline = ExecutionPipeline::new(
+                            state_clone.axon_config.clone(),
+                            state_clone.storage.clone(),
+                            state_clone.event_bus.clone(),
+                            project_id.clone(),
+                            sandbox_root,
+                            state_clone.agent_pool.clone(),
+                        )
+                        .with_pending_reviews(state_clone.pending_reviews.clone())
+                        .with_running(state_clone.pipeline_running.clone())
+                        .with_task_semaphore(state_clone.task_semaphore.clone());
+                        pipeline.run_background();
+                    }
+                }
             });
 
             (StatusCode::OK, Json(serde_json::json!({"status": "rejected", "task_id": task_id}))).into_response()
@@ -566,6 +909,12 @@ async fn retry_pipeline_review(
             if let Ok(Some(mut thread)) = state.storage.get_thread(&task_id) {
                 thread.status = axon_core::ThreadStatus::Draft;
                 thread.updated_at = chrono::Local::now();
+                thread.boss_interventions = updated.boss_interventions;
+                thread.senior_rejections = updated.senior_rejections;
+                thread.validator_rejections = updated.validator_rejections;
+                thread.architecture_rejections = updated.architecture_rejections;
+                thread.cargo_rejections = updated.cargo_rejections;
+                thread.lsp_rejections = updated.lsp_rejections;
                 let _ = state.storage.save_thread(thread).await;
             }
 
@@ -582,6 +931,40 @@ async fn retry_pipeline_review(
                 timestamp: chrono::Local::now(),
             });
 
+            // Auto-resume pipeline after Boss retry
+            let state_clone = state.clone();
+            let project_id = updated.project_id.clone();
+            tokio::spawn(async move {
+                state_clone.pipeline_running.store(false, Ordering::SeqCst);
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                
+                if let Ok(tasks) = state_clone.storage.list_all_tasks() {
+                    let has_pending = tasks.iter().any(|t| {
+                        t.project_id == project_id &&
+                        t.status != axon_core::TaskStatus::Completed &&
+                        t.lifecycle_state != axon_core::TaskLifecycleState::Rejected &&
+                        t.lifecycle_state != axon_core::TaskLifecycleState::Fatal &&
+                        t.lifecycle_state != axon_core::TaskLifecycleState::Superseded
+                    });
+                    if has_pending {
+                        tracing::info!("🔄 Boss retried task. Auto-resuming pipeline for remaining tasks...");
+                        let sandbox_root = std::path::PathBuf::from(&project_id);
+                        let mut pipeline = ExecutionPipeline::new(
+                            state_clone.axon_config.clone(),
+                            state_clone.storage.clone(),
+                            state_clone.event_bus.clone(),
+                            project_id.clone(),
+                            sandbox_root,
+                            state_clone.agent_pool.clone(),
+                        )
+                        .with_pending_reviews(state_clone.pending_reviews.clone())
+                        .with_running(state_clone.pipeline_running.clone())
+                        .with_task_semaphore(state_clone.task_semaphore.clone());
+                        pipeline.run_background();
+                    }
+                }
+            });
+
             (StatusCode::OK, Json(serde_json::json!({"status": "retrying", "task_id": task_id}))).into_response()
         }
         None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "No pending review for this task"}))).into_response(),
@@ -591,11 +974,20 @@ async fn retry_pipeline_review(
 async fn resume_pipeline(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
+    if state.pipeline_running.load(Ordering::SeqCst) {
+        return (StatusCode::CONFLICT, Json(serde_json::json!({
+            "status": "already_running",
+            "message": "Pipeline is already running"
+        }))).into_response();
+    }
+
     let tasks = state.storage.list_all_tasks().unwrap_or_default();
     let pending: Vec<_> = tasks.iter().filter(|t| {
         t.status != axon_core::TaskStatus::Completed
             && t.lifecycle_state != axon_core::TaskLifecycleState::Rejected
+            && t.lifecycle_state != axon_core::TaskLifecycleState::Superseded
             && t.lifecycle_state != axon_core::TaskLifecycleState::Fatal
+            && t.lifecycle_state != axon_core::TaskLifecycleState::Aborted
     }).collect();
 
     if pending.is_empty() {
@@ -611,9 +1003,11 @@ async fn resume_pipeline(
         state.event_bus.clone(),
         project_id.clone(),
         sandbox_root,
+        state.agent_pool.clone(),
     )
     .with_pending_reviews(state.pending_reviews.clone())
-    .with_running(state.pipeline_running.clone());
+    .with_running(state.pipeline_running.clone())
+    .with_task_semaphore(state.task_semaphore.clone());
     pipeline.run_background();
 
     (StatusCode::OK, Json(serde_json::json!({
@@ -664,6 +1058,7 @@ async fn submit_spec(
     let pipeline_storage = storage.clone();
     let pipeline_eb = event_bus.clone();
     let pipeline_running = state.pipeline_running.clone();
+    let pipeline_pool = state.agent_pool.clone();
 
     tokio::spawn(async move {
         let spec_path = "submitted_spec.md";
@@ -717,6 +1112,7 @@ async fn submit_spec(
                     pipeline_eb,
                     manager.project_id.clone(),
                     manager.sandbox_root.clone(),
+                    pipeline_pool,
                 )
                 .with_pending_reviews(pending_reviews)
                 .with_running(pipeline_running);
@@ -739,13 +1135,33 @@ async fn submit_spec(
     })).into_response()
 }
 
-pub async fn setup_ingress(
+pub(crate) async fn setup_ingress(
     axon_config: AxonConfig,
     storage: Arc<Storage>,
     event_bus: Arc<EventBus>,
+    spec_path: &str,
 ) -> Result<Arc<AppState>, String> {
     tracing::info!("HTTP Ingress starting...");
 
+    let junior_count = axon_config.agents.juniors.len().max(1);
+    
+    let project_folder = std::path::Path::new(spec_path)
+        .parent()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown-project")
+        .to_string();
+    
+    let agent_pool = AgentPool {
+        juniors: axon_config.agents.juniors.clone(),
+        seniors: axon_config.agents.seniors.clone(),
+        architect: axon_config.agents.architect.clone(),
+    };
+    
+    let persona_registry = PersonaRegistry {
+        personas: axon_config.agents.personas.clone(),
+    };
+    
     let state = Arc::new(AppState {
         axon_config,
         bootstrap_status: Arc::new(AsyncMutex::new(BootstrapStatus::default())),
@@ -754,7 +1170,86 @@ pub async fn setup_ingress(
         pipeline_running: Arc::new(AtomicBool::new(false)),
         storage,
         event_bus,
+        task_semaphore: Arc::new(Semaphore::new(junior_count)),
+        agent_pool: Arc::new(AsyncRwLock::new(agent_pool)),
+        persona_registry: Arc::new(AsyncRwLock::new(persona_registry)),
+        project_folder,
     });
+
+    // Recover pending_reviews from DB on startup
+    {
+        let storage = state.storage.clone();
+        let reviews = state.pending_reviews.clone();
+        if let Ok(tasks) = storage.list_all_tasks() {
+            for task in tasks {
+                if task.status == axon_core::TaskStatus::Failed 
+                    && task.lifecycle_state == axon_core::TaskLifecycleState::Aborted
+                    && task.boss_interventions > 0 
+                {
+                    if let Ok(thread) = storage.get_thread(&task.id) {
+                        if let Some(th) = thread {
+                            if th.status == axon_core::ThreadStatus::BossApproval {
+                                let posts = storage.list_posts_by_thread(&task.id).unwrap_or_default();
+                                let proposal = posts.iter().find(|p| matches!(p.post_type, axon_core::PostType::Proposal)).cloned();
+                                let review = posts.iter().find(|p| matches!(p.post_type, axon_core::PostType::Review)).cloned();
+                                let senior_feedback = review.as_ref()
+                                    .and_then(|r| if r.content.is_empty() { None } else { Some(r.content.clone()) })
+                                    .unwrap_or_else(|| task.error_feedback.clone().unwrap_or_default());
+                                
+                                let review_entry = crate::PipelineReview {
+                                    task_id: task.id.clone(),
+                                    task: task.clone(),
+                                    proposal,
+                                    review,
+                                    senior_feedback,
+                                };
+                                reviews.lock().unwrap().insert(task.id.clone(), review_entry);
+                                tracing::info!("🔄 Recovered pending review for task: {} ({})", task.title, task.id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        let recovered_count = reviews.lock().unwrap().len();
+        if recovered_count > 0 {
+            tracing::info!("✅ Recovered {} pending reviews from DB", recovered_count);
+        }
+    }
+
+    // Recover pending_approval from file on startup
+    {
+        let spec_approval_file = std::path::PathBuf::from("spec/.axon_approval_pending");
+        if spec_approval_file.exists() {
+            if let Ok(content) = std::fs::read_to_string(&spec_approval_file) {
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                    let approved = val.get("approved").and_then(|v| v.as_bool()).unwrap_or(false);
+                    let rejected = val.get("rejected").and_then(|v| v.as_bool()).unwrap_or(false);
+                    if !approved && !rejected {
+                        let project_id = val.get("project_id").and_then(|v| v.as_str()).unwrap_or("spec").to_string();
+                        let constraints_path = val.get("constraints_path").and_then(|v| v.as_str()).unwrap_or("spec/immutable_constraints.json").to_string();
+                        let ambiguity = val.get("ambiguity_detected").and_then(|v| v.as_bool()).unwrap_or(false);
+                        let components: Vec<String> = val.get("components").and_then(|v| v.as_array())
+                            .map(|arr| arr.iter().filter_map(|c| c.as_str().map(String::from)).collect())
+                            .unwrap_or_default();
+                        let message = val.get("message").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        
+                        let spec_approval = crate::PendingApproval {
+                            project_id,
+                            constraints_path,
+                            approval_file_path: spec_approval_file.to_string_lossy().to_string(),
+                            ambiguity_detected: ambiguity,
+                            components,
+                            approved: false,
+                            rejected: false,
+                        };
+                        *state.pending_approval.lock().unwrap() = Some(spec_approval);
+                        tracing::info!("🔄 Recovered pending spec approval from file: {}", message);
+                    }
+                }
+            }
+        }
+    }
 
     // Auto-persist all EventBus events to storage
     let store = state.storage.clone();
@@ -784,6 +1279,7 @@ pub async fn setup_ingress(
         .route("/api/agents", get(list_agents_api))
         .route("/api/agents/hire", post(hire_agent))
         .route("/api/agents/:agent_id/fire", post(fire_agent))
+        .route("/api/agents/:agent_id/swap-provider", post(swap_provider))
         .route("/api/events", get(list_events))
         .route("/api/specs", post(submit_spec))
         .route("/api/specs/status/:project_id", get(get_specs_status))

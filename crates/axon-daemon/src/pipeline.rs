@@ -9,7 +9,7 @@ use tokio::sync::RwLock as AsyncRwLock;
 use tokio::task::JoinHandle;
 use axon_core::{
     AgentRole, Event, EventLevel, EventType, Task, TaskLifecycleState,
-    TaskStatus, ThreadStatus,
+    TaskStatus, ThreadStatus, Post, PostType,
 };
 use axon_core::events::EventBus;
 use axon_agent::AgentRuntime;
@@ -18,6 +18,9 @@ use axon_storage::Storage;
 use crate::bootstrap::create_model_driver;
 use crate::{AxonConfig, PipelineReview, AgentConfig};
 use crate::server::AgentPool;
+use crate::intelligence::corpus::catastrophe_archive::PredictiveImmuneLayer;
+use crate::intelligence::replay::lineage_taxonomy::{TaxonomyMigrationManifest, RootLineage};
+use crate::intelligence::corpus::corpus_executor::CorpusExecutor;
 
 // Phase 7-C: Sandbox State Machine — tracks file lifecycle to prevent memory-loss retry loops
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -560,10 +563,49 @@ impl ExecutionPipeline {
 
             // [HALLUCINATION_FIX] architecture.md를 ProjectIR로 파싱 (에이전트 생성 전)
             let arch_path_early = sandbox_root.join("architecture.md");
-            let arch_text_early = std::fs::read_to_string(&arch_path_early).unwrap_or_default();
-            let project_ir_early = ProjectIR::from_md(&arch_text_early);
+            let mut arch_text_early = std::fs::read_to_string(&arch_path_early).unwrap_or_default();
+            let mut project_ir_early = ProjectIR::from_md(&arch_text_early);
             if project_ir_early.is_none() {
-                tracing::warn!("⚠️ [IR_PARSE_FAIL] 에이전트 생성 단계에서 ProjectIR 파싱 실패 — constraint_block 비활성화 상태로 진행");
+                tracing::error!("🚨 [IR_PARSE_FAIL] 에이전트 생성 단계에서 ProjectIR 파싱 실패. Boss 개입을 대기합니다.");
+                event_bus.publish(Event {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    project_id: project_id.to_string(),
+                    thread_id: None,
+                    agent_id: Some("pipeline".to_string()),
+                    event_type: EventType::SystemLog,
+                    level: EventLevel::Error,
+                    source: "pipeline".to_string(),
+                    content: "🚨 [IR_PARSE_FAIL] 에이전트 생성 단계에서 ProjectIR 파싱 실패. architecture.md 구조 검토 필요.".to_string(),
+                    payload: None,
+                    timestamp: chrono::Local::now(),
+                });
+                
+                let approval_file = sandbox_root.join(".axon_approval_pending");
+                let pending_json = serde_json::json!({
+                    "status": "SUSPENDED_BY_IR_FAIL",
+                    "reason": "ProjectIR::from_md returned None during agent creation. Fix architecture.md and approve.",
+                    "project_id": project_id,
+                    "approved": false
+                });
+                let _ = std::fs::write(&approval_file, serde_json::to_string_pretty(&pending_json).unwrap());
+
+                match Self::wait_for_boss_approval(&approval_file).await {
+                    Ok(true) => {
+                        tracing::info!("✅ [IR_PARSE_FAIL] Boss approved. Resuming agent creation.");
+                        arch_text_early = std::fs::read_to_string(&arch_path_early).unwrap_or_default();
+                        project_ir_early = ProjectIR::from_md(&arch_text_early);
+                        if project_ir_early.is_none() {
+                            tracing::error!("❌ [IR_PARSE_FAIL] ProjectIR parsing still failing. Aborting.");
+                            running.store(false, Ordering::SeqCst);
+                            return;
+                        }
+                    }
+                    Ok(false) | Err(_) => {
+                        tracing::error!("❌ [IR_PARSE_FAIL] Boss rejected or timed out. Aborting.");
+                        running.store(false, Ordering::SeqCst);
+                        return;
+                    }
+                }
             } else {
                 tracing::info!("✅ [IR_INJECTED] 에이전트에 ProjectIR 주입 준비 완료 — {} 컴포넌트", project_ir_early.as_ref().unwrap().components.len());
             }
@@ -668,9 +710,49 @@ impl ExecutionPipeline {
         });
 
         // [HALLUCINATION_FIX] architecture.md → ProjectIR 파싱 (constraint_block 활성화)
-        let project_ir = ProjectIR::from_md(&architecture_guide);
+        let mut project_ir = ProjectIR::from_md(&architecture_guide);
         if project_ir.is_none() {
-            tracing::warn!("⚠️ [IR_PARSE_FAIL] architecture.md에서 ProjectIR 파싱 실패 — allowed_includes/forbidden_symbols 계약이 LLM에 전달되지 않습니다.");
+            tracing::error!("🚨 [IR_PARSE_FAIL] architecture.md에서 ProjectIR 파싱 실패. 파이프라인 진행을 차단하고 Boss 개입을 대기합니다.");
+            
+            event_bus.publish(Event {
+                id: uuid::Uuid::new_v4().to_string(),
+                project_id: project_id.to_string(),
+                thread_id: None,
+                agent_id: Some("pipeline".to_string()),
+                event_type: EventType::SystemLog,
+                level: EventLevel::Error,
+                source: "pipeline".to_string(),
+                content: "🚨 [IR_PARSE_FAIL] ProjectIR 파싱 실패. architecture.md 구조 검토 필요.".to_string(),
+                payload: None,
+                timestamp: chrono::Local::now(),
+            });
+
+            let approval_file = sandbox_root.join(".axon_approval_pending");
+            let pending_json = serde_json::json!({
+                "status": "SUSPENDED_BY_IR_FAIL",
+                "reason": "ProjectIR::from_md returned None. Fix architecture.md and approve.",
+                "project_id": project_id,
+                "approved": false
+            });
+            let _ = std::fs::write(&approval_file, serde_json::to_string_pretty(&pending_json).unwrap());
+
+            match Self::wait_for_boss_approval(&approval_file).await {
+                Ok(true) => {
+                    tracing::info!("✅ [IR_PARSE_FAIL] Boss approved. Resuming pipeline.");
+                    let new_architecture_guide = std::fs::read_to_string(&arch_path).unwrap_or_default();
+                    project_ir = ProjectIR::from_md(&new_architecture_guide);
+                    if project_ir.is_none() {
+                        tracing::error!("❌ [IR_PARSE_FAIL] ProjectIR parsing still failing after Boss approval. Aborting.");
+                        running.store(false, Ordering::SeqCst);
+                        return;
+                    }
+                }
+                Ok(false) | Err(_) => {
+                    tracing::error!("❌ [IR_PARSE_FAIL] Boss rejected or timed out. Aborting pipeline.");
+                    running.store(false, Ordering::SeqCst);
+                    return;
+                }
+            }
         } else {
             tracing::info!("✅ [IR_PARSED] ProjectIR 파싱 성공 — {} 컴포넌트 계약 활성화", project_ir.as_ref().unwrap().components.len());
         }
@@ -1133,21 +1215,154 @@ impl ExecutionPipeline {
                 timestamp: chrono::Local::now(),
             });
 
-            let review = match senior
-                .review_proposal(task, &modified_proposal, None, Some(event_bus.clone()))
-                .await
-            {
-                Ok(r) => r,
-                Err(e) => {
-                    tracing::error!(
-                        "❌ Senior LLM error for task '{}' (attempt {}): {}",
-                        task.title,
-                        retries + 1,
-                        e
-                    );
-                    retries += 1;
-                    tokio::time::sleep(Duration::from_secs(2)).await;
-                    continue;
+            // 1부 & 2부: 전역 헌법 및 프로젝트 계약 가드레일 집행 (0바이트 사멸, forbidden_symbols, allowed_includes 물리 필터링)
+            let mut project_ir = std::fs::read_to_string(sandbox_root.join("architecture.md")).ok()
+                .and_then(|text| ProjectIR::from_md(&text));
+
+            if project_ir.is_none() {
+                tracing::error!("🚨 [IR_PARSE_FAIL] execute_one_task: ProjectIR 파싱 실패. 진행 차단 및 Boss 개입 대기.");
+                
+                event_bus.publish(Event {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    project_id: project_id.to_string(),
+                    thread_id: Some(task.id.clone()),
+                    agent_id: Some("pipeline".to_string()),
+                    event_type: EventType::SystemLog,
+                    level: EventLevel::Error,
+                    source: "pipeline".to_string(),
+                    content: "🚨 [IR_PARSE_FAIL] execute_one_task ProjectIR 파싱 실패. architecture.md 구조 검토 필요.".to_string(),
+                    payload: None,
+                    timestamp: chrono::Local::now(),
+                });
+
+                let approval_file = sandbox_root.join(format!(".axon_approval_pending_{}", task.id));
+                let pending_json = serde_json::json!({
+                    "status": "SUSPENDED_BY_IR_FAIL",
+                    "reason": "ProjectIR::from_md returned None during task execution. Fix architecture.md and approve.",
+                    "project_id": project_id,
+                    "task_id": task.id,
+                    "approved": false
+                });
+                let _ = std::fs::write(&approval_file, serde_json::to_string_pretty(&pending_json).unwrap());
+
+                match Self::wait_for_boss_approval(&approval_file).await {
+                    Ok(true) => {
+                        tracing::info!("✅ [IR_PARSE_FAIL] Boss approved. Resuming task execution.");
+                        project_ir = std::fs::read_to_string(sandbox_root.join("architecture.md")).ok()
+                            .and_then(|text| ProjectIR::from_md(&text));
+                        if project_ir.is_none() {
+                            tracing::error!("❌ [IR_PARSE_FAIL] ProjectIR parsing still failing. Aborting task execution.");
+                            break;
+                        }
+                    },
+                    Ok(false) | Err(_) => {
+                        tracing::error!("❌ [IR_PARSE_FAIL] Boss rejected or timed out. Aborting task execution.");
+                        break;
+                    }
+                }
+            }
+
+            let mut auto_reject_reason = None;
+            if let Some(ref code) = modified_proposal.full_code {
+                if Self::is_empty_or_comments_only(code) {
+                    auto_reject_reason = Some("🚨 [GLOBAL_HARNESS] Auto-rejected: Proposed code is empty or contains only comments. Actual implementation is required.".to_string());
+                } else {
+                    let custom_forbidden: Vec<String> = if let Some(ref ir) = project_ir {
+                        if let Some(comp) = ir.get_component(resolved_target.as_deref().unwrap_or("")) {
+                            comp.forbidden_symbols.iter().cloned().collect()
+                        } else {
+                            Vec::new()
+                        }
+                    } else {
+                        Vec::new()
+                    };
+                    if let Some(sym) = Self::check_forbidden_symbols(code, &custom_forbidden) {
+                        auto_reject_reason = Some(format!("🚨 [GLOBAL_HARNESS] Auto-rejected: Code contains forbidden symbol/function '{}'. GTK/Linux symbols are strictly prohibited.", sym));
+                    } else {
+                        let mut allowed_list: Vec<String> = if let Some(ref ir) = project_ir {
+                            if let Some(comp) = ir.get_component(resolved_target.as_deref().unwrap_or("")) {
+                                comp.allowed_includes.iter().cloned().collect()
+                            } else {
+                                Vec::new()
+                            }
+                        } else {
+                            Vec::new()
+                        };
+
+                        // 프로젝트 내부의 정당한 모든 C/C++ 헤더 파일은 자동으로 allowed_list에 합산하여
+                        // 불필요한 보스 승인 대기(Manual Interlock Friction) 발생을 원천 차단함.
+                        if let Some(ref ir) = project_ir {
+                            for comp_path in ir.components.keys() {
+                                if comp_path.ends_with(".h") || comp_path.ends_with(".hpp") {
+                                    if let Some(filename) = std::path::Path::new(comp_path).file_name().and_then(|f| f.to_str()) {
+                                        allowed_list.push(filename.to_string());
+                                    }
+                                }
+                            }
+                        }
+
+                        if let Some(header) = Self::check_allowed_includes(code, &allowed_list) {
+                            auto_reject_reason = Some(format!("🚨 [GLOBAL_HARNESS] Auto-rejected: Non-conforming header '{}' detected. Only allowed includes are permitted.", header));
+                        }
+                    }
+                }
+            } else {
+                auto_reject_reason = Some("🚨 [GLOBAL_HARNESS] Auto-rejected: Proposed code is empty.".to_string());
+            }
+
+            // [LINEAGE_GUARD] Junior 제출 코드에서 알려진 위험 계통 패턴을 감지하면 WARN
+            // REJECT는 하지 않지만 Senior에게 컨텍스트를 제공하고 로그에 기록
+            if auto_reject_reason.is_none() {
+                if let Some(ref code) = modified_proposal.full_code {
+                    let manifest = TaxonomyMigrationManifest::build_v2();
+                    // 코드에서 알려진 증상 키워드 탐지
+                    let detected_symptoms: Vec<String> = manifest.migration_map.keys()
+                        .filter(|sym| code.contains(sym.as_str()))
+                        .cloned()
+                        .collect();
+
+                    if !detected_symptoms.is_empty() {
+                        let primary_root = manifest.map_legacy_symptom(&detected_symptoms[0]);
+                        if PredictiveImmuneLayer::check_against_archive(&primary_root) {
+                            tracing::warn!(
+                                "⚠️ [LINEAGE_GUARD] Task '{}': Detected known-dangerous causal pattern '{:?}' (symptoms: {:?}). Senior will review with elevated scrutiny.",
+                                task.title, primary_root, detected_symptoms
+                            );
+                        }
+                    }
+                }
+            }
+
+            let review = if let Some(reason) = auto_reject_reason {
+                tracing::warn!("{}", reason);
+                Post {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    thread_id: task.id.clone(),
+                    author_id: "senior-agent-001".to_string(),
+                    content: format!("[REJECT]\n{}", reason),
+                    thought: Some("Auto-reject due to global harness verification.".to_string()),
+                    full_code: None,
+                    post_type: PostType::Review,
+                    metrics: None,
+                    created_at: chrono::Local::now(),
+                }
+            } else {
+                match senior
+                    .review_proposal(task, &modified_proposal, None, Some(event_bus.clone()))
+                    .await
+                {
+                    Ok(r) => r,
+                    Err(e) => {
+                        tracing::error!(
+                            "❌ Senior LLM error for task '{}' (attempt {}): {}",
+                            task.title,
+                            retries + 1,
+                            e
+                        );
+                        retries += 1;
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        continue;
+                    }
                 }
             };
 
@@ -1173,27 +1388,100 @@ impl ExecutionPipeline {
             let mut is_approve = normalized.is_approve();
             let mut feedback = normalized.feedback.unwrap_or_default();
 
-            // v0.0.31.37: [HALLUCINATION_GUARD] Verify Senior's rejection for header files
-            // If Senior claims "function body in header" but code only has declarations,
-            // override REJECT → APPROVE to prevent hallucination deadlock loops.
-            if !is_approve {
-                let target = task.target_file.as_deref().unwrap_or("");
-                let proposed_code = modified_proposal.full_code.clone().unwrap_or_else(|| {
-                    if let Some(ref t) = task.target_file {
-                        let sandbox_path = Self::sandbox_path(sandbox_root, t);
-                        std::fs::read_to_string(&sandbox_path).unwrap_or_default()
-                    } else {
-                        String::new()
-                    }
-                });
-                if detect_senior_header_hallucination(target, &feedback, &proposed_code) {
-                    tracing::warn!(
-                        "🛡️ [HALLUCINATION_GUARD] Senior hallucination detected for task '{}'. Forcing APPROVE.",
-                        task.title
-                    );
-                    is_approve = true;
-                    feedback = "[HALLUCINATION_GUARD] Senior rejection overridden: proposed header code has declarations only (no function bodies). Auto-approved.".to_string();
+            // 2부 규격 1 & 2: Boss Board 최종 인장 인터락 & [HALLUCINATION_GUARD] 독소 조항 거세 및 역전
+            // detect_senior_header_hallucination 오버라이드 로직을 폐기하고, 
+            // 시니어의 결과(APPROVE/REJECT)와 무관하게 무조건 Boss Board 인간 매니저 최종 승인 인터락을 거치도록 설계함.
+            let approval_file = sandbox_root.join(format!(".axon_approval_pending_{}", task.id));
+            let approval_info = serde_json::json!({
+                "status": "PENDING_BOSS_APPROVAL",
+                "message": format!(
+                    "Task '{}' requires Boss review. Senior review result: {}. Target file: {:?}",
+                    task.title,
+                    if is_approve { "APPROVED" } else { "REJECTED" },
+                    task.target_file
+                ),
+                "task_id": task.id,
+                "target_file": task.target_file.clone().unwrap_or_default(),
+                "senior_approved": is_approve,
+                "senior_feedback": feedback,
+                "approved": false
+            });
+
+            if let Err(e) = std::fs::write(&approval_file, serde_json::to_string_pretty(&approval_info).unwrap_or_default()) {
+                tracing::error!("❌ Failed to write task approval file: {}", e);
+            }
+
+            // 스레드 상태를 BossApproval로 갱신하여 UI 및 대시보드 경보 작동
+            Self::update_thread_status(storage, &task.id, ThreadStatus::BossApproval).await;
+            Self::log_active_workers(storage, &format!("task '{}' → Boss Board (Manual Interlock)", task.title));
+
+            event_bus.publish(Event {
+                id: uuid::Uuid::new_v4().to_string(),
+                project_id: project_id.to_string(),
+                thread_id: Some(task.id.clone()),
+                agent_id: Some("pipeline".to_string()),
+                event_type: EventType::ApprovalRequested,
+                level: EventLevel::Warning,
+                source: "pipeline".to_string(),
+                content: format!(
+                    "Task '{}' requires Boss approval. Senior status: {}",
+                    task.title,
+                    if is_approve { "APPROVED" } else { "REJECTED" }
+                ),
+                payload: None,
+                timestamp: chrono::Local::now(),
+            });
+
+            tracing::info!("⏳ Pipeline suspended. Waiting for Boss approval for task '{}' via file: {:?}", task.title, approval_file);
+
+            // 보스 승인 대기
+            let boss_approved = match Self::wait_for_boss_approval(&approval_file).await {
+                Ok(approved) => approved,
+                Err(e) => {
+                    tracing::error!("❌ Boss approval wait failed: {}", e);
+                    false
                 }
+            };
+
+            // 보스 승인 결과에 따라 최종 승인 상태 분기 매핑
+            if boss_approved {
+                tracing::info!("✅ Boss approved task '{}'. Proceeding to promotion.", task.title);
+
+                // [CORPUS_GATE] Boss 승인 후 promotion 직전 shadow campaign으로 원본 파일 불변성 검증
+                if let Some(ref target) = task.target_file {
+                    let sandbox_path = Self::sandbox_path(sandbox_root, target);
+                    if sandbox_path.exists() {
+                        let shadow_sandbox = std::path::PathBuf::from("/tmp/axon_corpus_gate");
+                        let noop_mutation = |s: &str| s.to_string(); // identity: 변환 없음
+                        match CorpusExecutor::execute_shadow_campaign(
+                            &sandbox_path,
+                            &shadow_sandbox,
+                            &noop_mutation,
+                        ) {
+                            Ok(result) if result.pre_hash == result.post_hash => {
+                                tracing::info!(
+                                    "✅ [CORPUS_GATE] Integrity verified for '{}': pre_hash==post_hash",
+                                    target
+                                );
+                            }
+                            Ok(_) => {
+                                tracing::error!(
+                                    "🚨 [CORPUS_GATE] INTEGRITY VIOLATION for '{}': file mutated during gate!",
+                                    target
+                                );
+                            }
+                            Err(e) => {
+                                tracing::warn!("⚠️ [CORPUS_GATE] Shadow check skipped for '{}': {}", target, e);
+                            }
+                        }
+                    }
+                }
+
+                is_approve = true;
+            } else {
+                tracing::warn!("❌ Boss rejected task '{}'. Proceeding to retry/rework.", task.title);
+                is_approve = false;
+                feedback = format!("[BOSS_REJECTED] Boss overridden rejection for task: {}", task.title);
             }
 
             if is_approve {
@@ -1237,6 +1525,26 @@ impl ExecutionPipeline {
 
                     if promote_result.is_ok() {
                         let _ = std::fs::remove_file(&sandbox_path);
+                        
+                        // v0.0.31.39: [ATOMIC_RESTORE] CMake Pruning 자동 복구 로직
+                        if let Some(target) = task.target_file.as_deref() {
+                            if target.ends_with(".c") || target.ends_with(".cpp") {
+                                tracing::info!("🔧 [ATOMIC_RESTORE] C/C++ Source created. Restoring CMakeLists.txt targets...");
+                                if let Ok(arch_text) = std::fs::read_to_string(sandbox_root.join("architecture.md")) {
+                                    if let Some(ir) = ProjectIR::from_md(&arch_text) {
+                                        let mut graph = crate::dep_graph::DepGraph::new();
+                                        graph.build_from_ir(&serde_json::to_value(&ir).unwrap_or_default());
+                                        let cmake_spec = crate::dep_graph::parse_cmake_spec(&arch_text);
+                                        let cmake_content = graph.generate_cmake(project_id, &_config.locale, sandbox_root, cmake_spec.as_ref());
+                                        if let Err(e) = std::fs::write(sandbox_root.join("CMakeLists.txt"), cmake_content) {
+                                            tracing::error!("❌ [ATOMIC_RESTORE] Failed to write CMakeLists.txt: {}", e);
+                                        } else {
+                                            tracing::info!("✅ [ATOMIC_RESTORE] CMakeLists.txt targets successfully restored.");
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -1375,5 +1683,121 @@ impl ExecutionPipeline {
             let _ = storage.save_thread(thread).await;
             let _ = storage.flush().await;
         }
+    }
+
+    async fn wait_for_boss_approval(approval_file: &std::path::Path) -> Result<bool, String> {
+        let mut poll_interval = tokio::time::interval(std::time::Duration::from_millis(500));
+        let start = std::time::Instant::now();
+        let timeout = std::time::Duration::from_secs(3600); // 1 hour timeout
+
+        loop {
+            poll_interval.tick().await;
+            if start.elapsed() > timeout {
+                return Err("Boss approval timed out after 1 hour.".to_string());
+            }
+
+            // Check file directly
+            if let Ok(content) = std::fs::read_to_string(approval_file) {
+                if let Ok(approval) = serde_json::from_str::<serde_json::Value>(&content) {
+                    if approval["approved"].as_bool().unwrap_or(false) {
+                        let _ = std::fs::remove_file(approval_file);
+                        return Ok(true);
+                    }
+                    if approval["status"].as_str() == Some("REJECTED") {
+                        let _ = std::fs::remove_file(approval_file);
+                        return Ok(false);
+                    }
+                }
+            }
+        }
+    }
+
+    fn is_empty_or_comments_only(code: &str) -> bool {
+        let trimmed = code.trim();
+        if trimmed.is_empty() {
+            return true;
+        }
+        
+        let has_alphanumeric = trimmed.chars().any(|c| c.is_alphanumeric());
+        if !has_alphanumeric {
+            return true;
+        }
+
+        let mut cleaned = String::new();
+        for line in trimmed.lines() {
+            let l = line.trim();
+            if l.starts_with("//") || l.starts_with("#") || l.starts_with("*") || l.starts_with("-") {
+                continue;
+            }
+            cleaned.push_str(l);
+        }
+
+        let mut final_cleaned = String::new();
+        let mut chars = cleaned.chars().peekable();
+        let mut in_block_comment = false;
+        while let Some(c) = chars.next() {
+            if in_block_comment {
+                if c == '*' {
+                    if let Some(&'/') = chars.peek() {
+                        chars.next();
+                        in_block_comment = false;
+                    }
+                }
+            } else {
+                if c == '/' {
+                    if let Some(&'*') = chars.peek() {
+                        chars.next();
+                        in_block_comment = true;
+                        continue;
+                    }
+                }
+                final_cleaned.push(c);
+            }
+        }
+        
+        !final_cleaned.chars().any(|c| c.is_alphanumeric())
+    }
+
+    fn check_forbidden_symbols(code: &str, custom_forbidden: &[String]) -> Option<String> {
+        let global_forbidden = ["<gtk/gtk.h>", "GtkWidget", "GtkApplication", "g_signal_connect", "GtkDrawingArea", "GtkEventController"];
+        for sym in &global_forbidden {
+            if code.contains(sym) {
+                return Some(sym.to_string());
+            }
+        }
+        for sym in custom_forbidden {
+            if code.contains(sym) {
+                return Some(sym.to_string());
+            }
+        }
+        None
+    }
+
+    fn check_allowed_includes(code: &str, allowed: &[String]) -> Option<String> {
+        if allowed.is_empty() {
+            return None;
+        }
+        let std_libs = [
+            "stdio.h", "stdlib.h", "string.h", "string", "vector", "iostream",
+            "memory", "algorithm", "map", "set", "thread", "mutex", "filesystem",
+            "chrono", "dlfcn.h", "pthread.h", "math.h", "cstddef", "cstring", "cassert"
+        ];
+        for line in code.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("#include") {
+                let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    let header = parts[1].trim_matches(|c| c == '<' || c == '>' || c == '"');
+                    let is_allowed = allowed.iter().any(|a| {
+                        let clean_a = a.trim_matches(|c| c == '<' || c == '>' || c == '"');
+                        clean_a == header || header.contains(clean_a)
+                    }) || std_libs.contains(&header);
+                    if !is_allowed {
+                        return Some(parts[1].to_string());
+                    }
+                }
+            }
+        }
+        None
     }
 }

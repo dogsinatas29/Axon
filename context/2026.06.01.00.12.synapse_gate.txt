@@ -1,0 +1,13 @@
+1. 추론 과정 요약 (Core CoT):
+   - 사용자가 'include/text_buffer.h' 구현 태스크(task_005)에 대해 "계속 보스 승인 대기로 떠 있네"라고 호소함.
+   - 데몬의 state.db.log를 추적한 결과, 사용자가 2차 헤더 코드를 본 후 Approve 버튼을 누른 시각은 00:08:31이었으나, 시니어 에이전트의 심사(Review) 완료는 00:08:36에 일어났음이 규명됨.
+   - 즉, 시니어 심사 완료 이전에 누른 승인은 아직 인터락 대기 파일(.axon_approval_pending_task_005)이 물리적으로 존재하지 않는 시점이었기 때문에 무효화되었고, 시니어 심사 완료와 동시에 대기 파일이 approved=false 상태로 덮어쓰여 새로 생성되며 파이프라인이 중단된 상태를 유지함.
+   - 백엔드의 `/api/threads/task_005/approve` 수동 REST API를 curl을 통해 호출하여, 대기 파일을 approved=true로 수동 전환시끔으로써 정상적으로 보스 승인을 통과시킴.
+   - 그 결과, 샌드박스의 'text_buffer.h' 파일이 실제 경로(TEST4_GTK/spec/include/text_buffer.h)로 원자적 승격(Promoted) 완료되었고, 파이프라인은 Phase 1의 다음 태스크인 'task_003' (lua_runtime.h)로 무사히 재개됨.
+   - 사용자가 lua_runtime.h 진행 과정 중 발생한 Hallucination Guard 및 Envelope Invalid 로그의 의미를 질문함.
+   - 로그의 각 라인(환각 가드의 출력 제한 작동, 올바르지 않은 패치 포맷 수동 복구, 샌드박스 제안 상태 완료, 시니어 에이전트의 Ollama 호출)이 의미하는 바를 알기 쉽게 세분화하여 분석을 제공함.
+
+2. 변경 파일 목록 (Affected Files Diff):
+   - [MODIFY] release_note/v0.0.31_release_notes.md
+   - [MODIFY] mile_stone/v0.0.31.md
+   - [PROMOTE] TEST4_GTK/spec/include/text_buffer.h

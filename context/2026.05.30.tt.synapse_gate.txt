@@ -110,3 +110,14 @@ Session 11 CoT:
 Affected Files Diff:
 [MOD] context/2026.05.30.tt.synapse_gate.txt
 [MOD] GEMINI.md (수정 예정)
+
+---
+Session 12 CoT:
+1. 사용자의 요청(TEST4_GTK/spec.md 기반으로 spec/ 폴더에 동적 생성된 파일 분석 대조)을 수신.
+2. view_file 및 list_dir로 TEST4_GTK/spec/ 하위 of CMakeLists.txt, architecture.md, immutable_constraints.json을 순차 스캔.
+3. architecture.md 내 components 및 JSON 스키마, immutable_constraints.json 내 linux/gtk4/cairo 제약 설정과 spec.md 간의 100% 부합 여부를 검증.
+4. CMakeLists.txt 내에서 원래 빌드 소스(6개 cpp 파일)가 실제 물리적으로 부재하여 main.c로 단일 Pruning(가지치기)된 특이 정황을 분석 및 도출.
+5. 강제 파일 투사 규칙에 따라 context/2026.05.30.tt.synapse_gate.txt에 12회차 분석 추론 기록을 추가함.
+
+Affected Files Diff:
+[MOD] context/2026.05.30.tt.synapse_gate.txt

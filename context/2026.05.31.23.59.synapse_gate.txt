@@ -1,0 +1,9 @@
+### 🧠 Core CoT (추론 과정 요약 - v0.0.31 마이그레이션)
+1. **상황**: 사용자가 버전 v0.0.31을 유지하기를 요청함. `v0.0.1`로 이동했던 변경 사항 및 릴리즈 노트를 `v0.0.31` 계열 파일(`mile_stone/v0.0.31.md`, `release_note/v0.0.31_release_notes.md`)에 합치고, 기존 내용을 보존하면서 끝부분에 추가해야 함.
+2. **조치 계획**:
+   - `mile_stone/v0.0.31.md` 파일 끝에 `Post-Work Log — 2026-05-31 (보스 보드 뱃지 정합성 및 워크 보드 수동 인터락 승인 무반응 패치)` 작성 추가.
+   - `release_note/v0.0.31_release_notes.md` 파일 내용을 확인하고, 기존 내용 삭제 없이 마지막 부분에 이번 릴리즈 이력을 덧붙임.
+
+### 📝 Affected Files Diff (예정)
+- `mile_stone/v0.0.31.md` (작업 이력 추가)
+- `release_note/v0.0.31_release_notes.md` (릴리즈 노트 추가)

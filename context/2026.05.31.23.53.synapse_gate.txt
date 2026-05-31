@@ -1,0 +1,14 @@
+### 🧠 Core CoT (추론 과정 요약 - 2차 계획)
+1. **사용자 추가 피드백**: "어프루브 & Lock은 지금 work board의 작업 스레드 하단에 나와 그런데 보스 보드에 표시가 되버리네. 이걸 고려해서 다시 작업 계획표를 짜줘"
+2. **분석 및 설계 수정**:
+   - **보스 보드 뱃지에서 제외**: 보스 보드 뱃지 카운트(`bossPendingCount`)에서 `threadsData.filter(t => t.status === 'BossApproval')`를 카운팅하지 않도록 `App.tsx` 수정.
+   - **보스 보드 본문 표시 배제**: 보스 보드 UI(`BossBoard.tsx`)는 원래 의도대로 Spec 승인과 3회 실패 Pipeline Review만 처리하도록 유지하며, 수동 인터락 대기 건을 표시하지 않음.
+   - **백엔드 고유 파일명화**: 병렬 처리 레이스 컨디션 방지를 위해 `.axon_approval_pending_{task_id}` 파일명 고유화는 동일하게 적용.
+   - **워크 보드 승인 API 정상화**: 워크 보드의 `ThreadDetail` 모달에서 승인/반려/재시도를 눌렀을 때 백엔드 `/api/threads/:id/approve` 등이 정상 동작하도록, `pending_reviews`에 존재하지 않을 경우 고유 승인 파일 `.axon_approval_pending_{thread_id}`의 상태를 업데이트하는 백엔드 처리(server.rs) 보완.
+
+### 📝 Affected Files Diff (예정)
+- `crates/axon-daemon/src/pipeline.rs` (수동 인터락 파일명 고유화)
+- `crates/axon-daemon/src/server.rs` (승인/반려/재시도 API 수동 인터락 파일 업데이트 및 폴백 지원)
+- `studio/src/App.tsx` (보스 보드 뱃지 카운트 산정 방식에서 BossApproval 스레드 제외)
+- `mile_stone/v0.0.1.md` (마일스톤 업데이트)
+- `release_note/v0.0.1_release_notes.md` (릴리즈 노트 작성)

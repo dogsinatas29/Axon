@@ -1,0 +1,20 @@
+[Core CoT]
+1. 사용자의 요구사항에 따라 0바이트 사멸 가드, forbidden_symbols/allowed_includes 물리 필터링 및 시니어 프롬프트 계약 웰딩을 완공함.
+2. 0바이트/주석 전용 검출기(is_empty_or_comments_only)를 pipeline.rs에 구현하여 비어있거나 주석만 있는 코드를 제출할 시 시니어를 거치지 않고 즉시 Auto-reject 처리.
+3. allowed_includes 물리 가드(check_allowed_includes) 및 forbidden_symbols 물리 가드(check_forbidden_symbols)를 pipeline.rs에 집행하여 비정규 헤절 및 Win32 심볼 발견 시 즉시 Auto-reject 처리.
+4. crates/axon-agent/src/lib.rs의 review_proposal 함수 내에 comp.allowed_includes, comp.forbidden_includes, comp.forbidden_symbols 계약서를 동적으로 추출하여 review_context로 주입.
+5. 이 가드레일 분기 설계와 거버넌스 개조 변경 내역 전체를 v0.0.31.md 가장 하단에 추가함.
+
+[Affected Files Diff]
+- crates/axon-agent/src/lib.rs: review_context에 EXECUTABLE CONTRACT CONSTRAINTS 주입
+- crates/axon-daemon/src/pipeline.rs: is_empty_or_comments_only, check_forbidden_symbols, check_allowed_includes 추가 및 loop 내 필터링 로직 구현. Post/PostType 임포트 추가.
+- mile_stone/v0.0.31.md: Post-Work Log 최하단에 2026-05-30 일지 추가
+
+---
+[Core CoT - 2026.05.30 22:05 추가]
+1. 사용자가 실행한 `cargo run --release -p axon-daemon -- run` 명령어가 임시 명령어인지 질의함.
+2. `axon-daemon` 패키지의 `cli.rs` 및 `main.rs` 소스코드를 분석하여 `Commands::Run` 서브커맨드가 결정론적 커널을 동작시키기 위한 정식 기동 진입로임을 확인함.
+3. 임시 테스트용 스크립트나 명령어가 아닌, AXON 엔진 구동을 위한 핵심 정규 명령어임을 확인하고 이에 대한 설명 준비.
+
+[Affected Files Diff - 2026.05.30 22:05 추가]
+- (소스코드 변경 없음)

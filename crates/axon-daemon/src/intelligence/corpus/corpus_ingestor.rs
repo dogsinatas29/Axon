@@ -10,6 +10,8 @@ pub struct ReproducibleCorpusSnapshot {
     pub tree_sitter_version: String,
     pub formatter_version: String,
     pub ingest_timestamp: String,
+    /// 캠페인에서 순회할 소스 파일 목록 (절대 경로)
+    pub source_files: Vec<String>,
 }
 
 pub struct CorpusIngestor;
@@ -24,8 +26,9 @@ impl CorpusIngestor {
             commit: commit.to_string(),
             language: language.to_string(),
             tree_sitter_version: env!("CARGO_PKG_VERSION").to_string(),
-            formatter_version: "rustfmt 1.81".to_string(), // Simplified
+            formatter_version: "rustfmt 1.81".to_string(),
             ingest_timestamp: "2026-05-23T23:10:00Z".to_string(),
+            source_files: Vec::new(), // 실제 사용 시 glob으로 수집
         }
     }
 }

@@ -1,0 +1,142 @@
+{
+  "project_id": "MyLightIDE",
+  "components": [
+    {
+      "name": "main.cpp",
+      "status": "Core",
+      "file_path": "src/main.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": true,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "win32_app.cpp",
+      "status": "Core",
+      "file_path": "src/win32_app.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": true,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "text_buffer.cpp",
+      "status": "Core",
+      "file_path": "src/text_buffer.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": true,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "dwrite.cpp",
+      "status": "Core",
+      "file_path": "src/dwrite.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": false,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "renderer.cpp",
+      "status": "Core",
+      "file_path": "src/renderer.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": true,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "kernel32.cpp",
+      "status": "Core",
+      "file_path": "src/kernel32.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": false,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "lua_runtime.cpp",
+      "status": "Core",
+      "file_path": "src/lua_runtime.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": true,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "imm32.cpp",
+      "status": "Core",
+      "file_path": "src/imm32.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": false,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "direct2d.cpp",
+      "status": "Core",
+      "file_path": "src/direct2d.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": false,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "user32.cpp",
+      "status": "Core",
+      "file_path": "src/user32.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": false,
+      "criticality": "CORE",
+      "failure_allowed": false
+    },
+    {
+      "name": "input.cpp",
+      "status": "Core",
+      "file_path": "src/input.cpp",
+      "interface_signature": null,
+      "promotion_forbidden": true,
+      "blocking_forbidden": true,
+      "criticality": "CORE",
+      "failure_allowed": false
+    }
+  ],
+  "forbidden_patterns": [
+    "HWND",
+    "WinMain"
+  ],
+  "ambiguity_detected": false,
+  "ambiguity_details": [],
+  "recommended_action": "PROCEED",
+  "dependencies": null,
+  "transitions": null,
+  "language": "c",
+  "language_family": "systems",
+  "build_system": "cmake",
+  "module_system": "c_header",
+  "human_locked_ranges": null,
+  "dynamic_locked_ranges": null,
+  "platform": "linux",
+  "runtime_model": "gtk4",
+  "runtime_core": [
+    "WndProc",
+    "IMM32",
+    "DirectWrite",
+    "gtk4",
+    "Direct2D",
+    "lua_runtime",
+    "WinMain"
+  ],
+  "contract_tier": "Core"
+}

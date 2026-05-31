@@ -1,0 +1,29 @@
+=== SYNAPSE GATE — 2026.06.01.00.58 ===
+
+[Core CoT — 추론 과정 요약]
+1. v0.0.31.md에서 Tiny Mutation Corpus와 Causal Lineage Normalization이 stub 상태임을 코드 검색으로 확인
+2. 두 기능의 역할과 현재 구현 수준을 분석하여 구현계획서(Phase 1~4) 작성 및 사용자 승인 획득
+3. Phase 1: catastrophe_archive.rs에 JSONL append 저장 및 load_archived_roots() 구현
+4. Phase 2: lineage_taxonomy.rs의 binary 유사도를 가중치 매트릭스(0.0~1.0)로 교체
+5. Phase 3: corpus_executor.rs에 6단계 shadow campaign 실행 체인 구현, mutation_campaign.rs 실측 루프 전환
+6. Phase 4: pipeline.rs에 [LINEAGE_GUARD](Junior 제출 후) + [CORPUS_GATE](Boss 승인 후) 훅 삽입
+7. 빌드 오류(f32/f64 타입 불일치, let review 라인 누락) 수정 후 최종 빌드 성공
+8. v0.0.31.md에 작업 내용 Post-Work Log로 추가
+
+[Affected Files Diff]
+- crates/axon-daemon/src/intelligence/corpus/catastrophe_archive.rs [MODIFIED]
+  → JSONL 영구 저장, load_archived_roots(), check_against_archive() 구현
+- crates/axon-daemon/src/intelligence/corpus/corpus_executor.rs [MODIFIED]
+  → execute_shadow_campaign() 6단계 실행 체인 실체화
+- crates/axon-daemon/src/intelligence/corpus/mutation_campaign.rs [MODIFIED]
+  → run_campaign() 더미값 → 실측 루프 + f32→f64 타입 수정
+- crates/axon-daemon/src/intelligence/corpus/corpus_ingestor.rs [MODIFIED]
+  → source_files: Vec<String> 필드 추가
+- crates/axon-daemon/src/intelligence/replay/lineage_taxonomy.rs [MODIFIED]
+  → CausalSimilarityScorer 가중치 매트릭스 도입
+- crates/axon-daemon/src/pipeline.rs [MODIFIED]
+  → [LINEAGE_GUARD] + [CORPUS_GATE] 훅 삽입, GTK forbidden symbol로 변경
+- TEST5_win32/spec.md [MODIFIED]
+  → main.cpp에 Tier:Integration/Type:Integrator 메타데이터 추가
+- mile_stone/v0.0.31.md [MODIFIED]
+  → 버전 번호 정리(v0.0.32~34 → v0.0.31), Post-Work Log 추가

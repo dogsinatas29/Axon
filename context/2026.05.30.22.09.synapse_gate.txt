@@ -1,0 +1,12 @@
+[Core CoT]
+1. 사용자가 파이프라인 작동 시 발생한 오류(예: [IR_PARSE_FAIL] 등)가 보고되지 않고 작업이 조용히 완료되는 현상의 원인 분석을 요청함.
+2. crates/axon-daemon/src/pipeline.rs의 에이전트 생성부(line 565), 파이프라인 초기 구동부(line 672), 개별 태스크 수행부(line 1137)의 ProjectIR::from_md 파싱 로직을 정밀 분석함.
+3. from_md 파싱 결과가 None일 때, 파이프라인을 정지(Suspend)하거나 Boss Board에 경보 이벤트를 전송하지 않고 오직 tracing::warn! 로그 한 줄만 띄운 후 조용히 후속 루프를 실행하도록 구현되어 있음을 파악함.
+4. project_ir이 None인 상태로 흘러갈 경우, allowed_includes 및 forbidden_symbols 가드레일 리스트가 빈 벡터(Vec::new())로 대체되어 물리 검사 필터링이 아무 제약 없이 무음 통과(Bypass)되는 취약점을 규명함.
+
+[Affected Files Diff]
+- (소스코드 변경 없음 - 분석 단계)
+
+[2026-05-30 23:45:00] [IR_PARSE_FAIL 긴급 교정]
+- 원인: LLM(에이전트)이 architecture.md 내에 functions/symbols를 단순 문자열 배열(`["on_key_press"]`)이 아닌 객체 배열(`[{"name": "on_key_press", "signature": "..."}]`) 형태로 뱉어내기 시작함. 기존의 `Vec<String>` 파서가 이 포맷을 역직렬화(Deserialize)하지 못해 IR 파싱이 실패.
+- 조치: `axon-ir/src/schema/types.rs` 내 `RawComponent`의 `symbols` 필드 타입을 `#[serde(untagged)] enum RawSymbol`로 교체하여 문자열과 객체 두 포맷 모두 동적으로 파싱할 수 있도록 유연성 웰딩 수행. `allowed_includes`, `metadata` 등 누락되었던 메타데이터도 함께 정상 맵핑되도록 복구함.

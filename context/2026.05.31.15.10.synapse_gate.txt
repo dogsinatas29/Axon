@@ -1,0 +1,19 @@
+Core CoT:
+Axon 데몬의 intelligence/ 모듈 내 flat하게 나열되어 복잡한 상호 의존성(Spaghetti Edges)을 뿜어내던 문제를 해결하기 위해, 보스의 승인(APPROVE) 하에 허브-스포크(Hub-and-Spoke) 변환 아키텍처 설계 도면을 확정함.
+이에 따라 외부 직접 참조 차단을 위한 pub(crate) 장벽 및 파사드(Facade) 도입, 플랫폼별 시뮬레이터 추상화(PlatformStrikeSim Trait), 공통 도메인 타입의 수직 인양(axon-core 또는 intelligence/common/types.rs)을 정의하는 implementation_plan.md 및 task.md를 아티팩트로 구축함.
+
+1단계 실무 작업을 완료한 후, 2단계 실무 작업(Platform Strike Sim Trait 도입 및 4종의 플랫폼 파일을 replay/platform/ 으로 이동하여 모듈화)을 개시함.
+
+Affected Files Diff:
+[NEW] implementation_plan.md (Artifact)
+[NEW] task.md (Artifact)
+[NEW] crates/axon-daemon/src/intelligence/common/mod.rs
+[NEW] crates/axon-daemon/src/intelligence/common/types.rs
+[NEW] crates/axon-daemon/src/intelligence/replay/platform/mod.rs
+[NEW] crates/axon-daemon/src/intelligence/replay/platform/win32_topology_strike.rs
+[NEW] crates/axon-daemon/src/intelligence/replay/platform/gtk2_gobject_hell.rs
+[NEW] crates/axon-daemon/src/intelligence/replay/platform/gtk_topology_strike.rs
+[NEW] crates/axon-daemon/src/intelligence/replay/platform/c_topology_strike.rs
+[MODIFY] crates/axon-daemon/src/intelligence/replay/mod.rs
+[MODIFY] crates/axon-daemon/src/intelligence/replay/gtk_stage1_2_strike.rs
+[NEW] context/2026.05.31.15.10.synapse_gate.txt

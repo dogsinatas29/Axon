@@ -1,0 +1,9 @@
+1. 추론 과정 요약 (Core CoT):
+   - 사용자가 파이프라인 진행 상태와 데이터베이스 기록이 뒤엉켜 프로젝트 빌드가 꼬인 현상을 보고, 모든 작업을 초기화하고 완전히 새로 시작하기를(Reset) 요청함.
+   - 이를 처리하기 위해 `TEST4_GTK/runtime/` 내 DB 및 로그 파일 초기화, `TEST4_GTK/spec/` 디렉토리 내 생성된 헤더, 빌드 설정 파일, `.axon` sandbox 전체를 삭제하는 클리닝 계획을 수립함.
+   - 데몬을 중지하고 clean 상태에서 처음부터 다시 기동하여 `spec.md` 파싱 및 태스크 분해 단계부터 안정적으로 재기동할 수 있도록 하는 구현 계획서(implementation_plan.md)를 작성함.
+   - 사용자에게 작업 진행을 확약받기 위해 계획 승인을 요청하는 대기 상태로 전환함.
+
+2. 변경 파일 목록 (Affected Files Diff):
+   - [MODIFY] release_note/v0.0.31_release_notes.md
+   - [MODIFY] mile_stone/v0.0.31.md

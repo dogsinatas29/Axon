@@ -1,0 +1,12 @@
+### 🧠 Core CoT (추론 과정 요약 - 스펙 승인 분석)
+1. **문제 정의**: 사용자가 스펙 승인(SpecAnalysis) 단계에서 직접 승인을 누르지 않았음에도 불구하고 `⏳ Boss approval pending` 상태 진입 4초 만에 `✅ SpecAnalysis approved.` 가 떨어지며 Skeleton 단계로 자동 진행됨.
+2. **원인 분석**:
+   - 디렉토리의 `.axon_approval_pending` 파일 생성 시 분명히 `approved: false` 로 덮어써짐.
+   - 프론트엔드 React 소스에는 자동 승인을 트리거하는 코드가 없음.
+   - 백엔드의 스레드 승인 핸들러(`approve_thread`) 폴백 역시 `task_id` 필드가 없는 스펙 승인 파일에는 매칭될 수 없어 오작동 가능성이 없음.
+   - 결론적으로, 데몬이 8080 포트를 열고 기동하는 즉시 브라우저(Web UI)가 재접속하면서 이전에 잔존해 있던 폴링/재시도 큐(또는 세션 복구 루프)에 의해 `/api/specs/approve` POST API가 자동으로 재호출되었을 확률이 매우 높음.
+3. **진단 조치**:
+   - 추측을 배제하고 결정론적으로 규명하기 위해, `server.rs` 의 스펙 승인/반려 API 핸들러(`approve_spec_analysis`, `reject_spec_analysis`) 내부에 호출 근원 로그(`tracing::info!("📡 Spec analysis approved via API POST /api/specs/approve");`)를 명시적으로 심어 네트워크 트리거 여부를 투명하게 노출함.
+
+### 📝 Affected Files Diff (예정)
+- `crates/axon-daemon/src/server.rs` (스펙 승인/반려 핸들러 진단 로깅 추가)

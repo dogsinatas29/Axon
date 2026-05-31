@@ -69,6 +69,11 @@ int WINAPI WinMain(HINSTANCE hInstance,
                    int nCmdShow)
 ```
 
+**Meta Data for AXON Daemon:**
+- Tier: Integration
+- Type: Integrator
+- Responsibility: Application entry point, integrates all subsystems (input, renderer, lua_runtime) and enters the Win32 message loop.
+
 ---
 
 # 4. FORBIDDEN ENTRY POINTS

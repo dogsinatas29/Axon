@@ -1,0 +1,13 @@
+[Core CoT]
+1. 시니어 엔지니어의 요구(1부 및 2부 사양)를 완벽히 준수하여 Axon 데몬 및 IR 파서 거버넌스를 개조함.
+2. 1부: crates/axon-ir/src/schema/types.rs의 RawComponent symbols 필드에 #[serde(default, alias = "functions")] 어트리뷰트 적용. 이를 통해 functions 필드로 출력되는 architecture.md의 JSON spec 파싱 오류([IR_PARSE_FAIL])를 완전해소함.
+3. 2부: crates/axon-daemon/src/pipeline.rs에서 시니어 거절 오버라이드 Forcing APPROVE(detect_senior_header_hallucination) 로직을 폐기함.
+4. AI 에이전트의 자율 승격(Promote) 과정 직전(Stage: Complete)에 무조건 Boss Board 승인 대기 파일(.axon_approval_pending)을 생성하고, wait_for_boss_approval 헬퍼 함수를 통해 1시간 타임아웃의 폴링 인터락을 웰딩함.
+5. 이를 통해 AI 에이전트가 껍데기 헤더나 독소 코드를 마음대로 실제 경로로 덮어쓰지 못하도록 보장하고, 시니어가 REJECT 시 파이프라인을 즉시 홀딩(SUSPEND) 및 이관하게 만듦.
+6. cargo check 및 빌드 테스트 완료하여 무결함을 입증하고, v0.0.1 Release Notes와 Milestone v0.0.1 Post-Work Log를 갱신함.
+
+[Affected Files Diff]
+- crates/axon-ir/src/schema/types.rs: symbols 필드 어트리뷰트 추가
+- crates/axon-daemon/src/pipeline.rs: detect_senior_header_hallucination 제거, Boss Board 인터락(wait_for_boss_approval 및 .axon_approval_pending 생성) 추가
+- release_note/v0.0.1_release_notes.md: 거버넌스 릴리즈 내용 갱신
+- mile_stone/v0.0.1.md: Post-Work Log에 거버넌스 추가 작업 기록

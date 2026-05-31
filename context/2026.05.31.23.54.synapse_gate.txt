@@ -1,0 +1,14 @@
+### 🧠 Core CoT (추론 과정 요약 - 3차 검증)
+1. **사용자가 제공한 로그 분석**:
+   - `task_005`와 `task_004` 모두 `spec/.axon_approval_pending` 하나의 파일을 대기하며 `wait_for_boss_approval` 루프에 돌입.
+   - 사용자가 승인을 누를 때 백엔드에 `Approving thread: task_005` 및 `task_004`가 찍혔지만, 그 이후 `NOT_FOUND`로 실패하여 `spec/.axon_approval_pending` 파일의 `"approved"` 값이 업데이트되지 않음.
+   - 이로 인해 백그라운드 루프가 풀리지 않아 파이프라인이 멈춰 있고 `src`에 코드가 생성(promotion)되지 않음.
+2. **수정 방침**:
+   - **승인 대기 파일 고유화**: `spec/.axon_approval_pending_{task_id}`로 변경하여 병렬 태스크 간 상호 덮어쓰기 문제 완벽 차단.
+   - **백엔드 API 핸들러 수정**: `approve_thread`, `reject_thread`, `retry_thread`에서 `pending_reviews` 맵에 존재하지 않는 스레드일 경우 고유 승인 대기 파일(`.axon_approval_pending_{thread_id}`)을 직접 `approved = true` 등으로 갱신하여 백그라운드 대기 스레드가 깨어나 승격(Promotion) 및 파이프라인 재개를 처리할 수 있도록 보완.
+   - **보스 보드 뱃지 개선**: `App.tsx`에서 `BossApproval` 상태 스레드를 뱃지 카운트에서 배제하여 뱃지 오류 해결.
+
+### 📝 Affected Files Diff (예정)
+- `crates/axon-daemon/src/pipeline.rs` (수동 인터락 파일명 고유화)
+- `crates/axon-daemon/src/server.rs` (승인/반려/재시도 API 수동 인터락 파일 업데이트 및 폴백 지원)
+- `studio/src/App.tsx` (보스 보드 뱃지 카운트 산정 방식에서 BossApproval 스레드 제외)

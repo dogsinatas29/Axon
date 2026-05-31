@@ -1,0 +1,18 @@
+### 🧠 Core CoT (추론 과정 요약)
+1. **문제 정의**: 사용자가 보스 보드(Boss Board) 탭의 뱃지에는 승인 대기(bossapproval) 건수가 2개라고 표시되지만, 탭 안으로 들어가면 실제 대기 리스트가 나타나지 않고, 스레드 뷰에서 승인을 눌러도 아무런 반응이 없는 현상 발생.
+2. **원인 분석**:
+   - 에이전트가 3회 실패 시 `pending_reviews` (메모리 해시맵)에 등록되어 보스 보드의 `pipelineReviews`로 렌더링되나, 시니어 리뷰 완료 후 수동 인터락 상태(`BossApproval` 상태)가 되면 `pending_reviews`가 아닌 `.axon_approval_pending` 파일 대기로 진입함.
+   - 이때 데몬이 재시작되거나 누락이 발생하면 `pending_reviews`는 비어 있으므로 보스 보드(`BossBoard.tsx`) 탭 내부에서는 아무런 리스트도 렌더링되지 않음 (수동 인터락 상태를 렌더링하는 UI가 없음).
+   - 또한, 여러 태스크가 병렬로 수동 인터락 상태에 진입할 때 고정 파일명 `.axon_approval_pending`을 공유하므로 심각한 덮어쓰기(Race condition) 발생.
+   - 스레드 상세 페이지(`ThreadDetail.tsx`)에서 승인을 눌러 `/api/threads/:id/approve`를 실행할 때, 백엔드 `approve_thread`는 오직 `pending_reviews`에서만 제거하려고 시도하며, 없으면 `NOT_FOUND`를 응답하고 스레드/태스크 완료 처리를 수행하지 못함.
+3. **해결 방안**:
+   - **백엔드 고유 파일명화**: 수동 인터락 승인 대기 파일을 `.axon_approval_pending_{task_id}` 형태로 고유화하여 병렬 충돌 해결.
+   - **백엔드 승인 핸들러 수정**: `approve_thread`, `reject_thread`, `retry_thread`에서 `pending_reviews`에 해당 태스크가 없을 경우, 고유 승인 파일(`.axon_approval_pending_{thread_id}`)의 내용을 `approved = true` (또는 status="REJECTED")로 업데이트하여 백그라운드 폴링 대기를 해제하고 정상 프로모션하도록 유도.
+   - **프론트엔드 UI 개선**: `BossBoard.tsx`에서 `threads.filter(t => t.status === 'BossApproval')`에 해당하는 수동 인터락 목록(Manual Interlocks)도 `pipelineReviews`와 함께 독립 섹션으로 렌더링하여 뱃지 카운트와 1:1 일치시키고 보스 보드 탭 내부에서 직접 처리가 가능하도록 함.
+
+### 📝 Affected Files Diff (예정)
+- `crates/axon-daemon/src/pipeline.rs` (수동 인터락 파일명 고유화)
+- `crates/axon-daemon/src/server.rs` (승인/반려/재시도 API 수동 인터락 폴백 추가)
+- `studio/src/components/BossBoard.tsx` (수동 인터락 스레드 렌더링 추가)
+- `mile_stone/v0.0.1.md` (마일스톤 업데이트)
+- `release_note/v0.0.1_release_notes.md` (릴리즈 노트 작성)

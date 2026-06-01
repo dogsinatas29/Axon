@@ -337,6 +337,82 @@ Step 3 (Senior): 터미널 A의 시니어가 코드를 읽고 비판하네.
 Step 4 (Observer): 자네는 웹 뷰어에서 이 둘의 티격태격과 노가리.md에 쌓이는 비화를 구경하다가, 마음에 들면 **[Lock-in]**을 누르는 거지.
 💡 시니어의 조언: "왜 제미나이 둘인가?"
 동일 사양, 다른 역할: 같은 모델이라도 페르소나와 작업 범위(MD 파일)를 분리했을 때 얼마나 다른 '바이브'를 내는지 확인하기 최적이라네.
+
+---
+
+## Architecture Map — Call Graph 기준 (2026-06-02)
+
+> 이 감사는 `v0.0.31` 단계에서 `crates/axon-daemon/src/` 전수 `rg` 호출 그래프 조사 결과를 기반으로 합니다.
+>
+> 📖 **전체 감사 보고서:** [`DEAD_CODE_AUDIT.md`](DEAD_CODE_AUDIT.md) — 철학적 분류, 6개 즉시 제거 후보, 13개 연구 자산 격리, 15개 전략 자산 보존, disposal strategy
+
+### Pipeline Flow (ACTIVE 19)
+
+```
+Task
+  ↓
+Junior Agent ─── process_task()
+  ↓
+Autonomous Header Slicer ─── autonomous_header_slicer()
+  ↓
+Global Harness ─── is_empty_or_comments_only() → check_forbidden_symbols() → check_allowed_includes()
+  ↓  (WARN)
+Lineage Guard ─── TaxonomyMigrationManifest::build_v2() → PredictiveImmuneLayer::check_against_archive()
+  ↓
+LSP Gatekeeper ─── LspSupervisor::semantic_gate()
+  ↓
+Compilation Gate ─── execution_validator::validate() → extract_error_locations()
+  ↓  (WARN, retries>0)
+Patch Radius ─── load_failed_regions() → diagnostic_to_regions() → validate_patch_radius()
+  ↓
+Senior Agent ─── review_proposal()
+  ↓
+Boss Board ─── wait_for_boss_approval()
+  ↓
+Corpus Gate ─── CorpusExecutor::execute_shadow_campaign()
+  ↓
+Promotion ─── PromotionDecision → unlock_promotion()
+```
+
+### Layer Map (2026-06-02 감사 기준)
+
+| 계층 | 분류 | 개수 | 포함 항목 |
+|------|------|------|-----------|
+| **Pipeline Core** | ACTIVE | 19 | `execute_one_task()` → Junior → Validator → LSP → Compiler → Senior → Boss → Promotion |
+| **Support** | REACHABLE | 2 | `with_agent_pool` (builder), `pending_reviews_handle` (getter) |
+| **Future Research** | DORMANT | 15 | `StructuralRoundtripValidator`, `LowerInsertField/AppendStmt/ReplaceFnBody`, `SurgicalEditor/ReplayHarness`, `TreeSitterLocator`, `AnchorValidator`, `CrashSandbox`, `dual_run_shadow_validation`, `StabilityMatrixHarness`, `RustCanonicalizer`, `AstOwnershipValidator/RegexAstValidator/TreeSitterAstValidator` |
+| **Delete Candidates (DEAD-A)** | DEAD | 6 | `IntelligenceEngine`, `EvolutionPipeline`, `on_validation_cycle`, `MutationReplayObservatory`, `extract_undefined_symbols`, `detect_senior_header_hallucination` |
+| **Quarantine Candidates (DEAD-B)** | DEAD | 13 | `MutationCampaign`, `CampaignRunner`, `SemanticAuthorityGate`, `SemanticCanonicalizer`, `SemanticDistance`, `SemanticMutationClass`, `SemanticSeverity`, `SemanticTokens`, `RawAstNode`, `CanonicalSemanticForm`, `VisibilityScope`, `TopologyEdge`, `SignatureVector` |
+| **Legacy** | LEGACY | 2 | `selective_run`, `extract_error_files` (quarantine/legacy_daemon.rs 전용) |
+
+### 분류 기준
+
+| 상태 | 의미 | 판단 근거 |
+|------|------|-----------|
+| **ACTIVE** | 실제 실행 경로에서 호출됨 | `execute_one_task()`에서 직접/간접 호출 확인 |
+| **REACHABLE** | 현재 호출되지 않지만 파이프라인에 연결 가능 | mod.rs 선언 + builder/getter 패턴 |
+| **DORMANT** | 현재 도달 불가능하지만 미래 기능으로 보존 가치 있음 | 완전 구현 + 대체재 없음 + 구조 단위 수정 필요 |
+| **DEAD-A** | 호출 없음 + 대체재 명확 | `execute_one_task()` 또는 다른 액티브 함수에 완전 대체됨 |
+| **DEAD-B** | 호출 없음 + 실험/연구 흔적 | Semantic/AST/Telemetry 연구 계열, 참고용 보존 필요 |
+| **LEGACY** | 레거시 시스템에서만 호출 | `quarantine/legacy_daemon.rs`에서만 참조 |
+
+### 향후 계획 (v0.0.32 이후)
+
+| 단계 | 작업 | 시점 |
+|------|------|------|
+| 1 | Win32 + GTK 검증 완료 | 현재 진행 중 |
+| 2 | **DEAD-A 6개 → `quarantine/dead_a/` 이동** | Win32/GTK 검증 완료 후 |
+| 3 | **DEAD-B 13개 → `quarantine/dead_b/` 이동** | v0.0.32 진입 시 |
+| 4 | quarantine에서 1~2주 생존 확인 | — |
+| 5 | 미생존 항목 최종 삭제 | quarantine 만료 후 |
+
+> ⚠️ DORMANT 15개는 삭제하지 않음. `LowerInsertField`/`SurgicalEditor` 계열은 v0.1.x "구조 단위 수정"으로의 진화를 위한 전초기지.
+> DORMANT `CrashSandbox`는 런타임 물리 센서 계열, v0.1.x에서 확장 가능.
+>
+> 📖 **상세 분석 및 전략:** [`DEAD_CODE_AUDIT.md`](DEAD_CODE_AUDIT.md) — 각 DEAD 항목별 대체재, DORMANT 활성화 로드맵, 위험 관리
+
+---
+
 토큰 효율# Repository Index — Architecture Navigation Layer
 
 > 생성일시: 2026-05-21 18:22
@@ -359,6 +435,7 @@ axon/
 ├── README_KO.md                # 프로젝트 개요 (국문 별본): 한국어 문서 백업
 ├── LICENSE                     # MIT 라이선스: 소스 코드 사용/배포 조건
 ├── CHANGELOG.md                # 변경 이력 로그: 버전별 기능 추가/수정/삭제 기록
+├── DEAD_CODE_AUDIT.md          # [v0.0.31] 데드코드 고고학 감사 보고서: 철학적 분류, disposal strategy, DORMANT 활성화 로드맵
 ├── AXON_VISION.md              # 프로젝트 비전 문서: AXON의 장기적 방향성 및 철학
 ├── crates/                     # 모든 Rust 작업 공간 멤버 (9개 크레이트)
 │   ├── axon-core/               # [모델] 도메인 타입(Task/Thread/Post/Agent/Event), EventBus, TaskLifecycleState, PatchEnvelope
@@ -524,7 +601,7 @@ axon/
 | `intelligence/decision.rs` | **core (핵심)** | 단계 결정 엔진. `StructuredRepairContract` + `to_patch_contract()` | **Dormant** | lib.rs |
 | `intelligence/coordinator.rs` | **core (핵심)** | 태스크 배치 코디네이터 | **Active** | lib.rs |
 | `intelligence/selection.rs` | **core (핵심)** | 에이전트 선택 전략 및 라우팅 | **Active** | coordinator |
-| `intelligence/orchestrator.rs` | **core (핵심)** | 상위 수준 오케스트레이션 로직 | **Active** | lib.rs |
+| `intelligence/orchestrator.rs` | **core (핵심)** | 상위 수준 오케스트레이션 로직 | **Dead** | lib.rs |
 | `intelligence/planner.rs` | **core (핵심)** | 태스크 계획 및 상세 분해 | **Active** | lib.rs |
 | `intelligence/staging.rs` | **core (핵심)** | 파이프라인 단계 관리 | **Active** | lib.rs |
 | `intelligence/promotion.rs` | **core (핵심)** | 코드 승격 (staging→seal→lock) | **Active** | lib.rs |
@@ -541,8 +618,8 @@ axon/
 | `intelligence/include_path_normalizer.rs` | **core (핵심)** | 인클루드 경로 표준화 | **Active** | axon-agent |
 | `intelligence/language_contract/` | **core (핵심)** | 언어별 규약 (C, C++, Rust, Python, 공통) | **Active** | validator |
 | `intelligence/lsp/` | **core (핵심)** | LSP 연동: clangd, rust-analyzer, pyright, supervisor, session, diagnostics, **lua_lsp** | **Active** | lib.rs |
-| `intelligence/ast/mod.rs` | **core (핵심)** | AST 소유권 검증기 추상화 | **Active** | lib.rs |
-| `intelligence/ast/treesitter.rs` | **core (핵심)** | Tree-Sitter 기반 섀도우 관찰자 구현 | **Active** | lib.rs |
+| `intelligence/ast/mod.rs` | **core (핵심)** | AST 소유권 검증기 추상화 | **Dormant** | lib.rs |
+| `intelligence/ast/treesitter.rs` | **core (핵심)** | Tree-Sitter 기반 섀도우 관찰자 구현 | **Dormant** | lib.rs |
 | `intelligence/topology/mod.rs` | **core (핵심)** | 심볼-토폴로지 인지형 수리 스케줄러 진입점 | **Active** | lib.rs |
 | `intelligence/topology/symbol_graph.rs` | **core (핵심)** | 정적 심볼 의존성 추출 | **Active** | scheduler.rs |
 | `intelligence/topology/failure_attribution.rs` | **core (핵심)** | 컴파일 실패 시 원인 심볼 판별 | **Active** | scheduler.rs |
@@ -554,8 +631,8 @@ axon/
 | `intelligence/signature_drift.rs` | **core (핵심)** | 함수 시그니처 변동 검출 | **Active** | patch_ir.rs |
 | `intelligence/mutation_sandbox.rs` | **core (핵심)** | 파일 쓰기 전 Dry-run 패치 및 안전성 샌드박스 | **Active** | patch_ir.rs |
 | `intelligence/provenance.rs` | **core (핵심)** | 패치 생성 원인 추적용 불변 출처 기록 | **Active** | patch_ir.rs |
-| `intelligence/observatory.rs` | **core (핵심)** | AST 섀도우 런 관측 기록소 및 통계 생성 | **Active** | mutation_sandbox.rs |
-| `intelligence/stability_matrix.rs` | **core (핵심)** | 코퍼스 기반 AST Mutation 라운드트립 안정성 실측 | **Active** | observatory.rs |
+| `intelligence/observatory.rs` | **core (핵심)** | AST 섀도우 런 관측 기록소 및 통계 생성 | **Dead** | mutation_sandbox.rs |
+| `intelligence/stability_matrix.rs` | **core (핵심)** | 코퍼스 기반 AST Mutation 라운드트립 안정성 실측 | **Dormant** | observatory.rs |
 | `intelligence/heatmap.rs` | **core (핵심)** | 위험 지형도 스코어링 및 Authoritative 승격 게이트 | **Active** | stability_matrix.rs |
 | `intelligence/causality.rs` | **core (핵심)** | 시스템 전체 인과율 추적 | **Active** | heatmap.rs |
 | `intelligence/determinism_harness.rs` | **core (핵심)** | 스케줄러/토폴로지 결정론성 리플레이 검증 | **Active** | causality.rs |
@@ -568,23 +645,23 @@ axon/
 | `governance/determinism.rs` | **core (핵심)** | 시스템 상태 해시 기반 Cross-layer Race 검증기 | **Active** | simulation.rs |
 | `intelligence/mutation_intent.rs` | **core (핵심)** | 시맨틱 변이 의도 정의 및 최소성 강제 | **Active** | shadow_mutator.rs |
 | `intelligence/shadow_mutator.rs` | **core (핵심)** | 파싱/출력 실측 및 Semantic Equivalence 섀도우 검증 | **Active** | intelligence/mod.rs |
-| `intelligence/semantic_tokens.rs` | **core (핵심)** | 파서 중립적 토큰 정규화 계층 | **Active** | canonicalizer.rs |
-| `intelligence/canonicalizer.rs` | **core (핵심)** | 정책 적용을 통한 `CanonicalSemanticForm` 변환 | **Active** | semantic_authority_gate.rs |
-| `intelligence/semantic_distance.rs` | **core (핵심)** | 양방향 토폴로지 인지형 시맨틱 거리 측정기 | **Active** | semantic_authority_gate.rs |
-| `intelligence/semantic_authority_gate.rs` | **core (핵심)** | 최종 승인 게이트. `CanonicalSemanticForm` 검증 | **Active** | intelligence/mod.rs |
-| `intelligence/edit_plan.rs` | **core (핵심)** | 최소 바이트 편집 변환 규약 | **Active** | surgical_editor.rs |
-| `intelligence/tree_sitter_locator.rs` | **core (핵심)** | Tree-sitter 고정밀 좌표 추출기 | **Active** | edit_plan.rs |
-| `intelligence/surgical_editor.rs` | **core (핵심)** | 포매팅 엔트로피 보존형 바이트 정밀 수술 | **Active** | intelligence/mod.rs |
-| `intelligence/anchor_validator.rs` | **core (핵심)** | TOCTOU 부패 방지용 앵커 실시간 재검증 | **Active** | surgical_editor.rs |
-| `intelligence/surgical_replay.rs` | **core (핵심)** | 파이프라인 무결성 실측 리플레이 하네스 | **Active** | shadow_mutator.rs |
-| `intelligence/intent_lowering/` | **core (핵심)** | SAFE_SUBSET_V1 하향 변환 및 `PromotionReport` | **Active** | surgical_editor.rs |
-| `intelligence/replay/` | **core (핵심)** | 통계적 거버넌스 및 `PromotionEngine`. 24개 파일 | **Active** | intelligence/mod.rs |
-| `intelligence/corpus/` | **core (핵심)** | 현실 세계 레거시 엔트로피 수집, 클러스터링, 캠페인. 23개 파일. `MutationCampaign`/`CampaignRunner` 포함 | **Active** | intelligence/mod.rs |
+| `intelligence/semantic_tokens.rs` | **core (핵심)** | 파서 중립적 토큰 정규화 계층 | **Dead** | canonicalizer.rs |
+| `intelligence/canonicalizer.rs` | **core (핵심)** | 정책 적용을 통한 `CanonicalSemanticForm` 변환 | **Dormant** | semantic_authority_gate.rs |
+| `intelligence/semantic_distance.rs` | **core (핵심)** | 양방향 토폴로지 인지형 시맨틱 거리 측정기 | **Dead** | semantic_authority_gate.rs |
+| `intelligence/semantic_authority_gate.rs` | **core (핵심)** | 최종 승인 게이트. `CanonicalSemanticForm` 검증 | **Dead** | intelligence/mod.rs |
+| `intelligence/edit_plan.rs` | **core (핵심)** | 최소 바이트 편집 변환 규약 | **Dormant** | surgical_editor.rs |
+| `intelligence/tree_sitter_locator.rs` | **core (핵심)** | Tree-sitter 고정밀 좌표 추출기 | **Dormant** | edit_plan.rs |
+| `intelligence/surgical_editor.rs` | **core (핵심)** | 포매팅 엔트로피 보존형 바이트 정밀 수술 | **Dormant** | intelligence/mod.rs |
+| `intelligence/anchor_validator.rs` | **core (핵심)** | TOCTOU 부패 방지용 앵커 실시간 재검증 | **Dormant** | surgical_editor.rs |
+| `intelligence/surgical_replay.rs` | **core (핵심)** | 파이프라인 무결성 실측 리플레이 하네스 | **Dormant** | shadow_mutator.rs |
+| `intelligence/intent_lowering/` | **core (핵심)** | SAFE_SUBSET_V1 하향 변환 및 `PromotionReport` | **Dormant** | surgical_editor.rs |
+| `intelligence/replay/` | **core (핵심)** | 통계적 거버넌스 및 `PromotionEngine`. 24개 파일 | **Dead** | intelligence/mod.rs |
+| `intelligence/corpus/` | **core (핵심)** | 현실 세계 레거시 엔트로피 수집, 클러스터링, 캠페인. 23개 파일. `MutationCampaign`/`CampaignRunner` 포함 | **Dead** | intelligence/mod.rs |
 | `tests/promotion/` | **core (핵심)** | Mock Promotion Validation Suite | **Active** | replay/promotion_engine.rs |
 | `tests/failure_cascade/` | **core (핵심)** | P6-SIM-T1: 크래시 주입 통합 테스트 스위트 | **Active** | governance/ |
 | `intelligence/mutation/` | **core (핵심)** | 위상 변이 트랜잭션 제어 | **Active** | intelligence/mod.rs |
-| `intelligence/evolution/` | **core (핵심)** | 통제된 소프트웨어 진화 워크플로우 | **Active** | intelligence/mod.rs |
-| `intelligence/telemetry/` | **core (핵심)** | 물리적 런타임 센서, 런타임 병리 압축기 | **Active** | intelligence/mod.rs |
+| `intelligence/evolution/` | **core (핵심)** | 통제된 소프트웨어 진화 워크플로우 | **Dead** | intelligence/mod.rs |
+| `intelligence/telemetry/` | **core (핵심)** | 물리적 런타임 센서, 런타임 병리 압축기 | **Dead** | intelligence/mod.rs |
 
 ### /crates/axon-daemon/src/quarantine/ — Archived
 
@@ -609,8 +686,8 @@ axon/
 | `check_forbidden_symbols()` | Global Harness 심볼 검증 | **Active** | execute_one_task 내 호출 |
 | `check_allowed_includes()` | Global Harness 인클루드 검증 | **Active** | execute_one_task 내 호출 |
 | `detect_senior_header_hallucination()` | Senior 헤더 환각 감지 | **Dead** | 주석에 "폐기" 명시 |
-| `pending_reviews_handle()` | pending_reviews accessor | **Dead** | 미호출, 다른 접근자 대체 |
-| `with_agent_pool()` | AgentPool builder | **Dormant** | 향후 동적 풀 구성 시 |
+| `pending_reviews_handle()` | pending_reviews accessor | **Reachable** | getter 패턴, 미호출 |
+| `with_agent_pool()` | AgentPool builder | **Reachable** | 향후 동적 풀 구성 시 |
 
 ### /crates/axon-daemon/src/execution_validator.rs — 함수별 State
 

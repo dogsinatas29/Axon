@@ -364,3 +364,20 @@ impl LspSession {
         Ok(lsp_diagnostics)
     }
 }
+
+impl Drop for LspSession {
+    fn drop(&mut self) {
+        if let Err(e) = self.child.start_kill() {
+            tracing::warn!(
+                "⚠️ [LSP_SESSION_DETACH] Failed to kill {} LSP process: {}",
+                self.language,
+                e
+            );
+        } else {
+            tracing::info!(
+                "🧠 [LSP_SESSION_DETACH] {} LSP process terminated",
+                self.language
+            );
+        }
+    }
+}

@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::intelligence::replay::gtk_topology_strike::{GtkTopologyGate, GtkTopologyViolation};
+    use crate::intelligence::replay::platform::gtk_topology_strike::{GtkTopologyGate, GtkTopologyViolation};
     use crate::intelligence::replay::parser_freeze::{ParserDivergenceHarness, BoundaryAnchor};
 
     #[test]

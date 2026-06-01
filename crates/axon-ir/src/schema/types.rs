@@ -73,6 +73,7 @@ pub enum Language {
     Cpp,
     Rust,
     Python,
+    Lua,
 }
 
 impl Default for Language {
@@ -352,15 +353,31 @@ impl ProjectIR {
                     components: Vec<RawComponent>
                 }
                 #[derive(Deserialize)]
+                #[serde(untagged)]
+                enum RawSymbol {
+                    String(String),
+                    Object { name: String, signature: Option<String> },
+                }
+
+                #[derive(Deserialize)]
                 struct RawComponent {
                     file: String,
                     name: String,
-                    symbols: Vec<String>,
+                    #[serde(default, alias = "functions")]
+                    symbols: Vec<RawSymbol>,
                     #[serde(rename = "type")] _type: String,
                     #[serde(default)]
                     tier: ComponentTier,
                     #[serde(default = "default_true")]
                     is_blocking: bool,
+                    #[serde(default)]
+                    allowed_includes: Option<BTreeSet<String>>,
+                    #[serde(default)]
+                    forbidden_includes: Option<BTreeSet<String>>,
+                    #[serde(default)]
+                    forbidden_symbols: Option<BTreeSet<String>>,
+                    #[serde(default)]
+                    metadata: Option<BTreeMap<String, String>>,
                 }
 
                 if let Ok(raw) = serde_json::from_str::<Components>(json_str) {
@@ -368,9 +385,13 @@ impl ProjectIR {
                     for c in raw.components {
                         let mut functions = BTreeMap::new();
                         for s in c.symbols {
-                            functions.insert(s.clone(), Function {
-                                name: s.clone(),
-                                signature: format!("{}()", s),
+                            let (name, sig) = match s {
+                                RawSymbol::String(st) => (st.clone(), format!("{}()", st)),
+                                RawSymbol::Object { name, signature } => (name.clone(), signature.unwrap_or_else(|| format!("{}()", name))),
+                            };
+                            functions.insert(name.clone(), Function {
+                                name,
+                                signature: sig,
                                 dependencies: BTreeSet::new(),
                                 body_hash: None,
                                 locked: false,
@@ -406,10 +427,10 @@ impl ProjectIR {
                             associated_files: Vec::new(),
                             is_entrypoint,
                             data_models: Vec::new(),
-                            metadata: BTreeMap::new(),
-                            allowed_includes: BTreeSet::new(),
-                            forbidden_includes: BTreeSet::new(),
-                            forbidden_symbols: BTreeSet::new(),
+                            metadata: c.metadata.unwrap_or_default(),
+                            allowed_includes: c.allowed_includes.unwrap_or_default(),
+                            forbidden_includes: c.forbidden_includes.unwrap_or_default(),
+                            forbidden_symbols: c.forbidden_symbols.unwrap_or_default(),
                             tier: c.tier,
                             is_blocking: c.is_blocking,
                             locked: false,

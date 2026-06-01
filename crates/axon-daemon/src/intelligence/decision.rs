@@ -440,6 +440,7 @@ impl StructuredRepairContract {
             hard_constraints: self.hard_constraints.clone(),
             forbidden_patterns: self.forbidden_patterns.clone(),
             allowed_changes: self.allowed_changes.clone(),
+            allowed_regions: vec![],
         }
     }
 

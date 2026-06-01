@@ -212,6 +212,8 @@ pub fn validate(project_root: &str, file_path: &str, mode: ValidationMode, ir: O
         validate_python(project_root, file_path)
     } else if file_path.ends_with(".c") || file_path.ends_with(".h") {
         validate_c(project_root, file_path, ir)
+    } else if file_path.ends_with(".lua") {
+        validate_lua(project_root, file_path)
     } else {
         Ok(())
     }
@@ -593,6 +595,21 @@ fn validate_python(project_root: &str, file_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn validate_lua(project_root: &str, file_path: &str) -> anyhow::Result<()> {
+    let output = Command::new("luac")
+        .arg("-p")
+        .arg(file_path)
+        .current_dir(project_root)
+        .output()?;
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow::anyhow!("Lua syntax check failed for {}:\n{}", file_path, err));
+    }
+
+    Ok(())
+}
+
 pub fn selective_run(project_root: &str, file_path: &str, targets: Vec<String>) -> anyhow::Result<()> {
     if targets.is_empty() {
         tracing::info!("🍃 [SELECTIVE_RUN] Skipping runtime validation for Pure nodes.");
@@ -685,13 +702,33 @@ pub fn extract_error_locations(error_msg: &str) -> Vec<ErrorLocation> {
         let parts: Vec<&str> = line.split(':').collect();
         if parts.len() >= 4 {
             let file = parts[0].trim();
-            if file.ends_with(".c") || file.ends_with(".h") || file.ends_with(".rs") || file.ends_with(".py") {
+            if file.ends_with(".c") || file.ends_with(".h") || file.ends_with(".rs") || file.ends_with(".py") || file.ends_with(".cpp") || file.ends_with(".cc") || file.ends_with(".cxx") || file.ends_with(".hpp") {
                 if let Ok(line_num) = parts[1].trim().parse::<usize>() {
                     locations.push(ErrorLocation {
                         file: file.to_string(),
                         line: line_num,
                         message: parts[3..].join(":").trim().to_string(),
                     });
+                    continue;
+                }
+            }
+        }
+
+        // 4. Lua luac format: "luac: filename.lua:42: syntax error near 'end'"
+        //     or: "luac: stdin:42: syntax error near 'end'"
+        if trimmed.starts_with("luac:") {
+            let after_prefix = trimmed.trim_start_matches("luac:").trim();
+            let luac_parts: Vec<&str> = after_prefix.split(':').collect();
+            if luac_parts.len() >= 3 {
+                let file = luac_parts[0].trim();
+                if let Ok(line_num) = luac_parts[1].trim().parse::<usize>() {
+                    let message = luac_parts[2..].join(":").trim().to_string();
+                    locations.push(ErrorLocation {
+                        file: file.to_string(),
+                        line: line_num,
+                        message,
+                    });
+                    continue;
                 }
             }
         }

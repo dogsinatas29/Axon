@@ -135,11 +135,44 @@ impl LanguageProfile for PythonProfile {
     }
 }
 
+pub struct LuaProfile;
+impl LanguageProfile for LuaProfile {
+    fn validator(&self) -> Box<dyn LanguageValidator> {
+        Box::new(axon_ir::validator::langs::lua::LuaValidator)
+    }
+
+    fn allows_artifact(&self, path: &str) -> bool {
+        let p = path.to_lowercase();
+        if p.ends_with(".h") || p.ends_with(".c") || p.ends_with(".rs") || p.ends_with(".py") || p.contains("cmake") || p.contains("cargo") {
+            return false;
+        }
+        p.ends_with(".lua") || p.ends_with(".md")
+    }
+
+    fn determine_task_kind(&self, _target_file: &str, _is_entrypoint: bool) -> Option<crate::LanguageTaskKind> {
+        None
+    }
+
+    fn build_command(&self, sandbox_root: &std::path::Path) -> Option<(String, Vec<String>)> {
+        Some(("luac".to_string(), vec![
+            "-p".to_string(),
+            sandbox_root.join("main.lua").to_string_lossy().to_string(),
+        ]))
+    }
+
+    fn run_command(&self, sandbox_root: &std::path::Path, _project_id: &str) -> Option<(String, Vec<String>)> {
+        Some(("lua".to_string(), vec![
+            sandbox_root.join("main.lua").to_string_lossy().to_string(),
+        ]))
+    }
+}
+
 /// Profile Registry: Maps the explicit Language enum to its Semantic Profile
 pub fn get_profile(lang: Language) -> Box<dyn LanguageProfile> {
     match lang {
         Language::C | Language::Cpp => Box::new(CProfile),
         Language::Rust => Box::new(RustProfile),
         Language::Python => Box::new(PythonProfile),
+        Language::Lua => Box::new(LuaProfile),
     }
 }

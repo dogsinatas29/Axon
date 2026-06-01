@@ -441,6 +441,13 @@ impl BootstrapManager {
                     continue;
                 }
 
+                // [FIX_DUPLICATE_TASKS] DB에 이미 해당 target_file을 담당하는 작업이 있다면 중복 생성 방지
+                if existing_tasks.iter().any(|t| t.project_id == self.project_id && t.target_file.as_deref() == Some(target_file)) {
+                    tracing::info!("⏭️ Skipping task creation for {} (already exists in DB)", target_file);
+                    continue;
+                }
+
+
                 let is_header = target_file.ends_with(".h") || target_file.ends_with(".hpp");
                 let is_entry = comp.is_entrypoint;
 
@@ -559,6 +566,12 @@ impl BootstrapManager {
                 let phase_num = 1u32;
                 if phase_num <= self.resume_phase {
                     tracing::info!("⏭️ Skipping Phase 1 header task for {} (already completed)", header_path);
+                    continue;
+                }
+
+                // [FIX_DUPLICATE_TASKS] DB에 이미 존재하면 중복 생성 방지
+                if existing_tasks.iter().any(|t| t.project_id == self.project_id && t.target_file.as_deref() == Some(header_path)) {
+                    tracing::info!("⏭️ Skipping header task creation for {} (already exists in DB)", header_path);
                     continue;
                 }
 

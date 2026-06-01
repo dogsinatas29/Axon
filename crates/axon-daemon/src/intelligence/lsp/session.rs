@@ -27,6 +27,9 @@ impl WorkspaceManager {
                         }
                     }
                 }
+                // v0.0.31.40: [LSP_GATEKEEPER] Generate compile_commands.json for clangd
+                // This ensures clangd can resolve GTK/system headers without running cmake
+                let _ = Self::ensure_compile_commands(workspace_root).await;
             }
             "rust" => {
                 let cargo_toml = workspace_root.join("Cargo.toml");
@@ -48,6 +51,99 @@ impl WorkspaceManager {
             }
             _ => {}
         }
+        Ok(())
+    }
+
+    /// v0.0.31.40: [LSP_GATEKEEPER] Generate compile_commands.json for clangd
+    /// Hybrid approach: pkg-config flags + architecture.md local includes
+    async fn ensure_compile_commands(workspace_root: &Path) -> std::io::Result<()> {
+        let cc_path = workspace_root.join("compile_commands.json");
+        if cc_path.exists() {
+            return Ok(());
+        }
+
+        tracing::info!("🔧 [LSP_GATEKEEPER] Generating compile_commands.json for clangd...");
+
+        // Step 1: Extract GTK/system flags via pkg-config
+        let mut include_flags = Vec::new();
+        for pkg in &["gtk4", "gtk+-3.0", "glib-2.0"] {
+            if let Ok(output) = std::process::Command::new("pkg-config")
+                .arg("--cflags")
+                .arg(pkg)
+                .output()
+            {
+                if output.status.success() {
+                    let flags = String::from_utf8_lossy(&output.stdout);
+                    for flag in flags.split_whitespace() {
+                        if flag.starts_with("-I") {
+                            include_flags.push(flag.to_string());
+                        }
+                    }
+                    tracing::info!("  ✅ pkg-config {} → {} include paths", pkg, include_flags.len());
+                }
+            }
+        }
+
+        // Step 2: Parse architecture.md for local include paths
+        let arch_path = workspace_root.join("architecture.md");
+        if let Ok(arch_content) = std::fs::read_to_string(&arch_path) {
+            for line in arch_content.lines() {
+                if line.contains("#include") && line.contains('"') {
+                    if let Some(start) = line.find('"') {
+                        if let Some(end) = line[start+1..].find('"') {
+                            let header = &line[start+1..start+1+end];
+                            if let Some(slash_pos) = header.find('/') {
+                                let local_dir = &header[..slash_pos];
+                                let include_flag = format!("-I./{}", local_dir);
+                                if !include_flags.contains(&include_flag) {
+                                    include_flags.push(include_flag);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Also add common local include dirs
+        for dir in &["include", "src"] {
+            let include_flag = format!("-I./{}", dir);
+            if !include_flags.contains(&include_flag) {
+                include_flags.push(include_flag);
+            }
+        }
+
+        // Step 3: Generate compile_commands.json with a universal fallback entry
+        let abs_workspace = workspace_root.canonicalize()
+            .unwrap_or_else(|_| workspace_root.to_path_buf());
+        let workspace_str = abs_workspace.display().to_string();
+
+        let mut args = vec![
+            "clang".to_string(),
+            "-c".to_string(),
+            "-Wall".to_string(),
+            "-Wextra".to_string(),
+            "-std=c++17".to_string(),
+        ];
+        let flag_count = include_flags.len();
+        args.extend(include_flags);
+        args.push("dummy.c".to_string());
+
+        let entry = serde_json::json!({
+            "directory": workspace_str,
+            "arguments": args,
+            "file": "dummy.c"
+        });
+
+        let cc_json = serde_json::to_string_pretty(&serde_json::json!([entry]))
+            .unwrap_or_default();
+
+        if let Err(e) = std::fs::write(&cc_path, &cc_json) {
+            tracing::warn!("⚠️ [LSP_GATEKEEPER] Failed to write compile_commands.json: {}", e);
+        } else {
+            tracing::info!("✅ [LSP_GATEKEEPER] compile_commands.json generated with {} include paths", flag_count);
+        }
+
         Ok(())
     }
 }

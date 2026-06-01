@@ -8,6 +8,7 @@ pub mod session;
 pub mod rust_analyzer;
 pub mod pyright;
 pub mod clangd;
+pub mod lua_lsp;
 pub mod supervisor;
 
 pub use diagnostics::{LspDiagnostic, LspSeverity};

@@ -45,6 +45,7 @@ const App: React.FC = () => {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [completedPhase, setCompletedPhase] = useState<number | null>(null);
   const [shownPopups, setShownPopups] = useState<{ [key: number]: boolean }>({});
+  const [activeStreams, setActiveStreams] = useState<Record<string, string>>({});
 
   const [projectFolder, setProjectFolder] = useState<string>('');
 
@@ -123,32 +124,46 @@ const App: React.FC = () => {
   const isPhase2Complete = getPhaseTasks(2).length > 0 && getPhaseTasks(2).every(th => th.status === 'Completed');
   const isPhase3Complete = getPhaseTasks(3).length > 0 && getPhaseTasks(3).every(th => th.status === 'Completed');
 
-  useEffect(() => {
-    if (isPhase3Complete && !shownPopups[3]) {
-      setCompletedPhase(3);
-      setShowSuccessPopup(true);
-      markPopupShown(3);
-    } else if (isPhase2Complete && !shownPopups[2]) {
-      setCompletedPhase(2);
-      setShowSuccessPopup(true);
-      markPopupShown(2);
-    } else if (isPhase1Complete && !shownPopups[1]) {
-      setCompletedPhase(1);
-      setShowSuccessPopup(true);
-      markPopupShown(1);
-    }
-  }, [isPhase1Complete, isPhase2Complete, isPhase3Complete, shownPopups]);
+  // v0.0.31.38: [FIX_PHASE_POPUP] Track popup shown state independently from localStorage.
+  // localStorage is only for persistence across page reloads. The runtime state ensures
+  // the popup shows every time a phase completes, even if localStorage says it was shown before.
+  const [popupShownRuntime, setPopupShownRuntime] = useState<{ [key: number]: boolean }>({ 1: false, 2: false, 3: false });
 
   useEffect(() => {
-    setShownPopups(prev => {
+    // v0.0.31.38: [FIX_PHASE_POPUP] Wait for projectFolder to be loaded before checking popups.
+    // Without this guard, shownPopups is {} on first render and the popup check races with
+    // the localStorage load, causing the popup to never appear.
+    if (!projectFolder) return;
+
+    // Runtime state takes priority over localStorage — always show popup on phase completion
+    if (isPhase3Complete && !popupShownRuntime[3]) {
+      setCompletedPhase(3);
+      setShowSuccessPopup(true);
+      setPopupShownRuntime(prev => ({ ...prev, 3: true }));
+      markPopupShown(3);
+    } else if (isPhase2Complete && !popupShownRuntime[2]) {
+      setCompletedPhase(2);
+      setShowSuccessPopup(true);
+      setPopupShownRuntime(prev => ({ ...prev, 2: true }));
+      markPopupShown(2);
+    } else if (isPhase1Complete && !popupShownRuntime[1]) {
+      setCompletedPhase(1);
+      setShowSuccessPopup(true);
+      setPopupShownRuntime(prev => ({ ...prev, 1: true }));
+      markPopupShown(1);
+    }
+  }, [isPhase1Complete, isPhase2Complete, isPhase3Complete, projectFolder]);
+
+  // v0.0.31.38: [FIX_PHASE_POPUP] Reset runtime popup flags when phase becomes incomplete
+  // (e.g., user retried tasks or restarted the pipeline).
+  useEffect(() => {
+    setPopupShownRuntime(prev => {
       let next = { ...prev };
-      if (!isPhase1Complete) next[1] = false;
-      if (!isPhase2Complete) next[2] = false;
-      if (!isPhase3Complete) next[3] = false;
-      if (prev[1] !== next[1] || prev[2] !== next[2] || prev[3] !== next[3]) {
-        return next;
-      }
-      return prev;
+      let changed = false;
+      if (!isPhase1Complete && prev[1]) { next[1] = false; changed = true; }
+      if (!isPhase2Complete && prev[2]) { next[2] = false; changed = true; }
+      if (!isPhase3Complete && prev[3]) { next[3] = false; changed = true; }
+      return changed ? next : prev;
     });
   }, [isPhase1Complete, isPhase2Complete, isPhase3Complete]);
 
@@ -272,7 +287,29 @@ const App: React.FC = () => {
     
     socket.onEvent((ev: any) => {
       if (ev.event_type) {
+        // v0.0.31.38: [FIX_SIGNAL_FLOOD] AgentStreamingData goes ONLY to activeStreams (ThreadDetail)
+        // NOT to the events array — prevents thousands of signal-card renders in the Signals tab.
+        if (ev.event_type === 'AgentStreamingData') {
+          setActiveStreams(prev => {
+            const threadId = ev.thread_id || 'unknown';
+            const chunk = ev.payload?.chunk || '';
+            const existing = prev[threadId] || '';
+            return { ...prev, [threadId]: existing + chunk };
+          });
+          return;  // Skip events array — streaming data is for ThreadDetail only
+        }
+        
         setEvents(prev => [ev as Event, ...prev].slice(0, 50));
+        
+        if (ev.event_type === 'AgentResponse' || ev.event_type === 'PostAdded') {
+          if (ev.thread_id) {
+            setActiveStreams(prev => {
+              const next = { ...prev };
+              delete next[ev.thread_id];
+              return next;
+            });
+          }
+        }
         
         if (ev.event_type === 'ThreadStatusChanged' || ev.event_type === 'ThreadCompleted') {
           fetchThreads();
@@ -320,8 +357,9 @@ const App: React.FC = () => {
         const threadsRes = await fetch(`/api/threads`);
         if (threadsRes.ok) {
           const threadsData: Thread[] = await threadsRes.json();
-          const bossApprovalCount = threadsData.filter(t => t.status === 'BossApproval').length;
-          count += bossApprovalCount;
+          // Exclude BossApproval threads from Boss Board badge count as they are processed in Work Board detail modal
+          // const bossApprovalCount = threadsData.filter(t => t.status === 'BossApproval').length;
+          // count += bossApprovalCount;
           
           const inProgressCount = threadsData.filter(t => t.status === 'Working').length;
           setWorkInProgressCount(inProgressCount);
@@ -714,6 +752,7 @@ const App: React.FC = () => {
         {selectedThread && (
           <ThreadDetail 
             thread={selectedThread} 
+            activeStream={activeStreams[selectedThread.id]}
             onClose={() => setSelectedThreadId(null)} 
             onRefresh={fetchThreads}
             t={t}

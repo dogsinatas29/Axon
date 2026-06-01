@@ -37,6 +37,7 @@ pub fn validate_ir(ir: &ProjectIR) -> Result<(), Vec<ValidationError>> {
         crate::schema::Language::Cpp => "cpp",
         crate::schema::Language::Rust => "rust",
         crate::schema::Language::Python => "python",
+        crate::schema::Language::Lua => "lua",
     };
     
     if let Some(validator) = langs::get_validator(lang_str) {

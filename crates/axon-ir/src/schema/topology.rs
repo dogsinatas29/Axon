@@ -104,6 +104,14 @@ impl ProjectTopology {
                     owner_translation_unit: None,
                     is_compile_entry: comp.is_entrypoint,
                 },
+                super::types::Language::Lua => TopologyMeta {
+                    is_crate_entry: comp.is_entrypoint || p.contains("main.lua"),
+                    is_mod_decl: false,
+                    mod_path: None,
+                    is_header: false,
+                    owner_translation_unit: None,
+                    is_compile_entry: comp.is_entrypoint,
+                },
             };
 
             modules.insert(path.clone(), ModuleTopology {

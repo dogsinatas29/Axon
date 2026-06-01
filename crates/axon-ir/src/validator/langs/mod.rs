@@ -1,6 +1,7 @@
 pub mod c;
 pub mod python;
 pub mod rust;
+pub mod lua;
 
 use crate::schema::ProjectIR;
 use crate::validator::ValidationError;
@@ -15,6 +16,7 @@ pub fn get_validator(language: &str) -> Option<Box<dyn LanguageValidator>> {
         "c" | "cpp" => Some(Box::new(c::CValidator)),
         "python" => Some(Box::new(python::PythonValidator)),
         "rust" => Some(Box::new(rust::RustValidator)),
+        "lua" => Some(Box::new(lua::LuaValidator)),
         _ => None,
     }
 }

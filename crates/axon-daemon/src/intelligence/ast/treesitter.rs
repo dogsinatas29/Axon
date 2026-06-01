@@ -26,6 +26,11 @@ impl AstOwnershipValidator for TreeSitterAstValidator {
                 "(function_definition name: (identifier) @name) @function",
                 "python",
             ),
+            axon_ir::schema::Language::Lua => (
+                Language::from(tree_sitter_lua::LANGUAGE),
+                "(function_declaration name: (identifier) @name) @function",
+                "lua",
+            ),
         };
 
         parser.set_language(&language)?;

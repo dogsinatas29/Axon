@@ -37,8 +37,14 @@ impl ClangdConnector {
             }
         }
 
+        // v0.0.31.40: [LSP_GATEKEEPER] Point clangd to compile_commands.json
+        let abs_workspace = workspace_root.canonicalize()
+            .map_err(|e| format!("Invalid workspace root: {}", e))?;
+        args.push(format!("--compile-commands-dir={}", abs_workspace.display()));
+
         // Default args for clangd if not configured
-        if args.is_empty() {
+        if args.len() == 1 {
+            // Only --compile-commands-dir was added, add defaults
             args.push("--background-index".to_string());
             args.push("--clang-tidy".to_string());
             args.push("--header-insertion=never".to_string());

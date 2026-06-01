@@ -9,7 +9,8 @@ use tokio::sync::RwLock as AsyncRwLock;
 use tokio::task::JoinHandle;
 use axon_core::{
     AgentRole, Event, EventLevel, EventType, Task, TaskLifecycleState,
-    TaskStatus, ThreadStatus, Post, PostType,
+    TaskStatus, ThreadStatus, Post, PostType, FailedDiagnostic,
+    PromotionDecision, GateStatus,
 };
 use axon_core::events::EventBus;
 use axon_agent::AgentRuntime;
@@ -21,6 +22,11 @@ use crate::server::AgentPool;
 use crate::intelligence::corpus::catastrophe_archive::PredictiveImmuneLayer;
 use crate::intelligence::replay::lineage_taxonomy::{TaxonomyMigrationManifest, RootLineage};
 use crate::intelligence::corpus::corpus_executor::CorpusExecutor;
+// v0.0.31.40: [LSP_GATEKEEPER] LSP semantic firewall between Junior and Senior
+use crate::intelligence::lsp::{LspSupervisor, LspVerdict, LspDiagnostic};
+use axon_ir::Language;
+// v0.0.31.41: [COMPILATION_GATE] Physical compiler harness between LSP and Senior
+use crate::execution_validator::{self, ValidationMode, extract_error_locations};
 
 // Phase 7-C: Sandbox State Machine — tracks file lifecycle to prevent memory-loss retry loops
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -500,18 +506,19 @@ impl ExecutionPipeline {
         sandbox_root: PathBuf,
         agent_pool: Arc<AsyncRwLock<AgentPool>>,
     ) -> Self {
-        Self {
-            config,
-            storage,
-            event_bus,
-            project_id,
-            sandbox_root,
-            pipeline_handle: None,
-            running: Arc::new(AtomicBool::new(false)),
-            pending_reviews: Arc::new(Mutex::new(HashMap::new())),
-            task_semaphore: Arc::new(Semaphore::new(1)),
-            agent_pool,
-        }
+     let junior_count = config.agents.juniors.len();
+     Self {
+         config,
+         storage,
+         event_bus,
+         project_id,
+         sandbox_root,
+         pipeline_handle: None,
+         running: Arc::new(AtomicBool::new(false)),
+         pending_reviews: Arc::new(Mutex::new(HashMap::new())),
+         task_semaphore: Arc::new(Semaphore::new(junior_count)),
+         agent_pool,
+     }
     }
 
     pub fn pending_reviews_handle(&self) -> Arc<Mutex<HashMap<String, PipelineReview>>> {
@@ -1026,6 +1033,55 @@ impl ExecutionPipeline {
         }
     }
 
+    // v0.0.32: [FAILED_DIAGNOSTIC] Persist structured failure metadata alongside .failed source
+    fn save_failed_diagnostic(
+        sandbox_root: &PathBuf,
+        target: &str,
+        diag: &FailedDiagnostic,
+    ) {
+        let sandbox_path = Self::sandbox_path(sandbox_root, target);
+        let failed_path = Self::failed_path(&sandbox_path);
+        let json_path = PathBuf::from(format!("{}.json", failed_path.to_string_lossy()));
+        if let Ok(json) = serde_json::to_string_pretty(diag) {
+            if let Err(e) = std::fs::write(&json_path, json) {
+                tracing::warn!("⚠️ [FAILED_DIAGNOSTIC] Failed to write {}: {}", json_path.display(), e);
+            } else {
+                tracing::info!("📋 [FAILED_DIAGNOSTIC] Saved {} for {} (stage={}, gatekeeper={})",
+                    json_path.display(), target, diag.stage, diag.gatekeeper);
+            }
+        }
+    }
+
+    // v0.0.32: [PATCH_RADIUS] Validate that Junior's patch output stays within allowed regions
+    fn validate_patch_radius(
+        original: &str,
+        proposed: &str,
+        regions: &[(usize, usize)],
+    ) -> Result<(), String> {
+        let orig_lines: Vec<&str> = original.lines().collect();
+        let new_lines: Vec<&str> = proposed.lines().collect();
+
+        let in_allowed = |line_idx: usize| -> bool {
+            regions.iter().any(|&(start, end)| {
+                let s = start.saturating_sub(1); // 1-based to 0-based
+                line_idx >= s && line_idx < end
+            })
+        };
+
+        let max_len = orig_lines.len().max(new_lines.len());
+        for i in 0..max_len {
+            let old = orig_lines.get(i).copied().unwrap_or("");
+            let new = new_lines.get(i).copied().unwrap_or("");
+            if old != new && !in_allowed(i) {
+                return Err(format!(
+                    "🚨 [PATCH_RADIUS] Line {} modified outside allowed regions {:?}:\n  old: {}\n  new: {}",
+                    i + 1, regions, old, new
+                ));
+            }
+        }
+        Ok(())
+    }
+
     // Phase 7-C: State transition logger
     fn log_sandbox_transition(from: SandboxState, to: SandboxState, target: &str, detail: &str) {
         tracing::info!("📦 Sandbox [{}] → [{}] | {} | {}", from.as_str(), to.as_str(), target, detail);
@@ -1038,6 +1094,80 @@ impl ExecutionPipeline {
                 .count())
             .unwrap_or(0);
         tracing::info!("👷 Active Workers: {} ({})", count, label);
+    }
+
+    // v0.0.32: [PROMOTION_DECISION] Explicit promotion execution — extracted from inline pipeline logic
+    // Handles atomic rename, copy fallback, sandbox cleanup, and CMakeLists.txt restoration.
+    fn unlock_promotion(
+        task: &Task,
+        proposal: &Post,
+        sandbox_root: &PathBuf,
+        project_id: &str,
+        locale: &str,
+    ) -> Result<(), String> {
+        if let Some(ref target) = task.target_file {
+            let sandbox_path = Self::sandbox_path(sandbox_root, target);
+            let real_path = sandbox_root.join(target);
+
+            let promote_result = if sandbox_path.exists() {
+                match std::fs::rename(&sandbox_path, &real_path) {
+                    Ok(_) => {
+                        Self::log_sandbox_transition(SandboxState::Proposed, SandboxState::Promoted, target, "renamed to real_path");
+                        Ok(())
+                    }
+                    Err(e) => {
+                        tracing::warn!("⚠️ rename failed ({}), falling back to copy+remove", e);
+                        (|| -> Result<(), std::io::Error> {
+                            if let Some(parent) = real_path.parent() {
+                                std::fs::create_dir_all(parent)?;
+                            }
+                            std::fs::copy(&sandbox_path, &real_path)?;
+                            std::fs::remove_file(&sandbox_path)?;
+                            Ok(())
+                        })()
+                        .map(|_| Self::log_sandbox_transition(SandboxState::Proposed, SandboxState::Promoted, target, "copy fallback"))
+                        .map_err(|e| tracing::error!("❌ Failed to promote {}: {}", real_path.display(), e))
+                    }
+                }
+            } else {
+                if let Some(ref code) = proposal.full_code {
+                    if let Some(parent) = real_path.parent() {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
+                    match std::fs::write(&real_path, code) {
+                        Ok(_) => tracing::info!("✅ Wrote {} (direct, no sandbox)", real_path.display()),
+                        Err(e) => return Err(format!("Failed to write {}: {}", real_path.display(), e)),
+                    }
+                }
+                Ok(())
+            };
+
+            if promote_result.is_ok() {
+                let _ = std::fs::remove_file(&sandbox_path);
+
+                // [ATOMIC_RESTORE] CMake Pruning 자동 복구 로직
+                if target.ends_with(".c") || target.ends_with(".cpp") {
+                    tracing::info!("🔧 [ATOMIC_RESTORE] C/C++ Source created. Restoring CMakeLists.txt targets...");
+                    if let Ok(arch_text) = std::fs::read_to_string(sandbox_root.join("architecture.md")) {
+                        if let Some(ir) = ProjectIR::from_md(&arch_text) {
+                            let mut graph = crate::dep_graph::DepGraph::new();
+                            graph.build_from_ir(&serde_json::to_value(&ir).unwrap_or_default());
+                            let cmake_spec = crate::dep_graph::parse_cmake_spec(&arch_text);
+                            let cmake_content = graph.generate_cmake(project_id, locale, sandbox_root, cmake_spec.as_ref());
+                            if let Err(e) = std::fs::write(sandbox_root.join("CMakeLists.txt"), cmake_content) {
+                                tracing::error!("❌ [ATOMIC_RESTORE] Failed to write CMakeLists.txt: {}", e);
+                            } else {
+                                tracing::info!("✅ [ATOMIC_RESTORE] CMakeLists.txt targets successfully restored.");
+                            }
+                        }
+                    }
+                }
+            }
+
+            promote_result.map_err(|_| format!("Promotion failed for {}", target))
+        } else {
+            Ok(())
+        }
     }
 
     async fn execute_one_task(
@@ -1079,8 +1209,10 @@ impl ExecutionPipeline {
         let mut retries = 0u32;
         let max_retries = 3u32;
         let mut error_feedback: Option<String> = task.error_feedback.clone();
+        let mut rejection_source: &str = "senior";
 
         loop {
+            rejection_source = "senior";
             if Self::is_paused(&pipeline_running) {
                 tracing::info!("⏸️ Pipeline paused, stopping task '{}'", task.title);
                 return;
@@ -1139,9 +1271,25 @@ impl ExecutionPipeline {
                     let sandbox_path = Self::sandbox_path(sandbox_root, target);
                     // Phase 7-C: Check .failed file for original_code preservation
                     let failed_path = Self::failed_path(&sandbox_path);
-                    std::fs::read_to_string(&sandbox_path)
+                    let raw = std::fs::read_to_string(&sandbox_path)
                         .or_else(|_| std::fs::read_to_string(&failed_path))
-                        .unwrap_or_default()
+                        .unwrap_or_default();
+
+                    // v0.0.31.38: [FIX_EMPTY_FILE_LOOP] Filter out meaningless .failed content
+                    // that would cause Junior to hallucinate "empty file" regeneration.
+                    // Patterns: "// Empty file", "// This is a new file.", whitespace-only
+                    let trimmed = raw.trim();
+                    let meaningless = trimmed.is_empty()
+                        || trimmed == "// Empty file"
+                        || trimmed == "// This is a new file."
+                        || trimmed == "// empty file"
+                        || trimmed.starts_with("// This is a new file");
+                    if meaningless {
+                        tracing::info!("🔪 [FIX_EMPTY_FILE_LOOP] Filtered out meaningless .failed content for '{}' — treating as new file", target);
+                        String::new()
+                    } else {
+                        raw
+                    }
                 } else {
                     String::new()
                 }
@@ -1264,8 +1412,23 @@ impl ExecutionPipeline {
 
             let mut auto_reject_reason = None;
             if let Some(ref code) = modified_proposal.full_code {
-                if Self::is_empty_or_comments_only(code) {
+                // v0.0.31.37: [FIX_HEADER_FALSE_REJECT] Extract file extension for language-aware comment detection
+                let file_ext = resolved_target.as_deref()
+                    .and_then(|p| std::path::Path::new(p).extension())
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("");
+                if Self::is_empty_or_comments_only(code, file_ext) {
+                    rejection_source = "validator";
                     auto_reject_reason = Some("🚨 [GLOBAL_HARNESS] Auto-rejected: Proposed code is empty or contains only comments. Actual implementation is required.".to_string());
+                    if let Some(ref target) = resolved_target {
+                        Self::save_failed_diagnostic(sandbox_root, target, &FailedDiagnostic {
+                            stage: 19.3,
+                            gatekeeper: "validator (global_harness)".to_string(),
+                            error_line: None,
+                            error_message: "Proposed code is empty or contains only comments.".to_string(),
+                            reason_classification: "empty_or_comments".to_string(),
+                        });
+                    }
                 } else {
                     let custom_forbidden: Vec<String> = if let Some(ref ir) = project_ir {
                         if let Some(comp) = ir.get_component(resolved_target.as_deref().unwrap_or("")) {
@@ -1276,8 +1439,18 @@ impl ExecutionPipeline {
                     } else {
                         Vec::new()
                     };
-                    if let Some(sym) = Self::check_forbidden_symbols(code, &custom_forbidden) {
-                        auto_reject_reason = Some(format!("🚨 [GLOBAL_HARNESS] Auto-rejected: Code contains forbidden symbol/function '{}'. GTK/Linux symbols are strictly prohibited.", sym));
+                    if let Some(sym) = Self::check_forbidden_symbols(code, &custom_forbidden, sandbox_root) {
+                        rejection_source = "validator";
+                        auto_reject_reason = Some(format!("🚨 [GLOBAL_HARNESS] Auto-rejected: Code contains forbidden symbol/function '{}'.", sym));
+                        if let Some(ref target) = resolved_target {
+                            Self::save_failed_diagnostic(sandbox_root, target, &FailedDiagnostic {
+                                stage: 19.3,
+                                gatekeeper: "validator (global_harness)".to_string(),
+                                error_line: None,
+                                error_message: format!("Forbidden symbol/function '{}' detected.", sym),
+                                reason_classification: "forbidden_symbol".to_string(),
+                            });
+                        }
                     } else {
                         let mut allowed_list: Vec<String> = if let Some(ref ir) = project_ir {
                             if let Some(comp) = ir.get_component(resolved_target.as_deref().unwrap_or("")) {
@@ -1302,12 +1475,32 @@ impl ExecutionPipeline {
                         }
 
                         if let Some(header) = Self::check_allowed_includes(code, &allowed_list) {
+                            rejection_source = "validator";
                             auto_reject_reason = Some(format!("🚨 [GLOBAL_HARNESS] Auto-rejected: Non-conforming header '{}' detected. Only allowed includes are permitted.", header));
+                            if let Some(ref target) = resolved_target {
+                                Self::save_failed_diagnostic(sandbox_root, target, &FailedDiagnostic {
+                                    stage: 19.3,
+                                    gatekeeper: "validator (global_harness)".to_string(),
+                                    error_line: None,
+                                    error_message: format!("Non-conforming header '{}' detected.", header),
+                                    reason_classification: "non_conforming_include".to_string(),
+                                });
+                            }
                         }
                     }
                 }
             } else {
+                rejection_source = "validator";
                 auto_reject_reason = Some("🚨 [GLOBAL_HARNESS] Auto-rejected: Proposed code is empty.".to_string());
+                if let Some(ref target) = resolved_target {
+                    Self::save_failed_diagnostic(sandbox_root, target, &FailedDiagnostic {
+                        stage: 19.3,
+                        gatekeeper: "validator (global_harness)".to_string(),
+                        error_line: None,
+                        error_message: "Proposed code is empty (no full_code in proposal).".to_string(),
+                        reason_classification: "empty_code".to_string(),
+                    });
+                }
             }
 
             // [LINEAGE_GUARD] Junior 제출 코드에서 알려진 위험 계통 패턴을 감지하면 WARN
@@ -1333,7 +1526,122 @@ impl ExecutionPipeline {
                 }
             }
 
-            let review = if let Some(reason) = auto_reject_reason {
+            // v0.0.31.40: [LSP_GATEKEEPER] Static analysis firewall between Junior and Senior
+            // LSP intercepts Junior's code BEFORE Senior sees it — blocks syntax errors at the gate
+            let mut lsp_diagnostics: Option<Vec<LspDiagnostic>> = None;
+            if auto_reject_reason.is_none() {
+                if let Some(ref target) = task.target_file {
+                    let ext = std::path::Path::new(target.as_str())
+                        .extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+                    let language = match ext.as_str() {
+                        "c" | "h" | "cpp" | "hpp" | "cc" | "cxx" => Some(Language::C),
+                        "rs" => Some(Language::Rust),
+                        "py" => Some(Language::Python),
+                        "lua" => Some(Language::Lua),
+                        _ => None,
+                    };
+
+                    if let Some(lang) = language {
+                        let target_path = sandbox_root.join(target);
+                        if target_path.exists() {
+                            tracing::info!("🛡️ [LSP_GATEKEEPER] Running semantic gate on '{}' (lang: {:?})", target, lang);
+                            match LspSupervisor::semantic_gate(lang, sandbox_root, &[target_path]).await {
+                                LspVerdict::Reject(errors) => {
+                                    // Senior 완전 차단 — 주니어에게 즉시 반려
+                                    rejection_source = "lsp";
+                                    let error_summary: Vec<String> = errors.iter()
+                                        .map(|e| format!("[Line {}] {}", e.line, e.message))
+                                        .collect();
+                                    auto_reject_reason = Some(format!(
+                                        "🚨 [LSP_GATEKEEPER] Auto-rejected: Static analysis found {} error(s):\n{}",
+                                        errors.len(),
+                                        error_summary.join("\n")
+                                    ));
+                                    tracing::warn!("❌ [LSP_GATEKEEPER] Senior blocked — {} syntax errors detected", errors.len());
+                                    if let Some(first) = errors.first() {
+                                        Self::save_failed_diagnostic(sandbox_root, target, &FailedDiagnostic {
+                                            stage: 19.4,
+                                            gatekeeper: format!("lsp ({})", first.source),
+                                            error_line: Some(first.line),
+                                            error_message: first.message.clone(),
+                                            reason_classification: "syntax_error".to_string(),
+                                        });
+                                    }
+                                }
+                                LspVerdict::Warning(warns) => {
+                                    // 경고는 Senior에게 진단서로 전달
+                                    let warn_count = warns.len();
+                                    lsp_diagnostics = Some(warns);
+                                    tracing::info!("️ [LSP_GATEKEEPER] {} warnings — passing diagnostic report to Senior", warn_count);
+                                }
+                                LspVerdict::Clean => {
+                                    tracing::info!("✅ [LSP_GATEKEEPER] Code passed static analysis — forwarding to Senior");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // v0.0.31.41: [COMPILATION_GATE] Physical compiler harness between LSP and Senior
+            // LSP가 문법 규격을 검속한 뒤, 실제 컴파일러로 물리적 무결성 검증
+            if auto_reject_reason.is_none() {
+                if let Some(ref target) = task.target_file {
+                    let ext = std::path::Path::new(target.as_str())
+                        .extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+                    let is_compilable = matches!(ext.as_str(), "c" | "cpp" | "cc" | "cxx" | "rs" | "py" | "lua");
+                    if is_compilable {
+                        let sandbox_path = Self::sandbox_path(sandbox_root, target);
+                        let real_path = sandbox_root.join(target);
+
+                        if sandbox_path.exists() {
+                            if let Some(parent) = real_path.parent() {
+                                let _ = std::fs::create_dir_all(parent);
+                            }
+                            let _ = std::fs::remove_file(&real_path);
+                            let link_ok = std::fs::hard_link(&sandbox_path, &real_path).is_ok();
+
+                            if link_ok {
+                                let root_str = sandbox_root.to_string_lossy().to_string();
+                                let target_str = target.clone();
+                                let ir_clone = project_ir.clone();
+                                let compile_result = tokio::task::spawn_blocking(move || {
+                                    execution_validator::validate(&root_str, &target_str, ValidationMode::Incremental, ir_clone.as_ref())
+                                }).await;
+
+                                let _ = std::fs::remove_file(&real_path);
+
+                                if let Ok(Err(e)) = compile_result {
+                                    rejection_source = "compiler";
+                                    let diag = e.to_string();
+                                    auto_reject_reason = Some(format!(" [COMPILATION_GATE] Build failed:\n{}", diag));
+                                    tracing::warn!("❌ [COMPILATION_GATE] 물리 컴파일 실패 — {}", diag);
+                                    let parsed = extract_error_locations(&diag);
+                                    let error_line = parsed.first().map(|l| l.line);
+                                    let error_message = parsed.first().map(|l| l.message.clone()).unwrap_or_else(|| diag.lines().take(3).collect::<Vec<_>>().join("\n"));
+                                    let gatekeeper = match std::path::Path::new(target.as_str()).extension().and_then(|e| e.to_str()) {
+                                        Some("rs") => "compiler (cargo)",
+                                        Some("py") => "compiler (python3)",
+                                        Some("lua") => "compiler (luac)",
+                                        _ => "compiler (gcc)",
+                                    };
+                                    Self::save_failed_diagnostic(sandbox_root, target, &FailedDiagnostic {
+                                        stage: 19.5,
+                                        gatekeeper: gatekeeper.to_string(),
+                                        error_line,
+                                        error_message,
+                                        reason_classification: "compilation_error".to_string(),
+                                    });
+                                } else if let Ok(Ok(_)) = compile_result {
+                                    tracing::info!("✅ [COMPILATION_GATE] 물리 컴파일 통과 — Senior로 전달");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            let review = if let Some(ref reason) = auto_reject_reason {
                 tracing::warn!("{}", reason);
                 Post {
                     id: uuid::Uuid::new_v4().to_string(),
@@ -1347,8 +1655,42 @@ impl ExecutionPipeline {
                     created_at: chrono::Local::now(),
                 }
             } else {
+                // Format LSP diagnostics into a report string for Senior
+                let lsp_report_str = lsp_diagnostics.as_ref().map(|diags| {
+                    diags.iter()
+                        .map(|d| format!("[Line {}] {} ({:?})", d.line, d.message, d.severity))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                });
+
+                // v0.0.32: [PINPOINT_DEFECT_ANALYSIS] Load failed source + diagnostics for Senior
+                let failed_code = if retries > 0 {
+                    if let Some(ref target) = task.target_file {
+                        let sandbox_path = Self::sandbox_path(sandbox_root, target);
+                        let failed_path = Self::failed_path(&sandbox_path);
+                        std::fs::read_to_string(&failed_path).ok()
+                    } else { None }
+                } else { None };
+
+                let failed_diagnostics: Option<Vec<FailedDiagnostic>> = if retries > 0 {
+                    if let Some(ref target) = task.target_file {
+                        let sandbox_path = Self::sandbox_path(sandbox_root, target);
+                        let failed_path = Self::failed_path(&sandbox_path);
+                        let json_path = PathBuf::from(format!("{}.json", failed_path.to_string_lossy()));
+                        std::fs::read_to_string(&json_path).ok()
+                            .and_then(|s| serde_json::from_str(&s).ok())
+                    } else { None }
+                } else { None };
+
                 match senior
-                    .review_proposal(task, &modified_proposal, None, Some(event_bus.clone()))
+                    .review_proposal(
+                        task, &modified_proposal, None,
+                        Some(event_bus.clone()),
+                        lsp_report_str.as_deref(),
+                        failed_diagnostics.as_deref(),
+                        failed_code.as_deref(),
+                        error_feedback.as_deref(),
+                    )
                     .await
                 {
                     Ok(r) => r,
@@ -1484,74 +1826,68 @@ impl ExecutionPipeline {
                 feedback = format!("[BOSS_REJECTED] Boss overridden rejection for task: {}", task.title);
             }
 
-            if is_approve {
-                if let Some(ref target) = task.target_file {
-                    let sandbox_path = Self::sandbox_path(sandbox_root, target);
-                    let real_path = sandbox_root.join(target);
+            // v0.0.32: [PROMOTION_DECISION] Aggregate all gate results into explicit decision object
+            let validator_status = if auto_reject_reason.is_some() && rejection_source == "validator" {
+                GateStatus::Failed(auto_reject_reason.as_deref().unwrap_or("").to_string())
+            } else {
+                GateStatus::Passed
+            };
+            let lsp_status = if auto_reject_reason.is_some() && rejection_source == "lsp" {
+                GateStatus::Failed(auto_reject_reason.as_deref().unwrap_or("").to_string())
+            } else if auto_reject_reason.is_none() || rejection_source != "validator" {
+                GateStatus::Passed
+            } else {
+                GateStatus::Skipped
+            };
+            let compilation_status = if auto_reject_reason.is_some() && rejection_source == "compiler" {
+                GateStatus::Failed(auto_reject_reason.as_deref().unwrap_or("").to_string())
+            } else if auto_reject_reason.is_none() || (rejection_source != "validator" && rejection_source != "lsp") {
+                GateStatus::Passed
+            } else {
+                GateStatus::Skipped
+            };
+            let senior_status = if auto_reject_reason.is_some() {
+                GateStatus::Skipped
+            } else if is_approve || boss_approved {
+                GateStatus::Passed
+            } else {
+                GateStatus::Failed(feedback.clone())
+            };
+            let boss_status = if boss_approved {
+                GateStatus::Passed
+            } else if is_approve {
+                GateStatus::Passed
+            } else {
+                GateStatus::Failed("Boss rejected".to_string())
+            };
 
-                    // Phase 7-C: Atomic promotion with state machine logging
-                    let promote_result = if sandbox_path.exists() {
-                        match std::fs::rename(&sandbox_path, &real_path) {
-                            Ok(_) => {
-                                Self::log_sandbox_transition(SandboxState::Proposed, SandboxState::Promoted, target, "renamed to real_path");
-                                Ok(())
-                            }
-                            Err(e) => {
-                                tracing::warn!("⚠️ rename failed ({}), falling back to copy+remove", e);
-                                (|| -> Result<(), std::io::Error> {
-                                    if let Some(parent) = real_path.parent() {
-                                        std::fs::create_dir_all(parent)?;
-                                    }
-                                    std::fs::copy(&sandbox_path, &real_path)?;
-                                    std::fs::remove_file(&sandbox_path)?;
-                                    Ok(())
-                                })()
-                                .map(|_| Self::log_sandbox_transition(SandboxState::Proposed, SandboxState::Promoted, target, "copy fallback"))
-                                .map_err(|e| tracing::error!("❌ Failed to promote {}: {}", real_path.display(), e))
-                            }
-                        }
-                    } else {
-                        if let Some(ref code) = proposal.full_code {
-                            if let Some(parent) = real_path.parent() {
-                                let _ = std::fs::create_dir_all(parent);
-                            }
-                            match std::fs::write(&real_path, code) {
-                                Ok(_) => tracing::info!("✅ Wrote {} (direct, no sandbox)", real_path.display()),
-                                Err(e) => tracing::error!("❌ Failed to write {}: {}", real_path.display(), e),
-                            }
-                        }
-                        Ok(())
-                    };
+            let decision = PromotionDecision {
+                validator: validator_status,
+                lsp: lsp_status,
+                compilation: compilation_status,
+                senior: senior_status,
+                boss: boss_status,
+            };
 
-                    if promote_result.is_ok() {
-                        let _ = std::fs::remove_file(&sandbox_path);
-                        
-                        // v0.0.31.39: [ATOMIC_RESTORE] CMake Pruning 자동 복구 로직
-                        if let Some(target) = task.target_file.as_deref() {
-                            if target.ends_with(".c") || target.ends_with(".cpp") {
-                                tracing::info!("🔧 [ATOMIC_RESTORE] C/C++ Source created. Restoring CMakeLists.txt targets...");
-                                if let Ok(arch_text) = std::fs::read_to_string(sandbox_root.join("architecture.md")) {
-                                    if let Some(ir) = ProjectIR::from_md(&arch_text) {
-                                        let mut graph = crate::dep_graph::DepGraph::new();
-                                        graph.build_from_ir(&serde_json::to_value(&ir).unwrap_or_default());
-                                        let cmake_spec = crate::dep_graph::parse_cmake_spec(&arch_text);
-                                        let cmake_content = graph.generate_cmake(project_id, &_config.locale, sandbox_root, cmake_spec.as_ref());
-                                        if let Err(e) = std::fs::write(sandbox_root.join("CMakeLists.txt"), cmake_content) {
-                                            tracing::error!("❌ [ATOMIC_RESTORE] Failed to write CMakeLists.txt: {}", e);
-                                        } else {
-                                            tracing::info!("✅ [ATOMIC_RESTORE] CMakeLists.txt targets successfully restored.");
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+            if decision.eligible() {
+                tracing::info!("✅ [PROMOTION] All gates passed — {}", decision.summary());
+                if let Err(e) = Self::unlock_promotion(task, &proposal, sandbox_root, project_id, &_config.locale) {
+                    tracing::error!("🚨 [PROMOTION] unlock_promotion failed: {}", e);
                 }
 
                 let mut updated = task.clone();
                 updated.status = TaskStatus::Completed;
                 updated.lifecycle_state = TaskLifecycleState::Completed;
                 updated.rework_count = retries;
+                // Preserve rejection counters from DB (already incremented during rejection path)
+                if let Ok(Some(current)) = storage.get_task(&task.id) {
+                    updated.validator_rejections = current.validator_rejections;
+                    updated.senior_rejections = current.senior_rejections;
+                    updated.architecture_rejections = current.architecture_rejections;
+                    updated.cargo_rejections = current.cargo_rejections;
+                    updated.lsp_rejections = current.lsp_rejections;
+                    updated.boss_interventions = current.boss_interventions;
+                }
                 updated.error_feedback = None;
                 let _ = storage.save_task(updated).await;
 
@@ -1585,6 +1921,25 @@ impl ExecutionPipeline {
                             tracing::warn!("⚠️ Failed to rename sandbox to .failed: {}", e);
                         } else {
                             Self::log_sandbox_transition(SandboxState::Proposed, SandboxState::Rejected, target, "renamed to .failed for retry preservation");
+                            // v0.0.32: [FAILED_DIAGNOSTIC] Save Senior rejection diagnostic
+                            let error_line = regex::Regex::new(r"(?:line|Line)\s*(\d+)")
+                                .ok()
+                                .and_then(|re| re.captures(&feedback))
+                                .and_then(|cap| cap.get(1))
+                                .and_then(|m| m.as_str().parse::<usize>().ok());
+                            let gatekeeper = match rejection_source {
+                                "validator" => "validator (global_harness)",
+                                "lsp" => "lsp (semantic_gate)",
+                                "compiler" => "compiler (build_gate)",
+                                _ => "senior",
+                            };
+                            Self::save_failed_diagnostic(sandbox_root, target, &FailedDiagnostic {
+                                stage: 20.0,
+                                gatekeeper: gatekeeper.to_string(),
+                                error_line,
+                                error_message: feedback.chars().take(500).collect(),
+                                reason_classification: "spec_violation".to_string(),
+                            });
                         }
                     }
                 }
@@ -1602,7 +1957,14 @@ impl ExecutionPipeline {
                 let mut updated = task.clone();
                 updated.error_feedback = error_feedback.clone();
                 updated.rework_count = retries;
-                updated.senior_rejections = task.senior_rejections + retries;
+                match rejection_source {
+                    "validator" => updated.validator_rejections += 1,
+                    "lsp" => updated.lsp_rejections += 1,
+                    "compiler" => updated.cargo_rejections += 1,
+                    "senior" => updated.senior_rejections += 1,
+                     _ => updated.senior_rejections += 1,
+                }
+                let _ = storage.save_task(updated.clone()).await;
 
                 if retries >= max_retries {
                     let review_entry = PipelineReview {
@@ -1659,6 +2021,9 @@ impl ExecutionPipeline {
                     return;
                 }
 
+                // Sync rejection counters to Thread after each rejection
+                Self::update_thread_status(storage, &task.id, ThreadStatus::Working).await;
+
                 tokio::time::sleep(Duration::from_millis(500)).await;
             }
         }
@@ -1712,54 +2077,114 @@ impl ExecutionPipeline {
         }
     }
 
-    fn is_empty_or_comments_only(code: &str) -> bool {
+    // v0.0.31.37: [FIX_HEADER_FALSE_REJECT] Language-aware comment detection
+    // C/C++ '#' is a preprocessor directive, NOT a comment. Python '#' IS a comment.
+    // v0.0.31.38: [FIX_PTR_DEREF_FALSE_REJECT] '*' and '-' are only stripped inside block comments.
+    // Pointer deref (*ptr = 10;) and negative literals (-1) at line start must be preserved.
+    fn is_empty_or_comments_only(code: &str, file_ext: &str) -> bool {
         let trimmed = code.trim();
         if trimmed.is_empty() {
             return true;
         }
-        
+
         let has_alphanumeric = trimmed.chars().any(|c| c.is_alphanumeric());
         if !has_alphanumeric {
             return true;
         }
 
+        // Language-specific line comment detection
+        let is_python = file_ext == "py";
+        let is_lua = file_ext == "lua";
+
         let mut cleaned = String::new();
+        let mut in_block_comment = false;
+
         for line in trimmed.lines() {
             let l = line.trim();
-            if l.starts_with("//") || l.starts_with("#") || l.starts_with("*") || l.starts_with("-") {
+
+            // Block comment start detection (line-level)
+            if !in_block_comment && l.starts_with("/*") {
+                in_block_comment = true;
+                // Single-line block comment: /* ... */
+                if l.contains("*/") {
+                    in_block_comment = false;
+                }
                 continue;
             }
+
+            // Block comment end detection
+            if in_block_comment {
+                if l.contains("*/") {
+                    in_block_comment = false;
+                }
+                continue;
+            }
+
+            // Language-specific line comment detection (only outside block comments)
+            let is_line_comment = if is_python {
+                l.starts_with("#")
+            } else if is_lua {
+                l.starts_with("--") && !l.starts_with("---")
+            } else {
+                // C, C++, Rust, and others: only // is a line comment
+                // '#' is a preprocessor directive (C/C++) or attribute (Rust) — NOT a comment
+                l.starts_with("//")
+            };
+
+            if is_line_comment {
+                continue;
+            }
+
+            // '*' and '-' at line start are NO LONGER stripped here.
+            // They are valid code: *ptr = 10;  -1  -x + y
+            // Block comment inner lines are already handled above.
+
             cleaned.push_str(l);
         }
 
+        // Final pass: remove inline block comments /* ... */ from cleaned text
         let mut final_cleaned = String::new();
         let mut chars = cleaned.chars().peekable();
-        let mut in_block_comment = false;
+        let mut in_block = false;
         while let Some(c) = chars.next() {
-            if in_block_comment {
+            if in_block {
                 if c == '*' {
                     if let Some(&'/') = chars.peek() {
                         chars.next();
-                        in_block_comment = false;
+                        in_block = false;
                     }
                 }
             } else {
                 if c == '/' {
                     if let Some(&'*') = chars.peek() {
                         chars.next();
-                        in_block_comment = true;
+                        in_block = true;
                         continue;
                     }
                 }
                 final_cleaned.push(c);
             }
         }
-        
+
         !final_cleaned.chars().any(|c| c.is_alphanumeric())
     }
 
-    fn check_forbidden_symbols(code: &str, custom_forbidden: &[String]) -> Option<String> {
-        let global_forbidden = ["<gtk/gtk.h>", "GtkWidget", "GtkApplication", "g_signal_connect", "GtkDrawingArea", "GtkEventController"];
+    fn check_forbidden_symbols(code: &str, custom_forbidden: &[String], sandbox_root: &std::path::Path) -> Option<String> {
+        let mut global_forbidden = Vec::new();
+        
+        let constraints_path = sandbox_root.join("immutable_constraints.json");
+        if let Ok(content) = std::fs::read_to_string(&constraints_path) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(forbidden) = json.get("forbidden_patterns").and_then(|v| v.as_array()) {
+                    for pat in forbidden {
+                        if let Some(s) = pat.as_str() {
+                            global_forbidden.push(s.to_string());
+                        }
+                    }
+                }
+            }
+        }
+
         for sym in &global_forbidden {
             if code.contains(sym) {
                 return Some(sym.to_string());

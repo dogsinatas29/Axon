@@ -42,6 +42,20 @@ pub trait ModelDriver: Send + Sync {
         self.generate(prompt).await
     }
 
+    async fn generate_stream_with_context(
+        &self, 
+        prompt: String, 
+        _context_size: usize, 
+        tx: Option<tokio::sync::mpsc::UnboundedSender<String>>
+    ) -> Result<ModelResponse, Box<dyn std::error::Error + Send + Sync>> {
+        // Default implementation falls back to non-streaming
+        let res = self.generate_with_context(prompt, _context_size).await?;
+        if let Some(sender) = tx {
+            let _ = sender.send(res.text.clone());
+        }
+        Ok(res)
+    }
+
     async fn list_available_models(&self) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
         Ok(vec![])
     }
@@ -304,16 +318,26 @@ impl ModelDriver for OllamaDriver {
     }
 
     async fn generate_with_context(&self, prompt: String, context_size: usize) -> Result<ModelResponse, Box<dyn std::error::Error + Send + Sync>> {
-        self.generate_internal("".to_string(), prompt, context_size).await
+        self.generate_internal("".to_string(), prompt, context_size, None).await
+    }
+
+    async fn generate_stream_with_context(&self, prompt: String, context_size: usize, tx: Option<tokio::sync::mpsc::UnboundedSender<String>>) -> Result<ModelResponse, Box<dyn std::error::Error + Send + Sync>> {
+        self.generate_internal("".to_string(), prompt, context_size, tx).await
     }
 
     async fn generate_with_system(&self, system: String, user: String) -> Result<ModelResponse, Box<dyn std::error::Error + Send + Sync>> {
-        self.generate_internal(system, user, 0).await
+        self.generate_internal(system, user, 0, None).await
     }
 }
 
 impl OllamaDriver {
-    async fn generate_internal(&self, system: String, user: String, forced_context: usize) -> Result<ModelResponse, Box<dyn std::error::Error + Send + Sync>> {
+    async fn generate_internal(
+        &self, 
+        system: String, 
+        user: String, 
+        forced_context: usize, 
+        tx: Option<tokio::sync::mpsc::UnboundedSender<String>>
+    ) -> Result<ModelResponse, Box<dyn std::error::Error + Send + Sync>> {
         // [VRAM PROTECTION] Global Inference Lock (Admission Control)
         let _lock = OLLAMA_MUTEX.lock().await;
 
@@ -346,7 +370,7 @@ impl OllamaDriver {
             let mut body = serde_json::json!({
                 "model": self.model_name,
                 "prompt": full_prompt,
-                "stream": false,
+                "stream": tx.is_some(),
                 "options": {
                     "num_ctx": current_ctx,
                     "num_predict": 16384,
@@ -363,8 +387,8 @@ impl OllamaDriver {
                 }
             }
 
-            tracing::info!("📡 [VRAM_SAFE] Ollama Request: Model={}, Context={}, Attempt={}/3", 
-                self.model_name, current_ctx, attempts);
+            tracing::info!("📡 [VRAM_SAFE] Ollama Request: Model={}, Context={}, Stream={}, Attempt={}/3", 
+                self.model_name, current_ctx, tx.is_some(), attempts);
 
             let response_future = self.client.post(url.clone())
                 .json(&body)
@@ -373,25 +397,73 @@ impl OllamaDriver {
             let response = tokio::time::timeout(std::time::Duration::from_secs(600), response_future).await;
 
             match response {
-                Ok(Ok(res)) => {
+                Ok(Ok(mut res)) => {
                     let status = res.status();
-                    let raw_text = res.text().await.unwrap_or_default();
                     
                     if !status.is_success() {
+                        let raw_text = res.text().await.unwrap_or_default();
                         tracing::warn!("⚠️ Ollama API Error (Status {}): {}. Sleeping 2s...", status, raw_text);
-                    } else if let Ok(res_json) = serde_json::from_str::<serde_json::Value>(&raw_text) {
-                        let response_text = res_json["response"].as_str().unwrap_or_default().to_string();
+                    } else if let Some(ref sender) = tx {
+                        // STREAMING MODE
+                        let mut full_text = String::new();
+                        let mut buffer = String::new();
+                        let mut final_eval_count = None;
+                        let mut final_eval_duration = None;
+                        let mut final_total_duration = None;
                         
-                        if response_text.trim().is_empty() {
-                            tracing::warn!("⚠️ [EMPTY_RESPONSE] Response is empty. Sleeping 2s for retry...");
+                        while let Ok(Some(chunk)) = res.chunk().await {
+                            let chunk_str = String::from_utf8_lossy(&chunk);
+                            buffer.push_str(&chunk_str);
+                            
+                            while let Some(idx) = buffer.find('\n') {
+                                let line = buffer[..idx].trim().to_string();
+                                buffer = buffer[idx+1..].to_string();
+                                
+                                if line.is_empty() { continue; }
+                                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&line) {
+                                    if let Some(resp) = json["response"].as_str() {
+                                        full_text.push_str(resp);
+                                        let _ = sender.send(resp.to_string());
+                                    }
+                                    if let Some(done) = json["done"].as_bool() {
+                                        if done {
+                                            final_eval_count = json["eval_count"].as_u64();
+                                            final_eval_duration = json["eval_duration"].as_u64();
+                                            final_total_duration = json["total_duration"].as_u64();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if full_text.trim().is_empty() {
+                            tracing::warn!("⚠️ [EMPTY_RESPONSE] Stream response is empty. Sleeping 2s for retry...");
                         } else {
                             return Ok(ModelResponse {
-                                text: response_text,
+                                text: full_text,
                                 thought: None,
-                                total_duration: res_json["total_duration"].as_u64(),
-                                eval_count: res_json["eval_count"].as_u64(),
-                                eval_duration: res_json["eval_duration"].as_u64(),
+                                total_duration: final_total_duration,
+                                eval_count: final_eval_count,
+                                eval_duration: final_eval_duration,
                             });
+                        }
+                    } else {
+                        // NON-STREAMING MODE
+                        let raw_text = res.text().await.unwrap_or_default();
+                        if let Ok(res_json) = serde_json::from_str::<serde_json::Value>(&raw_text) {
+                            let response_text = res_json["response"].as_str().unwrap_or_default().to_string();
+                            
+                            if response_text.trim().is_empty() {
+                                tracing::warn!("⚠️ [EMPTY_RESPONSE] Response is empty. Sleeping 2s for retry...");
+                            } else {
+                                return Ok(ModelResponse {
+                                    text: response_text,
+                                    thought: None,
+                                    total_duration: res_json["total_duration"].as_u64(),
+                                    eval_count: res_json["eval_count"].as_u64(),
+                                    eval_duration: res_json["eval_duration"].as_u64(),
+                                });
+                            }
                         }
                     }
                 }

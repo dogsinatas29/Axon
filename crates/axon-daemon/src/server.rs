@@ -292,7 +292,56 @@ async fn approve_thread(
 
             (StatusCode::OK, Json(serde_json::json!({"status": "approved", "thread_id": thread_id}))).into_response()
         }
-        None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "No pending review for this thread"}))).into_response(),
+        None => {
+            let project_folder = if let Ok(Some(th)) = state.storage.get_thread(&thread_id) {
+                th.project_id.clone()
+            } else {
+                "spec".to_string()
+            };
+            let sandbox_root = std::path::Path::new(&project_folder);
+            let approval_file = sandbox_root.join(format!(".axon_approval_pending_{}", thread_id));
+            let legacy_approval_file = sandbox_root.join(".axon_approval_pending");
+
+            let mut updated_file = false;
+
+            if approval_file.exists() {
+                if let Ok(content) = std::fs::read_to_string(&approval_file) {
+                    if let Ok(mut approval) = serde_json::from_str::<serde_json::Value>(&content) {
+                        approval["approved"] = serde_json::Value::Bool(true);
+                        approval["status"] = serde_json::Value::String("APPROVED".to_string());
+                        if let Ok(updated_content) = serde_json::to_string_pretty(&approval) {
+                            if std::fs::write(&approval_file, updated_content).is_ok() {
+                                tracing::info!("✅ Boss approved thread via high-level file trigger: {}", thread_id);
+                                updated_file = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !updated_file && legacy_approval_file.exists() {
+                if let Ok(content) = std::fs::read_to_string(&legacy_approval_file) {
+                    if let Ok(mut approval) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if approval["task_id"].as_str() == Some(&thread_id) {
+                            approval["approved"] = serde_json::Value::Bool(true);
+                            approval["status"] = serde_json::Value::String("APPROVED".to_string());
+                            if let Ok(updated_content) = serde_json::to_string_pretty(&approval) {
+                                if std::fs::write(&legacy_approval_file, updated_content).is_ok() {
+                                    tracing::info!("✅ Boss approved thread via legacy file trigger: {}", thread_id);
+                                    updated_file = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if updated_file {
+                (StatusCode::OK, Json(serde_json::json!({"status": "approved", "thread_id": thread_id}))).into_response()
+            } else {
+                (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "No pending review or approval file found for this thread"}))).into_response()
+            }
+        }
     }
 }
 
@@ -342,7 +391,56 @@ async fn reject_thread(
 
             (StatusCode::OK, Json(serde_json::json!({"status": "rejected", "thread_id": thread_id}))).into_response()
         }
-        None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "No pending review for this thread"}))).into_response(),
+        None => {
+            let project_folder = if let Ok(Some(th)) = state.storage.get_thread(&thread_id) {
+                th.project_id.clone()
+            } else {
+                "spec".to_string()
+            };
+            let sandbox_root = std::path::Path::new(&project_folder);
+            let approval_file = sandbox_root.join(format!(".axon_approval_pending_{}", thread_id));
+            let legacy_approval_file = sandbox_root.join(".axon_approval_pending");
+
+            let mut updated_file = false;
+
+            if approval_file.exists() {
+                if let Ok(content) = std::fs::read_to_string(&approval_file) {
+                    if let Ok(mut approval) = serde_json::from_str::<serde_json::Value>(&content) {
+                        approval["approved"] = serde_json::Value::Bool(false);
+                        approval["status"] = serde_json::Value::String("REJECTED".to_string());
+                        if let Ok(updated_content) = serde_json::to_string_pretty(&approval) {
+                            if std::fs::write(&approval_file, updated_content).is_ok() {
+                                tracing::info!("❌ Boss rejected thread via high-level file trigger: {}", thread_id);
+                                updated_file = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !updated_file && legacy_approval_file.exists() {
+                if let Ok(content) = std::fs::read_to_string(&legacy_approval_file) {
+                    if let Ok(mut approval) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if approval["task_id"].as_str() == Some(&thread_id) {
+                            approval["approved"] = serde_json::Value::Bool(false);
+                            approval["status"] = serde_json::Value::String("REJECTED".to_string());
+                            if let Ok(updated_content) = serde_json::to_string_pretty(&approval) {
+                                if std::fs::write(&legacy_approval_file, updated_content).is_ok() {
+                                    tracing::info!("❌ Boss rejected thread via legacy file trigger: {}", thread_id);
+                                    updated_file = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if updated_file {
+                (StatusCode::OK, Json(serde_json::json!({"status": "rejected", "thread_id": thread_id}))).into_response()
+            } else {
+                (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "No pending review or approval file found for this thread"}))).into_response()
+            }
+        }
     }
 }
 
@@ -398,7 +496,62 @@ async fn retry_thread(
 
             (StatusCode::OK, Json(serde_json::json!({"status": "retrying", "thread_id": thread_id}))).into_response()
         }
-        None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "No pending review for this thread"}))).into_response(),
+        None => {
+            let project_folder = if let Ok(Some(th)) = state.storage.get_thread(&thread_id) {
+                th.project_id.clone()
+            } else {
+                "spec".to_string()
+            };
+            let sandbox_root = std::path::Path::new(&project_folder);
+            let approval_file = sandbox_root.join(format!(".axon_approval_pending_{}", thread_id));
+            let legacy_approval_file = sandbox_root.join(".axon_approval_pending");
+
+            let mut updated_file = false;
+
+            if approval_file.exists() {
+                if let Ok(content) = std::fs::read_to_string(&approval_file) {
+                    if let Ok(mut approval) = serde_json::from_str::<serde_json::Value>(&content) {
+                        approval["approved"] = serde_json::Value::Bool(false);
+                        approval["status"] = serde_json::Value::String("REJECTED".to_string());
+                        if let Some(ref feedback) = body.feedback {
+                            approval["senior_feedback"] = serde_json::Value::String(feedback.clone());
+                        }
+                        if let Ok(updated_content) = serde_json::to_string_pretty(&approval) {
+                            if std::fs::write(&approval_file, updated_content).is_ok() {
+                                tracing::info!("🔄 Boss retried thread via high-level file trigger: {}", thread_id);
+                                updated_file = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !updated_file && legacy_approval_file.exists() {
+                if let Ok(content) = std::fs::read_to_string(&legacy_approval_file) {
+                    if let Ok(mut approval) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if approval["task_id"].as_str() == Some(&thread_id) {
+                            approval["approved"] = serde_json::Value::Bool(false);
+                            approval["status"] = serde_json::Value::String("REJECTED".to_string());
+                            if let Some(ref feedback) = body.feedback {
+                                approval["senior_feedback"] = serde_json::Value::String(feedback.clone());
+                            }
+                            if let Ok(updated_content) = serde_json::to_string_pretty(&approval) {
+                                if std::fs::write(&legacy_approval_file, updated_content).is_ok() {
+                                    tracing::info!("🔄 Boss retried thread via legacy file trigger: {}", thread_id);
+                                    updated_file = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if updated_file {
+                (StatusCode::OK, Json(serde_json::json!({"status": "retrying", "thread_id": thread_id}))).into_response()
+            } else {
+                (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "No pending review or approval file found for this thread"}))).into_response()
+            }
+        }
     }
 }
 
@@ -632,6 +785,7 @@ async fn get_pending_approval(
 async fn approve_spec_analysis(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
+    tracing::info!("📡 Spec analysis approved via API POST /api/specs/approve");
     let mut approval = state.pending_approval.lock().unwrap();
     match approval.as_mut() {
         Some(ref mut p) => {
@@ -647,6 +801,7 @@ async fn approve_spec_analysis(
 async fn reject_spec_analysis(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
+    tracing::info!("📡 Spec analysis rejected via API POST /api/specs/reject");
     let mut approval = state.pending_approval.lock().unwrap();
     match approval.as_mut() {
         Some(ref mut p) => {
@@ -930,6 +1085,21 @@ async fn retry_pipeline_review(
                 payload: None,
                 timestamp: chrono::Local::now(),
             });
+
+            // [FIX_RETRY_HANG] Retry 시 기존 파이프라인 스레드가 파일 폴링(1시간)에 갇히는 것을 방지
+            let sandbox_root = std::path::PathBuf::from(&updated.project_id);
+            let approval_file = sandbox_root.join(format!(".axon_approval_pending_{}", task_id));
+            if approval_file.exists() {
+                if let Ok(content) = std::fs::read_to_string(&approval_file) {
+                    if let Ok(mut approval) = serde_json::from_str::<serde_json::Value>(&content) {
+                        approval["approved"] = serde_json::Value::Bool(false);
+                        approval["status"] = serde_json::Value::String("REJECTED".to_string());
+                        if let Ok(updated_content) = serde_json::to_string_pretty(&approval) {
+                            let _ = std::fs::write(&approval_file, updated_content);
+                        }
+                    }
+                }
+            }
 
             // Auto-resume pipeline after Boss retry
             let state_clone = state.clone();

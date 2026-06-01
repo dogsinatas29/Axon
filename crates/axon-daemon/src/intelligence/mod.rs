@@ -1,51 +1,65 @@
-pub mod rule_registry;
-pub mod rule_engine;
-pub mod promotion;
-pub mod selection;
-pub mod global_registry;
+pub(crate) mod rule_registry;
+pub(crate) mod rule_engine;
+pub(crate) mod promotion;
+pub(crate) mod selection;
+pub(crate) mod global_registry;
 pub mod decision;
-pub mod staging;
-pub mod commit;
-pub mod writer;
-pub mod priority;
-pub mod ir_diff;
-pub mod pipeline;
-pub mod constraint_meta;
-pub mod orchestrator;
-pub mod planner;
-pub mod coordinator;
-pub mod language_contract;
-pub mod include_path_normalizer;
+pub(crate) mod staging;
+pub(crate) mod commit;
+pub(crate) mod writer;
+pub(crate) mod priority;
+pub(crate) mod ir_diff;
+pub(crate) mod pipeline;
+pub(crate) mod constraint_meta;
+pub(crate) mod orchestrator;
+pub(crate) mod planner;
+pub(crate) mod coordinator;
+pub(crate) mod language_contract;
+pub(crate) mod include_path_normalizer;
 pub mod semantic_debugger;
-pub mod lsp;
+pub(crate) mod lsp;
 pub mod jurisprudence;
-pub mod ast;
+pub(crate) mod ast;
 pub mod topology;
-pub mod patch_ir;
-pub mod signature_drift;
-pub mod mutation_sandbox;
-pub mod provenance;
-pub mod observatory;
-pub mod shadow_mutator;
-pub mod roundtrip_validator;
-pub mod stability_matrix;
-pub mod heatmap;
+pub(crate) mod patch_ir;
+pub(crate) mod signature_drift;
+pub(crate) mod mutation_sandbox;
+pub(crate) mod provenance;
+pub(crate) mod observatory;
+pub(crate) mod shadow_mutator;
+pub(crate) mod roundtrip_validator;
+pub(crate) mod stability_matrix;
+pub(crate) mod heatmap;
 pub mod causality;
-pub mod determinism_harness;
-pub mod rollback;
-pub mod mutation_intent;
-pub mod semantic_tokens;
-pub mod canonicalizer;
-pub mod semantic_distance;
-pub mod semantic_authority_gate;
-pub mod edit_plan;
-pub mod tree_sitter_locator;
-pub mod surgical_editor;
-pub mod anchor_validator;
-pub mod surgical_replay;
-pub mod intent_lowering;
+pub(crate) mod determinism_harness;
+pub(crate) mod rollback;
+pub(crate) mod mutation_intent;
+pub(crate) mod semantic_tokens;
+pub(crate) mod canonicalizer;
+pub(crate) mod semantic_distance;
+pub(crate) mod semantic_authority_gate;
+pub(crate) mod edit_plan;
+pub(crate) mod tree_sitter_locator;
+pub(crate) mod surgical_editor;
+pub(crate) mod anchor_validator;
+pub(crate) mod surgical_replay;
+pub(crate) mod intent_lowering;
 pub mod replay;
 pub mod corpus;
-pub mod telemetry;
-pub mod mutation;
+pub(crate) mod telemetry;
+pub mod common;
+pub(crate) mod mutation;
 pub mod evolution;
+
+/// AXON Intelligence Gate Facade
+pub struct IntelligenceEngine;
+
+impl IntelligenceEngine {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn analyze_spec(&self) {
+        println!("IntelligenceEngine analyzing active spec.");
+    }
+}

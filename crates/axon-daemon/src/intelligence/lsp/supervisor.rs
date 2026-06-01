@@ -14,6 +14,7 @@ use crate::intelligence::lsp::session::LspSession;
 use crate::intelligence::lsp::rust_analyzer::RustAnalyzerConnector;
 use crate::intelligence::lsp::clangd::ClangdConnector;
 use crate::intelligence::lsp::pyright::PyrightConnector;
+use crate::intelligence::lsp::lua_lsp::LuaLspConnector;
 
 pub enum LspVerdict {
     Clean,
@@ -39,6 +40,7 @@ impl LspSupervisor {
             Language::Rust => "rust",
             Language::Python => "python",
             Language::C | Language::Cpp => "c",
+            Language::Lua => "lua",
         };
 
         let session_key = format!("{}:{}", workspace.display(), lang_str);
@@ -93,6 +95,20 @@ impl LspSupervisor {
                         }
                     }
                 }
+                Language::Lua => {
+                    tracing::info!("🚀 [LSP_SESSION_START] Spawning lua-language-server for workspace: {:?}", workspace);
+                    match LuaLspConnector::spawn_session(workspace).await {
+                        Ok(sess) => {
+                            let mut sessions = get_sessions().lock().await;
+                            sessions.insert(session_key.clone(), sess);
+                            tracing::info!("✅ [LSP_SESSION_ATTACH_OK] lua-language-server successfully attached to supervisor!");
+                        }
+                        Err(e) => {
+                            tracing::error!("❌ [LSP_SESSION_START_FAIL] Failed to spawn lua-language-server: {}", e);
+                            return LspVerdict::Clean; // Fallback silently
+                        }
+                    }
+                }
             }
         }
 
@@ -112,6 +128,7 @@ impl LspSupervisor {
                 Language::C | Language::Cpp => {
                     ext == "c" || ext == "cpp" || ext == "cc" || ext == "cxx" || ext == "h" || ext == "hpp"
                 }
+                Language::Lua => ext == "lua",
             };
             if !is_matching_ext {
                 continue;

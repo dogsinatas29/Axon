@@ -120,10 +120,9 @@ mod tests {
                 timestamp: 178291223,
             },
             lineage: LineageDelta {
-                before_family: vec![],
-                after_family: vec![],
-                introduced_pathologies: vec![],
-                removed_pathologies: vec![],
+                before_root_lineages: vec![],
+                introduced_root_lineages: vec![],
+                removed_root_lineages: vec![],
             },
             queue: QueueDiff {
                 new_edges: vec![ QueueEdge { from: "retry_timeout".to_string(), to: "idle_dispatch".to_string() } ],

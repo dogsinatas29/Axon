@@ -23,13 +23,14 @@ import type { Thread, Post } from '../types';
 
 interface ThreadDetailProps {
   thread: Thread;
+  activeStream?: string;
   onClose: () => void;
   // onApprove: (id: string) => void;
   t: any;
   onRefresh?: () => void;
 }
 
-const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, t, onRefresh }) => {
+const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, activeStream, onClose, t, onRefresh }) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [retryFeedback, setRetryFeedback] = useState('');
@@ -154,6 +155,16 @@ const ThreadDetail: React.FC<ThreadDetailProps> = ({ thread, onClose, t, onRefre
               </div>
             </div>
           ))
+        )}
+        {activeStream && (
+          <div className="post-item agent">
+            <div className="post-header">
+              <span className="author">Agent <span style={{fontSize: '0.7em', color: 'var(--accent-primary)', marginLeft: '4px', verticalAlign: 'middle'}}>(Typing...)</span></span>
+            </div>
+            <div className="post-content" style={{ opacity: 0.8 }}>
+              {formatContent(activeStream)}
+            </div>
+          </div>
         )}
       </div>
 

@@ -186,11 +186,54 @@ impl SemanticOntology for PythonOntology {
     }
 }
 
+pub struct LuaOntology;
+impl SemanticOntology for LuaOntology {
+    fn forbidden_vocabulary(&self) -> &[&str] {
+        &[
+            "HeaderDecl",
+            "SourceImpl",
+            "Integrator",
+            "Cargo.toml",
+            "cargo",
+            "cmake",
+            "CMakeLists.txt",
+            "mod.rs",
+            "lib.rs",
+            "#include",
+        ]
+    }
+
+    fn allowed_task_vocabulary(&self) -> &[&str] {
+        &["Module", "Script", "Config"]
+    }
+
+    fn allowed_build_systems(&self) -> &[&str] {
+        &["lua", "luarocks", "luac"]
+    }
+
+    fn forbidden_tokens(&self) -> &[SemanticToken] {
+        &[
+            SemanticToken::HeaderDecl,
+            SemanticToken::SourceImpl,
+            SemanticToken::Integrator,
+            SemanticToken::CMake,
+            SemanticToken::Cargo,
+        ]
+    }
+
+    fn allowed_tokens(&self) -> &[SemanticToken] {
+        &[
+            SemanticToken::Script,
+        ]
+    }
+}
+
 pub fn get_ontology(language: Language) -> Box<dyn SemanticOntology> {
     match language {
         Language::C => Box::new(COntology),
         Language::Cpp => Box::new(CppOntology),
         Language::Rust => Box::new(RustOntology),
         Language::Python => Box::new(PythonOntology),
+        Language::Lua => Box::new(LuaOntology),
     }
 }

@@ -349,6 +349,83 @@ pub struct PatchContract {
     pub hard_constraints: Vec<String>,
     pub forbidden_patterns: Vec<String>,
     pub allowed_changes: Vec<String>,
+    #[serde(default)]
+    pub allowed_regions: Vec<(usize, usize)>,
+}
+
+/// v0.0.32: Persistent failure diagnostic metadata — paired with .failed source files.
+/// Enables Failure Corpus, Root Cause Mining, and Rejection Analytics.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FailedDiagnostic {
+    pub stage: f32,
+    pub gatekeeper: String,
+    pub error_line: Option<usize>,
+    pub error_message: String,
+    pub reason_classification: String,
+}
+
+/// v0.0.32: Gate status within the promotion pipeline.
+/// Replaces scattered bool variables (auto_reject_reason, is_approve, boss_approved, ...).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum GateStatus {
+    Passed,
+    Failed(String),
+    Skipped,
+}
+
+impl GateStatus {
+    pub fn is_passed(&self) -> bool {
+        matches!(self, GateStatus::Passed)
+    }
+
+    pub fn is_failed(&self) -> bool {
+        matches!(self, GateStatus::Failed(_))
+    }
+}
+
+/// v0.0.32: Explicit promotion decision object.
+/// Aggregates the verdict of all 5 pipeline gates into a single auditable state.
+///
+/// Current implicit state (before this struct):
+///   auto_reject_reason, rejection_source, is_approve, boss_approved
+///
+/// After:
+///   PromotionDecision { validator, lsp, compilation, senior, boss }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PromotionDecision {
+    pub validator: GateStatus,
+    pub lsp: GateStatus,
+    pub compilation: GateStatus,
+    pub senior: GateStatus,
+    pub boss: GateStatus,
+}
+
+impl PromotionDecision {
+    pub fn eligible(&self) -> bool {
+        self.validator.is_passed()
+            && self.lsp.is_passed()
+            && self.compilation.is_passed()
+            && self.senior.is_passed()
+            && self.boss.is_passed()
+    }
+
+    pub fn summary(&self) -> String {
+        let gate = |name: &str, s: &GateStatus| -> String {
+            match s {
+                GateStatus::Passed => format!("✅ {}", name),
+                GateStatus::Failed(msg) => format!("❌ {} ({})", name, msg.chars().take(40).collect::<String>()),
+                GateStatus::Skipped => format!("⏭ {}", name),
+            }
+        };
+        format!(
+            "{} | {} | {} | {} | {}",
+            gate("Validator", &self.validator),
+            gate("LSP", &self.lsp),
+            gate("Compiler", &self.compilation),
+            gate("Senior", &self.senior),
+            gate("Boss", &self.boss),
+        )
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -497,6 +574,7 @@ pub enum EventType {
     AgentAction,
     AgentAssigned,
     AgentResponse,
+    AgentStreamingData,
     AgentHired,
     AgentFired,
     AgentUpdated,

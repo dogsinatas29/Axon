@@ -20,7 +20,7 @@ pub mod persona;
 pub mod lounge;
 pub mod composer;
 
-use axon_core::{Agent, Post, PostType, AgentRole};
+use axon_core::{Agent, Post, PostType, AgentRole, FailedDiagnostic};
 pub use axon_core::{Task, DecomposedTask};
 use axon_model::{ModelDriver, ModelResponse};
 use axon_ir::{ComponentTier, default_true};
@@ -244,7 +244,36 @@ impl AgentRuntime {
                 None
             };
 
-            let gen_future = self.model.generate_with_context(prompt.clone(), context_size);
+            let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+            
+            let stream_tx = if let Some(bus) = event_bus {
+                let bus_clone = bus.clone();
+                let thread_id_clone = thread_id.clone();
+                let agent_id_clone = self.agent.id.clone();
+                let project_id_clone = self.project_id.clone();
+                
+                tokio::spawn(async move {
+                    while let Some(chunk) = rx.recv().await {
+                        bus_clone.publish(axon_core::Event {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            project_id: project_id_clone.clone(),
+                            thread_id: thread_id_clone.clone(),
+                            agent_id: Some(agent_id_clone.clone()),
+                            event_type: axon_core::EventType::AgentStreamingData,
+                            level: axon_core::EventLevel::Info,
+                            source: agent_id_clone.clone(),
+                            content: chunk.clone(),
+                            payload: Some(serde_json::json!({"chunk": chunk})),
+                            timestamp: chrono::Local::now(),
+                        });
+                    }
+                });
+                Some(tx)
+            } else {
+                None
+            };
+
+            let gen_future = self.model.generate_stream_with_context(prompt.clone(), context_size, stream_tx);
             match tokio::time::timeout(self.timeout, gen_future).await {
                 Ok(Ok(mut resp)) => {
                     // v0.0.28: Extract internal reasoning (thoughts) from raw text
@@ -497,6 +526,8 @@ impl AgentRuntime {
             c_rule_block.push_str("5. **STRING LITERALS**: Do NOT break string literals with newlines in the source. Use `\\n` within a single line literal.\n");
             c_rule_block.push_str("6. **STRUCT VISIBILITY**: If the IR defines a struct (e.g., `struct text_buffer`), you MUST define it or include the header that defines it. Do NOT invent new struct names.\n");
             c_rule_block.push_str("7. **SEMANTIC SEALING (v0.0.29)**: If the architecture lacks a strict 'struct' definition or 'ownership' policy, DO NOT GUESS. Output 'ERROR: INSUFFICIENT_SEMANTICS - Missing [Struct/Policy Name]' and terminate.\n");
+            // v0.0.31.38: [FIX_HEADER_GUARD_IN_SOURCE] Forbid header guards in source files
+            c_rule_block.push_str("8. **NO HEADER GUARDS**: This is a SOURCE file (.c). NEVER write #ifndef/#define/#endif header guards — those belong ONLY in .h files. Write ONLY #include directives and function implementations.\n");
             c_rule_block.push_str("VIOLATION OF THIS CONSTITUTION WILL TRIGGER AN IMMEDIATE REJECT SIGNAL.\n");
         } else if target_file.ends_with(".h") {
             c_rule_block.push_str("\n### ⚠️ [CRITICAL WARNING - MANDATORY C HEADER RULE] ###\n");
@@ -527,6 +558,8 @@ impl AgentRuntime {
             c_rule_block.push_str("5. **STRING LITERALS**: Do NOT break string literals with newlines in the source. Use `\\n` within a single line literal.\n");
             c_rule_block.push_str("6. **STRUCT VISIBILITY**: If the IR defines a struct, you MUST define it or include the header that defines it. Do NOT invent new struct names.\n");
             c_rule_block.push_str("7. **SEMANTIC SEALING (v0.0.29)**: If the architecture lacks a strict definition or ownership policy, DO NOT GUESS. Output 'ERROR: INSUFFICIENT_SEMANTICS' and terminate.\n");
+            // v0.0.31.38: [FIX_HEADER_GUARD_IN_SOURCE] Forbid header guards in source files
+            c_rule_block.push_str("8. **NO HEADER GUARDS**: This is a SOURCE file (.cpp). NEVER write #ifndef/#define/#endif header guards — those belong ONLY in .h files. Write ONLY #include directives and function implementations.\n");
             c_rule_block.push_str("VIOLATION OF THIS CONSTITUTION WILL TRIGGER AN IMMEDIATE REJECT SIGNAL.\n");
         } else if target_file.ends_with(".hpp") {
             c_rule_block.push_str("\n### ⚠️ [CRITICAL WARNING - MANDATORY C++ HEADER RULE] ###\n");
@@ -556,6 +589,7 @@ impl AgentRuntime {
             c_rule_block.push_str("3. **MODULE DEPS**: Use local variable imports or `require` if referencing other Lua modules. Do NOT use C++ include directives.\n");
             c_rule_block.push_str("4. **NO COMPILER DIRECTIVES**: Do NOT write header guards, #define, or #ifndef in Lua files.\n");
             c_rule_block.push_str("5. **STRICT MODULE ALLOWLIST**: Only `require` modules that are (a) explicitly listed in ALLOWED INCLUDES, or (b) part of the Lua standard library. Any require not from these sources is FORBIDDEN.\n");
+            c_rule_block.push_str("6. **FFI TRANSLATION GUARD (MANDATORY)**: Lua scripts MUST NOT contain C++ static types like `std::vector`, `std::string`, `int`, etc. You MUST map C++ types to native Lua types (e.g., tables, strings, numbers). Any C++ type leaking into Lua code will trigger an immediate REJECT.\n");
             c_rule_block.push_str("VIOLATION OF THIS CONSTITUTION WILL TRIGGER AN IMMEDIATE REJECT SIGNAL.\n");
         } else if target_file.ends_with(".rs") {
             // P1-A: Rust 파일 타입 규칙 (완전 누락 상태였음)
@@ -692,6 +726,26 @@ impl AgentRuntime {
             "4. **NO STUBS**: Implement FULL functional logic. No placeholders or TODOs allowed.\n\n"
         };
 
+        // v0.0.31.38: [FIX_NEW_FILE_HALLUCINATION] Detect new file (no existing code)
+        // and switch from "preserve/modify" instructions to "create from scratch" instructions.
+        // Prevents Junior from generating "// Empty file" when told to "preserve ALL unrelated code".
+        let is_new_file = existing_code.trim().is_empty();
+
+        let thinking_instructions = if is_new_file {
+            "1. Analyze the ARCHITECTURE GUIDE and spec references for this target file.\n\
+             2. Design a COMPLETE implementation from scratch — there is NO existing code to preserve.\n\
+             3. Include ONLY the allowed headers listed in the EXECUTABLE CONTRACT CONSTRAINTS.\n\
+             4. Use proper include guards (#ifndef/#define/#endif) for header files.\n\
+             5. Declare/implement ALL functions, structs, and types defined in the ARCHITECTURE GUIDE.\n\
+             6. DO NOT output placeholder comments like '// Empty file' or '// TODO' — write real code."
+        } else {
+            "1. Compare the PREVIOUS FEEDBACK line-by-line against the EXISTING CODE.\n\
+             2. Identify the EXACT line numbers and function scope that require modification.\n\
+             3. Plan the MINIMAL change required — DO NOT rewrite the entire file.\n\
+             4. If this is a rework (retries > 0), review your previous .failed versions and ensure you do NOT repeat the same mistakes.\n\
+             5. Generate ONLY the corrected code section, preserving ALL unrelated code byte-for-byte."
+        };
+
         let system_prompt = format!(
             "### 🏛️ SOVEREIGN CONSTITUTION (v0.0.29 GLOBAL MANDATES) ###\n\
              1. **TECH STACK**: Use ONLY the libraries and dependencies explicitly listed in the ARCHITECTURE GUIDE and EXECUTABLE CONTRACT CONSTRAINTS. DO NOT assume SQLite, any database, or external runtime unless explicitly named in the contract.\n\
@@ -717,11 +771,7 @@ impl AgentRuntime {
               {feedback_block}\n\n\
               ### 🧠 THINKING PROCESS (CHAIN OF THOUGHTS) ###\n\
               BEFORE generating code, you MUST follow this reasoning sequence:\n\
-              1. Compare the PREVIOUS FEEDBACK line-by-line against the EXISTING CODE.\n\
-              2. Identify the EXACT line numbers and function scope that require modification.\n\
-              3. Plan the MINIMAL change required — DO NOT rewrite the entire file.\n\
-              4. If this is a rework (retries > 0), review your previous .failed versions and ensure you do NOT repeat the same mistakes.\n\
-              5. Generate ONLY the corrected code section, preserving ALL unrelated code byte-for-byte.\n\n\
+              {thinking_instructions}\n\n\
                ### 📄 EXISTING CODE ###\n\
                ```\n\
                {existing_code_patch}\n\
@@ -1182,6 +1232,7 @@ impl AgentRuntime {
              {}\n\
              {}\n\
              CRITICAL: You MUST analyze the SOURCE SPEC and extract EVERY module, EVERY function, and EVERY header defined there.\n\
+             MANDATORY CONTRACT: You MUST extract ALL function signatures described anywhere in the specification and map them exactly 1:1 to their corresponding file's `functions` array. Omitting even a single function signature is a severe contract violation.\n\
              For EACH component, you MUST populate:\n\
              - allowed_includes: headers this file MUST #include (extract from spec's build toolchain, API contracts, system dependency tables)\n\
              - metadata.ownership: what this file is responsible for (extract from spec's responsibility/ownership tables)\n\
@@ -2411,12 +2462,56 @@ let system_prompt = format!(
         })
     }
 
-    pub async fn review_proposal(&self, task: &Task, proposal: &Post, summary: Option<&Post>, event_bus: Option<Arc<axon_core::events::EventBus>>) -> anyhow::Result<Post> {
+    pub async fn review_proposal(&self, task: &Task, proposal: &Post, summary: Option<&Post>, event_bus: Option<Arc<axon_core::events::EventBus>>, lsp_report: Option<&str>, failed_diagnostics: Option<&[FailedDiagnostic]>, previous_failed_code: Option<&str>, previous_feedback: Option<&str>) -> anyhow::Result<Post> {
         tracing::info!("Agent {} (Senior) reviewing proposal for task {}...", self.agent.id, task.id);
         
         let summary_content = match summary {
             Some(s) => format!("\n--- SYSTEM SUMMARY ---\n{}\n", s.content),
             None => "".to_string(),
+        };
+
+        // v0.0.31.40: [LSP_GATEKEEPER] Inject LSP diagnostic report into Senior prompt
+        // Senior receives LSP diagnosis instead of raw code — focuses ONLY on spec compliance
+        let lsp_report_block = match lsp_report {
+            Some(report) if !report.is_empty() => {
+                format!("\n\n### 🛡️ LSP STATIC ANALYSIS REPORT ###\n{}\n[SYSTEM]: The above code has passed LSP static analysis. Focus ONLY on spec compliance and architecture rules. Do NOT re-check syntax.\n", report)
+            }
+            _ => "".to_string(),
+        };
+
+        // v0.0.32: [PINPOINT_DEFECT_ANALYSIS] Inject failed source + diagnostics for Senior review
+        // Senior analyzes the root cause, NOT the surface symptom. Diagnosis + Prescription only.
+        let pinpoint_block = if let (Some(diags), Some(failed_code)) = (&failed_diagnostics, &previous_failed_code) {
+            let diag_summary = diags.iter()
+                .map(|d| {
+                    let line_str = d.error_line.map(|l| format!("Line {}", l)).unwrap_or_else(|| "N/A".to_string());
+                    format!("- [{}] {} ({}): {}", line_str, d.gatekeeper, d.reason_classification, d.error_message)
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            format!(
+                "\n\n### 🎯 PINPOINT DEFECT ANALYSIS (MANDATORY) ###\n\
+                 [SYSTEM]: 주니어가 작성했다가 실패한 `.failed` 파일과 진단서가 첨부되었다.\n\
+                 너는 **코드를 직접 수정하지 않는다.** 진단(Diagnosis)과 처방(Prescription)만 발행한다.\n\n\
+                 --- FAILED SOURCE ({}.failed) ---\n\
+                 ```\n{}\n```\n\n\
+                 --- DIAGNOSTIC REPORT ---\n\
+                 {}\n\n\
+                 --- PINPOINT INSTRUCTION ---\n\
+                 1. 파일 전체를 새로 쓰지 마라.\n\
+                 2. 진단서의 error_line과 failed 파일을 대조하여 **근본 원인(root cause)**을 찾아라.\n\
+                    - error_line이 표면 증상일 수 있다 (예: include 누락이 상단에서 발생 → 하단에서 폭발).\n\
+                    - include 영역(1-10행), 함수 선언부, 실제 사용부를 모두 검토하라.\n\
+                 3. [DIAGNOSIS] 블록에 근본 원인을 명시하라.\n\
+                 4. [PRESCRIPTION] 블록에 Junior에게 전달할 수정 지령을 발행하라.\n\
+                    예: \"42번 라인의 타입을 GtkApplication*로 수정하고, 상단 17행에 #include <gtk/gtk.h>를 추가하라.\"\n\
+                 5. 라인 번호는 반드시 failed 파일에 실제로 존재하는 라인만 인용하라. 가상 라인 번호 조작 금지.\n",
+                std::path::Path::new(task.target_file.as_deref().unwrap_or("source")).file_stem().and_then(|s| s.to_str()).unwrap_or("source"),
+                failed_code,
+                diag_summary,
+            )
+        } else {
+            String::new()
         };
 
         let lang_name = match self.locale.as_str() {
@@ -2431,15 +2526,50 @@ let system_prompt = format!(
         let is_lua = target.ends_with(".lua");
         let is_integrator = matches!(task.task_kind, Some(axon_core::LanguageTaskKind::C(axon_core::CTaskKind::Integrator)));
 
-        let review_context = if is_header {
-            "\n\n[REVIEW CONTEXT: HEADER FILE DETECTED]\nThis is a HEADER file (.h/.hpp). Apply HEADER rules:\n- ONLY declarations (semicolon-terminated) are valid.\n- Function bodies {{ ... }} are FORBIDDEN → REJECT.\n- Forward declarations preferred over #include.\n- DO NOT reject for missing function bodies — headers don't implement.\n- DO NOT reject for 'no implementation' — that's the point of headers.\n".to_string()
-        } else if is_lua {
-            "\n\n[REVIEW CONTEXT: LUA SCRIPT DETECTED]\nThis is a LUA script (.lua). Apply LUA rules:\n- MUST contain valid Lua syntax.\n- C/C++ style #include or G_CALLBACK are FORBIDDEN. Do NOT ask for #include or header files.\n- Use 'require' instead of #include if loading external modules.\n- Functions MUST have complete implementation bodies with matching 'end' statements.\n- DO NOT reject for missing C/C++ header files or headers.\n".to_string()
-        } else if is_integrator {
-            "\n\n[REVIEW CONTEXT: SOURCE FILE (INTEGRATOR/ENTRYPOINT) DETECTED]\nThis is an ENTRYPOINT source file (main.c). Apply SOURCE rules:\n- Full function bodies {{ ... }} are REQUIRED.\n- #include of all dependent headers is MANDATORY.\n- #include of system headers (stdio, stdlib, gtk, etc.) is EXPECTED.\n- Focus on module linking, symbol interlocking, and correct main() signature.\n- DO NOT apply header-only rules (forward declaration minimization) to this file.\n".to_string()
+        // v0.0.31.38: [FIX_SENIOR_FILETYPE_HALLUCINATION] Explicitly state the file extension
+        // to prevent Senior from hallucinating ".c" for ".cpp" files.
+        let file_ext_hint = if target.is_empty() {
+            "unknown".to_string()
         } else {
-            "\n\n[REVIEW CONTEXT: SOURCE FILE DETECTED]\nThis is a SOURCE file (.c/.cpp). Apply SOURCE rules:\n- Function bodies {{ ... }} are REQUIRED — empty functions are a bug.\n- #include of corresponding .h is MANDATORY.\n- #include of system/third-party headers is EXPECTED and ALLOWED.\n- DO NOT apply header-only rules (forward declaration minimization) to source files.\n- DO NOT reject for 'unnecessary includes' in source — source files need their dependencies.\n- DO NOT claim 'function body in header' for a source file.\n".to_string()
+            format!(" (file extension: {})", std::path::Path::new(target).extension().and_then(|e| e.to_str()).unwrap_or("unknown"))
         };
+
+        let mut review_context = if is_header {
+            format!("\n\n[REVIEW CONTEXT: HEADER FILE DETECTED{}]\nThis is a HEADER file (.h/.hpp). Apply HEADER rules:\n- ONLY declarations (semicolon-terminated) are valid.\n- Function bodies {{ ... }} are FORBIDDEN → REJECT.\n- Forward declarations preferred over #include.\n- DO NOT reject for missing function bodies — headers don't implement.\n- DO NOT reject for 'no implementation' — that's the point of headers.\n", file_ext_hint)
+        } else if is_lua {
+            format!("\n\n[REVIEW CONTEXT: LUA SCRIPT DETECTED{}]\nThis is a LUA script (.lua). Apply LUA rules:\n- MUST contain valid Lua syntax.\n- C/C++ style #include or G_CALLBACK are FORBIDDEN. Do NOT ask for #include or header files.\n- Use 'require' instead of #include if loading external modules.\n- Functions MUST have complete implementation bodies with matching 'end' statements.\n- DO NOT reject for missing C/C++ header files or headers.\n", file_ext_hint)
+        } else if is_integrator {
+            format!("\n\n[REVIEW CONTEXT: SOURCE FILE (INTEGRATOR/ENTRYPOINT) DETECTED{}]\nThis is an ENTRYPOINT source file (main.c/cpp). Apply SOURCE rules:\n- Full function bodies {{ ... }} are REQUIRED.\n- #include of all dependent headers is MANDATORY.\n- #include of system headers (stdio, stdlib, gtk, etc.) is EXPECTED.\n- Focus on module linking, symbol interlocking, and correct main() signature.\n- DO NOT apply header-only rules (forward declaration minimization) to this file.\n", file_ext_hint)
+        } else {
+            // v0.0.31.38: [FIX_COMMENT_BODY_FALSE_REJECT] Clarify that comment-only bodies are valid stubs
+            format!("\n\n[REVIEW CONTEXT: SOURCE FILE DETECTED{}]\nThis is a SOURCE file (.c/.cpp). Apply SOURCE rules:\n- Function bodies {{ ... }} are REQUIRED — empty braces {{}} or comment-only bodies {{ // TODO }} are acceptable stubs for early-phase tasks.\n- DO NOT reject solely because a function body contains only comments — that is a valid placeholder implementation.\n- REJECT only if function bodies are COMPLETELY MISSING (no {{ }} at all).\n- #include of corresponding .h is MANDATORY.\n- #include of system/third-party headers is EXPECTED and ALLOWED.\n- DO NOT apply header-only rules (forward declaration minimization) to source files.\n- DO NOT reject for 'unnecessary includes' in source — source files need their dependencies.\n- DO NOT claim 'function body in header' for a source file.\n", file_ext_hint)
+        };
+
+        let mut constraint_block = String::new();
+        if let Some(ref ir) = self.ir {
+            if let Some(comp) = ir.get_component(target) {
+                constraint_block.push_str("\n### 🔒 EXECUTABLE CONTRACT CONSTRAINTS (MANDATORY REVIEW RULES) ###\n");
+                
+                if !comp.allowed_includes.is_empty() {
+                    constraint_block.push_str("- **ALLOWED INCLUDES**: Only these includes are permitted. If the proposed code includes any other header not listed here, you MUST output [REJECT] immediately: ");
+                    constraint_block.push_str(&comp.allowed_includes.iter().cloned().collect::<Vec<_>>().join(", "));
+                    constraint_block.push('\n');
+                }
+                
+                if !comp.forbidden_includes.is_empty() {
+                    constraint_block.push_str("- **FORBIDDEN INCLUDES**: If the proposed code includes any of these headers, you MUST output [REJECT] immediately: ");
+                    constraint_block.push_str(&comp.forbidden_includes.iter().cloned().collect::<Vec<_>>().join(", "));
+                    constraint_block.push('\n');
+                }
+                
+                if !comp.forbidden_symbols.is_empty() {
+                    constraint_block.push_str("- **FORBIDDEN SYMBOLS**: If the proposed code contains any of these symbols/functions, you MUST output [REJECT] immediately: ");
+                    constraint_block.push_str(&comp.forbidden_symbols.iter().cloned().collect::<Vec<_>>().join(", "));
+                    constraint_block.push('\n');
+                }
+            }
+        }
+        review_context.push_str(&constraint_block);
 
         let system_prompt = format!(
             "### SYSTEM: AI SENIOR AGENT: {} ###\n\
@@ -2469,10 +2599,12 @@ let system_prompt = format!(
                --- 태스크 ---\n\
               제목: {}\n\
               설명: {}\n\n\
-              --- 주니어 제안 ---\n\
-              {}\n\
-              {}\n\n\
-              --- 검토 규격 (CRITICAL) ---\n\
+                --- 주니어 제안 ---\n\
+                {}\n\
+                {}\n\
+                {}\n\
+                {}\n\n\
+               --- 검토 규격 (CRITICAL) ---\n\
                1. **Strict Reject Rules**: 논리적 중복(예: x - x), 하드코딩(예: 2023, 2024), 비효율적 조건문 발견 시 **즉시 REJECT**하고 날카로운 독설을 섞은 피드백을 남기십시오.\n\
                2. **KISS 원칙 강제**: '가장 단순한 코드가 최고의 코드'입니다. 불필요하게 복잡하게 꼬아놓은 로직은 지능의 부족을 가리기 위한 기만으로 간주하고 엄격히 평가하십시오.\n\
                3. **File-Type-Aware Rules**: 위의 [REVIEW CONTEXT] 블록에서 감지된 파일 타입의 규칙을 엄격히 따르십시오. 헤더 규칙을 소스에, 소스 규칙을 헤더에 절대 적용하지 마십시오.\n\
@@ -2490,14 +2622,16 @@ let system_prompt = format!(
                </REASONING>\n\
                [APPROVE]\n\
                제출된 파일은 무결한 순수 헤더 규격을 충족함. 승격 수락.",
-            self.agent.persona.name,
-            lang_name,
-            review_context,
-            task.title,
-            task.description,
-            proposal.content,
-            summary_content
-        );
+             self.agent.persona.name,
+             lang_name,
+             review_context,
+             task.title,
+             task.description,
+              proposal.content,
+              summary_content,
+              lsp_report_block,
+              pinpoint_block
+          );
 
         let resp = self.generate_with_retry(system_prompt, event_bus.as_ref(), Some(task.id.clone()), 0).await?;
         
@@ -2665,13 +2799,15 @@ fn parse_ir_from_llm_json(json: &str) -> anyhow::Result<axon_core::ir::ProjectIR
         // v0.0.29: Use physical file_path as the primary key for IR components
         // This ensures deterministic lookup from DecomposedTasks that use paths as IDs.
         // v0.0.31 Phase 6: Map allowed_includes and metadata from LLM output
+        // v0.0.31.37: [FIX_ENTRYPOINT_DETECT] Derive is_entrypoint from both explicit field AND "type": "entry"
+        let is_entrypoint = c.is_entrypoint || c._type.as_deref().map(|t| t.to_lowercase() == "entry").unwrap_or(false);
         components.insert(file.clone(), Component {
             name: c.name,
             file_path: file,
             functions,
             imports: BTreeSet::new(),
             associated_files: Vec::new(),
-            is_entrypoint: c.is_entrypoint,
+            is_entrypoint,
             data_models: Vec::new(),
             metadata: c.metadata.unwrap_or_default(),
             allowed_includes: c.allowed_includes.unwrap_or_default().into_iter().collect(),
@@ -3065,19 +3201,30 @@ pub fn extract_patch_envelope(raw: &str) -> axon_core::patch::PatchEnvelope {
         }
     }
 
-    if state == "reading_body" {
-        // END marker missing — truncated completion
-        tracing::warn!("⚠️ [PATCH_TRUNCATED] ===AXON_PATCH_END=== missing — completion was cut off");
-    } else if state == "reading_header" {
-        // BODY marker missing — malformed envelope
-        tracing::warn!("⚠️ [PATCH_TRUNCATED] ===AXON_PATCH_BODY=== missing — malformed envelope");
-    } else if state == "seeking_begin" {
-        // BEGIN marker missing — no envelope at all
-        tracing::debug!("⚠️ [NO_ENVELOPE] ===AXON_PATCH_BEGIN=== not found — falling back to legacy extractors");
-    }
+     if state == "reading_body" {
+         // END marker missing — truncated completion
+         tracing::warn!("⚠️ [PATCH_TRUNCATED] ===AXON_PATCH_END=== missing — completion was cut off");
+     } else if state == "reading_header" {
+         // BODY marker missing — malformed envelope
+         tracing::warn!("⚠️ [PATCH_TRUNCATED] ===AXON_PATCH_BODY=== missing — malformed envelope");
+     } else if state == "seeking_begin" {
+         // BEGIN marker missing — no envelope at all
+         tracing::debug!("⚠️ [NO_ENVELOPE] ===AXON_PATCH_BEGIN=== not found — falling back to legacy extractors");
+     }
 
-    envelope.validate();
-    envelope
+     // --- CONTAMINATED STUB GUARD ---
+     // If the envelope body is just the placeholder or empty, reject it as contaminated
+     let trimmed_body = envelope.body.trim();
+     if trimmed_body.is_empty() 
+        || trimmed_body == "<YOUR COMPLETE SOURCE CODE HERE>" 
+        || !trimmed_body.chars().any(|c| c.is_alphanumeric()) {
+         tracing::warn!("🚫 [CONTAMINATED_STUB] Envelope body is placeholder or empty — forcing REJECT");
+         // Mark as incomplete to trigger fallback extraction logic
+         envelope.is_complete = false;
+     }
+
+     envelope.validate();
+     envelope
 }
 
 /// v0.0.31.32: P1-A Deterministic Component Extractor
@@ -3691,8 +3838,6 @@ fn auto_repair_v2(input: &str) -> String {
     
     // --- Level -1: Repetition loop / Hallucination Guard ---
     let repeat_patterns = [
-        "### 🧠 THINKING PROCESS",
-        "### 📄 EXISTING CODE",
         "### ⚠️ PREVIOUS FEEDBACK",
         "===AXON_PATCH_BEGIN===",
         "===AXON_PATCH_START===",

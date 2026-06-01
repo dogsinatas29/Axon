@@ -1052,6 +1052,14 @@ impl ExecutionPipeline {
         }
     }
 
+    // v0.0.32: [PATCH_RADIUS] Adapter: FailedDiagnostic.error_line → allowed_regions
+    // Regions are 1-based inclusive line numbers (e.g. line 42 → (39, 45))
+    fn diagnostic_to_regions(diags: &[FailedDiagnostic]) -> Vec<(usize, usize)> {
+        diags.iter()
+            .filter_map(|d| d.error_line.map(|line| (line.saturating_sub(3), line + 3)))
+            .collect()
+    }
+
     // v0.0.32: [PATCH_RADIUS] Validate that Junior's patch output stays within allowed regions
     fn validate_patch_radius(
         original: &str,
@@ -1080,6 +1088,26 @@ impl ExecutionPipeline {
             }
         }
         Ok(())
+    }
+
+    // v0.0.32: [PATCH_RADIUS] Load failed diagnostic regions from .failed.json
+    fn load_failed_regions(sandbox_root: &PathBuf, target: &str) -> Vec<(usize, usize)> {
+        let sandbox_path = Self::sandbox_path(sandbox_root, target);
+        let failed_path = Self::failed_path(&sandbox_path);
+        let json_path = PathBuf::from(format!("{}.json", failed_path.to_string_lossy()));
+        match std::fs::read_to_string(&json_path) {
+            Ok(json) => match serde_json::from_str::<Vec<FailedDiagnostic>>(&json) {
+                Ok(diags) => Self::diagnostic_to_regions(&diags),
+                Err(e) => {
+                    tracing::debug!("[PATCH_RADIUS] Failed to parse {}: {}", json_path.display(), e);
+                    Vec::new()
+                }
+            },
+            Err(e) => {
+                tracing::debug!("[PATCH_RADIUS] Failed to load {}: {}", json_path.display(), e);
+                Vec::new()
+            }
+        }
     }
 
     // Phase 7-C: State transition logger
@@ -1635,6 +1663,26 @@ impl ExecutionPipeline {
                                 } else if let Ok(Ok(_)) = compile_result {
                                     tracing::info!("✅ [COMPILATION_GATE] 물리 컴파일 통과 — Senior로 전달");
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // v0.0.32: [PATCH_RADIUS] Failure 지역 내 변경 감시 (WARN-only)
+            if auto_reject_reason.is_none() && retries > 0 {
+                if let Some(ref target) = task.target_file {
+                    let regions = Self::load_failed_regions(sandbox_root, target);
+                    if !regions.is_empty() {
+                        if let Some(ref proposed) = modified_proposal.full_code {
+                            let sandbox_path = Self::sandbox_path(sandbox_root, target);
+                            let failed_path = Self::failed_path(&sandbox_path);
+                            let orig_code = std::fs::read_to_string(&failed_path)
+                                .or_else(|_| std::fs::read_to_string(&sandbox_path))
+                                .unwrap_or_default();
+                            if let Err(warn) = Self::validate_patch_radius(&orig_code, proposed, &regions) {
+                                tracing::warn!("{}", warn);
+                                // WARN-only — auto_reject_reason 미설정, 데이터 수집 후 격상 검토
                             }
                         }
                     }
